@@ -146,6 +146,12 @@ export async function GET() {
     const termStructure = prevVix != null ? vixTermStructure(vix, prevVix) : "flat";
     const pcProxy = putCallProxy(vixChg);
 
+    // Individual component inputs (each 0–100) so the dashboard widget
+    // can show the actual math rather than just the composite output.
+    const vixInput      = vixToFG(vix);                                                    // VIX  → 0-100
+    const momentumInput = Math.round(Math.max(0, Math.min(100, 50 + momentum5d(spyData.closes) * 5))); // trend → 0-100
+    const newsInput     = fgNews;                                                           // news → 0-100
+
     const payload = {
       // Legacy fields (keeps SentimentWidget working)
       score:    fearGreed,
@@ -156,7 +162,7 @@ export async function GET() {
       spyPrice:  spyPrice ? +spyPrice.toFixed(2) : null,
       spyChange: spyChg   ? +spyChg.toFixed(2)  : null,
 
-      // Extended fields (for the new sentiment page)
+      // Extended fields (for the Pulse page)
       overallScore,
       fearGreed,
       regime,
@@ -174,6 +180,14 @@ export async function GET() {
       })),
       newsCount: newsItems.length,
       fetchedAt: Date.now(),
+
+      // Component breakdown — used by the dashboard widget to show the math
+      breakdown: {
+        vixInput,
+        momentumInput,
+        newsInput,
+        weights: { vix: 60, momentum: 30, news: 10 },
+      },
     };
 
     cacheSet(CACHE_KEY, payload, CACHE_TTL);
