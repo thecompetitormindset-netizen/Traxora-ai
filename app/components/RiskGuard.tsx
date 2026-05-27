@@ -6,6 +6,9 @@ import { getPortfolio, sellStock, STARTING_BALANCE } from "../lib/trading";
 type Toast = { id: number; icon: string; title: string; body: string; color: string };
 let tid = 0;
 
+// Singleton guard — one interval globally
+let _riskGuardStarted = false;
+
 const CHECK_INTERVAL  = 5 * 60 * 1000; // 5 minutes
 const STOP_LOSS_PCT   = 0.08;           // 8% below avg buy price
 const CONCENTRATION   = 0.28;           // 28% of account value
@@ -23,6 +26,7 @@ export default function RiskGuard() {
 
   const runCheck = useCallback(async () => {
     if (!active) return;
+    if (document.hidden) return; // skip while tab is hidden
     const portfolio = getPortfolio();
     if (portfolio.holdings.length === 0) return;
 
@@ -46,6 +50,9 @@ export default function RiskGuard() {
       const concPct   = posValue / totalValue;
 
       // Stop-loss: down > 8%
+      // Skip if AutoTrader already owns this stop via the holding's stopLoss field.
+      // Letting both systems fire causes double-sells and "not enough shares" errors.
+      if (holding.stopLoss != null) continue;
       if (plPct <= -STOP_LOSS_PCT) {
         const lossStr = `${(plPct * 100).toFixed(1)}%`;
         push("🛡️",
@@ -86,9 +93,18 @@ export default function RiskGuard() {
 
   useEffect(() => {
     if (!active) return;
+    if (_riskGuardStarted) {
+      console.warn("[RiskGuard] duplicate mount detected — skipping interval setup");
+      return;
+    }
+    _riskGuardStarted = true;
     runCheck();
     const id = setInterval(runCheck, CHECK_INTERVAL);
-    return () => clearInterval(id);
+    console.log("[RiskGuard] check interval id:", id);
+    return () => {
+      _riskGuardStarted = false;
+      clearInterval(id);
+    };
   }, [active, runCheck]);
 
   return (
@@ -107,6 +123,7 @@ export default function RiskGuard() {
             </div>
             <button
               type="button"
+              aria-label="Dismiss alert"
               onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
               className="shrink-0 text-[#4B5675] hover:text-[#F1F5F9] transition-colors ml-auto"
             >

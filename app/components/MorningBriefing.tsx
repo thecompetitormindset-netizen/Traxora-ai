@@ -312,7 +312,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
             <div>
               <p className="text-[8px] font-black text-[#F1F5F9] uppercase tracking-widest mb-1.5">Facts</p>
               <ul className="space-y-1">
-                {opp.facts.map((f, i) => (
+                {(opp.facts ?? []).map((f, i) => (
                   <li key={i} className="text-[9px] text-[#7B8DB4] leading-relaxed flex gap-1.5">
                     <span className="text-indigo-400 shrink-0">•</span>{f}
                   </li>
@@ -322,7 +322,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
             <div>
               <p className="text-[8px] font-black text-amber-400 uppercase tracking-widest mb-1.5">Probabilities</p>
               <ul className="space-y-1">
-                {opp.probabilities.map((p, i) => (
+                {(opp.probabilities ?? []).map((p, i) => (
                   <li key={i} className="text-[9px] text-[#7B8DB4] leading-relaxed flex gap-1.5">
                     <span className="text-amber-400 shrink-0">~</span>{p}
                   </li>
@@ -397,9 +397,17 @@ export default function MorningBriefing() {
         body:    JSON.stringify({ portfolio: portfolioSnapshot }),
         cache:   "no-store",
       });
-      const data = await res.json();
-      if (data.error) {
-        setError(data.error as string);
+      let data: { ok?: boolean; reason?: string; error?: string; opportunities?: unknown[] };
+      try {
+        data = await res.json();
+      } catch {
+        setError("Briefing timed out — the server took too long. Please try again in a moment.");
+        return;
+      }
+      if (data.reason === "AI_UNAVAILABLE") {
+        setError("AI unavailable — your Anthropic API key is invalid or missing. Add a valid key to .env.local to enable the morning briefing.");
+      } else if (data.error) {
+        setError(data.error);
       } else if (data.opportunities?.length) {
         setBriefing(data as BriefingData);
         saveCache(data as BriefingData);
@@ -671,13 +679,13 @@ export default function MorningBriefing() {
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-2.5">
                       <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1.5">Sector Leaders</p>
-                      {ict?.sectorLeaders.map((s, i) => (
+                      {(ict?.sectorLeaders ?? []).map((s, i) => (
                         <p key={i} className="text-[10px] text-[#CBD5E1]">↑ {s}</p>
                       ))}
                     </div>
                     <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-2.5">
                       <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1.5">Sector Laggers</p>
-                      {ict?.sectorLaggers.map((s, i) => (
+                      {(ict?.sectorLaggers ?? []).map((s, i) => (
                         <p key={i} className="text-[10px] text-[#CBD5E1]">↓ {s}</p>
                       ))}
                     </div>
@@ -691,7 +699,7 @@ export default function MorningBriefing() {
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1.5">
                       <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Bullish Factors</p>
-                      {briefing.marketOutlook.bullishFactors.map((f, i) => (
+                      {(briefing.marketOutlook?.bullishFactors ?? []).map((f, i) => (
                         <div key={i} className="flex gap-2 items-start">
                           <span className="text-emerald-400 text-[10px] shrink-0">+</span>
                           <p className="text-[10px] text-[#7B8DB4]">{f}</p>
@@ -700,7 +708,7 @@ export default function MorningBriefing() {
                     </div>
                     <div className="space-y-1.5">
                       <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Bearish Factors</p>
-                      {briefing.marketOutlook.bearishFactors.map((f, i) => (
+                      {(briefing.marketOutlook?.bearishFactors ?? []).map((f, i) => (
                         <div key={i} className="flex gap-2 items-start">
                           <span className="text-rose-400 text-[10px] shrink-0">−</span>
                           <p className="text-[10px] text-[#7B8DB4]">{f}</p>
@@ -722,7 +730,7 @@ export default function MorningBriefing() {
                 <div className="px-6 pt-4 pb-5">
                   <SectionHead label="Risk Warnings" icon="⚠️" />
                   <div className="space-y-2">
-                    {briefing.riskWarnings.map((w, i) => (
+                    {(briefing.riskWarnings ?? []).map((w, i) => (
                       <div key={i} className="flex items-start gap-2">
                         <span className="text-rose-400 shrink-0 text-[10px] mt-0.5">!</span>
                         <p className="text-xs text-[#7B8DB4]">{w}</p>
@@ -741,7 +749,7 @@ export default function MorningBriefing() {
             {tab === "opportunities" && (
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
                 <SectionHead label="Top 10 Ranked Opportunities" icon="🎯" />
-                {briefing.opportunities.map(opp => (
+                {(briefing.opportunities ?? []).map(opp => (
                   <OppCard key={opp.rank} opp={opp} />
                 ))}
               </div>

@@ -8,6 +8,8 @@ import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
 import LiveTradingRoom from "../components/LiveTradingRoom";
 import { getPortfolio, STARTING_BALANCE, PORTFOLIO_UPDATED_EVENT, type Portfolio } from "../lib/trading";
+import { scopedKey } from "../lib/userState";
+import { fifoRealizedPL } from "../lib/pl";
 
 type StockCard = {
   symbol: string;
@@ -53,147 +55,7 @@ const FUTURES_LIST = [
   { symbol: "NG.COMM",  name: "Natural Gas",         category: "Energy", exchange: "NYMEX" },
 ];
 
-const ALL_ICT_CONCEPTS = [
-  {
-    tag: "OB",
-    tagColor: "bg-purple-500/10 text-purple-400 border-purple-500/20",
-    title: "Order Block",
-    desc: "The last bearish candle before a strong bullish move — or the last bullish candle before a drop. Smart money leaves footprints here. Traxora AI flags these zones as potential reversal points.",
-    example: "If AAPL sold off hard then reversed, the last green candle before the drop is a bearish OB.",
-  },
-  {
-    tag: "FVG",
-    tagColor: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    title: "Fair Value Gap",
-    desc: "A price imbalance — a zone where price moved so fast it left a gap of unfilled orders. Institutions often send price back to fill these gaps before continuing the move.",
-    example: "Price jumped from $180 to $185 in one candle. The $181–$184 range is a bullish FVG.",
-  },
-  {
-    tag: "LIQ",
-    tagColor: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
-    title: "Liquidity Sweep",
-    desc: "Stop-loss orders cluster above recent highs (buy-side liquidity) and below recent lows (sell-side liquidity). Smart money sweeps these levels to fill large orders before reversing.",
-    example: "Price briefly spikes above last week's high, triggers stops, then reverses down sharply.",
-  },
-  {
-    tag: "MSS",
-    tagColor: "bg-cyan-500/10 text-cyan-400 border-cyan-500/20",
-    title: "Market Structure Shift",
-    desc: "A change in trend direction confirmed by a break of a key swing high or low. A bullish MSS is when price breaks a prior high after a series of lower lows — trend is reversing.",
-    example: "Stock made lower highs for 3 days, then broke above the last swing high. Bullish MSS confirmed.",
-  },
-  {
-    tag: "OTE",
-    tagColor: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-    title: "Optimal Trade Entry",
-    desc: "The 62%–79% Fibonacci retracement zone of a swing move. This is where ICT traders look for entries after a pullback — giving the best risk/reward before the next leg up or down.",
-    example: "NVDA swings from $800 to $900. The OTE zone is $869–$878. That's where buyers re-enter.",
-  },
-  {
-    tag: "PD",
-    tagColor: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    title: "Premium & Discount",
-    desc: "Price above the 50% midpoint of a range is in 'premium' — expensive, ideal for sells. Price below the midpoint is in 'discount' — cheap, ideal for buys. Simple but powerful filter.",
-    example: "Day range: $100 low to $120 high. Midpoint = $110. If price is at $116, it's in premium — avoid buying.",
-  },
-  {
-    tag: "BRK",
-    tagColor: "bg-orange-500/10 text-orange-400 border-orange-500/20",
-    title: "Breaker Block",
-    desc: "A failed Order Block — an OB that price has already broken through. Once violated it flips polarity: former support becomes resistance and vice versa. Price is magnetically drawn back to these zones.",
-    example: "Bullish OB at $150 was breached to the downside. The $148–$150 zone is now a Bearish Breaker — expect rejection on any return.",
-  },
-  {
-    tag: "PO3",
-    tagColor: "bg-pink-500/10 text-pink-400 border-pink-500/20",
-    title: "Power of Three",
-    desc: "The 3-phase institutional cycle: Accumulation (institutions quietly build positions), Manipulation (a Judas Swing sweeps stops), Distribution (the real directional move). This plays out on every timeframe.",
-    example: "Asian session ranges at $200 (Accumulation). London spikes to $197 trapping bears (Manipulation). NY drives to $215 (Distribution).",
-  },
-  {
-    tag: "KZ",
-    tagColor: "bg-violet-500/10 text-violet-400 border-violet-500/20",
-    title: "Kill Zones",
-    desc: "Time windows when institutional order flow is heaviest and ICT setups have the highest probability. London Open 2–5 AM ET and NY Open 7–10 AM ET produce the most powerful moves.",
-    example: "NVDA drops at 3 AM ET to tap a discount FVG (London Kill Zone), then rockets +2% before 5 AM — textbook setup.",
-  },
-  {
-    tag: "NDOG",
-    tagColor: "bg-teal-500/10 text-teal-400 border-teal-500/20",
-    title: "New Day Opening Gap",
-    desc: "The price gap between yesterday's close and today's open. This inefficiency acts as a magnet — price will often return to fill it during the session before the real directional move continues.",
-    example: "SPY closed at $520. Opens at $523. The $520–$523 NDOG acts as a fill target during the NY session.",
-  },
-  {
-    tag: "BPR",
-    tagColor: "bg-sky-500/10 text-sky-400 border-sky-500/20",
-    title: "Balanced Price Range",
-    desc: "Two overlapping Fair Value Gaps — one bullish, one bearish — creating a zone of equilibrium. Institutions use BPRs to balance their books. Price entering a BPR often consolidates or reverses sharply.",
-    example: "Bullish FVG at $100–$102 overlaps a bearish FVG at $101–$103. The $101–$102 overlap is the BPR — a high-reaction zone.",
-  },
-  {
-    tag: "CE",
-    tagColor: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-    title: "Consequent Encroachment",
-    desc: "The exact 50% midpoint of a Fair Value Gap or Order Block. This is the most precise ICT entry level — institutions fill remaining orders here before continuation, minimising stop-loss distance.",
-    example: "Bullish FVG spans $180–$186. CE is at $183. A hold at $183 is a precision entry with a tight stop below $180.",
-  },
-  {
-    tag: "JS",
-    tagColor: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    title: "Judas Swing",
-    desc: "A deliberately engineered false move at session open to trap retail traders. After sweeping obvious stop-loss clusters, price violently reverses in the true institutional direction.",
-    example: "At 9:30 AM ET, SPY drops 0.8% below yesterday's low sweeping stops, then reverses and closes the day up 1.2%.",
-  },
-  {
-    tag: "MB",
-    tagColor: "bg-lime-500/10 text-lime-400 border-lime-500/20",
-    title: "Mitigation Block",
-    desc: "A price level where a prior Order Block has been partially visited once. The first touch causes a reaction but doesn't fully fill. The second return is where remaining institutional orders trigger the real move.",
-    example: "Bearish OB at $250 caused a 3% drop on first touch. Price retraces to $250 again — institutional sell orders waiting trigger the second leg down.",
-  },
-  {
-    tag: "SSL",
-    tagColor: "bg-red-500/10 text-red-400 border-red-500/20",
-    title: "Sell-Side Liquidity",
-    desc: "Clustered stop-loss orders sitting below obvious swing lows, equal lows, or round numbers. Institutions push price below these levels to trigger stops and buy from panicking retail traders before reversing upward.",
-    example: "AAPL has a swing low at $220 tested twice. SSL sits at $219.50. A sweep to $219.20 that snaps back above $220 is a textbook SSL grab.",
-  },
-  {
-    tag: "BSL",
-    tagColor: "bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/20",
-    title: "Buy-Side Liquidity",
-    desc: "Clustered stop-loss orders sitting above obvious swing highs, equal highs, or round numbers. Smart money pushes price above these levels to sell into retail demand, then reverses the market downward.",
-    example: "MSFT has a double top at $415. BSL pools above $415.50. A wick above $416 that closes back below $415 signals institutions sold into the spike.",
-  },
-];
 
-const HOW_IT_WORKS = [
-  {
-    step: "01",
-    title: "AI scans the market",
-    desc: "Every time you open an analysis, Claude Opus 4.7 processes the live OHLC data and applies ICT Smart Money Concepts to identify the institutional bias.",
-    color: "text-indigo-400",
-    border: "border-indigo-500/20",
-    bg: "bg-indigo-500/5",
-  },
-  {
-    step: "02",
-    title: "Signal fires on your phone",
-    desc: "When a high-confidence BUY or SELL is detected, a push notification hits your phone. Tap it and you land directly on the analysis with the full breakdown.",
-    color: "text-emerald-400",
-    border: "border-emerald-500/20",
-    bg: "bg-emerald-500/5",
-  },
-  {
-    step: "03",
-    title: "You trade on Robinhood",
-    desc: "Review the ICT context — Order Block, FVG, Liquidity level — then open Robinhood and place your trade. The step-by-step guide on every analysis page walks you through it.",
-    color: "text-amber-400",
-    border: "border-amber-500/20",
-    bg: "bg-amber-500/5",
-  },
-];
 
 function signalBadge(signal: string | null) {
   if (signal === "BUY")  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
@@ -214,7 +76,11 @@ function changeColor(v: number | null) {
 
 function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", price: number, confidence: string) {
   if (typeof window === "undefined") return;
-  // Fire custom event — AutoTrader picks this up to execute immediately
+  // Always persist alert regardless of push notification permission
+  const existing = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]");
+  existing.unshift({ symbol, name, signal, price, confidence, time: Date.now() });
+  localStorage.setItem(scopedKey("traxora_alerts"), JSON.stringify(existing.slice(0, 50)));
+  // Fire event AFTER save so Topbar badge reads the updated count
   window.dispatchEvent(new CustomEvent("traxora-signal", {
     detail: { symbol, name, signal, price, confidence }
   }));
@@ -225,33 +91,8 @@ function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", 
     { body: `${name} · $${price.toFixed(2)} · ${confidence} confidence — auto-trading now`, icon: "/icon-192.png", tag: `signal-${symbol}` }
   );
   notif.onclick = () => { window.focus(); window.location.href = `/analysis?symbol=${encodeURIComponent(symbol)}`; notif.close(); };
-  const existing = JSON.parse(localStorage.getItem("traxora_alerts") ?? "[]");
-  existing.unshift({ symbol, name, signal, price, confidence, time: Date.now() });
-  localStorage.setItem("traxora_alerts", JSON.stringify(existing.slice(0, 50)));
 }
 
-function fifoRealizedPL(trades: Portfolio["trades"]): number {
-  const sorted = [...trades].reverse();
-  const queues: Record<string, { price: number; qty: number }[]> = {};
-  let total = 0;
-  for (const t of sorted) {
-    if (t.side === "BUY") {
-      if (!queues[t.symbol]) queues[t.symbol] = [];
-      queues[t.symbol].push({ price: t.price, qty: t.quantity });
-    } else {
-      let rem = t.quantity;
-      while (rem > 0 && queues[t.symbol]?.length > 0) {
-        const buy = queues[t.symbol][0];
-        const matched = Math.min(rem, buy.qty);
-        total += (t.price - buy.price) * matched;
-        buy.qty -= matched;
-        rem -= matched;
-        if (buy.qty === 0) queues[t.symbol].shift();
-      }
-    }
-  }
-  return total;
-}
 
 export default function DashboardPage() {
   const [portfolio, setPortfolio] = useState<Portfolio>({
@@ -269,6 +110,7 @@ export default function DashboardPage() {
   }, []);
 
   const fetchPrices = useCallback(async (holdings: Portfolio["holdings"]) => {
+    if (document.hidden) return; // skip while tab is hidden
     if (holdings.length === 0) { setPrices({}); return; }
     const results = await Promise.allSettled(
       holdings.map(async (h) => {
@@ -330,27 +172,6 @@ export default function DashboardPage() {
   const [competeTotal, setCompeteTotal] = useState<number | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const prevSignals  = useRef<Record<string, string>>({});
-  const ictReplacePos = useRef(0);
-  const [ictIndices, setIctIndices] = useState([0, 1, 2, 3, 4, 5]);
-
-  // Rotate one ICT concept card every 3.5 s, cycling through all 16
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setIctIndices((prev) => {
-        const pos  = ictReplacePos.current % 6;
-        ictReplacePos.current++;
-        const available = ALL_ICT_CONCEPTS
-          .map((_, i) => i)
-          .filter((i) => !prev.includes(i));
-        if (available.length === 0) return prev;
-        const next = available[Math.floor(Math.random() * available.length)];
-        const updated = [...prev];
-        updated[pos] = next;
-        return updated;
-      });
-    }, 3500);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -495,15 +316,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const raw = localStorage.getItem("traxora-portfolio");
-      if (!raw) return;
-      const p = JSON.parse(raw);
-      const invested = (p.holdings ?? []).reduce((s: number, h: { quantity: number; avgPrice: number }) => s + h.quantity * h.avgPrice, 0);
-      const total = (p.cash ?? 10000) + invested;
+      const p = getPortfolio();
+      const invested = p.holdings.reduce((s, h) => s + h.quantity * h.avgPrice, 0);
+      const total = p.cash + invested;
       setCompeteTotal(total);
       let rank = 1;
       for (const id of ["apex","delta","vera"]) {
-        const br = localStorage.getItem(`traxora-bot-${id}`);
+        const br = localStorage.getItem(scopedKey(`traxora-bot-${id}`));
         if (!br) continue;
         const bp = JSON.parse(br);
         const bi = (bp.holdings ?? []).reduce((s: number, h: { quantity: number; avgPrice: number }) => s + h.quantity * h.avgPrice, 0);
@@ -807,68 +626,8 @@ export default function DashboardPage() {
             </div>
           </section>
 
-          {/* ── PAGE 3: ICT SMART MONEY CONCEPTS ── */}
+          {/* ── PAGE 3: RISK RULES + BROKER CTA ── */}
           <section>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold tracking-tight">ICT Smart Money Concepts</h2>
-              <p className="text-sm text-[#7B8DB4] mt-1">
-                What Traxora AI looks for on every chart — the same framework institutional traders use. All 16 concepts rotate live.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {ictIndices.map((conceptIdx, pos) => {
-                const c = ALL_ICT_CONCEPTS[conceptIdx];
-                return (
-                  <div key={`${pos}-${conceptIdx}`} className="animate-ict-in bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${c.tagColor}`}>{c.tag}</span>
-                      <p className="font-semibold text-sm">{c.title}</p>
-                    </div>
-                    <p className="text-xs text-[#7B8DB4] leading-relaxed mb-3">{c.desc}</p>
-                    <div className="bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2.5">
-                      <p className="text-[10px] font-semibold text-[#4B5675] uppercase tracking-wider mb-1">Example</p>
-                      <p className="text-xs text-[#CBD5E1] leading-relaxed">{c.example}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 bg-indigo-500/5 border border-indigo-500/15 rounded-2xl p-5 flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" /><polyline points="16 7 22 7 22 13" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-indigo-300">See ICT analysis on any chart</p>
-                <p className="text-xs text-[#7B8DB4] mt-0.5">Open any stock or futures on the Analysis page — Traxora AI runs all 6 concepts automatically and shows you the setup.</p>
-              </div>
-              <Link href="/analysis" className="shrink-0 bg-indigo-600 hover:bg-indigo-500 transition-colors px-4 py-2 rounded-xl text-xs font-semibold text-white">
-                Open Analysis →
-              </Link>
-            </div>
-          </section>
-
-          {/* ── PAGE 4: HOW TO TRADE + WEBULL CTA ── */}
-          <section>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold tracking-tight">How to Trade With Traxora</h2>
-              <p className="text-sm text-[#7B8DB4] mt-1">From signal to executed trade in 3 steps — even if you&apos;ve never traded before.</p>
-            </div>
-
-            {/* 3-step guide */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              {HOW_IT_WORKS.map((s) => (
-                <div key={s.step} className={`${s.bg} border ${s.border} rounded-2xl p-5`}>
-                  <p className={`text-3xl font-black font-mono mb-3 ${s.color} opacity-40`}>{s.step}</p>
-                  <p className={`text-sm font-bold mb-2 ${s.color}`}>{s.title}</p>
-                  <p className="text-xs text-[#7B8DB4] leading-relaxed">{s.desc}</p>
-                </div>
-              ))}
-            </div>
-
             {/* Risk rules */}
             <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5 mb-6">
               <p className="text-sm font-semibold mb-4">5 rules to protect your money</p>

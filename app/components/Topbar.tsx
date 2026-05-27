@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { scopedKey } from "../lib/userState";
 
 type SearchItem = {
   code: string;
@@ -33,14 +34,14 @@ export default function Topbar({ onSearch }: TopbarProps) {
   useEffect(() => {
     function loadCount() {
       try {
-        const alerts = JSON.parse(localStorage.getItem("traxora_alerts") ?? "[]");
+        const alerts = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]");
         setAlertCount(Array.isArray(alerts) ? alerts.length : 0);
       } catch { setAlertCount(0); }
     }
     loadCount();
     window.addEventListener("traxora-signal", loadCount);
     return () => window.removeEventListener("traxora-signal", loadCount);
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -191,7 +192,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
               onClick={() => signOut({ callbackUrl: "/login" })}
               className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
-              Out
+              Sign out
             </button>
           </div>
         ) : (

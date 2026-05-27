@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -199,9 +201,26 @@ function etSession(): string {
 
 // ── Main handler ───────────────────────────────────────────────────────────────
 
+function sanitizeSymbol(raw: string): string | null {
+  const clean = String(raw).replace(/\.(US|COMM|F)$/i, "").toUpperCase().trim();
+  if (!/^[A-Z]{1,5}(\.[A-Z])?$/.test(clean)) return null;
+  return clean;
+}
+
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`ict:${session.user.email}`, 5, 60_000)) {
+    return Response.json({ error: "Rate limit — max 5 deep analyses per minute" }, { status: 429 });
+  }
+
   const { symbol } = await req.json() as { symbol: string };
-  const ticker = symbol.replace(/\.(US|COMM|F)$/i, "");
+  const ticker = sanitizeSymbol(symbol);
+  if (!ticker) {
+    return Response.json({ error: "Invalid symbol" }, { status: 400 });
+  }
 
   // Fetch data in parallel
   const [daily, weekly, news] = await Promise.all([
@@ -467,8 +486,8 @@ Return ONLY valid JSON.`;
 
   try {
     const response = await client.messages.create({
-      model:      "claude-haiku-4-5-20251001",
-      max_tokens: 4000,
+      model:      "claude-sonnet-4-6",
+      max_tokens: 8000,
       messages:   [{ role: "user", content: prompt }],
     });
 
@@ -499,6 +518,10 @@ Return ONLY valid JSON.`;
 
     return Response.json(parsed);
   } catch (err) {
+    const status = (err as { status?: unknown }).status;
+    if (status === 401 || status === 403) {
+      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    }
     return Response.json(
       { error: `ICT analysis failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 },

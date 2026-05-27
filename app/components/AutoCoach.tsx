@@ -2,9 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getPortfolio, PORTFOLIO_UPDATED_EVENT } from "../lib/trading";
+import { scopedKey } from "../lib/userState";
 
 const MILESTONE_EVERY = 10; // every 10 trades
 const LAST_COACHED_KEY = "traxora-last-coached";
+
+let _autoCoachStarted = false;
 
 function calcWinRate(trades: Array<{ side: string; symbol: string; price: number }>) {
   const buys: Record<string, number[]> = {};
@@ -31,17 +34,20 @@ export default function AutoCoach() {
   const lastCountRef          = useRef<number | null>(null);
 
   useEffect(() => {
+    if (_autoCoachStarted) { console.warn("[AutoCoach] duplicate mount — skipping"); return; }
+    _autoCoachStarted = true;
+
     const initial = getPortfolio();
     lastCountRef.current = initial.trades.length;
 
     async function check() {
       const portfolio = getPortfolio();
       const count     = portfolio.trades.length;
-      const lastCoached = Number(localStorage.getItem(LAST_COACHED_KEY) ?? "0");
+      const lastCoached = Number(localStorage.getItem(scopedKey(LAST_COACHED_KEY)) ?? "0");
 
       // Fire at every MILESTONE_EVERY-th trade
       if (count > 0 && count % MILESTONE_EVERY === 0 && count !== lastCoached) {
-        localStorage.setItem(LAST_COACHED_KEY, String(count));
+        localStorage.setItem(scopedKey(LAST_COACHED_KEY), String(count));
         const { wins, losses, winRate } = calcWinRate(portfolio.trades);
         setLoading(true);
         setVisible(true);
@@ -53,8 +59,12 @@ export default function AutoCoach() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ trades: portfolio.trades, wins, losses, winRate }),
           });
-          const data = await res.json();
-          setReport(data.report ?? null);
+          const data = await res.json() as { report?: string; reason?: string };
+          if (!res.ok || data.reason === "AI_UNAVAILABLE") {
+            setReport("AI features temporarily unavailable — please check back shortly.");
+          } else {
+            setReport(data.report ?? null);
+          }
         } catch {
           setReport("Could not generate coaching report — check your API key.");
         } finally {
@@ -64,7 +74,10 @@ export default function AutoCoach() {
     }
 
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, check);
-    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, check);
+    return () => {
+      window.removeEventListener(PORTFOLIO_UPDATED_EVENT, check);
+      _autoCoachStarted = false;
+    };
   }, []);
 
   if (!visible) return null;

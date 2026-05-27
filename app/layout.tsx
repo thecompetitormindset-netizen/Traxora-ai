@@ -65,7 +65,7 @@ export default function RootLayout({
         <script
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='midnight')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
       </head>
@@ -78,14 +78,14 @@ export default function RootLayout({
           <Providers>
             <SessionWatcher />
             {children}
+            <AIChatWidget />
+            <AutoTrader />
+            <AutoScanner />
+            <AutoJournal />
+            <MorningBriefing />
+            <RiskGuard />
+            <AutoCoach />
           </Providers>
-          <AIChatWidget />
-          <AutoTrader />
-          <AutoScanner />
-          <AutoJournal />
-          <MorningBriefing />
-          <RiskGuard />
-          <AutoCoach />
           <ServiceWorkerRegistrar />
         </div>
       </body>

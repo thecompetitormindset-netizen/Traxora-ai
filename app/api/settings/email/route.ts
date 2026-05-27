@@ -11,7 +11,7 @@ async function readSavedEmail(): Promise<string | null> {
     const raw = await fs.readFile(FILE, "utf-8");
     return (JSON.parse(raw) as { email?: string }).email ?? null;
   } catch {
-    return process.env.USER_EMAIL ?? null;
+    return null;
   }
 }
 
@@ -19,9 +19,7 @@ async function writeEmail(email: string): Promise<void> {
   try {
     await fs.mkdir(path.dirname(FILE), { recursive: true });
     await fs.writeFile(FILE, JSON.stringify({ email }, null, 2));
-  } catch {
-    // read-only filesystem (Vercel) — falls back to USER_EMAIL env var
-  }
+  } catch { /* read-only filesystem on Vercel — subscription stored in-memory only */ }
 }
 
 async function deleteEmail(): Promise<void> {
@@ -55,6 +53,10 @@ export async function POST() {
 }
 
 export async function DELETE() {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ error: "Not signed in" }, { status: 401 });
+  }
   await deleteEmail();
   return Response.json({ ok: true });
 }

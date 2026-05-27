@@ -47,6 +47,7 @@ export default function PortfolioPage() {
   }, []);
 
   const fetchPrices = useCallback(async (holdings: Portfolio["holdings"]) => {
+    if (document.hidden) return; // skip while tab is hidden
     if (holdings.length === 0) { setPrices({}); return; }
     const results = await Promise.allSettled(
       holdings.map(async (h) => {

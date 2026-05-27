@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { getPortfolio, PORTFOLIO_UPDATED_EVENT, type Trade } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
+import { fifoEntryForSell } from "../lib/pl";
 
 export type TradeAnalysis = {
   grade:    string;
@@ -34,6 +35,8 @@ export type JournalEntry = {
 
 const JOURNAL_KEY_BASE = "traxora-journal";
 
+let _autoJournalStarted = false;
+
 export function getJournal(): JournalEntry[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(scopedKey(JOURNAL_KEY_BASE)) ?? "[]"); }
@@ -64,18 +67,10 @@ async function generateEntry(
   let plPct:      number | undefined;
 
   if (trade.side === "SELL") {
-    const allBuys = allTrades.filter(
-      t => t.symbol === trade.symbol && t.side === "BUY",
-    );
-    if (allBuys.length > 0) {
-      const totalCost = allBuys.reduce((s, t) => s + t.quantity * t.price, 0);
-      const totalQty  = allBuys.reduce((s, t) => s + t.quantity, 0);
-      if (totalQty > 0) {
-        entryPrice = totalCost / totalQty;
-        pl         = (trade.price - entryPrice) * trade.quantity;
-        plPct      = ((trade.price - entryPrice) / entryPrice) * 100;
-      }
-    }
+    const fifo = fifoEntryForSell(trade, allTrades);
+    entryPrice = fifo.entryPrice;
+    pl         = fifo.pl;
+    plPct      = fifo.plPct;
   }
 
   const closeReason: JournalEntry["closeReason"] =
@@ -150,6 +145,9 @@ export default function AutoJournal() {
   const backfillDoneRef   = useRef(false);
 
   useEffect(() => {
+    if (_autoJournalStarted) { console.warn("[AutoJournal] duplicate mount — skipping"); return; }
+    _autoJournalStarted = true;
+
     const portfolio = getPortfolio();
     lastTradeCountRef.current = portfolio.trades.length;
 
@@ -199,7 +197,10 @@ export default function AutoJournal() {
     }
 
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, handlePortfolioUpdate);
-    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, handlePortfolioUpdate);
+    return () => {
+      window.removeEventListener(PORTFOLIO_UPDATED_EVENT, handlePortfolioUpdate);
+      _autoJournalStarted = false;
+    };
   }, []);
 
   return null;

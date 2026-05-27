@@ -1,81 +1,183 @@
-async function fetchYahoo(symbol: string) {
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
-    `?interval=1d&range=10d`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: { "User-Agent": "Mozilla/5.0" },
-  });
-  const data = await res.json();
-  const result = data?.chart?.result?.[0];
-  const meta = result?.meta;
-  const closes: number[] = result?.indicators?.quote?.[0]?.close ?? [];
-  return { meta, closes };
+export const runtime     = "nodejs";
+export const dynamic     = "force-dynamic";
+export const maxDuration = 30;
+
+import { cacheGet, cacheSet } from "../../lib/sentiment";
+
+const CACHE_KEY = "sentiment:market-data";
+const CACHE_TTL = 15 * 60 * 1_000; // 15 minutes
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+
+async function yq(sym: string) {
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=6d`;
+    const r = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(7_000),
+    });
+    const d = await r.json();
+    const meta   = d?.chart?.result?.[0]?.meta;
+    const closes: number[] = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
+    return { meta, closes };
+  } catch { return { meta: null, closes: [] }; }
 }
 
-function vixToScore(vix: number): number {
-  // Lower VIX = more greed; higher VIX = more fear
-  if (vix < 12) return 90;
-  if (vix < 15) return 75;
-  if (vix < 20) return 58;
-  if (vix < 25) return 42;
-  if (vix < 30) return 28;
-  if (vix < 40) return 15;
+function momentum5d(closes: number[]): number {
+  const v = closes.filter(Boolean);
+  if (v.length < 2) return 0;
+  return ((v.at(-1)! - v[0]) / v[0]) * 100;
+}
+
+function vixTermStructure(vix: number, prevVix: number): "contango" | "backwardation" | "flat" {
+  const diff = vix - prevVix;
+  if (diff >  0.5) return "backwardation"; // spot > future = fear spiking
+  if (diff < -0.5) return "contango";      // spot < future = calm
+  return "flat";
+}
+
+function vixToFG(vix: number): number {
+  if (vix < 12) return 92;
+  if (vix < 15) return 78;
+  if (vix < 18) return 63;
+  if (vix < 20) return 52;
+  if (vix < 25) return 40;
+  if (vix < 30) return 26;
+  if (vix < 40) return 14;
   return 5;
 }
 
-function momentumBonus(closes: number[]): number {
-  const valid = closes.filter(Boolean);
-  if (valid.length < 2) return 0;
-  const pct = ((valid[valid.length - 1] - valid[0]) / valid[0]) * 100;
-  // 5-day momentum: cap adjustment at ±12 points
-  return Math.max(-12, Math.min(12, pct * 2.5));
+function scoreLabel(s: number) {
+  if (s >= 80) return { label: "Extreme Greed", color: "emerald" };
+  if (s >= 60) return { label: "Greed",         color: "green"   };
+  if (s >= 40) return { label: "Neutral",        color: "amber"   };
+  if (s >= 20) return { label: "Fear",           color: "orange"  };
+  return            { label: "Extreme Fear",     color: "rose"    };
 }
 
-function scoreToLabel(score: number): { label: string; color: string } {
-  if (score >= 80) return { label: "Extreme Greed", color: "emerald" };
-  if (score >= 60) return { label: "Greed",         color: "green" };
-  if (score >= 40) return { label: "Neutral",        color: "amber" };
-  if (score >= 20) return { label: "Fear",           color: "orange" };
-  return           { label: "Extreme Fear",          color: "rose" };
+function sentimentRegime(score: number): string {
+  if (score >= 65) return "Risk-On";
+  if (score >= 45) return "Transitional";
+  return "Risk-Off";
 }
+
+// Derive a put/call proxy from VIX momentum:
+// VIX rising fast = investors buying more puts = put/call high
+function putCallProxy(vixChg: number): { value: number; avg: number; interpretation: string } {
+  const value = Math.max(0.4, Math.min(2.5, 1.0 + vixChg * 0.04));
+  const avg   = 0.85;
+  const interpretation =
+    value > 1.2 ? "Elevated put buying — defensive hedging" :
+    value < 0.7 ? "Call dominant — speculative bullishness" :
+    "Balanced options flow";
+  return { value: +value.toFixed(2), avg, interpretation };
+}
+
+// Fetch Alpha Vantage news sentiment for market headlines
+async function fetchAVNews(): Promise<Array<{ title: string; source: string; sentiment: string; score: number }>> {
+  const key = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!key) return [];
+  try {
+    const url = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&topics=financial_markets,economy_macro&sort=LATEST&limit=20&apikey=${key}`;
+    const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    const d = await r.json();
+    if (!Array.isArray(d?.feed)) return [];
+    return (d.feed as Array<{ title?: string; source?: string; overall_sentiment_label?: string; overall_sentiment_score?: number }>)
+      .slice(0, 20)
+      .map(item => ({
+        title:     item.title     ?? "",
+        source:    item.source    ?? "",
+        sentiment: item.overall_sentiment_label ?? "Neutral",
+        score:     typeof item.overall_sentiment_score === "number" ? item.overall_sentiment_score : 0,
+      }));
+  } catch { return []; }
+}
+
+// ── Main handler ───────────────────────────────────────────────────────────
 
 export async function GET() {
+  const cached = cacheGet<object>(CACHE_KEY);
+  if (cached) return Response.json(cached);
+
   try {
-    const [vixData, spyData] = await Promise.all([
-      fetchYahoo("^VIX"),
-      fetchYahoo("SPY"),
+    const [vixData, spyData, qqqData, iwmData, newsItems] = await Promise.all([
+      yq("^VIX"),
+      yq("SPY"),
+      yq("QQQ"),
+      yq("IWM"),
+      fetchAVNews(),
     ]);
 
-    const vix = vixData.meta?.regularMarketPrice as number | undefined;
-    const vixChange = vix != null && vixData.meta?.chartPreviousClose
-      ? ((vix - vixData.meta.chartPreviousClose) / vixData.meta.chartPreviousClose) * 100
-      : null;
+    const vix      = vixData.meta?.regularMarketPrice as number | undefined;
+    const prevVix  = (vixData.meta?.chartPreviousClose ?? vixData.meta?.previousClose) as number | undefined;
+    const vixChg   = vix != null && prevVix ? ((vix - prevVix) / prevVix) * 100 : 0;
 
-    const spyPrice = spyData.meta?.regularMarketPrice as number | undefined;
-    const spyPrevClose = spyData.meta?.chartPreviousClose as number | undefined;
-    const spyChange = spyPrice && spyPrevClose
-      ? ((spyPrice - spyPrevClose) / spyPrevClose) * 100
-      : null;
+    const spyPrice = spyData.meta?.regularMarketPrice  as number | undefined;
+    const spyPrev  = spyData.meta?.chartPreviousClose as number | undefined;
+    const spyChg   = spyPrice && spyPrev ? ((spyPrice - spyPrev) / spyPrev) * 100 : 0;
+
+    const qqqPrice = qqqData.meta?.regularMarketPrice  as number | undefined;
+    const qqqPrev  = qqqData.meta?.chartPreviousClose as number | undefined;
+    const qqqChg   = qqqPrice && qqqPrev ? ((qqqPrice - qqqPrev) / qqqPrev) * 100 : 0;
+
+    const iwmPrice = iwmData.meta?.regularMarketPrice  as number | undefined;
+    const iwmPrev  = iwmData.meta?.chartPreviousClose as number | undefined;
+    const iwmChg   = iwmPrice && iwmPrev ? ((iwmPrice - iwmPrev) / iwmPrev) * 100 : 0;
 
     if (vix == null) {
-      return Response.json({ error: "Could not fetch sentiment data" }, { status: 500 });
+      return Response.json({ error: "Market data unavailable" }, { status: 503 });
     }
 
-    const base = vixToScore(vix);
-    const bonus = momentumBonus(spyData.closes);
-    const score = Math.round(Math.max(0, Math.min(100, base + bonus)));
-    const { label, color } = scoreToLabel(score);
+    // Fear & Greed composite
+    const fgBase   = vixToFG(vix);
+    const fgMomentum = Math.max(-12, Math.min(12, momentum5d(spyData.closes) * 2.5));
+    const newsAvg  = newsItems.length > 0
+      ? newsItems.reduce((s, n) => s + n.score, 0) / newsItems.length
+      : 0;
+    const fgNews   = Math.round(newsAvg * 50 + 50);
+    const fearGreed = Math.round(Math.max(0, Math.min(100, fgBase * 0.60 + (fgBase + fgMomentum) * 0.30 + fgNews * 0.10)));
 
-    return Response.json({
-      score,
+    // Overall score on -100 to +100 scale
+    const overallScore = Math.round((fearGreed - 50) * 2);
+
+    const { label, color } = scoreLabel(fearGreed);
+    const regime = sentimentRegime(fearGreed);
+    const termStructure = prevVix != null ? vixTermStructure(vix, prevVix) : "flat";
+    const pcProxy = putCallProxy(vixChg);
+
+    const payload = {
+      // Legacy fields (keeps SentimentWidget working)
+      score:    fearGreed,
       label,
       color,
-      vix: vix ? +vix.toFixed(2) : null,
-      vixChange: vixChange ? +vixChange.toFixed(2) : null,
-      spyPrice: spyPrice ? +spyPrice.toFixed(2) : null,
-      spyChange: spyChange ? +spyChange.toFixed(2) : null,
-    });
+      vix:      vix     ? +vix.toFixed(2)      : null,
+      vixChange: vixChg ? +vixChg.toFixed(2)   : null,
+      spyPrice:  spyPrice ? +spyPrice.toFixed(2) : null,
+      spyChange: spyChg   ? +spyChg.toFixed(2)  : null,
+
+      // Extended fields (for the new sentiment page)
+      overallScore,
+      fearGreed,
+      regime,
+      qqqPrice:  qqqPrice  ? +qqqPrice.toFixed(2) : null,
+      qqqChange: qqqChg    ? +qqqChg.toFixed(2)   : null,
+      iwmPrice:  iwmPrice  ? +iwmPrice.toFixed(2) : null,
+      iwmChange: iwmChg    ? +iwmChg.toFixed(2)   : null,
+      vixTermStructure: termStructure,
+      putCallProxy:     pcProxy,
+      topHeadlines: newsItems.slice(0, 10).map(n => ({
+        title:     n.title,
+        source:    n.source,
+        sentiment: n.sentiment,
+        score:     n.score,
+      })),
+      newsCount: newsItems.length,
+      fetchedAt: Date.now(),
+    };
+
+    cacheSet(CACHE_KEY, payload, CACHE_TTL);
+    return Response.json(payload);
   } catch {
     return Response.json({ error: "Sentiment fetch failed" }, { status: 500 });
   }

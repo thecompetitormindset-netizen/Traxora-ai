@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 type Star = {
   id: number;
@@ -10,7 +11,10 @@ type Star = {
   opacity: number;
 };
 
+const PUBLIC_ROUTES = new Set(["/", "/login"]);
+
 export default function CosmicBackground() {
+  const pathname = usePathname();
   const [stars, setStars] = useState<Star[]>([]);
 
   useEffect(() => {
@@ -31,6 +35,8 @@ export default function CosmicBackground() {
         `.st${s.id}{top:${s.top};left:${s.left};width:${s.size}px;height:${s.size}px;opacity:${s.opacity}}`
     )
     .join("");
+
+  if (!PUBLIC_ROUTES.has(pathname ?? "")) return null;
 
   return (
     <div id="cosmic-bg" className="fixed inset-0 pointer-events-none z-0 overflow-hidden">

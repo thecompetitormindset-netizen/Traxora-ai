@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 import type { JournalEntry } from "../../../components/AutoJournal";
 
 export const maxDuration = 60;
@@ -6,6 +8,13 @@ export const maxDuration = 60;
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!checkRateLimit(`journal-review:${session.user.email}`, 5, 60_000)) {
+    return Response.json({ error: "Rate limit — max 5 reviews per minute" }, { status: 429 });
+  }
   let sells: JournalEntry[] = [];
 
   try {
@@ -48,30 +57,56 @@ export async function POST(req: Request) {
   const winCount = sells.filter(e => (e.pl ?? 0) > 0).length;
   const winRate  = sells.length > 0 ? Math.round((winCount / sells.length) * 100) : 0;
 
-  const prompt = `You are an elite ICT trading coach. Review this trader's closed trade history and give honest, specific feedback.
+  const prompt = `You are an elite ICT trading coach. Evaluate this trader's closed trades against the exact ICT system they are supposed to be following.
+
+SYSTEM RULES:
+- Universe: 30-stock watchlist. Max 1% risk/trade. Max 3 concurrent positions. Max 3 trades/day. Daily loss limit 2.5%. Hard close by 3:45 PM ET.
+
+THREE VALID MODELS:
+Model A — Judas Swing: Sweep Asian/London liquidity → MSS/CHoCH displacement → OB/FVG retest entry. Valid only in London (2–5 AM ET) and NY AM (8:30–11 AM ET) Kill Zones.
+Model B — Silver Bullet: Three windows — 10:00–11:00 AM, 2:00–3:00 PM, 11:00 PM–12:00 AM ET. Liquidity sweep within window → FVG on displacement → retest entry. No trading outside windows.
+Model C — Power of 3 / AMD: Asian accumulation → manipulation sweep of stops at open → distribution leg entry after sweep confirmed.
+
+ENTRY CHECKLIST (7 items — all required for A grade):
+1. Short-term high or low swept (liquidity taken before entry)
+2. MSS or CHoCH printed confirming displacement
+3. Entry inside a premium/discount array (OB, FVG, BISI/SIBI) — premium for shorts, discount for longs
+4. Active Kill Zone at time of entry
+5. R:R ≥ 2.5:1 confirmed before entry
+6. Position size ≤ 1% account risk
+7. Not entering at NDOG/NWOG without clear rejection or displacement break
+
+TRADE MANAGEMENT RULES: Stop loss behind the OB/FVG that triggered entry. Take 50% off at 1R, move stop to break-even. Target 2R minimum. Trail remaining via structure.
+FORBIDDEN BEHAVIORS: revenge trading, outside Kill Zone entries, chasing price without OB/FVG retest, moving stop to B/E before 1R, >3 trades/day, holding past 3:45 PM ET.
+
+GRADING RUBRIC: A = 7/7 checklist + correct model + R:R ≥ 2.5:1 | B = 5–6/7 minor deviation | C = 3–4/7 significant deviation | D = 1–2/7 poor execution | F = checklist ignored or forbidden behavior committed.
+
+---
 
 ${sells.length} closed trade${sells.length !== 1 ? "s" : ""}:
 ${tradeSummaries}
 
 Stats: Win rate ${winRate}% (${winCount}/${sells.length}), Total P&L $${totalPL.toFixed(2)}, Grades A:${gradeCount.A} B:${gradeCount.B} C:${gradeCount.C} D:${gradeCount.D} F:${gradeCount.F}
 
+Evaluate each trade against the 7-item checklist and 3 models above. Identify which specific checklist items and rules were violated. Be direct and reference ICT terminology precisely.
+
 Respond in raw JSON only (no markdown):
 {
   "overallGrade": "A|B|C|D|F",
-  "coachSummary": "3-4 direct sentences on this trader's skill level, patterns, and trajectory",
-  "recurringMistakes": ["mistake 1 with ICT terminology", "mistake 2", "mistake 3"],
-  "strengths": ["strength 1", "strength 2"],
+  "coachSummary": "3-4 direct sentences — which models they execute correctly, which checklist items they consistently skip, overall discipline level and trajectory",
+  "recurringMistakes": ["checklist item # violated and how", "forbidden behavior if present", "model deviation if any"],
+  "strengths": ["specific strength tied to a checklist item or model they execute well"],
   "priorityFixes": [
-    { "issue": "most important issue", "howToFix": "concrete 1-2 sentence ICT action plan" },
-    { "issue": "second issue", "howToFix": "concrete 1-2 sentence ICT action plan" }
+    { "issue": "most violated checklist item or rule", "howToFix": "1-2 sentence action plan referencing the exact model step to fix it" },
+    { "issue": "second most critical issue", "howToFix": "1-2 sentence action plan with specific ICT mechanics" }
   ],
-  "nextFocusArea": "one sentence on what to study this week"
+  "nextFocusArea": "one sentence — which model (A, B, or C) or which checklist item to drill this week and why"
 }`;
 
   try {
     const response = await client.messages.create({
-      model:      "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
+      model:      "claude-sonnet-4-6",
+      max_tokens: 1500,
       messages:   [{ role: "user", content: prompt }],
     });
 
@@ -106,6 +141,10 @@ Respond in raw JSON only (no markdown):
     });
 
   } catch (err) {
+    const status = (err as { status?: unknown }).status;
+    if (status === 401 || status === 403) {
+      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    }
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[Journal review] Anthropic error:", msg);
     return Response.json({ error: msg }, { status: 500 });

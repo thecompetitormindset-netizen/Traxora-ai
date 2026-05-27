@@ -1,13 +1,24 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function LoginPage() {
+const AUTH_ERRORS: Record<string, string> = {
+  OAuthCallback:         "Google sign-in failed. Ensure this app is authorized in Google Cloud Console.",
+  OAuthAccountNotLinked: "This Google account is linked to a different sign-in method.",
+  Configuration:         "Auth configuration error — check AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET in Vercel.",
+  AccessDenied:          "Access denied by Google.",
+  Default:               "Sign-in failed. Please try again.",
+};
+
+function LoginContent() {
   const { data: session } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const errorCode = searchParams.get("error");
+  const errorMsg = errorCode ? (AUTH_ERRORS[errorCode] ?? AUTH_ERRORS.Default) : null;
 
   useEffect(() => {
     if (session) router.push("/dashboard");
@@ -35,6 +46,12 @@ export default function LoginPage() {
           <h1 className="text-xl font-bold tracking-tight">Traxora AI</h1>
           <p className="text-sm text-[#7B8DB4] mt-1">Sign in to access your dashboard</p>
         </div>
+
+        {errorMsg && (
+          <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
+            {errorMsg}
+          </div>
+        )}
 
         {/* Card */}
         <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6">
@@ -76,5 +93,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginContent />
+    </Suspense>
   );
 }

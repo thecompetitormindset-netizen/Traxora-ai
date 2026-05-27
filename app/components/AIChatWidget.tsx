@@ -37,6 +37,17 @@ export default function AIChatWidget() {
         body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
 
+      if (!res.ok) {
+        try {
+          const errData = await res.json() as { reason?: string };
+          if (errData.reason === "AI_UNAVAILABLE") {
+            setMessages([...next, { role: "assistant", content: "⚠️ AI assistant is temporarily unavailable — your Anthropic API key appears to be invalid or missing. Please check Settings." }]);
+            return;
+          }
+        } catch { /* ignore parse error */ }
+        throw new Error(`HTTP ${res.status}`);
+      }
+
       if (!res.body) throw new Error("No response body");
 
       const reader = res.body.getReader();

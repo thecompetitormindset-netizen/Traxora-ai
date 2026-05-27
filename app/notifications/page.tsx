@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import { scopedKey } from "../lib/userState";
 
 type Alert = {
   symbol: string;
@@ -24,11 +26,12 @@ function timeAgo(ms: number) {
 }
 
 export default function NotificationsPage() {
+  const { data: session } = useSession();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
 
   useEffect(() => {
-    const raw = localStorage.getItem("traxora_alerts");
+    const raw = localStorage.getItem(scopedKey("traxora_alerts"));
     if (raw) {
       try { setAlerts(JSON.parse(raw)); } catch { /* ignore */ }
     }
@@ -37,7 +40,7 @@ export default function NotificationsPage() {
     } else {
       setPermission(Notification.permission);
     }
-  }, []);
+  }, [session]);
 
   async function requestPermission() {
     const result = await Notification.requestPermission();
@@ -45,7 +48,7 @@ export default function NotificationsPage() {
   }
 
   function clearAll() {
-    localStorage.removeItem("traxora_alerts");
+    localStorage.removeItem(scopedKey("traxora_alerts"));
     setAlerts([]);
   }
 

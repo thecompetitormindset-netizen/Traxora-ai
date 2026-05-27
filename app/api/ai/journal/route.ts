@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -14,6 +16,14 @@ function gradeFromPL(plPct?: number, closeReason?: string): string {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`journal:${session.user.email}`, 10, 60_000)) {
+    return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });
+  }
+
   const {
     symbol, side, quantity, price,
     entryPrice, pl, plPct, closeReason,
@@ -113,6 +123,10 @@ Rules:
       } : null,
     });
   } catch (err) {
+    const status = (err as { status?: unknown }).status;
+    if (status === 401 || status === 403) {
+      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    }
     console.error("[Journal route] Anthropic error:", err);
     return Response.json({ error: "Journal generation failed" }, { status: 500 });
   }

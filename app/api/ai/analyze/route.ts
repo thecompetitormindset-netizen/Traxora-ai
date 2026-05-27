@@ -1,8 +1,17 @@
 import { ictScore } from "@/app/lib/ict";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!checkRateLimit(`analyze:${session.user.email}`, 20, 60_000)) {
+    return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
+  }
   try {
     const body = await req.json() as {
       symbol:           string;

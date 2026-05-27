@@ -34,13 +34,25 @@ async function saveHistory(h: BriefHistory): Promise<void> {
   try { await fs.writeFile(HISTORY_FILE, JSON.stringify(h, null, 2)); } catch { /* ignore */ }
 }
 
-async function getEmail(): Promise<string | null> {
+async function getEmails(): Promise<string[]> {
+  const list: string[] = [];
+
+  // Dynamic subscriptions stored on disk (works locally; resets on Vercel cold start)
   try {
     const raw = await fs.readFile(FILE, "utf-8");
-    return (JSON.parse(raw) as { email?: string }).email ?? null;
-  } catch {
-    return process.env.USER_EMAIL ?? null;
+    const stored = (JSON.parse(raw) as { email?: string }).email?.trim();
+    if (stored) list.push(stored);
+  } catch { /* no file */ }
+
+  // Persistent subscribers from env var — comma-separated, e.g. "a@b.com,c@d.com"
+  // Set CRON_EMAIL in Vercel env vars so the cron always has someone to send to.
+  const envList = (process.env.CRON_EMAIL ?? "")
+    .split(",").map(e => e.trim()).filter(Boolean);
+  for (const e of envList) {
+    if (!list.includes(e)) list.push(e);
   }
+
+  return list;
 }
 
 // ── 50-stock watchlist ────────────────────────────────────────────────────────
@@ -548,7 +560,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
       <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">
         <tr>
           <td style="background:#4f46e5;border-radius:12px">
-            <a href="https://traxora.vercel.app/dashboard" style="display:block;padding:14px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px">Open Traxora Dashboard &#8594;</a>
+            <a href="https://traxora-ai.vercel.app/dashboard" style="display:block;padding:14px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px">Open Traxora Dashboard &#8594;</a>
           </td>
         </tr>
       </table>
@@ -585,11 +597,11 @@ export async function GET(req: Request) {
   }
 
   // Prefer an explicit email passed by the test-email route (session user's email).
-  // Fall back to the stored subscription for automated cron runs.
+  // Otherwise send to all subscribers (file + CRON_EMAIL env var).
   const emailParam = new URL(req.url).searchParams.get("email");
-  const email = emailParam || await getEmail();
-  if (!email) {
-    return Response.json({ error: "No email configured — subscribe in Settings" }, { status: 400 });
+  const recipients = emailParam ? [emailParam] : await getEmails();
+  if (recipients.length === 0) {
+    return Response.json({ error: "No subscribers — add CRON_EMAIL to Vercel env vars or subscribe in Settings" }, { status: 400 });
   }
 
   const [quotes, prevHistory] = await Promise.all([
@@ -615,10 +627,11 @@ export async function GET(req: Request) {
   }
 
   const resend = new Resend(resendKey);
+  const subject = `🌅 Morning Brief — ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "BUY").length} BUY · ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "SELL").length} SELL · ${date}`;
   const { error: sendError } = await resend.emails.send({
     from:    "Traxora AI <onboarding@resend.dev>",
-    to:      email,
-    subject: `🌅 Morning Brief — ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "BUY").length} BUY · ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "SELL").length} SELL · ${date}`,
+    to:      recipients,
+    subject,
     html,
   });
 
@@ -639,5 +652,5 @@ export async function GET(req: Request) {
     })),
   });
 
-  return Response.json({ ok: true, to: email, date, analyzed: quotes.length, top20: top20.map((s: ReturnType<typeof analyze>) => `${s.symbol} ${s.signal}`) });
+  return Response.json({ ok: true, to: recipients, date, analyzed: quotes.length, top20: top20.map((s: ReturnType<typeof analyze>) => `${s.symbol} ${s.signal}`) });
 }

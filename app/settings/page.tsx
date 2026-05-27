@@ -1,11 +1,12 @@
 "use client";
 
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { resetPortfolio } from "../lib/trading";
 import { getTheme, setTheme, type Theme } from "../lib/theme";
+import { scopedKey } from "../lib/userState";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -105,17 +106,17 @@ export default function SettingsPage() {
     } else {
       setNotifPermission(Notification.permission);
     }
-    const raw = localStorage.getItem("traxora_alerts");
+    const raw = localStorage.getItem(scopedKey("traxora_alerts"));
     try { setAlertCount(raw ? JSON.parse(raw).length : 0); } catch { /* ignore */ }
 
     // Load email subscription status
     fetch("/api/settings/email")
       .then(r => r.json())
-      .then(d => { setSubscribed(!!d.subscribed); setSubEmail(d.subscribedEmail ?? d.sessionEmail); })
+      .then(d => { setSubscribed(!!d.subscribed); setSubEmail(d.subscribedEmail ?? null); })
       .catch(() => {/* ignore */});
 
     // Load saved Alpaca creds
-    const saved = localStorage.getItem("traxora_alpaca");
+    const saved = localStorage.getItem(scopedKey("traxora_alpaca"));
     if (saved) {
       try {
         const p = JSON.parse(saved);
@@ -140,7 +141,7 @@ export default function SettingsPage() {
   }
 
   function clearAlerts() {
-    localStorage.removeItem("traxora_alerts");
+    localStorage.removeItem(scopedKey("traxora_alerts"));
     setAlertCount(0);
   }
 
@@ -172,7 +173,7 @@ export default function SettingsPage() {
       }
       setAlpacaInfo({ buyingPower: data.buyingPower, portfolioValue: data.portfolioValue });
       setAlpacaStatus("connected");
-      localStorage.setItem("traxora_alpaca", JSON.stringify({
+      localStorage.setItem(scopedKey("traxora_alpaca"), JSON.stringify({
         apiKey: alpacaKey.trim(), apiSecret: alpacaSecret.trim(), paper: alpacaPaper, connected: true,
       }));
     } catch {
@@ -181,7 +182,7 @@ export default function SettingsPage() {
   }
 
   function disconnectAlpaca() {
-    localStorage.removeItem("traxora_alpaca");
+    localStorage.removeItem(scopedKey("traxora_alpaca"));
     setAlpacaKey(""); setAlpacaSecret(""); setAlpacaStatus("idle"); setAlpacaInfo(null);
   }
 
@@ -286,8 +287,9 @@ export default function SettingsPage() {
                       <line x1="15" y1="12" x2="3" y2="12" />
                     </svg>
                   }
-                  label="Sign in"
-                  sublabel="Connect your Google account"
+                  label="Sign in with Google"
+                  sublabel="Connect your Google account to save your data"
+                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
                 />
               )}
             </Section>

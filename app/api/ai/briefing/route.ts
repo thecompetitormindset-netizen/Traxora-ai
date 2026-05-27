@@ -1,4 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -16,7 +18,7 @@ interface Q {
 async function yq(ticker: string): Promise<Q | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=10d`;
-    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(7000) });
+    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(4000) });
     const d   = await r.json();
     const meta = d?.chart?.result?.[0]?.meta;
     const q    = d?.chart?.result?.[0]?.indicators?.quote?.[0];
@@ -41,7 +43,7 @@ async function yq(ticker: string): Promise<Q | null> {
 async function yNews(sym: string): Promise<string[]> {
   try {
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&newsCount=3&quotesCount=0`;
-    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) });
+    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(3000) });
     const d   = await r.json();
     return ((d?.news ?? []) as { title?: string; publisher?: string }[])
       .slice(0, 3).map(n => `${n.title ?? ""} (${n.publisher ?? ""})`);
@@ -143,12 +145,26 @@ type PortfolioSnapshot = {
 };
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
+    return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
+  }
   let portfolio: PortfolioSnapshot | null = null;
   try { const body = await req.json(); portfolio = body.portfolio ?? null; } catch { /* no body */ }
   return runBriefing(portfolio);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
+    return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
+  }
   return runBriefing(null);
 }
 
@@ -495,8 +511,8 @@ FINAL CHECKS before responding:
 
   try {
     const response = await client.messages.create({
-      model:      "claude-haiku-4-5-20251001",
-      max_tokens: 8000,
+      model:      "claude-sonnet-4-6",
+      max_tokens: 6000,
       messages:   [{ role: "user", content: prompt }],
     });
 
@@ -536,6 +552,10 @@ FINAL CHECKS before responding:
       },
     });
   } catch (err) {
+    const httpStatus = (err as { status?: unknown }).status;
+    if (httpStatus === 401 || httpStatus === 403) {
+      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    }
     return Response.json(
       { error: `Briefing failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 },

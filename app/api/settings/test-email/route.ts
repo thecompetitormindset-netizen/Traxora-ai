@@ -20,8 +20,11 @@ export async function POST(req: Request) {
 
   const origin = new URL(req.url).origin;
   const res = await fetch(
-    `${origin}/api/cron/morning-email?secret=${encodeURIComponent(cronSecret)}&email=${encodeURIComponent(userEmail)}`,
-    { cache: "no-store" },
+    `${origin}/api/cron/morning-email?email=${encodeURIComponent(userEmail)}`,
+    {
+      cache: "no-store",
+      headers: { Authorization: `Bearer ${cronSecret}` },
+    },
   );
   const data = await res.json();
 

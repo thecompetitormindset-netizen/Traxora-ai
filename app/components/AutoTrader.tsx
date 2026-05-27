@@ -92,6 +92,35 @@ function runBotTrade(id: string, symbol: string, price: number, signal: string, 
   saveBotPortfolio(id, p);
 }
 
+// ── Market hours guard ────────────────────────────────────────────────────────
+// 2026 NYSE full holidays (market closed all day)
+const NYSE_HOLIDAYS_2026 = new Set([
+  "2026-01-01","2026-01-19","2026-02-16","2026-04-03",
+  "2026-05-25","2026-06-19","2026-07-03","2026-09-07",
+  "2026-11-26","2026-12-25",
+]);
+// 2026 early-close days: market closes at 1:00 PM ET
+const NYSE_EARLY_CLOSE_2026 = new Set(["2026-11-27","2026-12-24"]);
+
+function isMarketOpen(): boolean {
+  const now = new Date();
+  const day = now.getDay();
+  if (day === 0 || day === 6) return false;
+  const jan = new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
+  const jul = new Date(now.getFullYear(), 6, 1).getTimezoneOffset();
+  const dst = now.getTimezoneOffset() < Math.max(jan, jul);
+  const etOffsetMin = (dst ? -4 : -5) * 60;
+  const et = new Date(now.getTime() + (now.getTimezoneOffset() + etOffsetMin) * 60_000);
+  const dateKey = et.toISOString().slice(0, 10); // "YYYY-MM-DD" in ET
+  if (NYSE_HOLIDAYS_2026.has(dateKey)) return false;
+  const totalMins = et.getHours() * 60 + et.getMinutes();
+  const closeMins = NYSE_EARLY_CLOSE_2026.has(dateKey) ? 13 * 60 : 16 * 60;
+  return totalMins >= 9 * 60 + 30 && totalMins < closeMins;
+}
+
+// ── Singleton guard — prevents duplicate intervals if component mounts twice ──
+let _autoTraderStarted = false;
+
 // ── Constants ────────────────────────────────────────────────────────────────
 const STOCKS = [
   { symbol: "AAPL.US",  name: "Apple",        short: "AAPL"  },
@@ -116,7 +145,7 @@ const STOCKS = [
   { symbol: "COST.US",  name: "Costco",       short: "COST"  },
 ];
 
-const SCAN_INTERVAL     = 5 * 60 * 1000;   // 5 min — scan all 8 at once
+const SCAN_INTERVAL     = 5 * 60 * 1000;   // 5 min — scan all 20 at once
 const BOT_SCAN_INTERVAL = 3 * 60 * 1000;   // 3 min per bot
 const STOP_PCT  = 0.04;
 const TP_PCT    = 0.08;
@@ -247,9 +276,13 @@ export default function AutoTrader() {
   // ── Full parallel scan — all 8 stocks at once ────────────────────────────
   const runFullScan = useCallback(async () => {
     if (!activeRef.current) return;
+    if (!isMarketOpen()) {
+      setStatus("Market closed — paused until 9:30 AM ET");
+      return;
+    }
     setScanning(true);
     setStatus("Scanning all stocks…");
-    push("scan", "Full market scan", "Checking all 8 stocks in parallel…");
+    push("scan", "Full market scan", "Checking all 20 stocks in parallel…");
 
     try {
       // 1. Fetch all 8 quotes in parallel
@@ -262,7 +295,7 @@ export default function AutoTrader() {
         const qr = quoteResponses[i];
         if (qr.status !== "fulfilled" || !qr.value?.price) continue;
         const { messages } = checkPriceEvents(STOCKS[i].symbol, qr.value.price);
-        messages.forEach(m => push(m.startsWith("🎯") ? "sell" : "sell", m));
+        messages.forEach(m => push(m.startsWith("🎯") ? "buy" : "sell", m));
         for (const botId of ["apex", "delta", "vera"]) checkBotPriceEvents(botId, STOCKS[i].symbol, qr.value.price);
       }
 
@@ -365,18 +398,38 @@ export default function AutoTrader() {
   useEffect(() => {
     activeRef.current = active;
     if (active) {
+      // Singleton guard — bail out if another instance already owns the intervals
+      if (_autoTraderStarted) {
+        console.warn("[AutoTrader] duplicate mount detected — skipping interval setup");
+        return;
+      }
+      _autoTraderStarted = true;
+      console.log("[AutoTrader] starting scan loop, interval id pending…");
+
       nextScanRef.current = Date.now() + SCAN_INTERVAL;
-      push("signal", "AutoTrader started", "All 8 stocks scanned every 5 min · Signals trade instantly");
+      push("signal", "AutoTrader started", "All 20 stocks scanned every 5 min · Signals trade instantly");
       refreshDayTrades();
       runFullScan();
-      loopRef.current = setInterval(() => { nextScanRef.current = Date.now() + SCAN_INTERVAL; runFullScan(); }, SCAN_INTERVAL);
+      loopRef.current = setInterval(() => {
+        if (document.hidden) return; // pause polling when tab is hidden
+        nextScanRef.current = Date.now() + SCAN_INTERVAL;
+        runFullScan();
+      }, SCAN_INTERVAL);
+      console.log("[AutoTrader] scan loop interval id:", loopRef.current);
       tickRef.current = setInterval(() => setCountdown(Math.max(0, nextScanRef.current - Date.now())), 1000);
       const bots: [string, BotStyle, number][] = [["apex","aggressive",20_000],["delta","balanced",80_000],["vera","conservative",140_000]];
       bots.forEach(([id, style, delay]) => {
-        const t = setTimeout(() => { runBotScan(id, style); botLoopsRef.current[id] = setInterval(() => runBotScan(id, style), BOT_SCAN_INTERVAL); }, delay);
+        const t = setTimeout(() => {
+          runBotScan(id, style);
+          botLoopsRef.current[id] = setInterval(() => {
+            if (document.hidden) return;
+            runBotScan(id, style);
+          }, BOT_SCAN_INTERVAL);
+        }, delay);
         botTimeouts.current.push(t);
       });
     } else {
+      _autoTraderStarted = false;
       if (loopRef.current) clearInterval(loopRef.current);
       if (tickRef.current) clearInterval(tickRef.current);
       Object.keys(botLoopsRef.current).forEach(k => { if (botLoopsRef.current[k]) { clearInterval(botLoopsRef.current[k]!); botLoopsRef.current[k] = null; } });
@@ -387,6 +440,7 @@ export default function AutoTrader() {
       setCountdown(SCAN_INTERVAL);
     }
     return () => {
+      _autoTraderStarted = false;
       if (loopRef.current) clearInterval(loopRef.current);
       if (tickRef.current) clearInterval(tickRef.current);
       Object.keys(botLoopsRef.current).forEach(k => { if (botLoopsRef.current[k]) { clearInterval(botLoopsRef.current[k]!); botLoopsRef.current[k] = null; } });
@@ -506,7 +560,7 @@ export default function AutoTrader() {
                   <p className="text-[9px] text-violet-400 font-bold uppercase tracking-widest mb-1">Active Modes</p>
                   <div className="flex gap-4 text-[10px] text-[#7B8DB4]">
                     <span className="flex items-center gap-1"><span className="text-violet-400">⚡</span>Signals (instant)</span>
-                    <span className="flex items-center gap-1"><span className="text-indigo-400">🔍</span>All 8 stocks / 5 min</span>
+                    <span className="flex items-center gap-1"><span className="text-indigo-400">🔍</span>All 20 stocks / 5 min</span>
                   </div>
                 </div>
               )}
@@ -541,7 +595,7 @@ export default function AutoTrader() {
                   <div className={`h-full rounded-full transition-all duration-1000 ${active ? "bg-indigo-500" : "bg-[#1C2333]"} w-pct-${Math.round(progressPct / 5) * 5}`} />
                 </div>
               </div>
-              <p className="text-[9px] text-[#2D3A50] leading-relaxed pt-1 border-t border-[#1C2333]">Scans all 8 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>
+              <p className="text-[9px] text-[#2D3A50] leading-relaxed pt-1 border-t border-[#1C2333]">Scans all 20 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>
             </div>
             <div className="px-4 pb-4 space-y-2">
               <button type="button" onClick={() => { setShowSummary(true); refreshDayTrades(); }} className="w-full py-2 rounded-xl text-[11px] font-bold bg-[#111827] border border-[#1C2333] text-[#7B8DB4] hover:text-[#F1F5F9] hover:border-[#2D3A50] transition-all">📊 Day Recap</button>

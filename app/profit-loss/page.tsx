@@ -9,31 +9,9 @@ import {
   PORTFOLIO_UPDATED_EVENT,
   type Portfolio,
 } from "../lib/trading";
+import { fifoRealizedPL } from "../lib/pl";
 
 type PriceMap = Record<string, number>;
-
-function fifoRealizedPL(trades: Portfolio["trades"]): number {
-  const sorted = [...trades].reverse();
-  const queues: Record<string, { price: number; qty: number }[]> = {};
-  let total = 0;
-  for (const t of sorted) {
-    if (t.side === "BUY") {
-      if (!queues[t.symbol]) queues[t.symbol] = [];
-      queues[t.symbol].push({ price: t.price, qty: t.quantity });
-    } else {
-      let rem = t.quantity;
-      while (rem > 0 && queues[t.symbol]?.length > 0) {
-        const buy = queues[t.symbol][0];
-        const matched = Math.min(rem, buy.qty);
-        total += (t.price - buy.price) * matched;
-        buy.qty -= matched;
-        rem -= matched;
-        if (buy.qty === 0) queues[t.symbol].shift();
-      }
-    }
-  }
-  return total;
-}
 
 export default function ProfitLossPage() {
   const [portfolio, setPortfolio] = useState<Portfolio>({

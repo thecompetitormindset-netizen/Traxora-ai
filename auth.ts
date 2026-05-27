@@ -179,7 +179,7 @@ function loginEmailHtml(params: {
             <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">
               <tr>
                 <td style="background:#4f46e5;border-radius:10px">
-                  <a href="https://traxora.vercel.app/dashboard" target="_blank"
+                  <a href="https://traxora-ai.vercel.app/dashboard" target="_blank"
                     style="display:block;padding:12px 28px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none">
                     ${isNewUser ? "Start Trading →" : "Open Dashboard →"}
                   </a>
@@ -211,6 +211,21 @@ function loginEmailHtml(params: {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
+  session: {
+    strategy:  "jwt",
+    maxAge:    8 * 60 * 60,   // 8 hours — expires end of trading day
+    updateAge: 60 * 60,       // refresh token if still active after 1 hour
+  },
+  callbacks: {
+    async signIn({ user }) {
+      // Set ALLOWED_EMAILS="a@b.com,c@d.com" in Vercel env to restrict access.
+      // Leave unset to allow any Google account (public app mode).
+      const allowList = process.env.ALLOWED_EMAILS;
+      if (!allowList) return true;
+      const allowed = allowList.split(",").map(e => e.trim().toLowerCase());
+      return !!user.email && allowed.includes(user.email.toLowerCase());
+    },
+  },
   events: {
     async signIn({ user, isNewUser }) {
       const resendKey = process.env.RESEND_API_KEY;

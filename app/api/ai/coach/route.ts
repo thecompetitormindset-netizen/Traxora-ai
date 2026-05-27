@@ -1,8 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`coach:${session.user.email}`, 5, 60_000)) {
+    return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });
+  }
+
   const { trades, wins, losses, winRate } = await req.json();
 
   const recent = (trades as Array<{ side: string; quantity: number; symbol: string; price: number }>)
@@ -10,28 +20,51 @@ export async function POST(req: Request) {
     .map((t) => `${t.side} ${t.quantity}x ${t.symbol.replace(".US", "").replace(".COMM", "")} @$${Number(t.price).toFixed(2)}`)
     .join(" | ");
 
-  const prompt = `You are an elite ICT trading coach. Review this paper trader's performance and write a coaching report.
+  const prompt = `You are an elite ICT trading coach operating under this exact trading system:
 
-Stats:
+SYSTEM RULES:
+- Universe: 30-stock watchlist only. Max 1% account risk per trade. Max 3 concurrent positions. Max 3 trades/day. Daily loss limit 2.5%. Hard close all positions by 3:45 PM ET.
+
+THREE VALID MODELS:
+Model A — Judas Swing: Asian/London session sweeps a short-term low (bullish) or high (bearish) → displacement candle prints MSS/CHoCH → enter on retest of the Order Block or FVG left by displacement. Only valid London (2–5 AM ET) and NY AM (8:30–11 AM ET).
+Model B — Silver Bullet: Three windows only — 10:00–11:00 AM ET, 2:00–3:00 PM ET, 11:00 PM–12:00 AM ET. Wait for price to sweep a liquidity pool within the window → FVG forms on the displacement → enter the FVG retest. Do not trade outside these windows.
+Model C — Power of 3 / AMD: Accumulation (Asian range builds), Manipulation (fake move sweeps stops at open), Distribution (true directional move). Enter during the distribution leg after manipulation sweep is confirmed.
+
+ENTRY CHECKLIST (all 7 required for A-grade):
+1. Short-term high or low swept (liquidity taken)
+2. MSS or CHoCH printed on the sweep candle or immediately after
+3. Entry is inside a premium array (OB, FVG, BISI/SIBI) — premium for shorts, discount for longs
+4. Active Kill Zone: London (2–5 AM ET), NY AM (8:30–11 AM ET), or Silver Bullet windows
+5. Minimum R:R 2.5:1 confirmed before entry
+6. Position size ≤ 1% account risk
+7. Not entering at NDOG/NWOG unless level has been clearly rejected or broken with displacement
+
+FORBIDDEN BEHAVIORS: revenge trading, trading outside kill zones, chasing price without OB/FVG retest, moving stop to break-even before 1R hit, more than 3 trades/day, holding past 3:45 PM ET.
+
+GRADING: A = all 7 checklist items, correct model, R:R ≥ 2.5:1 | B = 5–6 items, minor deviation | C = 3–4 items | D = 1–2 items | F = checklist ignored or forbidden behavior.
+
+---
+
+Trader stats:
 - Win Rate: ${winRate}% (${wins}W / ${losses}L, ${wins + losses} total closed trades)
 - Recent trades: ${recent || "no trades yet"}
 
-Write exactly this format:
+Write exactly this format (no markdown, no asterisks):
 
-ASSESSMENT: [1 honest sentence about overall performance]
-WEAKNESS: [1 specific pattern weakness you see in their trade log]
-STRENGTH: [1 genuine strength to build on]
+ASSESSMENT: [1 direct sentence — which models they're executing well or poorly, overall discipline level]
+WEAKNESS: [1 specific failure pattern mapped to checklist items or forbidden behaviors — name the item number if relevant]
+STRENGTH: [1 genuine strength — be specific to their trade log]
 TIPS:
-1. [Specific ICT tip to improve entries]
-2. [Specific ICT tip to improve exits or risk management]
-3. [Mindset or routine tip for consistency]
+1. [Concrete fix for their entry process — reference the exact model (A/B/C) and checklist item]
+2. [Concrete fix for exits or risk management — reference specific rules from the system]
+3. [Pre-session routine or mindset tip — reference bias setting, kill zone discipline, or journal habit]
 
-Be direct, specific, and use ICT methodology. Reference actual symbols from their log if relevant. No generic advice.`;
+Reference actual symbols from their log. No generic advice.`;
 
   try {
     const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 420,
+      model: "claude-sonnet-4-6",
+      max_tokens: 600,
       messages: [{ role: "user", content: prompt }],
     });
 
@@ -42,7 +75,11 @@ Be direct, specific, and use ICT methodology. Reference actual symbols from thei
       .trim();
 
     return Response.json({ report });
-  } catch {
+  } catch (err) {
+    const status = (err as { status?: unknown }).status;
+    if (status === 401 || status === 403) {
+      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    }
     return Response.json({ error: "Coaching unavailable" }, { status: 500 });
   }
 }

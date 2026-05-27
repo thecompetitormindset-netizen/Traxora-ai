@@ -1,4 +1,6 @@
 import { ictScore } from "@/app/lib/ict";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
 
@@ -110,6 +112,13 @@ function ictAnalyze(s: StockInput) {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!checkRateLimit(`scan:${session.user.email}`, 10, 60_000)) {
+    return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });
+  }
   try {
     const { stocks }: { stocks: StockInput[] } = await req.json();
 

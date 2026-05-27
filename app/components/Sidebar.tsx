@@ -19,7 +19,6 @@ function DashboardIcon() {
 function TradeIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Candlestick chart */}
       <line x1="5"  y1="2"  x2="5"  y2="22" />
       <rect x="2"   y="6"   width="6" height="10" rx="0.5" />
       <line x1="12" y1="4"  x2="12" y2="22" />
@@ -33,7 +32,6 @@ function TradeIcon() {
 function SignalsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Lightning bolt */}
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
@@ -42,7 +40,6 @@ function SignalsIcon() {
 function JournalIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Open book */}
       <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       <line x1="12" y1="7"  x2="17" y2="7"  />
@@ -55,7 +52,6 @@ function JournalIcon() {
 function CompeteIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Trophy */}
       <path d="M6 9H4a2 2 0 0 0 0 4c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4a2 2 0 0 0 0-4h-2" />
       <path d="M6 6v3" />
       <path d="M18 6v3" />
@@ -69,7 +65,6 @@ function CompeteIcon() {
 function ExploreIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Compass */}
       <circle cx="12" cy="12" r="10" />
       <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
     </svg>
@@ -79,7 +74,6 @@ function ExploreIcon() {
 function PortfolioIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      {/* Pie chart */}
       <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
       <path d="M22 12A10 10 0 0 0 12 2v10z" />
     </svg>
@@ -91,6 +85,14 @@ function SettingsIcon() {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  );
+}
+
+function SentimentIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
     </svg>
   );
 }
@@ -107,39 +109,16 @@ function BriefingIcon() {
 // ── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
-  { name: "Dash",      href: "/dashboard", icon: <DashboardIcon />,  accent: "indigo"   },
-  { name: "Trade",     href: "/paper",     icon: <TradeIcon />,      accent: "emerald"  },
-  { name: "Signals",   href: "/analysis",  icon: <SignalsIcon />,    accent: "violet"   },
-  { name: "Journal",   href: "/journal",   icon: <JournalIcon />,    accent: "sky"      },
-  { name: "Compete",   href: "/compete",   icon: <CompeteIcon />,    accent: "amber"    },
-  { name: "Explore",   href: "/explore",   icon: <ExploreIcon />,    accent: "teal"     },
-  { name: "Portfolio", href: "/portfolio", icon: <PortfolioIcon />,  accent: "rose"     },
-  { name: "Settings",  href: "/settings",  icon: <SettingsIcon />,   accent: "slate"    },
+  { name: "Dash",      href: "/dashboard",        icon: <DashboardIcon /> },
+  { name: "Trade",     href: "/paper",             icon: <TradeIcon /> },
+  { name: "Signals",   href: "/analysis",          icon: <SignalsIcon /> },
+  { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
+  { name: "Compete",   href: "/compete",           icon: <CompeteIcon /> },
+  { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
+  { name: "Portfolio", href: "/portfolio",         icon: <PortfolioIcon /> },
+  { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },
+  { name: "Settings",  href: "/settings",          icon: <SettingsIcon /> },
 ] as const;
-
-type NavAccent = typeof NAV_LINKS[number]["accent"];
-
-const ACCENT_ACTIVE: Record<NavAccent, string> = {
-  indigo:  "bg-indigo-500/20  text-indigo-300",
-  emerald: "bg-emerald-500/20 text-emerald-300",
-  violet:  "bg-violet-500/20  text-violet-300",
-  sky:     "bg-sky-500/20     text-sky-300",
-  amber:   "bg-amber-500/20   text-amber-300",
-  teal:    "bg-teal-500/20    text-teal-300",
-  rose:    "bg-rose-500/20    text-rose-300",
-  slate:   "bg-slate-500/20   text-slate-300",
-};
-
-const ACCENT_DOT: Record<NavAccent, string> = {
-  indigo:  "bg-indigo-400",
-  emerald: "bg-emerald-400",
-  violet:  "bg-violet-400",
-  sky:     "bg-sky-400",
-  amber:   "bg-amber-400",
-  teal:    "bg-teal-400",
-  rose:    "bg-rose-400",
-  slate:   "bg-slate-400",
-};
 
 // ── NavItem ──────────────────────────────────────────────────────────────────
 
@@ -147,24 +126,23 @@ type NavItemProps = {
   name: string;
   href: string;
   icon: React.ReactNode;
-  accent: NavAccent;
   isActive: boolean;
   showMarketDot?: boolean;
 };
 
-function NavItem({ name, href, icon, accent, isActive, showMarketDot }: NavItemProps) {
+function NavItem({ name, href, icon, isActive, showMarketDot }: NavItemProps) {
   return (
     <Link
       href={href}
       className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[16px] transition-all duration-200 min-w-[52px] ${
         isActive
-          ? ACCENT_ACTIVE[accent]
+          ? "bg-indigo-500/[0.12] text-indigo-300"
           : "text-[#4B5675] hover:text-[#94A3B8] hover:bg-white/[0.05]"
       }`}
     >
       {showMarketDot && <MarketDot />}
       {isActive && (
-        <span className={`absolute bottom-[7px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full ${ACCENT_DOT[accent]} opacity-60`} />
+        <span className="absolute bottom-[7px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full bg-indigo-400 opacity-60" />
       )}
       <span className={`transition-transform duration-200 ${isActive ? "scale-110" : ""}`}>
         {icon}
@@ -212,7 +190,6 @@ export default function Sidebar() {
               name={link.name}
               href={link.href}
               icon={link.icon}
-              accent={link.accent}
               isActive={isActive}
               showMarketDot={link.href === "/dashboard"}
             />
