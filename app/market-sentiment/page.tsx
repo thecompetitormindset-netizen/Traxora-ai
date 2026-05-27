@@ -108,56 +108,70 @@ function MetricCard({
   );
 }
 
-// Semicircle SVG gauge (-100 to +100)
+// Responsive semicircle speedometer gauge (-100 to +100)
 function SentimentGauge({ score }: { score: number }) {
-  const clamp  = Math.max(-100, Math.min(100, score));
-  const pct    = (clamp + 100) / 200; // 0–1
-  const R      = 70;
-  const cx     = 90;
-  const cy     = 90;
-  const startA = Math.PI;
-  const endA   = 0;
-  const a      = startA + pct * (endA - startA);
-  const needleX = cx + R * Math.cos(a);
-  const needleY = cy + R * Math.sin(a);
+  const clamp = Math.max(-100, Math.min(100, score));
+  const pct   = (clamp + 100) / 200;
+  const cx = 150, cy = 142, R = 118;
 
-  function arc(startAngle: number, endAngle: number, color: string, strokeW = 12) {
-    const sx = cx + R * Math.cos(startAngle);
-    const sy = cy + R * Math.sin(startAngle);
-    const ex = cx + R * Math.cos(endAngle);
-    const ey = cy + R * Math.sin(endAngle);
-    const large = Math.abs(endAngle - startAngle) > Math.PI ? 1 : 0;
-    return (
-      <path
-        d={`M ${sx} ${sy} A ${R} ${R} 0 ${large} 1 ${ex} ${ey}`}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeW}
-        strokeLinecap="round"
-      />
-    );
+  function arc(s: number, e: number): string {
+    const sx = cx + R * Math.cos(s), sy = cy + R * Math.sin(s);
+    const ex = cx + R * Math.cos(e), ey = cy + R * Math.sin(e);
+    const lg = Math.abs(e - s) > Math.PI ? 1 : 0;
+    return `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${R} ${R} 0 ${lg} 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
   }
+
+  const a  = Math.PI + pct * Math.PI;
+  const nx = cx + R * 0.82 * Math.cos(a);
+  const ny = cy + R * 0.82 * Math.sin(a);
+
+  // Tick marks at -100, -50, 0, +50, +100
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => {
+    const ta = Math.PI + t * Math.PI;
+    return {
+      x1: (cx + (R - 10) * Math.cos(ta)).toFixed(1),
+      y1: (cy + (R - 10) * Math.sin(ta)).toFixed(1),
+      x2: (cx + (R + 8)  * Math.cos(ta)).toFixed(1),
+      y2: (cy + (R + 8)  * Math.sin(ta)).toFixed(1),
+    };
+  });
 
   const color = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#F43F5E";
   const label = clamp >= 50 ? "Strong Bullish" : clamp >= 20 ? "Bullish" : clamp >= -20 ? "Neutral" : clamp >= -50 ? "Bearish" : "Strong Bearish";
 
   return (
-    <div className="flex flex-col items-center">
-      <svg width="180" height="100" viewBox="0 0 180 100">
-        {/* Track */}
-        {arc(Math.PI, 0, "#1C2333", 14)}
-        {/* Bearish zone */}
-        {arc(Math.PI, Math.PI * 1.5, "#F43F5E55", 12)}
-        {/* Neutral zone */}
-        {arc(Math.PI * 1.4, Math.PI * 1.6, "#F59E0B44", 12)}
-        {/* Bullish zone */}
-        {arc(Math.PI * 1.5, 0, "#10B98155", 12)}
+    <div className="flex flex-col items-center w-full">
+      <svg viewBox="0 0 300 150" width="100%" aria-hidden="true">
+        {/* Background track */}
+        <path d={arc(Math.PI, 2 * Math.PI)} fill="none" stroke="#0D1424" strokeWidth="26" strokeLinecap="round" />
+        {/* 5-zone coloring: Strong Bearish → Bearish → Neutral → Bullish → Strong Bullish */}
+        <path d={arc(Math.PI,       Math.PI * 1.2)} fill="none" stroke="#F43F5E" strokeWidth="24" strokeOpacity="0.7"  strokeLinecap="round" />
+        <path d={arc(Math.PI * 1.2, Math.PI * 1.4)} fill="none" stroke="#F97316" strokeWidth="24" strokeOpacity="0.55" strokeLinecap="round" />
+        <path d={arc(Math.PI * 1.4, Math.PI * 1.6)} fill="none" stroke="#F59E0B" strokeWidth="24" strokeOpacity="0.5"  strokeLinecap="round" />
+        <path d={arc(Math.PI * 1.6, Math.PI * 1.8)} fill="none" stroke="#22C55E" strokeWidth="24" strokeOpacity="0.55" strokeLinecap="round" />
+        <path d={arc(Math.PI * 1.8, 2 * Math.PI)}   fill="none" stroke="#10B981" strokeWidth="24" strokeOpacity="0.7"  strokeLinecap="round" />
+        {/* Tick marks */}
+        {ticks.map((t, i) => (
+          <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+                stroke="#2D3A50" strokeWidth="2" strokeLinecap="round" />
+        ))}
+        {/* Axis labels */}
+        <text x="14"  y="140" fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">−100</text>
+        <text x="150" y="22"  fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">0</text>
+        <text x="286" y="140" fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">+100</text>
         {/* Needle */}
-        <line x1={cx} y1={cy} x2={needleX} y2={needleY} stroke={color} strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx={cx} cy={cy} r="5" fill={color} />
+        <line x1={cx} y1={cy} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
+              stroke={color} strokeWidth="4" strokeLinecap="round" />
+        {/* Pivot: glow ring + solid dot + dark center */}
+        <circle cx={cx} cy={cy} r="14" fill={color} fillOpacity="0.12" />
+        <circle cx={cx} cy={cy} r="9"  fill={color} />
+        <circle cx={cx} cy={cy} r="4.5" fill="#060A14" />
       </svg>
-      <p className={`text-3xl font-black font-mono -mt-4`} style={{ color }}>{clamp > 0 ? "+" : ""}{clamp}</p>
-      <p className="text-xs text-[#7B8DB4] mt-1">{label}</p>
+
+      <p className="text-5xl font-black font-mono tabular-nums -mt-3" style={{ color }}>
+        {clamp > 0 ? "+" : ""}{clamp}
+      </p>
+      <p className="text-sm font-semibold text-[#7B8DB4] mt-2 tracking-wide">{label}</p>
     </div>
   );
 }
