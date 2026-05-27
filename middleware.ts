@@ -26,15 +26,18 @@ export function middleware(request: NextRequest) {
     [
       "default-src 'self'",
       // React/Turbopack needs eval() in development for sourcemaps and callstack reconstruction
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-      "style-src 'self' 'unsafe-inline'",
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://s3.tradingview.com https://static.tradingview.com`,
+      "style-src 'self' 'unsafe-inline' https://s3.tradingview.com https://static.tradingview.com",
       "img-src 'self' data: blob: https:",
-      "font-src 'self'",
+      "font-src 'self' https://s3.tradingview.com https://static.tradingview.com",
       "connect-src 'self' " +
         "https://query1.finance.yahoo.com " +
         "https://paper-api.alpaca.markets " +
         "https://api.alpaca.markets " +
-        "https://www.alphavantage.co",
+        "https://www.alphavantage.co " +
+        "https://*.tradingview.com " +
+        "wss://*.tradingview.com",
+      "frame-src https://www.tradingview.com https://s3.tradingview.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
