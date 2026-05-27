@@ -17,57 +17,110 @@ type SentimentData = {
 };
 
 // ── Gauge ─────────────────────────────────────────────────────────────────────
-// Responsive semicircle speedometer. Pivot at bottom-center.
-// Arc sweeps clockwise from left (−100) → top (0) → right (+100).
+// Realistic speedometer: 240° sweep from 8 o'clock (−100) to 4 o'clock (+100).
+// Score + label rendered inside the dial face.
 
 function Gauge({ score }: { score: number }) {
   const c   = Math.max(-100, Math.min(100, score));
   const pct = (c + 100) / 200;
-  const cx = 110, cy = 114, R = 94;
 
-  function arc(s: number, e: number): string {
-    const sx = cx + R * Math.cos(s), sy = cy + R * Math.sin(s);
-    const ex = cx + R * Math.cos(e), ey = cy + R * Math.sin(e);
-    const lg = Math.abs(e - s) > Math.PI ? 1 : 0;
-    return `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${R} ${R} 0 ${lg} 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+  const cx = 140, cy = 130;
+  const Ra = 100;                              // arc radius
+  const startDeg = 150;                        // 8 o'clock in SVG coords
+  const sweepDeg = 240;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+
+  function pt(p: number, r: number) {
+    const deg = startDeg + p * sweepDeg;
+    return { x: cx + r * Math.cos(toRad(deg)), y: cy + r * Math.sin(toRad(deg)) };
   }
 
-  const a  = Math.PI + pct * Math.PI;
-  const nx = cx + R * 0.80 * Math.cos(a);
-  const ny = cy + R * 0.80 * Math.sin(a);
+  function arcD(p0: number, p1: number, r: number): string {
+    const s = pt(p0, r), e = pt(p1, r);
+    const lg = (p1 - p0) * sweepDeg > 180 ? 1 : 0;
+    return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} A ${r} ${r} 0 ${lg} 1 ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
+  }
 
-  const color      = c >= 30 ? "#10B981" : c >= -30 ? "#F59E0B" : "#F43F5E";
-  const scoreClass = c >= 30 ? "text-emerald-400" : c >= -30 ? "text-amber-400" : "text-rose-400";
-  const label      = c >= 50 ? "Strong Bullish" : c >= 20 ? "Bullish" : c >= -20 ? "Neutral" : c >= -50 ? "Bearish" : "Strong Bearish";
+  // Needle
+  const nRad = toRad(startDeg + pct * sweepDeg);
+  const nx = cx + Ra * 0.82 * Math.cos(nRad);
+  const ny = cy + Ra * 0.82 * Math.sin(nRad);
+  const tx = cx - 16 * Math.cos(nRad);
+  const ty = cy - 16 * Math.sin(nRad);
+
+  const color = c >= 30 ? "#10B981" : c >= -30 ? "#F59E0B" : "#EF4444";
+  const label = c >= 50 ? "STRONG BULLISH" : c >= 20 ? "BULLISH" : c >= -20 ? "NEUTRAL" : c >= -50 ? "BEARISH" : "STRONG BEARISH";
+
+  const majorTicks = [
+    { p: 0,    lbl: "−100" },
+    { p: 0.25, lbl: "−50"  },
+    { p: 0.5,  lbl: "0"    },
+    { p: 0.75, lbl: "+50"  },
+    { p: 1,    lbl: "+100" },
+  ];
+  const minorTicks = [0.125, 0.375, 0.625, 0.875];
 
   return (
-    <div className="flex flex-col items-center w-full">
-      <svg viewBox="0 0 220 120" width="100%" aria-hidden="true">
-        {/* Background track */}
-        <path d={arc(Math.PI, 2 * Math.PI)} fill="none" stroke="#0D1424" strokeWidth="22" strokeLinecap="round" />
-        {/* 5-zone coloring: Strong Bearish → Bearish → Neutral → Bullish → Strong Bullish */}
-        <path d={arc(Math.PI,       Math.PI * 1.2)} fill="none" stroke="#F43F5E" strokeWidth="20" strokeOpacity="0.65" strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.2, Math.PI * 1.4)} fill="none" stroke="#F97316" strokeWidth="20" strokeOpacity="0.5"  strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.4, Math.PI * 1.6)} fill="none" stroke="#F59E0B" strokeWidth="20" strokeOpacity="0.45" strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.6, Math.PI * 1.8)} fill="none" stroke="#22C55E" strokeWidth="20" strokeOpacity="0.5"  strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.8, 2 * Math.PI)}   fill="none" stroke="#10B981" strokeWidth="20" strokeOpacity="0.65" strokeLinecap="round" />
-        {/* Axis labels */}
-        <text x="12"  y="118" fontSize="8.5" fill="#3B4D6A" fontFamily="monospace">−100</text>
-        <text x="110" y="26"  fontSize="8.5" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">0</text>
-        <text x="208" y="118" fontSize="8.5" fill="#3B4D6A" fontFamily="monospace" textAnchor="end">+100</text>
-        {/* Needle */}
-        <line x1={cx} y1={cy} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
-              stroke={color} strokeWidth="3" strokeLinecap="round" />
-        {/* Pivot: glow ring + solid dot + dark center */}
-        <circle cx={cx} cy={cy} r="11"  fill={color} fillOpacity="0.15" />
-        <circle cx={cx} cy={cy} r="6.5" fill={color} />
-        <circle cx={cx} cy={cy} r="3"   fill="#060A14" />
-      </svg>
+    <div className="w-full flex flex-col items-center">
+      <svg viewBox="0 0 280 210" width="100%" aria-hidden="true">
 
-      <p className={`text-4xl font-black font-mono tabular-nums -mt-3 ${scoreClass}`}>
-        {c > 0 ? "+" : ""}{c}
-      </p>
-      <p className="text-xs font-semibold text-[#7B8DB4] mt-1 tracking-wide">{label}</p>
+        {/* Outer bezel arc */}
+        <path d={arcD(0, 1, Ra + 17)} fill="none" stroke="#151D2E" strokeWidth="8" strokeLinecap="butt" />
+
+        {/* Inner dark dial face (clipping not needed — bezel arc covers the rim) */}
+        <circle cx={cx} cy={cy} r={Ra - 2} fill="#070C16" />
+
+        {/* Background arc groove */}
+        <path d={arcD(0, 1, Ra)} fill="none" stroke="#09101E" strokeWidth="20" strokeLinecap="butt" />
+
+        {/* Zone arcs */}
+        <path d={arcD(0,    0.2,  Ra)} fill="none" stroke="#EF4444" strokeWidth="18" strokeOpacity="0.9"  strokeLinecap="butt" />
+        <path d={arcD(0.2,  0.4,  Ra)} fill="none" stroke="#F97316" strokeWidth="18" strokeOpacity="0.78" strokeLinecap="butt" />
+        <path d={arcD(0.4,  0.6,  Ra)} fill="none" stroke="#EAB308" strokeWidth="18" strokeOpacity="0.72" strokeLinecap="butt" />
+        <path d={arcD(0.6,  0.8,  Ra)} fill="none" stroke="#22C55E" strokeWidth="18" strokeOpacity="0.78" strokeLinecap="butt" />
+        <path d={arcD(0.8,  1,    Ra)} fill="none" stroke="#10B981" strokeWidth="18" strokeOpacity="0.9"  strokeLinecap="butt" />
+
+        {/* Zone dividers */}
+        {[0.2, 0.4, 0.6, 0.8].map((p, i) => {
+          const a = pt(p, Ra - 9), b = pt(p, Ra + 9);
+          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#060A14" strokeWidth="2.5" />;
+        })}
+
+        {/* Major tick marks + labels */}
+        {majorTicks.map(({ p, lbl }, i) => {
+          const a = pt(p, Ra - 22), b = pt(p, Ra + 10), lb = pt(p, Ra + 28);
+          return (
+            <g key={i}>
+              <line x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#9DB0CC" strokeWidth="2.5" strokeLinecap="round" />
+              <text x={lb.x.toFixed(1)} y={lb.y.toFixed(1)} fontSize="8.5" fill="#4E6280" fontFamily="monospace" textAnchor="middle" dominantBaseline="central">{lbl}</text>
+            </g>
+          );
+        })}
+
+        {/* Minor tick marks */}
+        {minorTicks.map((p, i) => {
+          const a = pt(p, Ra - 12), b = pt(p, Ra + 5);
+          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#2A3A52" strokeWidth="1.5" strokeLinecap="round" />;
+        })}
+
+        {/* Needle */}
+        <line x1={tx.toFixed(1)} y1={ty.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
+              stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+
+        {/* Center hub */}
+        <circle cx={cx} cy={cy} r="18" fill="#060A14" stroke="#1C2A45" strokeWidth="2" />
+        <circle cx={cx} cy={cy} r="10" fill={color} fillOpacity="0.22" />
+        <circle cx={cx} cy={cy} r="6"  fill={color} />
+        <circle cx={cx} cy={cy} r="3"  fill="#060A14" />
+
+        {/* Score + label inside dial */}
+        <text x={cx} y={cy + 42} textAnchor="middle" fontSize="30" fontWeight="900" fontFamily="monospace" fill={color}>
+          {c > 0 ? "+" : ""}{c}
+        </text>
+        <text x={cx} y={cy + 60} textAnchor="middle" fontSize="7.5" fontFamily="monospace" fill="#3E5270" letterSpacing="1.5">
+          {label}
+        </text>
+      </svg>
     </div>
   );
 }

@@ -108,70 +108,107 @@ function MetricCard({
   );
 }
 
-// Responsive semicircle speedometer gauge (-100 to +100)
+// Realistic speedometer gauge (-100 to +100) — 240° sweep, 5 zones, dial readout
 function SentimentGauge({ score }: { score: number }) {
   const clamp = Math.max(-100, Math.min(100, score));
   const pct   = (clamp + 100) / 200;
-  const cx = 150, cy = 142, R = 118;
 
-  function arc(s: number, e: number): string {
-    const sx = cx + R * Math.cos(s), sy = cy + R * Math.sin(s);
-    const ex = cx + R * Math.cos(e), ey = cy + R * Math.sin(e);
-    const lg = Math.abs(e - s) > Math.PI ? 1 : 0;
-    return `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${R} ${R} 0 ${lg} 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`;
+  const cx = 160, cy = 148;
+  const Ra = 118;
+  const startDeg = 150;
+  const sweepDeg = 240;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+
+  function pt(p: number, r: number) {
+    const deg = startDeg + p * sweepDeg;
+    return { x: cx + r * Math.cos(toRad(deg)), y: cy + r * Math.sin(toRad(deg)) };
   }
 
-  const a  = Math.PI + pct * Math.PI;
-  const nx = cx + R * 0.82 * Math.cos(a);
-  const ny = cy + R * 0.82 * Math.sin(a);
+  function arcD(p0: number, p1: number, r: number): string {
+    const s = pt(p0, r), e = pt(p1, r);
+    const lg = (p1 - p0) * sweepDeg > 180 ? 1 : 0;
+    return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} A ${r} ${r} 0 ${lg} 1 ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
+  }
 
-  // Tick marks at -100, -50, 0, +50, +100
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => {
-    const ta = Math.PI + t * Math.PI;
-    return {
-      x1: (cx + (R - 10) * Math.cos(ta)).toFixed(1),
-      y1: (cy + (R - 10) * Math.sin(ta)).toFixed(1),
-      x2: (cx + (R + 8)  * Math.cos(ta)).toFixed(1),
-      y2: (cy + (R + 8)  * Math.sin(ta)).toFixed(1),
-    };
-  });
+  const nRad = toRad(startDeg + pct * sweepDeg);
+  const nx = cx + Ra * 0.83 * Math.cos(nRad);
+  const ny = cy + Ra * 0.83 * Math.sin(nRad);
+  const tx = cx - 20 * Math.cos(nRad);
+  const ty = cy - 20 * Math.sin(nRad);
 
-  const color = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#F43F5E";
-  const label = clamp >= 50 ? "Strong Bullish" : clamp >= 20 ? "Bullish" : clamp >= -20 ? "Neutral" : clamp >= -50 ? "Bearish" : "Strong Bearish";
+  const color = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#EF4444";
+  const label = clamp >= 50 ? "STRONG BULLISH" : clamp >= 20 ? "BULLISH" : clamp >= -20 ? "NEUTRAL" : clamp >= -50 ? "BEARISH" : "STRONG BEARISH";
+
+  const majorTicks = [
+    { p: 0,    lbl: "−100" },
+    { p: 0.25, lbl: "−50"  },
+    { p: 0.5,  lbl: "0"    },
+    { p: 0.75, lbl: "+50"  },
+    { p: 1,    lbl: "+100" },
+  ];
+  const minorTicks = [0.125, 0.375, 0.625, 0.875];
 
   return (
-    <div className="flex flex-col items-center w-full">
-      <svg viewBox="0 0 300 150" width="100%" aria-hidden="true">
-        {/* Background track */}
-        <path d={arc(Math.PI, 2 * Math.PI)} fill="none" stroke="#0D1424" strokeWidth="26" strokeLinecap="round" />
-        {/* 5-zone coloring: Strong Bearish → Bearish → Neutral → Bullish → Strong Bullish */}
-        <path d={arc(Math.PI,       Math.PI * 1.2)} fill="none" stroke="#F43F5E" strokeWidth="24" strokeOpacity="0.7"  strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.2, Math.PI * 1.4)} fill="none" stroke="#F97316" strokeWidth="24" strokeOpacity="0.55" strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.4, Math.PI * 1.6)} fill="none" stroke="#F59E0B" strokeWidth="24" strokeOpacity="0.5"  strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.6, Math.PI * 1.8)} fill="none" stroke="#22C55E" strokeWidth="24" strokeOpacity="0.55" strokeLinecap="round" />
-        <path d={arc(Math.PI * 1.8, 2 * Math.PI)}   fill="none" stroke="#10B981" strokeWidth="24" strokeOpacity="0.7"  strokeLinecap="round" />
-        {/* Tick marks */}
-        {ticks.map((t, i) => (
-          <line key={i} x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-                stroke="#2D3A50" strokeWidth="2" strokeLinecap="round" />
-        ))}
-        {/* Axis labels */}
-        <text x="14"  y="140" fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">−100</text>
-        <text x="150" y="22"  fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">0</text>
-        <text x="286" y="140" fontSize="10" fill="#3B4D6A" fontFamily="monospace" textAnchor="middle">+100</text>
-        {/* Needle */}
-        <line x1={cx} y1={cy} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
-              stroke={color} strokeWidth="4" strokeLinecap="round" />
-        {/* Pivot: glow ring + solid dot + dark center */}
-        <circle cx={cx} cy={cy} r="14" fill={color} fillOpacity="0.12" />
-        <circle cx={cx} cy={cy} r="9"  fill={color} />
-        <circle cx={cx} cy={cy} r="4.5" fill="#060A14" />
-      </svg>
+    <div className="w-full flex flex-col items-center">
+      <svg viewBox="0 0 320 235" width="100%" aria-hidden="true">
 
-      <p className="text-5xl font-black font-mono tabular-nums -mt-3" style={{ color }}>
-        {clamp > 0 ? "+" : ""}{clamp}
-      </p>
-      <p className="text-sm font-semibold text-[#7B8DB4] mt-2 tracking-wide">{label}</p>
+        {/* Outer bezel arc */}
+        <path d={arcD(0, 1, Ra + 20)} fill="none" stroke="#151D2E" strokeWidth="10" strokeLinecap="butt" />
+
+        {/* Dark dial face */}
+        <circle cx={cx} cy={cy} r={Ra - 2} fill="#070C16" />
+
+        {/* Background arc groove */}
+        <path d={arcD(0, 1, Ra)} fill="none" stroke="#09101E" strokeWidth="24" strokeLinecap="butt" />
+
+        {/* Zone arcs */}
+        <path d={arcD(0,    0.2,  Ra)} fill="none" stroke="#EF4444" strokeWidth="22" strokeOpacity="0.92" strokeLinecap="butt" />
+        <path d={arcD(0.2,  0.4,  Ra)} fill="none" stroke="#F97316" strokeWidth="22" strokeOpacity="0.78" strokeLinecap="butt" />
+        <path d={arcD(0.4,  0.6,  Ra)} fill="none" stroke="#EAB308" strokeWidth="22" strokeOpacity="0.72" strokeLinecap="butt" />
+        <path d={arcD(0.6,  0.8,  Ra)} fill="none" stroke="#22C55E" strokeWidth="22" strokeOpacity="0.78" strokeLinecap="butt" />
+        <path d={arcD(0.8,  1,    Ra)} fill="none" stroke="#10B981" strokeWidth="22" strokeOpacity="0.92" strokeLinecap="butt" />
+
+        {/* Zone dividers */}
+        {[0.2, 0.4, 0.6, 0.8].map((p, i) => {
+          const a = pt(p, Ra - 11), b = pt(p, Ra + 11);
+          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#060A14" strokeWidth="3" />;
+        })}
+
+        {/* Major tick marks + labels */}
+        {majorTicks.map(({ p, lbl }, i) => {
+          const a = pt(p, Ra - 26), b = pt(p, Ra + 12), lb = pt(p, Ra + 34);
+          return (
+            <g key={i}>
+              <line x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#9DB0CC" strokeWidth="3" strokeLinecap="round" />
+              <text x={lb.x.toFixed(1)} y={lb.y.toFixed(1)} fontSize="10" fill="#4E6280" fontFamily="monospace" textAnchor="middle" dominantBaseline="central">{lbl}</text>
+            </g>
+          );
+        })}
+
+        {/* Minor tick marks */}
+        {minorTicks.map((p, i) => {
+          const a = pt(p, Ra - 14), b = pt(p, Ra + 6);
+          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#2A3A52" strokeWidth="2" strokeLinecap="round" />;
+        })}
+
+        {/* Needle */}
+        <line x1={tx.toFixed(1)} y1={ty.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
+              stroke={color} strokeWidth="3" strokeLinecap="round" />
+
+        {/* Center hub */}
+        <circle cx={cx} cy={cy} r="22" fill="#060A14" stroke="#1C2A45" strokeWidth="2.5" />
+        <circle cx={cx} cy={cy} r="13" fill={color} fillOpacity="0.22" />
+        <circle cx={cx} cy={cy} r="8"  fill={color} />
+        <circle cx={cx} cy={cy} r="4"  fill="#060A14" />
+
+        {/* Score + label inside dial */}
+        <text x={cx} y={cy + 50} textAnchor="middle" fontSize="36" fontWeight="900" fontFamily="monospace" fill={color}>
+          {clamp > 0 ? "+" : ""}{clamp}
+        </text>
+        <text x={cx} y={cy + 72} textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#3E5270" letterSpacing="1.5">
+          {label}
+        </text>
+      </svg>
     </div>
   );
 }
