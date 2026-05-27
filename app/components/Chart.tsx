@@ -8,99 +8,106 @@ type ChartProps = {
 };
 
 export default function Chart({ symbol }: ChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
-  const [error, setError] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [provider, setProvider] = useState("");
 
   useEffect(() => {
+    let active = true;
     let chart: ReturnType<typeof createChart> | null = null;
-    let isActive = true;
 
-    async function loadData() {
-      if (!chartContainerRef.current || !isActive) return;
+    async function load() {
+      if (!containerRef.current) return;
 
-      setError("");
+      // Remove previous chart canvas if any
+      containerRef.current.innerHTML = "";
+      setLoading(true);
+      setError(false);
       setProvider("");
 
+      // Create chart immediately so the container is measured while visible
+      chart = createChart(containerRef.current, {
+        autoSize: true,
+        height: 380,
+        layout: {
+          background: { type: ColorType.Solid, color: "#0C1017" },
+          textColor: "#94A3B8",
+        },
+        grid: {
+          vertLines: { color: "#1C2333" },
+          horzLines: { color: "#1C2333" },
+        },
+        crosshair: {
+          vertLine: { color: "#4B5675" },
+          horzLine: { color: "#4B5675" },
+        },
+        rightPriceScale: { borderColor: "#1C2333" },
+        timeScale: { borderColor: "#1C2333" },
+      });
+
       try {
-        const res = await fetch(
-          `/api/stock?symbol=${encodeURIComponent(symbol)}`,
-        );
+        const res = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
         const json = await res.json();
 
-        if (!isActive || !chartContainerRef.current) return;
-
-        if (!res.ok || json?.error) {
-          setError("Chart unavailable. Both providers failed.");
-          return;
-        }
+        if (!active) return;
 
         const points = json?.points;
-        if (!Array.isArray(points) || points.length === 0) {
-          setError("No chart data available.");
+        if (!res.ok || json?.error || !Array.isArray(points) || points.length === 0) {
+          setLoading(false);
+          setError(true);
           return;
         }
 
-        setProvider(json?.provider ?? "");
-
-        chart = createChart(chartContainerRef.current, {
-          width: chartContainerRef.current.clientWidth,
-          height: 380,
-          layout: {
-            background: { type: ColorType.Solid, color: "#111827" },
-            textColor: "#D1D5DB",
-          },
-          grid: {
-            vertLines: { color: "#1F2937" },
-            horzLines: { color: "#1F2937" },
-          },
-        });
-
-        const lineSeries = chart.addSeries(LineSeries, {
-          color: "#22C55E",
+        const series = chart.addSeries(LineSeries, {
+          color: "#6366F1",
           lineWidth: 2,
         });
 
-        lineSeries.setData(points);
+        series.setData(points);
         chart.timeScale().fitContent();
+
+        setProvider(json?.provider ?? "");
+        setLoading(false);
       } catch {
-        setError("Failed to load chart.");
+        if (active) {
+          setLoading(false);
+          setError(true);
+        }
       }
     }
 
-    function handleResize() {
-      if (!chart || !chartContainerRef.current) return;
-      chart.applyOptions({
-        width: chartContainerRef.current.clientWidth,
-      });
-    }
-
-    loadData();
-    window.addEventListener("resize", handleResize);
+    load();
 
     return () => {
-      isActive = false;
-      window.removeEventListener("resize", handleResize);
-      if (chart) chart.remove();
+      active = false;
+      if (chart) {
+        chart.remove();
+        chart = null;
+      }
     };
   }, [symbol]);
 
-  if (error) {
-    return (
-      <div className="w-full h-[380px] flex flex-col items-center justify-center text-gray-400 border border-[#1F2937] rounded-2xl">
-        <div>{error}</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="w-full">
-      {provider && (
-        <div className="text-xs text-gray-500 mb-2">
-          Data provider: {provider}
+    <div className="w-full relative">
+      {/* Container must have explicit CSS height when autoSize:true is used */}
+      <div ref={containerRef} className="w-full h-[380px]" />
+
+      {/* Overlays */}
+      {loading && (
+        <div className="absolute inset-0 h-[380px] flex items-center justify-center bg-[#0C1017] rounded-xl">
+          <span className="text-[#4B5675] text-sm animate-pulse">Loading chart…</span>
         </div>
       )}
-      <div ref={chartContainerRef} className="w-full" />
+      {error && (
+        <div className="absolute inset-0 h-[380px] flex items-center justify-center bg-[#0C1017] rounded-xl border border-[#1C2333]">
+          <span className="text-[#4B5675] text-sm">Chart unavailable</span>
+        </div>
+      )}
+
+      {!loading && !error && provider && (
+        <p className="text-[10px] text-[#4B5675] mt-1 text-right">via {provider}</p>
+      )}
     </div>
   );
 }

@@ -65,7 +65,9 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
 
   const allRows: { symbol: string; label: string; category: string; dayChange: number | null; isCurrent: boolean }[] = [
     { symbol: currentSymbol, label: currentLabel, category: "Selected", dayChange: currentDayChange, isCurrent: true },
-    ...benchmarks.map((b) => ({ symbol: b.symbol, label: b.label, category: b.category, dayChange: b.dayChange, isCurrent: false })),
+    ...benchmarks
+      .filter((b) => b.symbol !== currentSymbol)
+      .map((b) => ({ symbol: b.symbol, label: b.label, category: b.category, dayChange: b.dayChange, isCurrent: false })),
   ];
 
   const values = allRows.map((r) => r.dayChange).filter((v): v is number => v !== null);

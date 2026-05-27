@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import Chart from "../components/Chart";
+import dynamic from "next/dynamic";
+const StockChart = dynamic(() => import("../components/StockChart"), { ssr: false });
 import { buyStock, sellStock, getPortfolio } from "../lib/trading";
 
 type QuoteData = {
@@ -19,7 +20,7 @@ type QuoteData = {
   timestamp?: number | null | string;
 };
 
-export default function MarketPage() {
+function MarketContent() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get("symbol") || "AAPL.US";
 
@@ -121,16 +122,17 @@ export default function MarketPage() {
   }
 
   return (
-    <div className="flex min-h-screen bg-[#0B0F19] text-white">
+    <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
-      <main className="flex-1 p-6 xl:p-8">
+      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
         <Topbar />
+        <div className="max-w-5xl mx-auto w-full">
 
         <div className="mt-6 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-4xl font-bold">{symbol}</h1>
-            <p className="text-gray-400 mt-2">
+            <p className="text-[#7B8DB4] mt-2">
               {quote?.exchange
                 ? `Exchange: ${quote.exchange}`
                 : "Live market view"}
@@ -143,8 +145,8 @@ export default function MarketPage() {
           </div>
 
           <div className="flex gap-3">
-            <div className="bg-[#111827] rounded-2xl px-5 py-4 border border-[#1F2937] min-w-[170px]">
-              <p className="text-xs text-gray-400">Current Price</p>
+            <div className="bg-[#0C1017] rounded-2xl px-5 py-4 border border-[#1C2333] min-w-[170px]">
+              <p className="text-xs text-[#7B8DB4]">Current Price</p>
               <p className="text-2xl font-bold mt-2">
                 {loadingQuote
                   ? "Loading..."
@@ -154,8 +156,8 @@ export default function MarketPage() {
               </p>
             </div>
 
-            <div className="bg-[#111827] rounded-2xl px-5 py-4 border border-[#1F2937] min-w-[170px]">
-              <p className="text-xs text-gray-400">Day Change</p>
+            <div className="bg-[#0C1017] rounded-2xl px-5 py-4 border border-[#1C2333] min-w-[170px]">
+              <p className="text-xs text-[#7B8DB4]">Day Change</p>
               <p
                 className={`text-2xl font-bold mt-2 ${
                   dayChangePercent === null
@@ -174,20 +176,20 @@ export default function MarketPage() {
         </div>
 
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-          <div className="xl:col-span-2 bg-[#111827] rounded-3xl p-6 border border-[#1F2937]">
+          <div className="xl:col-span-2 bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-semibold">{symbol} Chart</h2>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className="text-sm text-[#7B8DB4] mt-1">
                   Earliest available data from provider
                 </p>
               </div>
             </div>
 
-            <Chart symbol={symbol} />
+            <StockChart symbol={symbol} height={440} />
           </div>
 
-          <div className="bg-[#111827] rounded-3xl p-6 border border-[#1F2937]">
+          <div className="bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
             <h2 className="text-2xl font-semibold mb-5">Trade Panel</h2>
 
             <div className="flex gap-2 mb-5">
@@ -216,18 +218,18 @@ export default function MarketPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-gray-400 mb-2">
+                <label className="block text-sm text-[#7B8DB4] mb-2">
                   Symbol
                 </label>
                 <input
                   value={symbol}
                   readOnly
-                  className="w-full bg-[#1F2937] rounded-xl px-4 py-3 outline-none text-gray-300"
+                  className="w-full bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3 outline-none text-gray-300"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-gray-400 mb-2">
+                <label className="block text-sm text-[#7B8DB4] mb-2">
                   Quantity
                 </label>
                 <input
@@ -235,18 +237,18 @@ export default function MarketPage() {
                   min="1"
                   value={quantity}
                   onChange={(e) => setQuantity(Number(e.target.value))}
-                  className="w-full bg-[#1F2937] rounded-xl px-4 py-3 outline-none"
+                  className="w-full bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3 outline-none"
                 />
               </div>
 
-              <div className="bg-[#0B1220] rounded-2xl p-4 border border-[#1F2937]">
+              <div className="bg-[#060A14]/60 rounded-2xl p-4 border border-[#1C2333]">
                 <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-400">Estimated Price</span>
+                  <span className="text-[#7B8DB4]">Estimated Price</span>
                   <span>{price !== null ? `$${price.toFixed(2)}` : "--"}</span>
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-400">Estimated Total</span>
+                  <span className="text-[#7B8DB4]">Estimated Total</span>
                   <span>
                     {price !== null
                       ? `$${(price * quantity).toFixed(2)}`
@@ -264,7 +266,7 @@ export default function MarketPage() {
                 {side === "BUY" ? "Buy Shares" : "Sell Shares"}
               </button>
 
-              <div className="text-sm text-gray-400">
+              <div className="text-sm text-[#7B8DB4]">
                 Cash Balance: ${cash.toFixed(2)}
               </div>
 
@@ -303,7 +305,20 @@ export default function MarketPage() {
             </p>
           </div>
         </div>
+        </div>
       </main>
     </div>
+  );
+}
+
+export default function MarketPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
+        <div className="text-[#4B5675] text-sm">Loading…</div>
+      </div>
+    }>
+      <MarketContent />
+    </Suspense>
   );
 }

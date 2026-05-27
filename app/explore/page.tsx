@@ -253,31 +253,32 @@ export default function ExplorePage() {
     : null;
 
   return (
-    <div className="flex min-h-screen bg-[#0B0F19] text-white">
+    <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
-      <main className="flex-1 p-6 xl:p-8">
+      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
         <Topbar />
+        <div className="max-w-6xl mx-auto w-full">
 
         {/* ── Header ── */}
         <div className="mt-6">
           <h1 className="text-4xl font-bold">Explore Markets</h1>
-          <p className="text-gray-400 mt-2">
+          <p className="text-[#7B8DB4] mt-2">
             Search any instrument or browse by exchange — stocks, futures, commodities & more.
           </p>
         </div>
 
         {/* ── Exchange Tabs ── */}
         <div className="mt-6">
-          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">Browse by Exchange</p>
+          <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-3">Browse by Exchange</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={() => { setSelectedExchange(null); setSearched(false); }}
               className={`px-4 py-2 rounded-xl border text-sm font-semibold transition ${
                 !selectedExchange && !searched
-                  ? "border-white/30 bg-white/10 text-white"
-                  : "border-[#1F2937] text-gray-400 hover:text-white hover:bg-[#1F2937]"
+                  ? "border-[#2D3A50] bg-[#0C1017]/80 text-[#F1F5F9]"
+                  : "border-[#1C2333] text-[#4B5675] hover:text-[#F1F5F9] hover:bg-[#0C1017]"
               }`}
             >
               All Markets
@@ -326,12 +327,12 @@ export default function ExplorePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by company name or ticker (e.g. Tesla, AAPL, ES)"
-            className="flex-1 bg-[#111827] border border-[#1F2937] rounded-2xl px-5 py-4 text-white placeholder-gray-500 outline-none focus:border-blue-500 transition text-sm"
+            className="flex-1 bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4 text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-indigo-500/50 transition text-sm"
           />
           <button
             type="submit"
             disabled={searching}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 transition px-6 py-4 rounded-2xl font-semibold text-sm"
+            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition px-6 py-4 rounded-2xl font-semibold text-sm"
           >
             {searching ? "Searching…" : "Search"}
           </button>
@@ -348,23 +349,23 @@ export default function ExplorePage() {
                 <Link
                   key={`${r.symbol}-${i}`}
                   href={`/analysis?symbol=${encodeURIComponent(r.symbol)}`}
-                  className="bg-[#111827] rounded-2xl p-5 border border-[#1F2937] hover:border-blue-500/50 transition block"
+                  className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] hover:border-[#2D3A50] transition block"
                 >
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="font-bold text-white">{r.symbol}</p>
-                      <p className="text-sm text-gray-400 mt-0.5 truncate max-w-[200px]">{r.name}</p>
+                      <p className="font-bold text-[#F1F5F9]">{r.symbol}</p>
+                      <p className="text-sm text-[#7B8DB4] mt-0.5 truncate max-w-[200px]">{r.name}</p>
                     </div>
-                    <span className="text-xs text-gray-500 bg-[#1F2937] px-2 py-1 rounded-lg">
+                    <span className="text-xs text-[#4B5675] bg-[#111827] px-2 py-1 rounded-lg border border-[#1C2333]">
                       {r.exchange}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-3">
-                    <span className="text-xs text-gray-500">{r.country}</span>
-                    <span className="text-gray-700">·</span>
-                    <span className="text-xs text-gray-500">{r.type}</span>
+                    <span className="text-xs text-[#4B5675]">{r.country}</span>
+                    <span className="text-[#2D3A50]">·</span>
+                    <span className="text-xs text-[#4B5675]">{r.type}</span>
                   </div>
-                  <p className="text-xs text-blue-400 mt-3">Analyze with AI →</p>
+                  <p className="text-xs text-indigo-400 mt-3">Analyze with AI →</p>
                 </Link>
               ))}
             </div>
@@ -390,18 +391,18 @@ export default function ExplorePage() {
                         <Link
                           key={item.symbol}
                           href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`}
-                          className={`bg-[#111827] rounded-2xl p-5 border border-[#1F2937] ${c.glow} transition block`}
+                          className={`bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] ${c.glow} transition block`}
                         >
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-bold text-white">{item.ticker}</p>
-                              <p className="text-sm text-gray-400 mt-0.5">{item.name}</p>
+                              <p className="font-bold text-[#F1F5F9]">{item.ticker}</p>
+                              <p className="text-sm text-[#7B8DB4] mt-0.5">{item.name}</p>
                             </div>
                             <span className={`text-xs px-2 py-1 rounded-lg border ${c.badge}`}>
                               {cat}
                             </span>
                           </div>
-                          <p className="text-xs text-blue-400 mt-4">View AI analysis →</p>
+                          <p className="text-xs text-indigo-400 mt-4">View AI analysis →</p>
                         </Link>
                       ))}
                   </div>
@@ -422,18 +423,18 @@ export default function ExplorePage() {
                   <Link
                     key={stock.symbol}
                     href={`/analysis?symbol=${encodeURIComponent(stock.symbol)}`}
-                    className="bg-[#111827] rounded-2xl p-5 border border-[#1F2937] hover:border-blue-500/50 transition block"
+                    className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] hover:border-[#2D3A50] transition block"
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="font-bold text-white">{stock.symbol.replace(".US", "")}</p>
-                        <p className="text-sm text-gray-400 mt-0.5">{stock.name}</p>
+                        <p className="font-bold text-[#F1F5F9]">{stock.symbol.replace(".US", "")}</p>
+                        <p className="text-sm text-[#7B8DB4] mt-0.5">{stock.name}</p>
                       </div>
-                      <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                      <span className="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20">
                         {stock.sector}
                       </span>
                     </div>
-                    <p className="text-xs text-blue-400 mt-4">View AI analysis →</p>
+                    <p className="text-xs text-indigo-400 mt-4">View AI analysis →</p>
                   </Link>
                 ))}
               </div>
@@ -442,7 +443,7 @@ export default function ExplorePage() {
             {/* Exchange Overview Grid */}
             <div className="mt-10">
               <h2 className="text-2xl font-semibold mb-1">Futures Exchanges</h2>
-              <p className="text-gray-400 text-sm mb-6">
+              <p className="text-[#7B8DB4] text-sm mb-6">
                 Click any exchange tab above to browse its listed contracts
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -454,22 +455,22 @@ export default function ExplorePage() {
                       key={ex.id}
                       type="button"
                       onClick={() => setSelectedExchange(ex.id)}
-                      className={`bg-[#111827] rounded-2xl p-5 border border-[#1F2937] ${c.glow} transition text-left block w-full`}
+                      className={`bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] ${c.glow} transition text-left block w-full`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className={`w-2.5 h-2.5 rounded-full ${c.dot} shrink-0 mt-0.5`} />
-                          <p className={`font-bold text-base ${c.tab.split(" ").find((x) => x.startsWith("text-")) ?? "text-white"}`}>
+                          <p className={`font-bold text-base ${c.tab.split(" ").find((x) => x.startsWith("text-")) ?? "text-[#F1F5F9]"}`}>
                             {ex.short}
                           </p>
                         </div>
-                        <span className="text-xs text-gray-500 bg-[#1F2937] px-2 py-1 rounded-lg">
+                        <span className="text-xs text-[#4B5675] bg-[#111827] px-2 py-1 rounded-lg border border-[#1C2333]">
                           {ex.items.length} contracts
                         </span>
                       </div>
-                      <p className="text-sm font-medium text-white">{ex.fullName}</p>
-                      <p className="text-xs text-gray-500 mt-1">{ex.city}</p>
-                      <p className="text-xs text-gray-400 mt-2 leading-relaxed">{ex.description}</p>
+                      <p className="text-sm font-medium text-[#F1F5F9]">{ex.fullName}</p>
+                      <p className="text-xs text-[#4B5675] mt-1">{ex.city}</p>
+                      <p className="text-xs text-[#7B8DB4] mt-2 leading-relaxed">{ex.description}</p>
                       <div className="flex flex-wrap gap-1 mt-3">
                         {cats.slice(0, 3).map((cat) => (
                           <span key={cat} className={`text-[10px] px-1.5 py-0.5 rounded border ${c.badge}`}>
@@ -489,6 +490,7 @@ export default function ExplorePage() {
             </div>
           </>
         )}
+        </div>
       </main>
     </div>
   );

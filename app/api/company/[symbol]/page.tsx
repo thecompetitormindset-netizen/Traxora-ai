@@ -51,9 +51,9 @@ export default function CompanyPage({
   }, [decodedSymbol]);
 
   return (
-    <div className="flex min-h-screen bg-[#0B0F19] text-white">
+    <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-6 xl:p-8">
+      <main className="flex-1 p-6 xl:p-8 pb-28">
         <Topbar />
 
         {loading ? (

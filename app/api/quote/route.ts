@@ -76,11 +76,46 @@ export async function GET(req: Request) {
     }
   }
 
+  // Fallback to Yahoo Finance (no API key required)
+  try {
+    const yahooSymbol = symbol.replace(/\.(US|COMM)$/, "");
+    const yahooUrl =
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}` +
+      `?interval=1d&range=5d`;
+
+    const res = await fetch(yahooUrl, {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const data = await res.json();
+
+    const result = data?.chart?.result?.[0];
+    const meta = result?.meta;
+    const quotes = result?.indicators?.quote?.[0];
+
+    if (meta && meta.regularMarketPrice != null) {
+      const opens: number[] = quotes?.open ?? [];
+      const highs: number[] = quotes?.high ?? [];
+      const lows: number[] = quotes?.low ?? [];
+
+      return Response.json({
+        provider: "Yahoo Finance",
+        symbol: meta.symbol ?? yahooSymbol,
+        price: meta.regularMarketPrice,
+        previousClose: meta.previousClose ?? meta.chartPreviousClose ?? null,
+        open: opens.filter(Boolean).at(-1) ?? null,
+        high: highs.filter(Boolean).at(-1) ?? null,
+        low: lows.filter(Boolean).at(-1) ?? null,
+        exchange: meta.exchangeName ?? null,
+        timestamp: meta.regularMarketTime ?? null,
+      });
+    }
+  } catch {
+    // fall through
+  }
+
   return Response.json(
-    {
-      error: "Could not fetch quote from available providers",
-      symbol,
-    },
+    { error: "Could not fetch quote from available providers", symbol },
     { status: 500 },
   );
 }

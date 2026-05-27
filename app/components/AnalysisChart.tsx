@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   createChart,
   CandlestickSeries,
   HistogramSeries,
+  LineSeries,
   ColorType,
 } from "lightweight-charts";
 
@@ -12,110 +13,149 @@ type AnalysisChartProps = {
   symbol: string;
 };
 
-type BarItem = {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-};
-
 export default function AnalysisChart({ symbol }: AnalysisChartProps) {
-  const chartContainerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [provider, setProvider] = useState("");
 
   useEffect(() => {
+    let active = true;
     let chart: ReturnType<typeof createChart> | null = null;
-    let isActive = true;
 
-    async function loadData() {
-      if (!chartContainerRef.current || !isActive) return;
+    async function load() {
+      if (!containerRef.current) return;
 
-      const res = await fetch(
-        `/api/eod-bars?symbol=${encodeURIComponent(symbol)}`,
-      );
-      const bars = await res.json();
+      containerRef.current.innerHTML = "";
+      setLoading(true);
+      setError(false);
+      setProvider("");
 
-      if (
-        !Array.isArray(bars) ||
-        bars.length === 0 ||
-        !chartContainerRef.current
-      ) {
-        return;
-      }
-
-      chart = createChart(chartContainerRef.current, {
-        width: chartContainerRef.current.clientWidth,
+      // Create chart immediately into the visible container
+      chart = createChart(containerRef.current, {
+        autoSize: true,
         height: 520,
         layout: {
-          background: { type: ColorType.Solid, color: "#111827" },
-          textColor: "#D1D5DB",
+          background: { type: ColorType.Solid, color: "#0C1017" },
+          textColor: "#94A3B8",
         },
         grid: {
-          vertLines: { color: "#1F2937" },
-          horzLines: { color: "#1F2937" },
+          vertLines: { color: "#1C2333" },
+          horzLines: { color: "#1C2333" },
         },
-      });
-
-      const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: "#22C55E",
-        downColor: "#EF4444",
-        borderVisible: false,
-        wickUpColor: "#22C55E",
-        wickDownColor: "#EF4444",
-      });
-
-      const volumeSeries = chart.addSeries(HistogramSeries, {
-        priceFormat: {
-          type: "volume",
+        crosshair: {
+          vertLine: { color: "#4B5675" },
+          horzLine: { color: "#4B5675" },
         },
-        priceScaleId: "",
+        rightPriceScale: { borderColor: "#1C2333" },
+        timeScale: { borderColor: "#1C2333" },
       });
 
-      candleSeries.setData(
-        bars.map((bar: BarItem) => ({
-          time: bar.date,
-          open: bar.open,
-          high: bar.high,
-          low: bar.low,
-          close: bar.close,
-        })),
-      );
+      try {
+        // Try candlestick data from EODHD first
+        const eodRes = await fetch(`/api/eod-bars?symbol=${encodeURIComponent(symbol)}`);
+        const bars = await eodRes.json();
 
-      volumeSeries.priceScale().applyOptions({
-        scaleMargins: {
-          top: 0.75,
-          bottom: 0,
-        },
-      });
+        if (!active) return;
 
-      volumeSeries.setData(
-        bars.map((bar: BarItem) => ({
-          time: bar.date,
-          value: bar.volume,
-          color: bar.close >= bar.open ? "#22C55E88" : "#EF444488",
-        })),
-      );
+        if (Array.isArray(bars) && bars.length > 0) {
+          const candleSeries = chart.addSeries(CandlestickSeries, {
+            upColor: "#10B981",
+            downColor: "#F43F5E",
+            borderVisible: false,
+            wickUpColor: "#10B981",
+            wickDownColor: "#F43F5E",
+          });
 
-      chart.timeScale().fitContent();
+          const volumeSeries = chart.addSeries(HistogramSeries, {
+            priceFormat: { type: "volume" },
+            priceScaleId: "",
+          });
+
+          candleSeries.setData(
+            bars.map((b: { date: string; open: number; high: number; low: number; close: number }) => ({
+              time: b.date,
+              open: b.open,
+              high: b.high,
+              low: b.low,
+              close: b.close,
+            })),
+          );
+
+          volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
+
+          volumeSeries.setData(
+            bars.map((b: { date: string; close: number; open: number; volume: number }) => ({
+              time: b.date,
+              value: b.volume,
+              color: b.close >= b.open ? "#10B98188" : "#F43F5E88",
+            })),
+          );
+
+          chart.timeScale().fitContent();
+          setProvider("EODHD");
+          setLoading(false);
+          return;
+        }
+
+        // Fallback: line chart from /api/stock (Yahoo Finance)
+        const stockRes = await fetch(`/api/stock?symbol=${encodeURIComponent(symbol)}`);
+        const stockJson = await stockRes.json();
+
+        if (!active) return;
+
+        const points = stockJson?.points;
+        if (Array.isArray(points) && points.length > 0) {
+          const lineSeries = chart.addSeries(LineSeries, {
+            color: "#6366F1",
+            lineWidth: 2,
+          });
+          lineSeries.setData(points);
+          chart.timeScale().fitContent();
+          setProvider(stockJson?.provider ?? "Yahoo Finance");
+          setLoading(false);
+          return;
+        }
+
+        setLoading(false);
+        setError(true);
+      } catch {
+        if (active) {
+          setLoading(false);
+          setError(true);
+        }
+      }
     }
 
-    function handleResize() {
-      if (!chart || !chartContainerRef.current) return;
-      chart.applyOptions({
-        width: chartContainerRef.current.clientWidth,
-      });
-    }
-
-    loadData();
-    window.addEventListener("resize", handleResize);
+    load();
 
     return () => {
-      isActive = false;
-      window.removeEventListener("resize", handleResize);
-      if (chart) chart.remove();
+      active = false;
+      if (chart) {
+        chart.remove();
+        chart = null;
+      }
     };
   }, [symbol]);
 
-  return <div ref={chartContainerRef} className="w-full" />;
+  return (
+    <div className="w-full relative">
+      <div ref={containerRef} className="w-full h-[520px]" />
+
+      {loading && (
+        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#0C1017] rounded-xl">
+          <span className="text-[#4B5675] text-sm animate-pulse">Loading chart…</span>
+        </div>
+      )}
+      {error && (
+        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#0C1017] rounded-xl border border-[#1C2333]">
+          <span className="text-[#4B5675] text-sm">Chart unavailable</span>
+        </div>
+      )}
+
+      {!loading && !error && provider && (
+        <p className="text-[10px] text-[#4B5675] mt-1 text-right">via {provider}</p>
+      )}
+    </div>
+  );
 }

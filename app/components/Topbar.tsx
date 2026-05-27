@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 type SearchItem = {
   code: string;
@@ -13,6 +13,7 @@ type SearchItem = {
   currency: string;
   type: string;
   symbol: string;
+  sector?: string;
 };
 
 type TopbarProps = {
@@ -22,12 +23,24 @@ type TopbarProps = {
 export default function Topbar({ onSearch }: TopbarProps) {
   const { data: session } = useSession();
   const router = useRouter();
-  const pathname = usePathname();
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchItem[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [alertCount, setAlertCount] = useState(0);
+
+  useEffect(() => {
+    function loadCount() {
+      try {
+        const alerts = JSON.parse(localStorage.getItem("traxora_alerts") ?? "[]");
+        setAlertCount(Array.isArray(alerts) ? alerts.length : 0);
+      } catch { setAlertCount(0); }
+    }
+    loadCount();
+    window.addEventListener("traxora-signal", loadCount);
+    return () => window.removeEventListener("traxora-signal", loadCount);
+  }, []);
 
   useEffect(() => {
     if (!query.trim()) {
@@ -35,13 +48,11 @@ export default function Topbar({ onSearch }: TopbarProps) {
       setOpen(false);
       return;
     }
-
     const timer = setTimeout(async () => {
       try {
         setLoading(true);
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
-
         if (Array.isArray(data)) {
           setResults(data);
           setOpen(true);
@@ -49,15 +60,13 @@ export default function Topbar({ onSearch }: TopbarProps) {
           setResults([]);
           setOpen(false);
         }
-      } catch (error) {
-        console.error("Search failed:", error);
+      } catch {
         setResults([]);
         setOpen(false);
       } finally {
         setLoading(false);
       }
     }, 300);
-
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -65,52 +74,69 @@ export default function Topbar({ onSearch }: TopbarProps) {
     setQuery(symbol);
     setOpen(false);
     onSearch?.(symbol);
-
     router.push(`/analysis?symbol=${encodeURIComponent(symbol)}`);
   }
 
   return (
-    <div className="h-20 flex items-center justify-between gap-4 relative">
-      <div className="w-[560px] relative">
-        <div className="bg-[#111827] border border-[#1F2937] rounded-2xl px-5 py-3 flex items-center gap-3">
-          <span className="text-gray-400 text-lg">🔍</span>
+    <div className="h-[68px] flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 sm:px-6 shrink-0 relative bg-[#060A14]/70 backdrop-blur-xl sticky top-0 z-30">
+      {/* Logo — links back to landing page */}
+      <Link href="/" className="flex items-center gap-2 shrink-0 group">
+        <div className="w-7 h-7 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 transition-colors flex items-center justify-center">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+            <polyline points="16 7 22 7 22 13"/>
+          </svg>
+        </div>
+        <span className="text-xs font-bold text-[#4B5675] group-hover:text-[#F1F5F9] transition-colors hidden sm:block tracking-tight">Traxora</span>
+      </Link>
 
+      {/* Search */}
+      <div className="flex-1 max-w-xl relative">
+        <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] rounded-xl px-4 py-2.5 transition-colors focus-within:border-indigo-500/50 focus-within:bg-[#060A14]">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
           <input
             type="text"
-            placeholder="Search any company or symbol"
+            placeholder="Search any symbol or company…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => {
-              if (results.length > 0) setOpen(true);
-            }}
-            className="w-full bg-transparent text-white outline-none placeholder:text-gray-500 text-sm"
+            onFocus={() => { if (results.length > 0) setOpen(true); }}
+            className="flex-1 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
-
-          {loading && <span className="text-xs text-gray-500">Loading...</span>}
+          {loading && (
+            <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2.5">
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+          )}
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1C2333] text-[#4B5675] text-[10px] font-mono shrink-0">
+            ⌘K
+          </kbd>
         </div>
 
+        {/* Dropdown */}
         {open && results.length > 0 && (
-          <div className="absolute top-[72px] left-0 w-full bg-[#111827] border border-[#1F2937] rounded-2xl shadow-lg z-50 max-h-96 overflow-y-auto">
-            {results.map((item, index) => (
+          <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#0C1017] border border-[#1C2333] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+            {results.map((item, i) => (
               <button
-                key={`${item.symbol}-${index}`}
+                key={`${item.symbol}-${i}`}
+                type="button"
                 onClick={() => handleSelect(item.symbol)}
-                className="w-full text-left px-4 py-3 border-b border-[#1F2937] last:border-0 hover:bg-[#1F2937] transition"
+                className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#111827] transition-colors border-b border-[#1C2333] last:border-0"
               >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-white truncate">
-                      {item.symbol}
-                    </p>
-                    <p className="text-sm text-gray-400 truncate">
-                      {item.name}
-                    </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-[#F1F5F9] font-mono">{item.symbol}</p>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1C2333] text-[#4B5675] font-medium capitalize shrink-0">
+                      {item.type}
+                    </span>
                   </div>
-
-                  <div className="text-xs text-gray-500 text-right shrink-0">
-                    <p>{item.exchange}</p>
-                    <p>{item.country}</p>
-                  </div>
+                  <p className="text-xs text-[#7B8DB4] truncate mt-0.5">{item.name}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="text-xs font-medium text-[#4B5675]">{item.exchange}</p>
+                  {item.sector && <p className="text-[10px] text-[#4B5675] mt-0.5 truncate max-w-[100px]">{item.sector}</p>}
                 </div>
               </button>
             ))}
@@ -118,53 +144,61 @@ export default function Topbar({ onSearch }: TopbarProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4">
+      {/* Right side */}
+      <div className="flex items-center gap-2">
+        {/* Notifications */}
         <Link
           href="/notifications"
-          className="relative w-11 h-11 rounded-full bg-[#111827] border border-[#1F2937] flex items-center justify-center text-gray-300 hover:text-white hover:bg-[#1F2937] transition"
+          className="relative w-9 h-9 rounded-lg bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-all"
         >
-          🔔
-          <span className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-            3
-          </span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          {alertCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+              {alertCount > 99 ? "99+" : alertCount}
+            </span>
+          )}
         </Link>
 
+        {/* User */}
         {session?.user ? (
-          <div className="flex items-center gap-3 bg-[#111827] border border-[#1F2937] rounded-2xl px-4 py-3 min-w-[250px]">
-            <Link href="/settings" className="shrink-0">
+          <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-1.5">
+            <Link href="/settings">
               {session.user.image ? (
                 <img
                   src={session.user.image}
                   alt="Profile"
-                  className="w-11 h-11 rounded-full object-cover"
+                  className="w-7 h-7 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-11 h-11 rounded-full bg-green-500 flex items-center justify-center text-sm font-bold text-white">
+                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
                   {session.user.name?.[0] ?? "U"}
                 </div>
               )}
             </Link>
-
-            <Link href="/settings" className="leading-tight flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">
+            <Link href="/settings" className="hidden sm:block leading-tight">
+              <p className="text-xs font-semibold text-[#F1F5F9] truncate max-w-[120px]">
                 {session.user.name ?? "User"}
               </p>
-              <p className="text-xs text-gray-400 truncate">
+              <p className="text-[10px] text-[#4B5675] truncate max-w-[120px]">
                 {session.user.email ?? ""}
               </p>
             </Link>
-
             <button
+              type="button"
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="text-xs text-red-400 hover:text-red-300 whitespace-nowrap"
+              className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
-              Logout
+              Out
             </button>
           </div>
         ) : (
           <button
+            type="button"
             onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="bg-[#111827] border border-[#1F2937] rounded-2xl px-4 py-3 text-sm font-medium hover:bg-[#1F2937] transition"
+            className="bg-indigo-600 hover:bg-indigo-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white"
           >
             Sign in
           </button>

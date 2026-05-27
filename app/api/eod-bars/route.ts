@@ -3,44 +3,78 @@ export async function GET(req: Request) {
   const symbol = searchParams.get("symbol") || "AAPL.US";
 
   const apiKey = process.env.EODHD_API_KEY;
-  if (!apiKey) {
-    return Response.json({ error: "Missing EODHD_API_KEY" }, { status: 500 });
+
+  // 1) Try EODHD
+  if (apiKey) {
+    try {
+      const url =
+        `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}` +
+        `?api_token=${apiKey}&fmt=json&order=a`;
+
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const cleaned = Array.isArray(data)
+          ? data
+              .map((item: any) => ({
+                date: item.date,
+                open: item.open,
+                high: item.high,
+                low: item.low,
+                close: item.close,
+                volume: item.volume,
+              }))
+              .filter(
+                (item: any) =>
+                  item.date &&
+                  item.open != null &&
+                  item.high != null &&
+                  item.low != null &&
+                  item.close != null,
+              )
+          : [];
+
+        if (cleaned.length > 0) return Response.json(cleaned);
+      }
+    } catch {
+      // fall through
+    }
   }
 
-  const url =
-    `https://eodhd.com/api/eod/${encodeURIComponent(symbol)}` +
-    `?api_token=${apiKey}` +
-    `&fmt=json` +
-    `&order=a`;
+  // 2) Fallback: Yahoo Finance OHLCV (no API key required)
+  try {
+    const yahooSymbol = symbol.replace(/\.(US|COMM)$/, "");
+    const url =
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}` +
+      `?interval=1d&range=1y`;
 
-  const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0" },
+    });
+    const data = await res.json();
 
-  if (!res.ok) {
-    return Response.json({ error: "Failed to fetch bars" }, { status: 500 });
-  }
+    const result = data?.chart?.result?.[0];
+    const timestamps: number[] | undefined = result?.timestamp;
+    const q = result?.indicators?.quote?.[0];
 
-  const data = await res.json();
-
-  const cleaned = Array.isArray(data)
-    ? data
-        .map((item: any) => ({
-          date: item.date,
-          open: item.open,
-          high: item.high,
-          low: item.low,
-          close: item.close,
-          volume: item.volume,
+    if (timestamps && q) {
+      const bars = timestamps
+        .map((ts, i) => ({
+          date: new Date(ts * 1000).toISOString().slice(0, 10),
+          open: q.open?.[i] ?? null,
+          high: q.high?.[i] ?? null,
+          low: q.low?.[i] ?? null,
+          close: q.close?.[i] ?? null,
+          volume: q.volume?.[i] ?? 0,
         }))
-        .filter(
-          (item: any) =>
-            item.date &&
-            item.open != null &&
-            item.high != null &&
-            item.low != null &&
-            item.close != null &&
-            item.volume != null,
-        )
-    : [];
+        .filter((b) => b.open != null && b.close != null);
 
-  return Response.json(cleaned);
+      if (bars.length > 0) return Response.json(bars);
+    }
+  } catch {
+    // fall through
+  }
+
+  return Response.json({ error: "Failed to fetch bars" }, { status: 500 });
 }

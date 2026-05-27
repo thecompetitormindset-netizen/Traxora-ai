@@ -34,9 +34,7 @@ export default function AIChatWidget() {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: next.map((m) => ({ role: m.role, content: m.content })),
-        }),
+        body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
 
       if (!res.body) throw new Error("No response body");
@@ -52,14 +50,7 @@ export default function AIChatWidget() {
         setMessages([...next, { role: "assistant", content: accumulated }]);
       }
     } catch {
-      setMessages([
-        ...next,
-        {
-          role: "assistant",
-          content:
-            "Sorry, I ran into an error. Make sure your ANTHROPIC_API_KEY is set.",
-        },
-      ]);
+      setMessages([...next, { role: "assistant", content: "Sorry, something went wrong. Make sure your API key is set." }]);
     } finally {
       setLoading(false);
     }
@@ -74,51 +65,76 @@ export default function AIChatWidget() {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Trigger button */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-500 text-white shadow-lg flex items-center justify-center text-2xl transition-colors"
         aria-label="Open AI assistant"
+        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
-        {open ? "✕" : "🤖"}
+        {open ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        ) : (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        )}
       </button>
 
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] h-[500px] bg-[#111827] border border-[#1F2937] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div className="fixed bottom-[76px] right-6 z-50 w-[360px] h-[500px] bg-[#0C1017] border border-[#1C2333] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden">
           {/* Header */}
-          <div className="flex items-center gap-2 px-4 py-3 border-b border-[#1F2937] bg-[#0B0F19]">
-            <span className="text-lg">🤖</span>
-            <div>
-              <p className="text-white font-semibold text-sm">Kairos AI</p>
-              <p className="text-gray-500 text-xs">Ask me about stocks & markets</p>
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#1C2333] bg-[#060A14] shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                <polyline points="16 7 22 7 22 13" />
+              </svg>
             </div>
+            <div>
+              <p className="text-sm font-semibold text-[#F1F5F9]">Traxora AI</p>
+              <p className="text-[10px] text-[#4B5675]">Ask about stocks, signals &amp; markets</p>
+            </div>
+            <span className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              Online
+            </span>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {messages.length === 0 && (
-              <div className="text-gray-500 text-sm text-center mt-8">
-                <p className="text-2xl mb-2">📈</p>
-                <p>Ask me anything about stocks, markets, or trading strategies.</p>
+              <div className="flex flex-col items-center justify-center h-full text-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+                    <polyline points="16 7 22 7 22 13" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-[#F1F5F9]">Ask Traxora AI</p>
+                  <p className="text-xs text-[#4B5675] mt-1 leading-relaxed max-w-[220px]">
+                    Market analysis, ICT concepts, trade ideas, or any question about stocks and futures.
+                  </p>
+                </div>
               </div>
             )}
             {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-              >
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div
-                  className={`max-w-[80%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${
+                  className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === "user"
-                      ? "bg-blue-600 text-white"
-                      : "bg-[#1F2937] text-gray-200"
+                      ? "bg-indigo-600 text-white rounded-br-sm"
+                      : "bg-[#111827] border border-[#1C2333] text-[#CBD5E1] rounded-bl-sm"
                   }`}
                 >
                   {msg.content}
                   {msg.role === "assistant" && msg.content === "" && loading && (
-                    <span className="animate-pulse">▍</span>
+                    <span className="inline-block w-1 h-4 bg-indigo-400 ml-0.5 animate-pulse rounded-sm" />
                   )}
                 </div>
               </div>
@@ -127,11 +143,11 @@ export default function AIChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t border-[#1F2937] flex gap-2">
+          <div className="p-3 border-t border-[#1C2333] flex gap-2 shrink-0">
             <textarea
               rows={1}
-              className="flex-1 bg-[#1F2937] text-white text-sm rounded-xl px-3 py-2 resize-none outline-none placeholder-gray-500 focus:ring-1 focus:ring-blue-500"
-              placeholder="Ask about a stock..."
+              className="flex-1 bg-[#060A14] border border-[#1C2333] focus:border-indigo-500/50 text-[#F1F5F9] text-sm rounded-xl px-3.5 py-2.5 resize-none outline-none placeholder:text-[#4B5675] transition-colors"
+              placeholder="Ask about a stock or market…"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
@@ -141,9 +157,13 @@ export default function AIChatWidget() {
               type="button"
               onClick={send}
               disabled={loading || !input.trim()}
-              className="px-3 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white rounded-xl text-sm font-medium transition-colors"
+              aria-label="Send message"
+              className="px-3 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center"
             >
-              Send
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
             </button>
           </div>
         </div>

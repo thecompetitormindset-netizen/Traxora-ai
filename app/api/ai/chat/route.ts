@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `You are Kairos AI, a knowledgeable financial assistant embedded in a paper trading platform. You help users understand stocks, markets, and trading strategies.
+const SYSTEM_PROMPT = `You are Traxora AI, a knowledgeable financial assistant embedded in a paper trading platform. You help users understand stocks, markets, and trading strategies.
 
 You can:
 - Analyze stocks and explain price movements
@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const { messages } = await req.json();
 
   const stream = await client.messages.stream({
-    model: "claude-opus-4-7",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages,

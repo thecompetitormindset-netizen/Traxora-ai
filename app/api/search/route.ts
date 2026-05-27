@@ -2,81 +2,39 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q")?.trim() || "";
 
-  const apiKey = process.env.EODHD_API_KEY;
-
-  if (!apiKey) {
-    return Response.json({ error: "Missing EODHD_API_KEY" }, { status: 500 });
-  }
-
-  if (!query) {
-    return Response.json([]);
-  }
+  if (!query) return Response.json([]);
 
   try {
     const url =
-      `https://eodhd.com/api/search/${encodeURIComponent(query)}` +
-      `?api_token=${apiKey}` +
-      `&fmt=json`;
+      `https://query1.finance.yahoo.com/v1/finance/search` +
+      `?q=${encodeURIComponent(query)}&lang=en-US&region=US&quotesCount=10&newsCount=0`;
 
-    const res = await fetch(url, { cache: "no-store" });
-    const rawText = await res.text();
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(6000),
+    });
 
-    if (!res.ok) {
-      return Response.json(
-        {
-          error: "EODHD request failed",
-          status: res.status,
-          raw: rawText.slice(0, 500),
-        },
-        { status: 500 },
-      );
-    }
+    if (!res.ok) return Response.json([]);
 
-    let data: unknown;
+    const data = await res.json();
+    const quotes: any[] = data?.quotes ?? [];
 
-    try {
-      data = JSON.parse(rawText);
-    } catch {
-      return Response.json(
-        {
-          error: "EODHD did not return JSON",
-          raw: rawText.slice(0, 500),
-        },
-        { status: 500 },
-      );
-    }
-
-    if (!Array.isArray(data)) {
-      return Response.json(
-        {
-          error: "Unexpected response format",
-          raw: data,
-        },
-        { status: 500 },
-      );
-    }
-
-    const formatted = data.map((item: any) => ({
-      code: item.Code ?? "",
-      name: item.Name ?? "",
-      exchange: item.Exchange ?? "",
-      country: item.Country ?? "",
-      currency: item.Currency ?? "",
-      type: item.Type ?? "",
-      symbol:
-        item.Code && item.Exchange
-          ? `${item.Code}.${item.Exchange}`
-          : (item.Code ?? ""),
-    }));
+    const formatted = quotes
+      .filter((q) => q.symbol && q.quoteType)
+      .map((q) => ({
+        code:     q.symbol as string,
+        name:     (q.longname ?? q.shortname ?? q.symbol) as string,
+        exchange: (q.exchDisp ?? q.exchange ?? "") as string,
+        country:  "US",
+        currency: "USD",
+        type:     (q.typeDisp ?? q.quoteType ?? "") as string,
+        symbol:   q.symbol as string,
+        sector:   (q.sector ?? "") as string,
+      }));
 
     return Response.json(formatted);
-  } catch (error) {
-    return Response.json(
-      {
-        error: "Search route crashed",
-        details: error instanceof Error ? error.message : String(error),
-      },
-      { status: 500 },
-    );
+  } catch {
+    return Response.json([]);
   }
 }
