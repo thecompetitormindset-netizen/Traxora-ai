@@ -106,10 +106,10 @@ function KzDiagram() {
 
 const CONCEPTS = [
   { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-purple-950 to-indigo-950",  accent:"text-purple-400", border:"border-purple-500/20",  tagBg:"bg-purple-500/10 border-purple-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"ICT Order Blocks tutorial" },
-  { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-blue-950 to-cyan-950",      accent:"text-blue-400",   border:"border-blue-500/20",    tagBg:"bg-blue-500/10 border-blue-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"ICT Fair Value Gap FVG explained" },
+  { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-emerald-950 to-cyan-950",      accent:"text-emerald-400",   border:"border-emerald-500/20",    tagBg:"bg-emerald-500/10 border-emerald-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"ICT Fair Value Gap FVG explained" },
   { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"ICT Liquidity sweep stop hunt tutorial" },
   { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"ICT Market Structure Shift CHoCH BOS" },
-  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-blue-950 to-violet-950", accent:"text-blue-400", border:"border-blue-500/20",  tagBg:"bg-blue-500/10 border-blue-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"ICT Optimal Trade Entry OTE Fibonacci" },
+  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-violet-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"ICT Optimal Trade Entry OTE Fibonacci" },
   { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (7–10 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"ICT Kill Zones London New York session" },
 ];
 
@@ -225,7 +225,7 @@ export default function HomePage() {
       {/* ══ NAV ══ */}
       <nav className="relative z-20 border-b border-[#1C2333]/60 px-6 sm:px-8 h-16 flex items-center justify-between backdrop-blur-sm bg-[#060A14]/80 sticky top-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
             </svg>
@@ -236,7 +236,7 @@ export default function HomePage() {
           <Link href="/explore"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Markets</Link>
           <Link href="/analysis"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Signals</Link>
           <Link href="/guide"     className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Guide</Link>
-          <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-blue-500/20 hover:scale-105 active:scale-95">
+          <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95">
             Launch App →
           </Link>
         </div>
@@ -263,15 +263,15 @@ export default function HomePage() {
       <section className="relative flex flex-col items-center justify-center text-center px-6 sm:px-8 pt-24 pb-20 overflow-hidden">
         {/* Background glows */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-blue-600/8 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-600/8 rounded-full blur-3xl animate-pulse" />
           <div className="absolute top-1/3 left-1/3 w-[400px] h-[200px] bg-violet-600/5 rounded-full blur-3xl" />
           <div className="absolute top-1/2 right-1/4 w-[300px] h-[200px] bg-cyan-600/4 rounded-full blur-3xl" />
         </div>
 
         <div className="relative z-10 max-w-3xl mx-auto">
           {/* Live badge */}
-          <div className="inline-flex items-center gap-2 bg-blue-500/8 border border-blue-500/20 rounded-full px-4 py-1.5 text-xs text-blue-400 font-medium mb-10">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+          <div className="inline-flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-4 py-1.5 text-xs text-emerald-400 font-medium mb-10">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             Powered by Claude Opus 4.7 · ICT Smart Money Methodology
           </div>
 
@@ -284,7 +284,7 @@ export default function HomePage() {
               {hero.top}
             </span>
             <span
-              className="block bg-gradient-to-r from-blue-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent transition-all duration-400"
+              className="block bg-gradient-to-r from-emerald-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent transition-all duration-400"
               style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? "translateY(0)" : "translateY(8px)" }}
             >
               {hero.bottom}
@@ -300,7 +300,7 @@ export default function HomePage() {
           </p>
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-blue-500/25 hover:scale-105 active:scale-95">
+            <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
               Open Dashboard →
             </Link>
             <Link href="/explore" className="border border-[#1C2333] bg-[#0C1017]/60 hover:border-[#2D3A50] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
@@ -352,7 +352,7 @@ export default function HomePage() {
       <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           <div className="lg:w-[55%]">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-400 mb-5">What is Traxora AI?</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-5">What is Traxora AI?</p>
             <h2 className="text-4xl font-black tracking-tight leading-tight mb-6">
               Your AI co-pilot for<br />every trade decision.
             </h2>
@@ -370,7 +370,7 @@ export default function HomePage() {
               </p>
             </div>
             <div className="flex items-center gap-4 mt-8">
-              <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
+              <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
                 Start Free →
               </Link>
               <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2D3A50]">
@@ -381,7 +381,7 @@ export default function HomePage() {
 
           <div className="lg:w-[45%] grid grid-cols-2 gap-3">
             {[
-              { value:"6",        label:"ICT Smart Money concepts analyzed on every ticker",         color:"text-blue-400",  glow:"shadow-blue-500/20" },
+              { value:"6",        label:"ICT Smart Money concepts analyzed on every ticker",         color:"text-emerald-400",  glow:"shadow-emerald-500/20" },
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
               { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-violet-400",  glow:"shadow-violet-500/20" },
               { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
@@ -400,19 +400,19 @@ export default function HomePage() {
       {/* ══ ROTATING QUOTE ══ */}
       <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#060A14]/40">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/3 via-transparent to-violet-600/3" />
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-violet-600/3" />
         </div>
         <div className="relative z-10 max-w-2xl mx-auto text-center">
           <div className="min-h-[100px] flex flex-col items-center justify-center">
             <p className="text-2xl sm:text-3xl font-black leading-snug text-[#F1F5F9] transition-all duration-700">
               &ldquo;{quote.text}<br />
-              <span className="text-blue-400">{quote.highlight}</span><br />
+              <span className="text-emerald-400">{quote.highlight}</span><br />
               <span className="text-[#4B5675]">{quote.end}&rdquo;</span>
             </p>
           </div>
           <div className="flex justify-center gap-2 mt-6">
             {QUOTES.map((_, i) => (
-              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-blue-400 w-4" : "bg-[#2D3A50]"}`} />
+              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#2D3A50]"}`} />
             ))}
           </div>
         </div>
@@ -421,14 +421,14 @@ export default function HomePage() {
       {/* ══ HOW TO USE IT ══ */}
       <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full space-y-24">
         <div className="text-center mb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-400 mb-3">Complete Guide</p>
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Complete Guide</p>
           <h2 className="text-3xl font-black tracking-tight">How to use Traxora</h2>
         </div>
 
         {/* Step 1 */}
         <div className="flex flex-col md:flex-row gap-12 items-center">
           <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-3">Step 01 · Pick Your Market</p>
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Step 01 · Pick Your Market</p>
             <h3 className="text-2xl font-black mb-4">Search any stock or futures contract</h3>
             <p className="text-[#7B8DB4] leading-relaxed">
               Type any ticker — <strong className="text-[#F1F5F9]">AAPL, NVDA, TSLA</strong> for stocks, or <strong className="text-[#F1F5F9]">ES, NQ, GC</strong> for futures. Or browse the 20+ symbol watchlist on the Dashboard with live prices and color-coded signals.
@@ -444,7 +444,7 @@ export default function HomePage() {
                 { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
                 { sym:"TSLA", name:"Tesla Inc.",     price:"$178.40", chg:"-3.2%", sig:"SELL", sc:"text-rose-400 bg-rose-500/10 border-rose-500/20"       },
               ].map((r) => (
-                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#1C2333] pl-3 py-1 hover:border-blue-500/40 transition-colors">
+                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#1C2333] pl-3 py-1 hover:border-emerald-500/40 transition-colors">
                   <div>
                     <p className="text-xs font-bold text-[#F1F5F9]">{r.sym}</p>
                     <p className="text-[10px] text-[#4B5675]">{r.name}</p>
@@ -484,7 +484,7 @@ export default function HomePage() {
                 {[
                   { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#111827] border-[#1C2333]"              },
                   { l:"Confidence", v:signal.conf,                                                       c:signal.conf === "High" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-                  { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-blue-400 bg-blue-500/10 border-blue-500/20"      },
+                  { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20"      },
                 ].map((b) => (
                   <div key={b.l} className={`border rounded-lg px-2 py-1 ${b.c}`}>
                     <p className="text-[9px] text-[#4B5675]">{b.l}</p>
@@ -523,11 +523,11 @@ export default function HomePage() {
             </p>
           </div>
           <div className="md:w-1/2 space-y-3">
-            <div className="bg-[#0C1017]/80 border border-blue-500/20 rounded-2xl p-5 hover:border-blue-500/40 transition-colors">
+            <div className="bg-[#0C1017]/80 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-500/40 transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📊</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">Paper Simulator</p>
-                <span className="text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2 py-0.5 rounded-lg">$10K</span>
+                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-lg">$10K</span>
               </div>
               <p className="text-xs text-[#4B5675] leading-relaxed">Virtual portfolio with live-priced equity curve, full trade journal, and P&amp;L tracking. No risk.</p>
             </div>
@@ -582,7 +582,7 @@ export default function HomePage() {
                   { n:"06", rule:"This tool is for research only — not financial advice." },
                 ].map((r) => (
                   <div key={r.n} className="flex gap-3">
-                    <span className="text-[10px] font-black text-blue-400/40 shrink-0 w-6 pt-0.5">{r.n}</span>
+                    <span className="text-[10px] font-black text-emerald-400/40 shrink-0 w-6 pt-0.5">{r.n}</span>
                     <p className="text-sm text-[#7B8DB4] leading-relaxed">{r.rule}</p>
                   </div>
                 ))}
@@ -594,10 +594,10 @@ export default function HomePage() {
 
       {/* ══ ICT CONCEPTS — animated carousel ══ */}
       <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#060A14]/40">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-600/3 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-600/3 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-14">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-400 mb-3">Smart Money Concepts</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Smart Money Concepts</p>
             <h2 className="text-3xl font-black tracking-tight mb-3">The 6 concepts powering every signal</h2>
             <p className="text-sm text-[#7B8DB4] max-w-md mx-auto">
               Click any card to watch a free tutorial. The spotlight rotates automatically.
@@ -669,9 +669,9 @@ export default function HomePage() {
                   { name:"Signal Stack",price:"$49/mo",  highlight:false },
                   { name:"TrendSpider",price:"$33/mo",  highlight:false },
                 ].map((col) => (
-                  <th key={col.name} className={`py-4 px-4 text-center text-xs font-bold ${col.highlight ? "bg-blue-600/10 border-x border-t border-blue-500/20 text-blue-300" : "text-[#4B5675]"}`}>
+                  <th key={col.name} className={`py-4 px-4 text-center text-xs font-bold ${col.highlight ? "bg-emerald-600/10 border-x border-t border-emerald-500/20 text-emerald-300" : "text-[#4B5675]"}`}>
                     <p>{col.name}</p>
-                    <p className={`text-base font-black mt-1 ${col.highlight ? "text-blue-400" : "text-[#F1F5F9]"}`}>{col.price}</p>
+                    <p className={`text-base font-black mt-1 ${col.highlight ? "text-emerald-400" : "text-[#F1F5F9]"}`}>{col.price}</p>
                   </th>
                 ))}
               </tr>
@@ -694,7 +694,7 @@ export default function HomePage() {
                     { val:row.ss,      highlight:false },
                     { val:row.ts,      highlight:false },
                   ].map((cell, ci) => (
-                    <td key={ci} className={`py-3.5 px-4 text-center text-base ${cell.highlight ? "bg-blue-600/10 border-x border-blue-500/20" : ""}`}>
+                    <td key={ci} className={`py-3.5 px-4 text-center text-base ${cell.highlight ? "bg-emerald-600/10 border-x border-emerald-500/20" : ""}`}>
                       {cell.val ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-[#2D3A50]">—</span>}
                     </td>
                   ))}
@@ -704,7 +704,7 @@ export default function HomePage() {
           </table>
         </div>
         <div className="text-center mt-10">
-          <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-xl shadow-blue-500/20 hover:scale-105 active:scale-95 inline-block">
+          <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 inline-block">
             Start Free — No Credit Card →
           </Link>
         </div>
@@ -719,7 +719,7 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { icon:"🧠", title:"Institutional-grade analysis", desc:"Order Blocks, FVGs, Liquidity sweeps — what hedge funds use. Now free.", color:"border-blue-500/20" },
+              { icon:"🧠", title:"Institutional-grade analysis", desc:"Order Blocks, FVGs, Liquidity sweeps — what hedge funds use. Now free.", color:"border-emerald-500/20" },
               { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-violet-500/20" },
               { icon:"🔒", title:"Practice before you risk money", desc:"$10K paper simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
             ].map((c) => (
@@ -736,7 +736,7 @@ export default function HomePage() {
       {/* ══ FINAL CTA ══ */}
       <section className="relative px-6 sm:px-8 py-28 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] bg-blue-600/8 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] bg-emerald-600/8 rounded-full blur-3xl animate-pulse" />
         </div>
         <div className="relative z-10 max-w-xl mx-auto text-center">
           <h2 className="text-4xl font-black tracking-tight mb-4">
@@ -746,7 +746,7 @@ export default function HomePage() {
             Free forever. ICT signals, push alerts, morning briefing, $10K simulator.
           </p>
           <div className="flex items-center justify-center">
-            <Link href="/dashboard" className="bg-blue-600 hover:bg-blue-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-blue-500/25 hover:scale-105 active:scale-95">
+            <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
               Start Trading Free →
             </Link>
           </div>
@@ -757,7 +757,7 @@ export default function HomePage() {
       <footer className="border-t border-[#1C2333] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#060A14]/60">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center">
+            <div className="w-5 h-5 rounded bg-emerald-600 flex items-center justify-center">
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
               </svg>
