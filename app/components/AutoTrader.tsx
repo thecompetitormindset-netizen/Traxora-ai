@@ -545,7 +545,7 @@ export default function AutoTrader() {
       )}
 
       {/* ── FAB + Panel ──────────────────────────────────────────────────────── */}
-      <div className="fixed top-[76px] right-2 sm:top-auto sm:bottom-[88px] sm:right-6 z-50 flex flex-col-reverse sm:flex-col items-end gap-2">
+      <div className="fixed top-[76px] right-2 sm:top-[88px] sm:right-4 z-50 flex flex-col-reverse items-end gap-2">
         {open && (
           <div className="w-72 bg-[#0C1017]/95 border border-[#1C2333] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#1C2333]">

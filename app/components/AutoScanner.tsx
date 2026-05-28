@@ -180,7 +180,7 @@ export default function AutoScanner() {
 
   return (
     <>
-      <div className="fixed top-[76px] right-[84px] sm:top-auto sm:bottom-[88px] sm:right-[112px] z-50 flex flex-col-reverse sm:flex-col items-end gap-2">
+      <div className="fixed top-[76px] right-[84px] sm:top-[88px] sm:right-[88px] z-50 flex flex-col-reverse items-end gap-2">
 
         {/* Panel */}
         {open && (
