@@ -5,7 +5,48 @@ import { checkRateLimit } from "@/app/lib/rateLimit";
 export const runtime     = "nodejs";
 export const maxDuration = 55;
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+async function callAI(prompt: string): Promise<string> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const groqKey      = process.env.GROQ_API_KEY;
+
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const res = await client.messages.create({
+        model:      "claude-sonnet-4-6",
+        max_tokens: 6000,
+        messages:   [{ role: "user", content: prompt }],
+      });
+      return res.content
+        .filter(b => b.type === "text")
+        .map(b => (b as { type: "text"; text: string }).text)
+        .join("").trim();
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      if (status !== 401 && status !== 403) throw err;
+    }
+  }
+
+  if (groqKey) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
+      body: JSON.stringify({
+        model:      "llama-3.3-70b-versatile",
+        max_tokens: 6000,
+        messages:   [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => res.statusText);
+      throw new Error(`Groq ${res.status}: ${txt}`);
+    }
+    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+    return data.choices?.[0]?.message?.content?.trim() ?? "";
+  }
+
+  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY.");
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -510,16 +551,7 @@ FINAL CHECKS before responding:
 • The JSON must be complete and valid — do not truncate.`;
 
   try {
-    const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 6000,
-      messages:   [{ role: "user", content: prompt }],
-    });
-
-    const text = response.content
-      .filter(b => b.type === "text")
-      .map(b => (b as { type: "text"; text: string }).text)
-      .join("").trim();
+    const text = await callAI(prompt);
 
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("No JSON in response");
