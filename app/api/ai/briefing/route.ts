@@ -5,10 +5,25 @@ import { checkRateLimit } from "@/app/lib/rateLimit";
 export const runtime     = "nodejs";
 export const maxDuration = 55;
 
+async function callOpenAICompat(url: string, key: string, model: string, prompt: string): Promise<string> {
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
+  });
+  if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!text) throw new Error("Empty response");
+  return text;
+}
+
 async function callAI(prompt: string): Promise<string> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const groqKey      = process.env.GROQ_API_KEY;
+  const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
+  // ── Anthropic (primary) ────────────────────────────────────────────────────
   if (anthropicKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicKey });
@@ -22,30 +37,36 @@ async function callAI(prompt: string): Promise<string> {
         .map(b => (b as { type: "text"; text: string }).text)
         .join("").trim();
     } catch (err) {
-      const status = (err as { status?: number }).status;
-      if (status !== 401 && status !== 403) throw err;
+      console.error("Anthropic briefing error:", err instanceof Error ? err.message : err);
+      // fall through to next provider
     }
   }
 
+  // ── Groq (free fallback) ───────────────────────────────────────────────────
   if (groqKey) {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method:  "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
-      body: JSON.stringify({
-        model:      "llama-3.3-70b-versatile",
-        max_tokens: 6000,
-        messages:   [{ role: "user", content: prompt }],
-      }),
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => res.statusText);
-      throw new Error(`Groq ${res.status}: ${txt}`);
+    try {
+      return await callOpenAICompat(
+        "https://api.groq.com/openai/v1/chat/completions",
+        groqKey, "llama-3.3-70b-versatile", prompt,
+      );
+    } catch (err) {
+      console.error("Groq briefing error:", err instanceof Error ? err.message : err);
     }
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content?.trim() ?? "";
   }
 
-  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY or GROQ_API_KEY.");
+  // ── DeepSeek (fallback) ────────────────────────────────────────────────────
+  if (deepseekKey) {
+    try {
+      return await callOpenAICompat(
+        "https://api.deepseek.com/v1/chat/completions",
+        deepseekKey, "deepseek-chat", prompt,
+      );
+    } catch (err) {
+      console.error("DeepSeek briefing error:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY, GROQ_API_KEY, or DEEPSEEK_API_KEY.");
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
