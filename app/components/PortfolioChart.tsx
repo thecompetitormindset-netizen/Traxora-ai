@@ -11,10 +11,9 @@ import { getPortfolio, STARTING_BALANCE, PORTFOLIO_UPDATED_EVENT, type Trade } f
 
 type Point = { time: UTCTimestamp; value: number };
 
-// Reconstruct equity curve from trade history.
-// Works at cost-basis: equity = cash + holdings valued at their avg purchase price.
-// This gives a true record of each trade's impact without needing live prices.
-function buildEquityCurve(trades: Trade[]): Point[] {
+// Build equity curve from trade history at cost basis for historical points.
+// currentEquity is the live-priced value for today's endpoint.
+function buildEquityCurve(trades: Trade[], currentEquity: number | null): Point[] {
   if (trades.length === 0) return [];
 
   // trades[] is newest-first — reverse for chronological order
@@ -53,11 +52,8 @@ function buildEquityCurve(trades: Trade[]): Point[] {
       }
     }
 
-    const invested = Object.values(holdings).reduce(
-      (s, h) => s + h.qty * h.avgPrice,
-      0,
-    );
-    const equity = cash + invested;
+    const invested = Object.values(holdings).reduce((s, h) => s + h.qty * h.avgPrice, 0);
+    const equity   = cash + invested;
 
     // Guarantee strictly increasing timestamps (lightweight-charts requirement)
     let ts = Math.floor(new Date(t.time).getTime() / 1000);
@@ -67,31 +63,81 @@ function buildEquityCurve(trades: Trade[]): Point[] {
     points.push({ time: ts as UTCTimestamp, value: equity });
   }
 
+  // Replace the final point with live-priced current equity so the chart's
+  // endpoint matches the "Account Value" shown on the portfolio page.
+  if (currentEquity !== null) {
+    const nowTs = Math.max(Math.floor(Date.now() / 1000), lastTs + 1);
+    // Only add if it's meaningfully different (avoids duplicate at same second)
+    if (nowTs > lastTs) {
+      points.push({ time: nowTs as UTCTimestamp, value: currentEquity });
+    } else {
+      // Replace last point
+      points[points.length - 1] = { time: (lastTs + 1) as UTCTimestamp, value: currentEquity };
+    }
+  }
+
   return points;
 }
 
 export default function PortfolioChart() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [points, setPoints] = useState<Point[]>([]);
+  const [points, setPoints]         = useState<Point[]>([]);
   const [tradeCount, setTradeCount] = useState(0);
+  // Live-priced current equity — matches portfolio page "Account Value"
+  const [liveEquity, setLiveEquity] = useState<number | null>(null);
 
-  // Load on mount and on every portfolio update
+  // Fetch live prices for all open holdings to compute current equity
+  async function fetchLiveEquity() {
+    const p = getPortfolio();
+    if (p.holdings.length === 0) {
+      setLiveEquity(p.cash);
+      return;
+    }
+    try {
+      const results = await Promise.allSettled(
+        p.holdings.map(async (h) => {
+          const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(h.symbol)}`, { cache: "no-store" });
+          const data = await res.json();
+          const price = typeof data.price === "number" ? data.price : h.avgPrice;
+          return price * h.quantity;
+        }),
+      );
+      const marketValue = results.reduce((s, r) => s + (r.status === "fulfilled" ? r.value : 0), 0);
+      setLiveEquity(p.cash + marketValue);
+    } catch {
+      // Fall back to cost basis
+      const costValue = p.holdings.reduce((s, h) => s + h.quantity * h.avgPrice, 0);
+      setLiveEquity(p.cash + costValue);
+    }
+  }
+
   useEffect(() => {
     function load() {
       const p = getPortfolio();
       setTradeCount(p.trades.length);
-      setPoints(buildEquityCurve(p.trades));
+      // Build curve first (will be rebuilt again once liveEquity arrives)
+      setPoints(buildEquityCurve(p.trades, null));
     }
     load();
-    window.addEventListener(PORTFOLIO_UPDATED_EVENT, load);
-    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, load);
+    fetchLiveEquity();
+    function onUpdate() { load(); fetchLiveEquity(); }
+    window.addEventListener(PORTFOLIO_UPDATED_EVENT, onUpdate);
+    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, onUpdate);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Once live equity arrives, rebuild points with the live endpoint
+  useEffect(() => {
+    if (liveEquity === null) return;
+    const p = getPortfolio();
+    setPoints(buildEquityCurve(p.trades, liveEquity));
+  }, [liveEquity]);
 
   // Draw / redraw the chart whenever points change
   useEffect(() => {
     if (!containerRef.current || points.length < 2) return;
 
-    const latest = points[points.length - 1].value;
+    const latest  = points[points.length - 1].value;
     const isProfit = latest >= STARTING_BALANCE;
     const lineColor = isProfit ? "#10B981" : "#F43F5E";
     const topColor  = isProfit ? "#10B98128" : "#F43F5E28";
@@ -121,7 +167,7 @@ export default function PortfolioChart() {
         secondsVisible: false,
       },
       handleScroll: true,
-      handleScale: true,
+      handleScale:  true,
     });
 
     const area = chart.addSeries(AreaSeries, {
@@ -136,14 +182,14 @@ export default function PortfolioChart() {
 
     area.setData(points);
 
-    // Dashed baseline at the starting $10 000
+    // Dashed baseline at starting balance
     area.createPriceLine({
-      price:               STARTING_BALANCE,
-      color:               "#4B5675",
-      lineWidth:           1,
-      lineStyle:           2,        // dashed
-      axisLabelVisible:    true,
-      title:               `Start $${STARTING_BALANCE.toLocaleString()}`,
+      price:            STARTING_BALANCE,
+      color:            "#4B5675",
+      lineWidth:        1,
+      lineStyle:        2, // dashed
+      axisLabelVisible: true,
+      title:            `Start $${STARTING_BALANCE.toLocaleString()}`,
     });
 
     chart.timeScale().fitContent();
@@ -151,7 +197,6 @@ export default function PortfolioChart() {
     return () => { chart.remove(); };
   }, [points]);
 
-  // ── Empty states ─────────────────────────────────────────────────────────────
   if (tradeCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-52 text-center gap-2">
@@ -167,10 +212,17 @@ export default function PortfolioChart() {
   if (points.length < 2) {
     return (
       <div className="flex flex-col items-center justify-center h-52 text-center gap-2">
-        <p className="text-xs text-[#4B5675]">Need at least 2 trades to draw the curve.</p>
+        <p className="text-xs text-[#4B5675]">Need at least 2 data points to draw the curve.</p>
       </div>
     );
   }
 
-  return <div ref={containerRef} className="w-full h-56" />;
+  return (
+    <div>
+      <div ref={containerRef} className="w-full h-56" />
+      <p className="text-[9px] text-[#2D3A50] mt-1 px-1">
+        Historical points at cost basis · rightmost point at live market price
+      </p>
+    </div>
+  );
 }

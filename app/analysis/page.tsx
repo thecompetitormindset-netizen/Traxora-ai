@@ -8,8 +8,8 @@ import dynamic from "next/dynamic";
 const StockChart = dynamic(() => import("@/app/components/StockChart"), {
   ssr: false,
 });
-import ComparisonPanel from "@/app/components/ComparisonPanel";
 import MarketStatus from "@/app/components/MarketStatus";
+import { getPortfolio } from "@/app/lib/trading";
 
 type ICTAnalysis = {
   marketStructure: "Bullish" | "Bearish" | "Ranging";
@@ -773,6 +773,107 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
   );
 }
 
+// ── Market Depth / Order Bars ─────────────────────────────────────────────────
+
+function MarketDepth({ price, high, low, symbol }: { price: number; high: number; low: number; symbol: string }) {
+  const portfolio = getPortfolio();
+  const userOrders = portfolio.pendingOrders.filter(o => o.symbol === symbol);
+
+  const range = Math.max((high - low) || price * 0.02, price * 0.015);
+  const step  = range / 8;
+
+  // Deterministic "volume" using price-level hash so it doesn't flicker
+  function vol(lvlPrice: number) {
+    const seed = Math.abs(Math.sin(lvlPrice * 137.5 + 42));
+    return Math.round(seed * 95_000 + 5_000);
+  }
+
+  const asks = Array.from({ length: 6 }, (_, i) => {
+    const lvl = price + step * (i + 1);
+    return {
+      price:   lvl,
+      volume:  Math.round(vol(lvl) * Math.exp(-i * 0.45)),
+      myOrder: userOrders.find(o => o.side === "SELL" && Math.abs(o.limitPrice - lvl) < step * 0.6),
+    };
+  });
+  const bids = Array.from({ length: 6 }, (_, i) => {
+    const lvl = price - step * (i + 1);
+    return {
+      price:   lvl,
+      volume:  Math.round(vol(lvl) * Math.exp(-i * 0.45)),
+      myOrder: userOrders.find(o => o.side === "BUY"  && Math.abs(o.limitPrice - lvl) < step * 0.6),
+    };
+  });
+
+  const maxVol = Math.max(...asks.map(a => a.volume), ...bids.map(b => b.volume));
+
+  const Row = ({ lvl, side }: { lvl: typeof asks[number]; side: "ask" | "bid" }) => {
+    const pct  = Math.max(4, (lvl.volume / maxVol) * 100);
+    const color = side === "ask" ? "bg-rose-500/25" : "bg-emerald-500/25";
+    const txt   = side === "ask" ? "text-rose-400" : "text-emerald-400";
+    return (
+      <div className={`relative flex items-center gap-2 px-2 py-[3px] rounded-sm ${lvl.myOrder ? "ring-1 ring-indigo-500/50 bg-indigo-500/5" : ""}`}>
+        {/* Bar */}
+        <div className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${pct}%`, background: side === "ask" ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)" }} />
+        <span className={`relative z-10 text-[10px] font-mono w-20 shrink-0 ${txt}`}>
+          ${lvl.price.toFixed(2)}
+        </span>
+        <div className="relative z-10 flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
+          <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+        </div>
+        <span className="relative z-10 text-[10px] font-mono text-[#4B5675] w-16 text-right shrink-0">
+          {lvl.volume.toLocaleString()}
+        </span>
+        {lvl.myOrder && (
+          <span className="relative z-10 text-[9px] font-bold text-indigo-400 shrink-0">MY ORDER</span>
+        )}
+      </div>
+    );
+  };
+
+  const spread = asks[0].price - bids[0].price;
+
+  return (
+    <div className="bg-[#0C1017] rounded-3xl p-5 border border-[#1C2333]">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-[#4B5675] uppercase tracking-widest">Order Depth</p>
+        <span className="text-[10px] text-[#2D3A50] font-mono">Spread ${spread.toFixed(2)}</span>
+      </div>
+
+      {/* Header row */}
+      <div className="flex items-center gap-2 px-2 mb-1">
+        <span className="text-[9px] text-[#2D3A50] uppercase tracking-widest w-20 shrink-0">Price</span>
+        <span className="flex-1" />
+        <span className="text-[9px] text-[#2D3A50] uppercase tracking-widest w-16 text-right shrink-0">Volume</span>
+      </div>
+
+      {/* Asks (above price) — reversed so lowest ask is nearest to mid */}
+      <div className="space-y-0.5 mb-1">
+        {[...asks].reverse().map((a, i) => <Row key={i} lvl={a} side="ask" />)}
+      </div>
+
+      {/* Mid price */}
+      <div className="flex items-center gap-2 my-1.5 px-2">
+        <span className="text-[11px] font-black font-mono text-[#F1F5F9]">${price.toFixed(2)}</span>
+        <div className="flex-1 h-px bg-[#2D3A50]" />
+        <span className="text-[10px] text-[#4B5675]">Last price</span>
+      </div>
+
+      {/* Bids (below price) */}
+      <div className="space-y-0.5">
+        {bids.map((b, i) => <Row key={i} lvl={b} side="bid" />)}
+      </div>
+
+      {userOrders.length > 0 && (
+        <p className="text-[9px] text-indigo-400 mt-3 text-center">
+          {userOrders.length} paper limit order{userOrders.length > 1 ? "s" : ""} shown — go to Paper Trading to manage
+        </p>
+      )}
+      <p className="text-[9px] text-[#1C2333] text-center mt-1">Simulated depth · for reference only</p>
+    </div>
+  );
+}
+
 // ── Main Analysis Component ───────────────────────────────────────────────────
 
 function AnalysisContent() {
@@ -781,11 +882,38 @@ function AnalysisContent() {
 
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
-  const [guideOpen, setGuideOpen] = useState(false);
 
   const [deepICT, setDeepICT] = useState<DeepICT | null>(null);
   const [loadingDeep, setLoadingDeep] = useState(false);
   const [deepError, setDeepError] = useState<string | null>(null);
+
+  // Current portfolio holding for this symbol
+  const [holding, setHolding] = useState<{ quantity: number; avgPrice: number } | null>(null);
+
+  useEffect(() => {
+    function loadHolding() {
+      const p = getPortfolio();
+      const clean = symbol.replace(".US", "").replace(".COMM", "");
+      const h = p.holdings.find(x => x.symbol === symbol || x.symbol.replace(".US","").replace(".COMM","") === clean);
+      setHolding(h ? { quantity: h.quantity, avgPrice: h.avgPrice } : null);
+    }
+    loadHolding();
+    window.addEventListener("portfolio-updated", loadHolding);
+    return () => window.removeEventListener("portfolio-updated", loadHolding);
+  }, [symbol]);
+
+  // Keep the quick-signal panel in sync with the deep ICT result so they never contradict
+  useEffect(() => {
+    if (!deepICT) return;
+    const mapped: "BUY" | "HOLD" | "SELL" =
+      deepICT.overallBias === "BULLISH" ? "BUY" :
+      deepICT.overallBias === "BEARISH" ? "SELL" : "HOLD";
+    setAnalysis(prev =>
+      prev
+        ? { ...prev, signal: mapped, confidence: deepICT.confidence }
+        : { signal: mapped, confidence: deepICT.confidence, summary: deepICT.biasReasoning, keyPoints: [], risk: "Medium" as const }
+    );
+  }, [deepICT]);
 
   async function runDeepICT() {
     setLoadingDeep(true);
@@ -814,60 +942,7 @@ function AnalysisContent() {
     }
   }
 
-  // Alpaca trade state
-  const [tradeQty, setTradeQty] = useState("1");
-  const [tradeStatus, setTradeStatus] = useState<"idle" | "placing" | string>(
-    "idle",
-  );
-  const [tradeResult, setTradeResult] = useState<{
-    orderId: string;
-    symbol: string;
-    side: string;
-    qty: string;
-    status: string;
-  } | null>(null);
-
-  async function executeAlpacaTrade(side: "buy" | "sell") {
-    const saved = localStorage.getItem("traxora_alpaca");
-    if (!saved) {
-      setTradeStatus(
-        "No Alpaca account connected — go to Settings → Broker Connection",
-      );
-      return;
-    }
-    const { apiKey, apiSecret, paper } = JSON.parse(saved);
-    if (!apiKey || !apiSecret) {
-      setTradeStatus(
-        "No Alpaca account connected — go to Settings → Broker Connection",
-      );
-      return;
-    }
-    setTradeStatus("placing");
-    setTradeResult(null);
-    try {
-      const res = await fetch("/api/alpaca/order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey,
-          apiSecret,
-          paper,
-          symbol,
-          side,
-          qty: Number(tradeQty),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setTradeStatus(data.error || "Order failed");
-        return;
-      }
-      setTradeResult(data);
-      setTradeStatus("done");
-    } catch {
-      setTradeStatus("Network error — check your connection");
-    }
-  }
+  const [expandChart, setExpandChart] = useState(false);
 
   const [quoteData, setQuoteData] = useState<{
     price: number | null;
@@ -985,711 +1060,214 @@ function AnalysisContent() {
             </div>
           </div>
 
-          <div className="mt-6 flex flex-col xl:flex-row gap-6">
-            {/* Chart — left */}
-            <div className="flex-1 min-w-0">
-              <StockChart symbol={symbol} height={520} defaultInterval="D" />
-            </div>
+          {/* ── Chart — always full width ── */}
+          <div className="mt-6 relative">
+            <StockChart symbol={symbol} height={expandChart ? 680 : 460} defaultInterval="D" />
+            <button
+              type="button"
+              onClick={() => setExpandChart(e => !e)}
+              title={expandChart ? "Collapse chart" : "Expand chart"}
+              className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[#0C1017]/90 border border-[#1C2333] hover:border-indigo-500/40 text-[#7B8DB4] hover:text-indigo-400 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all backdrop-blur-sm"
+            >
+              {expandChart ? (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+                  </svg>
+                  Collapse
+                </>
+              ) : (
+                <>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                  </svg>
+                  Expand
+                </>
+              )}
+            </button>
+          </div>
 
-            {/* AI Panel — right */}
-            <div className="xl:w-[340px] shrink-0 flex flex-col gap-4">
-              {/* Signal Card */}
-              <div className="bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
-                <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-3">
-                  Traxora AI Signal
-                </p>
+          {/* ── Info panels — always below chart in a grid ── */}
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
-                {loadingAnalysis && (
-                  <div className="space-y-3 animate-pulse">
-                    <div className="h-12 bg-[#1F2937] rounded-xl" />
-                    <div className="h-4 bg-[#1F2937] rounded w-3/4" />
-                    <div className="h-4 bg-[#1F2937] rounded w-1/2" />
-                  </div>
-                )}
+            {/* Signal Card */}
+            <div className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333]">
+              <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Traxora AI Signal</p>
 
-                {!loadingAnalysis && analysis && (
-                  <>
-                    <span
-                      className={`inline-block text-2xl font-bold px-4 py-2 rounded-xl border ${signalStyle(analysis.signal)}`}
-                    >
-                      {analysis.signal}
+              {/* Current portfolio position for this symbol */}
+              {holding && (
+                <div className="mb-3 flex items-center gap-2 bg-indigo-500/8 border border-indigo-500/20 rounded-xl px-3 py-2">
+                  <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wide">Position</span>
+                  <span className="text-[10px] font-mono text-[#F1F5F9]">{holding.quantity} sh @ ${holding.avgPrice.toFixed(2)}</span>
+                  {quoteData.price && (
+                    <span className={`ml-auto text-[10px] font-black font-mono ${
+                      quoteData.price >= holding.avgPrice ? "text-emerald-400" : "text-rose-400"
+                    }`}>
+                      {quoteData.price >= holding.avgPrice ? "+" : ""}
+                      ${((quoteData.price - holding.avgPrice) * holding.quantity).toFixed(2)}
                     </span>
+                  )}
+                </div>
+              )}
 
-                    <div className="flex items-center gap-6 mt-4">
-                      <div>
-                        <p className="text-xs text-[#4B5675]">Confidence</p>
-                        <p
-                          className={`text-sm font-semibold mt-0.5 ${confidenceStyle(analysis.confidence)}`}
-                        >
-                          {analysis.confidence}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-[#4B5675]">Risk Level</p>
-                        <p
-                          className={`text-sm font-semibold mt-0.5 ${riskStyle(analysis.risk)}`}
-                        >
-                          {analysis.risk}
-                        </p>
-                      </div>
+              {loadingAnalysis && (
+                <div className="space-y-3 animate-pulse">
+                  <div className="h-10 bg-[#1F2937] rounded-xl" />
+                  <div className="h-3 bg-[#1F2937] rounded w-3/4" />
+                  <div className="h-3 bg-[#1F2937] rounded w-1/2" />
+                </div>
+              )}
+
+              {!loadingAnalysis && analysis && (
+                <>
+                  <span className={`inline-block text-xl font-bold px-4 py-2 rounded-xl border ${signalStyle(analysis.signal)}`}>
+                    {analysis.signal}
+                  </span>
+                  <div className="flex items-center gap-4 mt-3">
+                    <div>
+                      <p className="text-[10px] text-[#4B5675]">Confidence</p>
+                      <p className={`text-sm font-semibold mt-0.5 ${confidenceStyle(analysis.confidence)}`}>{analysis.confidence}</p>
                     </div>
+                    <div>
+                      <p className="text-[10px] text-[#4B5675]">Risk</p>
+                      <p className={`text-sm font-semibold mt-0.5 ${riskStyle(analysis.risk)}`}>{analysis.risk}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-[#CBD5E1] mt-3 leading-relaxed">{analysis.summary}</p>
+                </>
+              )}
 
-                    <p className="text-sm text-[#CBD5E1] mt-4 leading-relaxed">
-                      {analysis.summary}
-                    </p>
-                  </>
-                )}
+              {!loadingAnalysis && !analysis && (
+                <p className="text-sm text-[#4B5675]">Unable to generate signal. Market data may be unavailable.</p>
+              )}
 
-                {!loadingAnalysis && !analysis && (
-                  <p className="text-sm text-[#4B5675]">
-                    Unable to generate signal. Market data may be unavailable.
-                  </p>
-                )}
-              </div>
-
-              {/* Alpaca Trade Button */}
+              {/* Paper Trade CTA */}
               {!loadingAnalysis && analysis && analysis.signal !== "HOLD" && (
-                <div
-                  className={`rounded-3xl p-5 border ${
-                    analysis.signal === "BUY"
-                      ? "bg-emerald-950/30 border-emerald-500/25"
-                      : "bg-rose-950/30 border-rose-500/25"
+                <a
+                  href={`/paper?symbol=${encodeURIComponent(symbol.replace(".US","").replace(".COMM",""))}&side=${analysis.signal === "BUY" ? "BUY" : "SELL"}`}
+                  className={`mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    analysis.signal === "BUY" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-3">
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke={analysis.signal === "BUY" ? "#10B981" : "#F43F5E"}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    <p
-                      className={`text-[10px] font-bold uppercase tracking-widest ${analysis.signal === "BUY" ? "text-emerald-400" : "text-rose-400"}`}
-                    >
-                      Execute on Alpaca
-                    </p>
-                  </div>
-
-                  <p className="text-xs text-[#7B8DB4] mb-3 leading-relaxed">
-                    Connected to Alpaca? Send a{" "}
-                    <span
-                      className={`font-semibold ${analysis.signal === "BUY" ? "text-emerald-400" : "text-rose-400"}`}
-                    >
-                      market {analysis.signal.toLowerCase()} order
-                    </span>{" "}
-                    for{" "}
-                    <strong className="text-[#F1F5F9]">
-                      {symbol.replace(".US", "").replace(".COMM", "")}
-                    </strong>{" "}
-                    in one tap.
-                  </p>
-
-                  <div className="flex items-center gap-2 mb-3">
-                    <label className="text-xs text-[#4B5675] shrink-0">
-                      Qty (shares):
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={tradeQty}
-                      onChange={(e) => setTradeQty(e.target.value)}
-                      aria-label="Number of shares to trade"
-                      className="w-20 bg-[#060A14]/80 border border-[#1C2333] rounded-lg px-2.5 py-1.5 text-sm text-[#F1F5F9] outline-none focus:border-indigo-500/50 text-center"
-                    />
-                    {quoteData.price && (
-                      <span className="text-xs text-[#4B5675]">
-                        ≈ $
-                        {(quoteData.price * Number(tradeQty)).toLocaleString(
-                          undefined,
-                          { maximumFractionDigits: 0 },
-                        )}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    disabled={tradeStatus === "placing"}
-                    onClick={() =>
-                      executeAlpacaTrade(
-                        analysis.signal === "BUY" ? "buy" : "sell",
-                      )
-                    }
-                    className={`w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 ${
-                      analysis.signal === "BUY"
-                        ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                        : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
-                    }`}
-                  >
-                    {tradeStatus === "placing"
-                      ? "Placing order…"
-                      : `${analysis.signal === "BUY" ? "BUY" : "SELL"} ${tradeQty} share${Number(tradeQty) !== 1 ? "s" : ""} on Alpaca`}
-                  </button>
-
-                  {tradeStatus !== "idle" &&
-                    tradeStatus !== "placing" &&
-                    tradeStatus !== "done" && (
-                      <p className="text-xs text-rose-400 mt-2 text-center">
-                        {tradeStatus}
-                      </p>
-                    )}
-                  {tradeStatus === "done" && tradeResult && (
-                    <div className="mt-3 bg-[#060A14]/60 border border-emerald-500/20 rounded-xl px-3 py-2.5 text-xs space-y-1">
-                      <p className="text-emerald-400 font-semibold">
-                        ✓ Order placed successfully
-                      </p>
-                      <p className="text-[#7B8DB4]">
-                        Symbol:{" "}
-                        <span className="text-[#F1F5F9]">
-                          {tradeResult.symbol}
-                        </span>
-                      </p>
-                      <p className="text-[#7B8DB4]">
-                        Qty:{" "}
-                        <span className="text-[#F1F5F9]">
-                          {tradeResult.qty} shares
-                        </span>
-                      </p>
-                      <p className="text-[#7B8DB4]">
-                        Status:{" "}
-                        <span className="text-[#F1F5F9] capitalize">
-                          {tradeResult.status}
-                        </span>
-                      </p>
-                      <p className="text-[#7B8DB4] font-mono text-[10px]">
-                        ID: {tradeResult.orderId.slice(0, 8)}…
-                      </p>
-                    </div>
-                  )}
-
-                  <p className="text-[10px] text-[#4B5675] text-center mt-2">
-                    Not connected?{" "}
-                    <a
-                      href="/settings"
-                      className="text-indigo-400 hover:underline"
-                    >
-                      Settings → Broker Connection
-                    </a>
-                  </p>
-                </div>
+                  {holding
+                    ? analysis.signal === "BUY" ? "Add to Position" : "Close / Sell Position"
+                    : analysis.signal === "BUY" ? "Buy Long on Paper" : "Sell Short on Paper"}
+                </a>
               )}
+            </div>
 
-              {/* Webull affiliate CTA */}
-              {!loadingAnalysis && analysis && (
-                <div className="bg-[#0C1017] rounded-3xl p-5 border border-[#1C2333]">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">
-                    Ready to act on this signal?
-                  </p>
-
-                  {/* Steps */}
-                  <div className="space-y-2.5 mb-4">
-                    {[
-                      { n: "1", text: "Open a free Webull account" },
-                      { n: "2", text: "Get up to 12 free stocks 🎁" },
-                      { n: "3", text: "Place your trade in minutes" },
-                    ].map((step) => (
-                      <div key={step.n} className="flex items-center gap-3">
-                        <span className="w-5 h-5 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-indigo-400 text-[10px] font-bold flex items-center justify-center shrink-0">
-                          {step.n}
-                        </span>
-                        <p className="text-xs text-[#CBD5E1]">{step.text}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* CTA button */}
-                  <a
-                    href="https://a.webull.com/i/YOUR_AFFILIATE_CODE"
-                    target="_blank"
-                    rel="noopener noreferrer sponsored"
-                    className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold transition-all ${
-                      analysis.signal === "BUY"
-                        ? "bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20"
-                        : analysis.signal === "SELL"
-                          ? "bg-rose-500 hover:bg-rose-400 text-white shadow-lg shadow-rose-500/20"
-                          : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                    }`}
-                  >
-                    {analysis.signal === "BUY"
-                      ? "Buy"
-                      : analysis.signal === "SELL"
-                        ? "Sell"
-                        : "Trade"}{" "}
-                    {symbol.replace(".US", "").replace(".COMM", "")} on Webull
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <line x1="7" y1="17" x2="17" y2="7" />
-                      <polyline points="7 7 17 7 17 17" />
-                    </svg>
-                  </a>
-
-                  {/* Trust badges */}
-                  <div className="flex items-center justify-center gap-3 mt-3">
-                    {["Commission-free", "SIPC insured", "5-min setup"].map(
-                      (badge) => (
-                        <span
-                          key={badge}
-                          className="text-[10px] text-[#4B5675] flex items-center gap-1"
-                        >
-                          <span className="text-emerald-500">✓</span> {badge}
-                        </span>
-                      ),
-                    )}
-                  </div>
-
-                  <p className="text-[10px] text-[#4B5675] text-center mt-2 opacity-50">
-                    Affiliate link — we may earn a commission
-                  </p>
+            {/* Price Snapshot */}
+            <div className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333]">
+              <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Snapshot</p>
+              {quoteData.price ? (
+                <div className="space-y-2">
+                  {[
+                    { label: "Current",    value: `$${quoteData.price.toFixed(2)}`,        color: "text-white font-semibold" },
+                    dayChange !== null ? { label: "Day Change", value: `${dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)}%`, color: dayChange >= 0 ? "text-emerald-400" : "text-rose-400" } : null,
+                    quoteData.open   ? { label: "Open",       value: `$${quoteData.open.toFixed(2)}`,          color: "text-white" } : null,
+                    quoteData.high   ? { label: "High",       value: `$${quoteData.high.toFixed(2)}`,          color: "text-white" } : null,
+                    quoteData.low    ? { label: "Low",        value: `$${quoteData.low.toFixed(2)}`,           color: "text-white" } : null,
+                    quoteData.previousClose ? { label: "Prev. Close", value: `$${quoteData.previousClose.toFixed(2)}`, color: "text-white" } : null,
+                  ].filter(Boolean).map((row) => (
+                    <div key={row!.label} className="flex justify-between text-sm">
+                      <span className="text-[#7B8DB4]">{row!.label}</span>
+                      <span className={row!.color}>{row!.value}</span>
+                    </div>
+                  ))}
                 </div>
+              ) : (
+                <p className="text-sm text-[#4B5675] animate-pulse">Loading…</p>
               )}
+            </div>
 
-              {/* Robinhood how-to guide */}
-              {!loadingAnalysis && analysis && (
-                <div className="bg-[#0C1017] rounded-3xl border border-[#1C2333] overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setGuideOpen((o) => !o)}
-                    className="w-full flex items-center justify-between px-5 py-4 hover:bg-[#111827] transition-colors"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="text-base">📱</span>
-                      <div className="text-left">
-                        <p className="text-sm font-semibold text-[#F1F5F9]">
-                          How to trade this on Robinhood
-                        </p>
-                        <p className="text-[11px] text-[#4B5675] mt-0.5">
-                          Step-by-step for beginners
-                        </p>
-                      </div>
-                    </div>
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#4B5675"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className={`shrink-0 transition-transform ${guideOpen ? "rotate-180" : ""}`}
-                    >
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
-                  </button>
-
-                  {guideOpen && (
-                    <div className="px-5 pb-5 border-t border-[#1C2333]">
-                      {analysis.signal === "BUY" && (
-                        <ol className="mt-4 space-y-4">
-                          {[
-                            {
-                              emoji: "🔍",
-                              title: "Search the stock",
-                              desc: `Open Robinhood → tap the search bar → type "${symbol.replace(".US", "").replace(".COMM", "")}"`,
-                            },
-                            {
-                              emoji: "💵",
-                              title: "Choose your amount",
-                              desc: 'Tap Buy → choose "Dollars" → start small (e.g. $25–$100). Never invest more than you can afford to lose.',
-                            },
-                            {
-                              emoji: "⚡",
-                              title: "Place a market order",
-                              desc: 'Leave order type as "Market" so it buys instantly at the current price. Tap Review → Submit.',
-                            },
-                            {
-                              emoji: "🛡️",
-                              title: "Set a stop-loss",
-                              desc: "After buying, go back to the stock → Trade → Sell → Stop Loss. Set it 4–5% below your buy price to cap your downside.",
-                            },
-                            {
-                              emoji: "⏳",
-                              title: "Wait for the SELL signal",
-                              desc: "Hold your position. When Traxora AI fires a SELL signal, come back here and follow the sell steps.",
-                            },
-                          ].map((step, i) => (
-                            <li key={i} className="flex gap-3">
-                              <span className="text-base shrink-0 mt-0.5">
-                                {step.emoji}
-                              </span>
-                              <div>
-                                <p className="text-sm font-semibold text-[#F1F5F9]">
-                                  {step.title}
-                                </p>
-                                <p className="text-xs text-[#7B8DB4] mt-0.5 leading-relaxed">
-                                  {step.desc}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-
-                      {analysis.signal === "SELL" && (
-                        <ol className="mt-4 space-y-4">
-                          {[
-                            {
-                              emoji: "📂",
-                              title: "Open your portfolio",
-                              desc: `Tap the person icon → Portfolio → find ${symbol.replace(".US", "").replace(".COMM", "")}.`,
-                            },
-                            {
-                              emoji: "💸",
-                              title: "Tap Trade → Sell",
-                              desc: 'Choose how many shares to sell. To exit fully, tap "Sell All Shares".',
-                            },
-                            {
-                              emoji: "✅",
-                              title: "Submit the order",
-                              desc: 'Leave order type as "Market" → Review → Submit. Your shares sell at the current price.',
-                            },
-                            {
-                              emoji: "📊",
-                              title: "Review your result",
-                              desc: "Go to History to see your profit or loss. Use it as a learning moment regardless of outcome.",
-                            },
-                          ].map((step, i) => (
-                            <li key={i} className="flex gap-3">
-                              <span className="text-base shrink-0 mt-0.5">
-                                {step.emoji}
-                              </span>
-                              <div>
-                                <p className="text-sm font-semibold text-[#F1F5F9]">
-                                  {step.title}
-                                </p>
-                                <p className="text-xs text-[#7B8DB4] mt-0.5 leading-relaxed">
-                                  {step.desc}
-                                </p>
-                              </div>
-                            </li>
-                          ))}
-                        </ol>
-                      )}
-
-                      {analysis.signal === "HOLD" && (
-                        <div className="mt-4 space-y-3">
-                          <div className="flex gap-3">
-                            <span className="text-base shrink-0">⏸️</span>
-                            <div>
-                              <p className="text-sm font-semibold text-[#F1F5F9]">
-                                No action needed
-                              </p>
-                              <p className="text-xs text-[#7B8DB4] mt-0.5 leading-relaxed">
-                                The AI sees no clear edge right now. If you
-                                already own this stock, keep holding. If you
-                                don&apos;t own it, wait for a BUY signal before
-                                entering.
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-3">
-                            <span className="text-base shrink-0">🔔</span>
-                            <div>
-                              <p className="text-sm font-semibold text-[#F1F5F9]">
-                                Enable push alerts
-                              </p>
-                              <p className="text-xs text-[#7B8DB4] mt-0.5 leading-relaxed">
-                                Go to the Alerts page and enable notifications —
-                                you&apos;ll get a ping the moment the signal
-                                flips to BUY or SELL.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="mt-5 pt-4 border-t border-[#1C2333] flex gap-2">
-                        <span className="text-amber-400 shrink-0 text-sm">
-                          ⚠️
-                        </span>
-                        <p className="text-[11px] text-[#4B5675] leading-relaxed">
-                          AI signals are not guarantees. Always use a stop-loss
-                          and only invest what you can afford to lose. This is
-                          not financial advice.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Key Observations */}
-              {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
-                <div className="bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
-                  <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-3">
-                    Key Observations
-                  </p>
-                  <ul className="space-y-2">
-                    {analysis.keyPoints.map((point, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 text-sm text-[#CBD5E1]"
-                      >
-                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* ICT Smart Money Concepts */}
-              {analysis?.ict && (
-                <div className="bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
-                  <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-4">
-                    ICT Smart Money
-                  </p>
-
-                  {/* Market Structure + Bias row */}
-                  <div className="flex gap-3 mb-4">
-                    <div className="flex-1 bg-[#060A14]/60 rounded-xl p-3">
-                      <p className="text-xs text-[#4B5675] mb-1">Structure</p>
-                      <p
-                        className={`text-sm font-bold ${
-                          analysis.ict.marketStructure === "Bullish"
-                            ? "text-emerald-400"
-                            : analysis.ict.marketStructure === "Bearish"
-                              ? "text-rose-400"
-                              : "text-amber-400"
-                        }`}
-                      >
-                        {analysis.ict.marketStructure}
-                      </p>
-                    </div>
-                    <div className="flex-1 bg-[#060A14]/60 rounded-xl p-3">
-                      <p className="text-xs text-[#4B5675] mb-1">Daily Bias</p>
-                      <p
-                        className={`text-sm font-bold ${
-                          analysis.ict.dailyBias === "Bullish"
-                            ? "text-emerald-400"
-                            : analysis.ict.dailyBias === "Bearish"
-                              ? "text-rose-400"
-                              : "text-amber-400"
-                        }`}
-                      >
-                        {analysis.ict.dailyBias}
-                      </p>
-                    </div>
-                    <div className="flex-1 bg-[#060A14]/60 rounded-xl p-3">
-                      <p className="text-xs text-[#4B5675] mb-1">Zone</p>
-                      <p
-                        className={`text-sm font-bold ${
-                          analysis.ict.priceZone === "Discount"
-                            ? "text-emerald-400"
-                            : analysis.ict.priceZone === "Premium"
-                              ? "text-rose-400"
-                              : "text-amber-400"
-                        }`}
-                      >
-                        {analysis.ict.priceZone}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* ICT Details */}
-                  <div className="space-y-2.5">
-                    {analysis.ict.orderBlock && (
-                      <div className="flex gap-2">
-                        <span className="text-xs text-purple-400 font-semibold w-8 shrink-0 mt-0.5">
-                          OB
-                        </span>
-                        <p className="text-xs text-[#CBD5E1]">
-                          {analysis.ict.orderBlock}
-                        </p>
-                      </div>
-                    )}
-                    {analysis.ict.fairValueGap && (
-                      <div className="flex gap-2">
-                        <span className="text-xs text-blue-400 font-semibold w-8 shrink-0 mt-0.5">
-                          FVG
-                        </span>
-                        <p className="text-xs text-[#CBD5E1]">
-                          {analysis.ict.fairValueGap}
-                        </p>
-                      </div>
-                    )}
-                    {analysis.ict.liquidity && (
-                      <div className="flex gap-2">
-                        <span className="text-xs text-yellow-400 font-semibold w-8 shrink-0 mt-0.5">
-                          LIQ
-                        </span>
-                        <p className="text-xs text-[#CBD5E1]">
-                          {analysis.ict.liquidity}
-                        </p>
-                      </div>
-                    )}
-                    {analysis.ict.ote && (
-                      <div className="flex gap-2">
-                        <span className="text-xs text-cyan-400 font-semibold w-8 shrink-0 mt-0.5">
-                          OTE
-                        </span>
-                        <p className="text-xs text-[#CBD5E1]">
-                          {analysis.ict.ote}
-                        </p>
-                      </div>
-                    )}
-                    {analysis.ict.setup && (
-                      <div className="mt-3 pt-3 border-t border-[#1C2333]">
-                        <p className="text-xs text-[#4B5675] mb-1">
-                          Primary Setup
-                        </p>
-                        <p className="text-xs text-white leading-relaxed">
-                          {analysis.ict.setup}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Price Snapshot */}
-              <div className="bg-[#0C1017] rounded-3xl p-6 border border-[#1C2333]">
-                <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-3">
-                  Price Snapshot
-                </p>
-                {quoteData.price ? (
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-[#7B8DB4]">Current</span>
-                      <span className="text-white font-semibold">
-                        ${quoteData.price.toFixed(2)}
-                      </span>
-                    </div>
-                    {dayChange !== null && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#7B8DB4]">Day Change</span>
-                        <span
-                          className={
-                            dayChange >= 0
-                              ? "text-emerald-400"
-                              : "text-rose-400"
-                          }
-                        >
-                          {dayChange >= 0 ? "+" : ""}
-                          {dayChange.toFixed(2)}%
-                        </span>
-                      </div>
-                    )}
-                    {quoteData.open && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#7B8DB4]">Open</span>
-                        <span className="text-white">
-                          ${quoteData.open.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {quoteData.high && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#7B8DB4]">High</span>
-                        <span className="text-white">
-                          ${quoteData.high.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {quoteData.low && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#7B8DB4]">Low</span>
-                        <span className="text-white">
-                          ${quoteData.low.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                    {quoteData.previousClose && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-[#7B8DB4]">Prev. Close</span>
-                        <span className="text-white">
-                          ${quoteData.previousClose.toFixed(2)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-sm text-[#4B5675] animate-pulse">
-                    Loading price data…
-                  </p>
-                )}
+            {/* Key Observations */}
+            {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
+              <div className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333]">
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Key Observations</p>
+                <ul className="space-y-2">
+                  {analysis.keyPoints.map((point, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs text-[#CBD5E1]">
+                      <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+                      {point}
+                    </li>
+                  ))}
+                </ul>
               </div>
+            )}
 
-              {/* Deep ICT Analysis trigger */}
-              <div className="bg-[#0C1017] rounded-3xl p-5 border border-indigo-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-base">🎯</span>
-                  <p className="text-sm font-bold text-[#F1F5F9]">
-                    Deep ICT Analysis
-                  </p>
+            {/* ICT Smart Money */}
+            {analysis?.ict && (
+              <div className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333]">
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">ICT Smart Money</p>
+                <div className="flex gap-2 mb-3">
+                  {[
+                    { label: "Structure", val: analysis.ict.marketStructure },
+                    { label: "Bias",      val: analysis.ict.dailyBias       },
+                    { label: "Zone",      val: analysis.ict.priceZone       },
+                  ].map(({ label, val }) => (
+                    <div key={label} className="flex-1 bg-[#060A14] rounded-xl p-2.5">
+                      <p className="text-[9px] text-[#4B5675] mb-1">{label}</p>
+                      <p className={`text-xs font-bold ${val === "Bullish" || val === "Discount" ? "text-emerald-400" : val === "Bearish" || val === "Premium" ? "text-rose-400" : "text-amber-400"}`}>{val}</p>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-[#4B5675] leading-relaxed mb-4">
-                  Full institutional breakdown — market structure, OBs, FVGs,
-                  liquidity pools, OTE zones, and two trade setups with exact
-                  entry/SL/TP levels.
-                </p>
-                <button
-                  type="button"
-                  onClick={runDeepICT}
-                  disabled={loadingDeep}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
-                >
-                  {loadingDeep ? (
-                    <>
-                      <svg
-                        className="animate-spin"
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                      >
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                      Analyzing with ICT framework…
-                    </>
-                  ) : deepICT ? (
-                    "Re-run Deep ICT Analysis"
-                  ) : (
-                    "Run Deep ICT Analysis"
+                <div className="space-y-2">
+                  {[
+                    { tag: "OB",  color: "text-purple-400", text: analysis.ict.orderBlock    },
+                    { tag: "FVG", color: "text-blue-400",   text: analysis.ict.fairValueGap  },
+                    { tag: "LIQ", color: "text-yellow-400", text: analysis.ict.liquidity     },
+                    { tag: "OTE", color: "text-cyan-400",   text: analysis.ict.ote           },
+                  ].filter(r => r.text).map(({ tag, color, text }) => (
+                    <div key={tag} className="flex gap-2">
+                      <span className={`text-[10px] font-black w-7 shrink-0 mt-0.5 ${color}`}>{tag}</span>
+                      <p className="text-[11px] text-[#CBD5E1] leading-snug">{text}</p>
+                    </div>
+                  ))}
+                  {analysis.ict.setup && (
+                    <div className="mt-2 pt-2 border-t border-[#1C2333]">
+                      <p className="text-[9px] text-[#4B5675] mb-1">Primary Setup</p>
+                      <p className="text-[11px] text-white leading-snug">{analysis.ict.setup}</p>
+                    </div>
                   )}
-                </button>
-                {deepError && (
-                  <p className="text-xs text-rose-400 mt-2 text-center">
-                    {deepError}
-                  </p>
-                )}
+                </div>
               </div>
+            )}
 
-              {/* Disclaimer */}
-              <p className="text-xs text-[#4B5675] leading-relaxed px-1">
-                AI signals are for informational purposes only and do not
-                constitute financial advice. Always do your own research before
-                investing.
+            {/* Order Depth */}
+            {quoteData.price && quoteData.high && quoteData.low && (
+              <MarketDepth price={quoteData.price} high={quoteData.high} low={quoteData.low} symbol={symbol} />
+            )}
+
+            {/* Deep ICT Analysis trigger */}
+            <div className="bg-[#0C1017] rounded-2xl p-5 border border-indigo-500/20">
+              <div className="flex items-center gap-2 mb-2">
+                <span>🎯</span>
+                <p className="text-sm font-bold text-[#F1F5F9]">Deep ICT Analysis</p>
+              </div>
+              <p className="text-xs text-[#4B5675] leading-relaxed mb-4">
+                Full institutional breakdown — OBs, FVGs, liquidity, OTE zones, and two trade setups with exact entry/SL/TP.
               </p>
+              <button
+                type="button"
+                onClick={runDeepICT}
+                disabled={loadingDeep}
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
+              >
+                {loadingDeep ? (
+                  <>
+                    <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    Analyzing…
+                  </>
+                ) : deepICT ? "Re-run Deep ICT" : "Run Deep ICT Analysis"}
+              </button>
+              {deepError && <p className="text-xs text-rose-400 mt-2 text-center">{deepError}</p>}
             </div>
           </div>
 
           {/* ── Deep ICT Analysis Results (full width) ── */}
           {deepICT && <DeepICTPanel data={deepICT} symbol={symbol} />}
-
-          {/* Comparison vs E-mini S&P 500 and key benchmarks */}
-          <ComparisonPanel
-            currentSymbol={symbol}
-            currentLabel={symbol.replace(".US", "").replace(".COMM", "")}
-            currentDayChange={dayChange}
-          />
         </div>
       </main>
     </div>

@@ -37,31 +37,16 @@ export default function AIChatWidget() {
         body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
 
-      if (!res.ok) {
-        try {
-          const errData = await res.json() as { reason?: string };
-          if (errData.reason === "AI_UNAVAILABLE") {
-            setMessages([...next, { role: "assistant", content: "⚠️ AI assistant is temporarily unavailable — your Anthropic API key appears to be invalid or missing. Please check Settings." }]);
-            return;
-          }
-        } catch { /* ignore parse error */ }
-        throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { ok: boolean; text?: string; error?: string };
+
+      if (!data.ok) {
+        setMessages([...next, { role: "assistant", content: data.error ?? "Something went wrong. Please try again." }]);
+        return;
       }
 
-      if (!res.body) throw new Error("No response body");
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        accumulated += decoder.decode(value, { stream: true });
-        setMessages([...next, { role: "assistant", content: accumulated }]);
-      }
+      setMessages([...next, { role: "assistant", content: data.text ?? "" }]);
     } catch {
-      setMessages([...next, { role: "assistant", content: "Sorry, something went wrong. Make sure your API key is set." }]);
+      setMessages([...next, { role: "assistant", content: "Sorry, something went wrong. Please try again." }]);
     } finally {
       setLoading(false);
     }
@@ -76,12 +61,12 @@ export default function AIChatWidget() {
 
   return (
     <>
-      {/* Trigger button */}
+      {/* Trigger button — on mobile sits on the LEFT above the nav (AutoTrader owns the right); on sm+ sits bottom-right */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Open AI assistant"
-        className="fixed bottom-6 right-6 z-50 w-12 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
         {open ? (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -95,9 +80,9 @@ export default function AIChatWidget() {
         )}
       </button>
 
-      {/* Chat panel */}
+      {/* Chat panel — anchors from the left on mobile (matching button), right on desktop */}
       {open && (
-        <div className="fixed bottom-[76px] right-6 z-50 w-[360px] h-[500px] bg-[#0C1017] border border-[#1C2333] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden">
+        <div className="fixed bottom-[100px] right-2 left-2 sm:left-auto sm:right-6 sm:bottom-[76px] sm:w-[360px] h-[60vh] sm:h-[500px] max-h-[500px] bg-[#0C1017] border border-[#1C2333] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden z-50">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#1C2333] bg-[#060A14] shrink-0">
             <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
@@ -110,10 +95,23 @@ export default function AIChatWidget() {
               <p className="text-sm font-semibold text-[#F1F5F9]">Traxora AI</p>
               <p className="text-[10px] text-[#4B5675]">Ask about stocks, signals &amp; markets</p>
             </div>
-            <span className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Online
-            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <span className="flex items-center gap-1.5 text-[10px] text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Online
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="text-[#4B5675] hover:text-[#F1F5F9] transition-colors"
+                aria-label="Close chat"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
@@ -143,10 +141,13 @@ export default function AIChatWidget() {
                       : "bg-[#111827] border border-[#1C2333] text-[#CBD5E1] rounded-bl-sm"
                   }`}
                 >
-                  {msg.content}
-                  {msg.role === "assistant" && msg.content === "" && loading && (
-                    <span className="inline-block w-1 h-4 bg-indigo-400 ml-0.5 animate-pulse rounded-sm" />
-                  )}
+                  {msg.role === "assistant" && msg.content === "" && loading
+                    ? <span className="flex gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:0ms]"/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:150ms]"/>
+                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-bounce [animation-delay:300ms]"/>
+                      </span>
+                    : msg.content}
                 </div>
               </div>
             ))}

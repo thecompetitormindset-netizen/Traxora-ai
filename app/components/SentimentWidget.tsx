@@ -16,103 +16,50 @@ type SentimentData = {
   } | null;
 };
 
-// ── Gauge ─────────────────────────────────────────────────────────────────────
-// Vertical thermometer: shaft fills bottom→top, pointer arrow, glowing bulb.
+// ── Horizontal Score Bar ───────────────────────────────────────────────────────
 
-function Gauge({ score }: { score: number }) {
+function ScoreBar({ score }: { score: number }) {
   const c   = Math.max(-100, Math.min(100, score));
-  const pct = (c + 100) / 200;
-
-  // Shaft geometry
-  const sX = 36, sY = 10, sW = 22, sH = 186;
-  // Bulb
-  const bCX = sX + sW / 2, bCY = sY + sH + 20, bR = 17;
-  // Fill: rises from bottom of shaft to current pct
-  const fillY = sY + (1 - pct) * sH;
-  const fillH = pct * sH;
+  const pct = (c + 100) / 200; // 0 → 1
 
   const color      = c >= 30 ? "#10B981" : c >= -30 ? "#F59E0B" : "#EF4444";
   const scoreClass = c >= 30 ? "text-emerald-400" : c >= -30 ? "text-amber-400" : "text-rose-400";
   const label      = c >= 50 ? "Strong Bullish" : c >= 20 ? "Bullish" : c >= -20 ? "Neutral" : c >= -50 ? "Bearish" : "Strong Bearish";
 
-  const ticks = [
-    { p: 1,    lbl: "+100" },
-    { p: 0.75, lbl: "+50"  },
-    { p: 0.5,  lbl: "0"    },
-    { p: 0.25, lbl: "−50"  },
-    { p: 0,    lbl: "−100" },
-  ].map(t => ({ ...t, y: sY + (1 - t.p) * sH }));
-
   return (
-    <div className="flex items-center gap-5 justify-center w-full py-2">
-      <svg viewBox="0 0 90 238" width="72" aria-hidden="true">
-        <defs>
-          {/* Gradient maps to shaft userSpace coords so fill level doesn't shift the colors */}
-          <linearGradient id="tg" x1="0" y1={sY + sH} x2="0" y2={sY} gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#EF4444" />
-            <stop offset="28%"  stopColor="#F97316" />
-            <stop offset="50%"  stopColor="#F59E0B" />
-            <stop offset="72%"  stopColor="#22C55E" />
-            <stop offset="100%" stopColor="#10B981" />
-          </linearGradient>
-          <clipPath id="tclip">
-            <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} />
-          </clipPath>
-        </defs>
-
-        {/* Shaft background */}
-        <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} fill="#080E1B" />
-
-        {/* Fill (clipped to rounded shaft) */}
-        <g clipPath="url(#tclip)">
-          {/* Dim ghost of full gradient for context */}
-          <rect x={sX} y={sY} width={sW} height={sH} fill="url(#tg)" opacity="0.14" />
-          {/* Active fill level */}
-          {fillH > 0 && (
-            <rect x={sX} y={fillY} width={sW} height={fillH} fill="url(#tg)" />
-          )}
-        </g>
-
-        {/* Centre zero marker */}
-        <line x1={sX + 4} y1={sY + sH / 2} x2={sX + sW - 4} y2={sY + sH / 2}
-              stroke="#232F46" strokeWidth="1.5" strokeDasharray="3 2" />
-
-        {/* Tick marks + scale labels */}
-        {ticks.map((t, i) => (
-          <g key={i}>
-            <line x1={sX - 6} y1={t.y} x2={sX - 1} y2={t.y}
-                  stroke="#253145" strokeWidth="1.5" strokeLinecap="round" />
-            <text x={sX - 9} y={t.y} fontSize="8" fill="#3A4F6A"
-                  fontFamily="monospace" textAnchor="end" dominantBaseline="central">
-              {t.lbl}
-            </text>
-          </g>
-        ))}
-
-        {/* Pointer arrow at fill level */}
-        <polygon
-          points={`${sX + sW + 1},${fillY - 5} ${sX + sW + 11},${fillY} ${sX + sW + 1},${fillY + 5}`}
-          fill={color}
-        />
-
-        {/* Bulb: glow ring + solid fill + dark centre */}
-        <circle cx={bCX} cy={bCY} r={bR + 6} fill={color} fillOpacity="0.12" />
-        <circle cx={bCX} cy={bCY} r={bR}     fill={color} />
-        <circle cx={bCX} cy={bCY} r={bR * 0.38} fill="#060A14" />
-      </svg>
-
-      {/* Score + label alongside */}
-      <div className="flex flex-col">
-        <p className={`text-4xl font-black font-mono tabular-nums leading-none ${scoreClass}`}>
+    <div className="w-full py-1">
+      <div className="flex items-baseline justify-between mb-3">
+        <span className={`text-4xl font-black font-mono tabular-nums leading-none ${scoreClass}`}>
           {c > 0 ? "+" : ""}{c}
-        </p>
-        <p className="text-[11px] font-semibold text-[#7B8DB4] mt-2 tracking-wide">{label}</p>
+        </span>
+        <span className="text-[11px] font-semibold text-[#7B8DB4] tracking-wide">{label}</span>
+      </div>
+
+      {/* Track: −100 ··· 0 ··· +100 */}
+      <div className="relative h-4 bg-[#080E1B] rounded-full overflow-hidden border border-[#1C2333]">
+        {/* Gradient backdrop */}
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.18 }}
+        />
+        {/* Zero tick */}
+        <div className="absolute top-0 bottom-0 w-px bg-[#232F46]" style={{ left: "50%" }} />
+        {/* Needle */}
+        <div
+          className="absolute top-1 bottom-1 w-2 rounded-full"
+          style={{ left: `calc(${pct * 100}% - 4px)`, background: color, boxShadow: `0 0 8px ${color}` }}
+        />
+      </div>
+
+      {/* Scale labels */}
+      <div className="flex justify-between text-[8px] text-[#2D3A50] font-mono mt-1 px-0.5">
+        <span>−100</span><span>−50</span><span>0</span><span>+50</span><span>+100</span>
       </div>
     </div>
   );
 }
 
-// ── Bar ───────────────────────────────────────────────────────────────────────
+// ── Bar (breakdown) ────────────────────────────────────────────────────────────
 
 function Bar({ label, weight, value, accent }: { label: string; weight: number; value: number; accent: string }) {
   const pct       = Math.max(0, Math.min(100, value));
@@ -156,10 +103,10 @@ export default function SentimentWidget() {
     <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5">
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-[#4B5675]">Market Sentiment</p>
-          <p className="text-[10px] text-[#2D3A50] mt-0.5">VIX · Trend · News composite</p>
+          <p className="text-[10px] text-[#2D3A50] mt-0.5">VIX · Momentum · News composite · math-driven</p>
         </div>
         {!loading && data?.regime && (
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${regimeClass}`}>
@@ -169,20 +116,20 @@ export default function SentimentWidget() {
       </div>
 
       {loading ? (
-        <div className="h-48 flex items-center justify-center">
+        <div className="h-24 flex items-center justify-center">
           <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24"
                fill="none" stroke="#818CF8" strokeWidth="2.5">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         </div>
       ) : !data ? (
-        <div className="h-48 flex items-center justify-center">
+        <div className="h-24 flex items-center justify-center">
           <p className="text-[#4B5675] text-sm">Unavailable</p>
         </div>
       ) : (
         <>
-          {/* Gauge */}
-          <Gauge score={data.overallScore ?? 0} />
+          {/* Horizontal score bar */}
+          <ScoreBar score={data.overallScore ?? 0} />
 
           {/* Math breakdown */}
           {data.breakdown && (

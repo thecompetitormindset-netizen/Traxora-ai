@@ -76,11 +76,12 @@ function changeColor(v: number | null) {
 
 function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", price: number, confidence: string) {
   if (typeof window === "undefined") return;
-  // Always persist alert regardless of push notification permission
+  // Respect pause toggle
+  if (localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true") return;
+  // Persist alert so history builds even without push permission
   const existing = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]");
   existing.unshift({ symbol, name, signal, price, confidence, time: Date.now() });
   localStorage.setItem(scopedKey("traxora_alerts"), JSON.stringify(existing.slice(0, 50)));
-  // Fire event AFTER save so Topbar badge reads the updated count
   window.dispatchEvent(new CustomEvent("traxora-signal", {
     detail: { symbol, name, signal, price, confidence }
   }));
@@ -88,9 +89,31 @@ function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", 
   const emoji = signal === "BUY" ? "🟢" : "🔴";
   const notif = new Notification(
     `${emoji} Traxora AI — ${signal}: ${symbol.replace(".US","").replace(".COMM","")}`,
-    { body: `${name} · $${price.toFixed(2)} · ${confidence} confidence — auto-trading now`, icon: "/icon-192.png", tag: `signal-${symbol}` }
+    { body: `${name} · $${price.toFixed(2)} · ${confidence} confidence`, icon: "/icon-192.png", tag: `signal-${symbol}` }
   );
-  notif.onclick = () => { window.focus(); window.location.href = `/analysis?symbol=${encodeURIComponent(symbol)}`; notif.close(); };
+  notif.onclick = () => { window.focus(); window.location.href = `/notifications`; notif.close(); };
+}
+
+// Dedup: don't re-fire the same signal for the same symbol within 4 hours.
+// Only fires again if the signal DIRECTION changes (BUY→SELL or vice versa).
+function shouldFireAlert(symbol: string, signal: "BUY" | "SELL"): boolean {
+  try {
+    const raw = localStorage.getItem(scopedKey("traxora_last_signals"));
+    const stored: Record<string, { signal: string; time: number }> = raw ? JSON.parse(raw) : {};
+    const entry = stored[symbol];
+    if (!entry) return true;
+    if (entry.signal !== signal) return true; // direction changed → always fire
+    return Date.now() - entry.time > 4 * 60 * 60 * 1000; // same direction: fire after 4 h
+  } catch { return true; }
+}
+
+function markAlertFired(symbol: string, signal: "BUY" | "SELL") {
+  try {
+    const raw = localStorage.getItem(scopedKey("traxora_last_signals"));
+    const stored: Record<string, { signal: string; time: number }> = raw ? JSON.parse(raw) : {};
+    stored[symbol] = { signal, time: Date.now() };
+    localStorage.setItem(scopedKey("traxora_last_signals"), JSON.stringify(stored));
+  } catch { /* ignore */ }
 }
 
 
@@ -171,7 +194,7 @@ export default function DashboardPage() {
   const [competeRank,  setCompeteRank]  = useState<number | null>(null);
   const [competeTotal, setCompeteTotal] = useState<number | null>(null);
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
-  const prevSignals  = useRef<Record<string, string>>({});
+  const [alertsPaused, setAlertsPaused] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
@@ -179,7 +202,16 @@ export default function DashboardPage() {
     } else {
       setNotifPermission(Notification.permission);
     }
+    setAlertsPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
   }, []);
+
+  function toggleAlertPause() {
+    setAlertsPaused(prev => {
+      const next = !prev;
+      localStorage.setItem(scopedKey("traxora_alerts_paused"), String(next));
+      return next;
+    });
+  }
 
   async function requestNotifications() {
     if (!("Notification" in window)) return;
@@ -211,10 +243,10 @@ export default function DashboardPage() {
           if (signal && signal !== "HOLD") {
             setPoppedSymbols((prev) => new Set([...prev, symbol]));
           }
-          if (signal && signal !== "HOLD" && signal !== prevSignals.current[symbol] && price) {
+          if (signal && signal !== "HOLD" && shouldFireAlert(symbol, signal) && price) {
             fireNotification(symbol, name, signal, price, confidence ?? "Medium");
+            markAlertFired(symbol, signal);
           }
-          if (signal) prevSignals.current[symbol] = signal;
         }
       } catch {
         setStocks((s) => s.map((c, idx) => idx === i ? { ...c, loading: false } : c));
@@ -378,9 +410,31 @@ export default function DashboardPage() {
                 </button>
               )}
               {notifPermission === "granted" && (
-                <span className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10B981]" />Alerts Active
-                </span>
+                <button
+                  type="button"
+                  onClick={toggleAlertPause}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                    alertsPaused
+                      ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
+                      : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                  }`}
+                >
+                  {alertsPaused ? (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3" />
+                      </svg>
+                      Resume Alerts
+                    </>
+                  ) : (
+                    <>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                      </svg>
+                      Pause Alerts
+                    </>
+                  )}
+                </button>
               )}
               {notifPermission === "denied" && (
                 <span className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-sm font-medium">Alerts Blocked</span>
@@ -649,38 +703,6 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Webull CTA */}
-            <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6">
-              <div className="flex items-start justify-between gap-6 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-[#4B5675] mb-2">Recommended Broker</p>
-                  <p className="text-lg font-bold">Open a free Webull account</p>
-                  <p className="text-sm text-[#7B8DB4] mt-1 leading-relaxed">
-                    Commission-free trading, SIPC insured, and you get up to 12 free stocks just for signing up. Takes 5 minutes.
-                  </p>
-                  <div className="flex gap-4 mt-4 flex-wrap">
-                    {["Commission-free", "SIPC insured", "Up to 12 free stocks", "5-min setup"].map((b) => (
-                      <span key={b} className="flex items-center gap-1.5 text-xs text-[#7B8DB4]">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />{b}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-                <a
-                  href="https://a.webull.com/i/YOUR_AFFILIATE_CODE"
-                  target="_blank"
-                  rel="noopener noreferrer sponsored"
-                  className="shrink-0 bg-emerald-500 hover:bg-emerald-400 transition-colors px-6 py-3 rounded-xl text-sm font-bold text-white shadow-lg shadow-emerald-500/20 flex items-center gap-2"
-                >
-                  Open Free Account
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="7" y1="17" x2="17" y2="7" /><polyline points="7 7 17 7 17 17" />
-                  </svg>
-                </a>
-              </div>
-              <p className="text-[10px] text-[#4B5675] mt-4 opacity-60">Affiliate link — we may earn a commission at no cost to you. Not financial advice.</p>
             </div>
 
             {/* Exchange CTA */}

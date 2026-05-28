@@ -235,7 +235,7 @@ export default function HomePage() {
         <div className="flex items-center gap-5">
           <Link href="/explore"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Markets</Link>
           <Link href="/analysis"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Signals</Link>
-          <Link href="/settings"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Connect Broker</Link>
+          <Link href="/guide"     className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Guide</Link>
           <Link href="/dashboard" className="bg-indigo-600 hover:bg-indigo-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-indigo-500/20 hover:scale-105 active:scale-95">
             Launch App →
           </Link>
@@ -349,7 +349,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ WHAT IS TRAXORA ══ */}
-      <section className="px-6 sm:px-8 py-24 max-w-6xl mx-auto w-full">
+      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
         <div className="flex flex-col lg:flex-row gap-16 items-start">
           <div className="lg:w-[55%]">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-400 mb-5">What is Traxora AI?</p>
@@ -358,30 +358,23 @@ export default function HomePage() {
             </h2>
             <div className="space-y-4 text-[#7B8DB4] text-[15px] leading-relaxed">
               <p>
-                <strong className="text-[#F1F5F9]">Traxora</strong> is an AI-powered trading signal platform built on the{" "}
-                <strong className="text-[#F1F5F9]">ICT (Inner Circle Trader) Smart Money methodology</strong> — the same framework used by institutional traders, hedge funds, and professional market makers to read price action.
+                <strong className="text-[#F1F5F9]">Traxora</strong> is an AI signal platform built on{" "}
+                <strong className="text-[#F1F5F9]">ICT Smart Money methodology</strong> — the same framework institutional traders use to read price action.
               </p>
               <p>
-                Every time you enter a ticker, Traxora pulls live market data and runs it through{" "}
-                <strong className="text-[#F1F5F9]">Claude Opus 4.7</strong> — Anthropic&apos;s most powerful AI model — which checks all 6 Smart Money concepts and returns a clear{" "}
+                Enter any ticker and Claude Opus 4.7 checks all 6 Smart Money concepts — returning a clear{" "}
                 <span className="text-emerald-400 font-semibold">BUY</span>,{" "}
                 <span className="text-amber-400 font-semibold">HOLD</span>, or{" "}
                 <span className="text-rose-400 font-semibold">SELL</span>{" "}
-                signal with the full reasoning behind it.
-              </p>
-              <p>
-                You don&apos;t need to spend years studying charts. Traxora reads Order Blocks, Fair Value Gaps, Liquidity sweeps, Market Structure shifts, Fibonacci OTE zones, and Kill Zone timing — all at once — and translates it into one actionable decision.
-              </p>
-              <p>
-                Then it connects to your broker. Link a free <strong className="text-[#F1F5F9]">Alpaca account</strong> in Settings and execute that signal directly from the app.
+                signal with full reasoning in seconds.
               </p>
             </div>
             <div className="flex items-center gap-4 mt-8">
               <Link href="/dashboard" className="bg-indigo-600 hover:bg-indigo-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
                 Start Free →
               </Link>
-              <Link href="/settings" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2D3A50]">
-                Connect Alpaca →
+              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2D3A50]">
+                Read the Guide →
               </Link>
             </div>
           </div>
@@ -391,9 +384,9 @@ export default function HomePage() {
               { value:"6",        label:"ICT Smart Money concepts analyzed on every ticker",         color:"text-indigo-400",  glow:"shadow-indigo-500/20" },
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
               { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-violet-400",  glow:"shadow-violet-500/20" },
-              { value:"1-tap",    label:"Trade execution via Alpaca broker API — free account",      color:"text-emerald-400", glow:"shadow-emerald-500/20"},
-              { value:"$10K",     label:"Paper trading simulator — practice risk-free before going live", color:"text-amber-400", glow:"shadow-amber-500/20"  },
-              { value:"Free",     label:"No subscription, no hidden fees — open an account and start",   color:"text-rose-400",   glow:"shadow-rose-500/20"   },
+              { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
+              { value:"$10K",     label:"Paper trading simulator — practice risk-free",              color:"text-amber-400",   glow:"shadow-amber-500/20"  },
+              { value:"Free",     label:"No subscription, no hidden fees",                          color:"text-rose-400",    glow:"shadow-rose-500/20"   },
             ].map((s) => (
               <div key={s.label} className={`bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-4 hover:border-[#2D3A50] transition-all hover:shadow-lg ${s.glow}`}>
                 <p className={`text-2xl font-black mb-1 ${s.color}`}>{s.value}</p>
@@ -437,11 +430,8 @@ export default function HomePage() {
           <div className="md:w-1/2">
             <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-3">Step 01 · Pick Your Market</p>
             <h3 className="text-2xl font-black mb-4">Search any stock or futures contract</h3>
-            <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              Open the Dashboard or Signals page and type any ticker — <strong className="text-[#F1F5F9]">AAPL, NVDA, TSLA</strong> for stocks, or <strong className="text-[#F1F5F9]">ES, NQ, GC</strong> for futures. Traxora instantly fetches the live price, today&apos;s open/high/low, and prior close.
-            </p>
             <p className="text-[#7B8DB4] leading-relaxed">
-              You can also browse the pre-loaded watchlist on the Dashboard — 20+ stocks and futures are shown with live prices and color-coded signal indicators, so you can spot opportunities at a glance.
+              Type any ticker — <strong className="text-[#F1F5F9]">AAPL, NVDA, TSLA</strong> for stocks, or <strong className="text-[#F1F5F9]">ES, NQ, GC</strong> for futures. Or browse the 20+ symbol watchlist on the Dashboard with live prices and color-coded signals.
             </p>
           </div>
           <div className="md:w-1/2 bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-6">
@@ -476,12 +466,9 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
           <div className="md:w-1/2">
             <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Step 02 · Read Your Signal</p>
-            <h3 className="text-2xl font-black mb-4">AI analyses 6 ICT concepts — you get one clear answer</h3>
-            <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              Click any ticker and tap <strong className="text-[#F1F5F9]">&ldquo;Analyze&rdquo;</strong>. Claude Opus 4.7 checks every ICT concept — Order Blocks, Fair Value Gaps, Liquidity sweeps, Market Structure, OTE zones, and Kill Zone timing — and returns a verdict in seconds.
-            </p>
+            <h3 className="text-2xl font-black mb-4">AI analyses 6 ICT concepts — one clear answer</h3>
             <p className="text-[#7B8DB4] leading-relaxed">
-              You see the signal, confidence level, risk rating, and a written explanation of exactly why the AI reached that conclusion — including which Order Block price tapped, whether there&apos;s an FVG above or below, and whether you&apos;re in an active Kill Zone.
+              Tap <strong className="text-[#F1F5F9]">&ldquo;Analyze&rdquo;</strong>. Claude Opus 4.7 checks Order Blocks, FVGs, Liquidity sweeps, Market Structure, OTE zones, and Kill Zone timing — then returns a BUY / HOLD / SELL with the full reasoning behind it.
             </p>
           </div>
           <div className="md:w-1/2">
@@ -527,35 +514,29 @@ export default function HomePage() {
         <div className="flex flex-col md:flex-row gap-12 items-center">
           <div className="md:w-1/2">
             <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Step 03 · Act on It</p>
-            <h3 className="text-2xl font-black mb-4">Execute the trade — manually or automatically</h3>
+            <h3 className="text-2xl font-black mb-4">Paper trade first, then go live</h3>
             <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              <strong className="text-[#F1F5F9]">Option A — Robinhood (manual):</strong> The Signals page includes a step-by-step guide for each signal with exact tap locations, order type, stop-loss placement, and exit timing.
-            </p>
-            <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              <strong className="text-[#F1F5F9]">Option B — Alpaca (automated):</strong> Go to Settings → paste your free Alpaca API keys → tap the green BUY button on any signal. Traxora sends a market order directly. No switching apps, no missed entries.
+              Start with the built-in <strong className="text-[#F1F5F9]">$10K paper simulator</strong>. Execute signals risk-free, track your equity curve, and study your journal before putting real money on the line.
             </p>
             <p className="text-[#7B8DB4] leading-relaxed">
-              <strong className="text-[#F1F5F9]">Always use the paper trading simulator first.</strong> Your dashboard includes a $10,000 virtual portfolio.
+              When you&apos;re ready, the Signals page shows step-by-step execution instructions — order type, stop-loss placement, and exit timing — for any broker you use.
             </p>
           </div>
           <div className="md:w-1/2 space-y-3">
-            <div className="bg-[#0C1017]/80 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-500/40 transition-colors">
+            <div className="bg-[#0C1017]/80 border border-indigo-500/20 rounded-2xl p-5 hover:border-indigo-500/40 transition-colors">
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                </div>
-                <p className="text-sm font-bold text-[#F1F5F9]">Alpaca — automated execution</p>
-                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-lg">FREE</span>
+                <span className="text-base">📊</span>
+                <p className="text-sm font-bold text-[#F1F5F9]">Paper Simulator</p>
+                <span className="text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded-lg">$10K</span>
               </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed">Commission-free stocks &amp; ETFs. Connect once, trade from any signal. Paper + live modes.</p>
-              <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-xs text-emerald-400 hover:underline">alpaca.markets →</a>
+              <p className="text-xs text-[#4B5675] leading-relaxed">Virtual portfolio with live-priced equity curve, full trade journal, and P&amp;L tracking. No risk.</p>
             </div>
             <div className="bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-5 hover:border-[#2D3A50] transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📱</span>
-                <p className="text-sm font-bold text-[#F1F5F9]">Robinhood — manual execution</p>
+                <p className="text-sm font-bold text-[#F1F5F9]">Manual execution — any broker</p>
               </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed">Follow the built-in step-by-step guide in the Signals page. Traxora tells you exactly what to tap, when to buy, and when to exit.</p>
+              <p className="text-xs text-[#4B5675] leading-relaxed">The Signals page gives step-by-step execution instructions. Works with Robinhood, Webull, or any platform you prefer.</p>
             </div>
           </div>
         </div>
@@ -569,10 +550,10 @@ export default function HomePage() {
             <h2 className="text-3xl font-black tracking-tight mb-8">What to do every single trading day</h2>
             <div className="space-y-6">
               {[
-                { time:"Before 9:30 AM ET", icon:"🌅", title:"Check overnight futures", desc:"Open the Dashboard. Look at ES, NQ, GC prices. Are futures up or down from yesterday's close? This tells you institutional bias for the day." },
-                { time:"9:30 – 10:30 AM ET", icon:"🎯", title:"NY Kill Zone — this is your window", desc:"This 1-hour window produces the majority of daily institutional moves. Run analysis on your 2–3 top watchlist stocks. High confidence BUY + Kill Zone = best setup." },
-                { time:"During the day", icon:"📡", title:"Let push alerts do the work", desc:"Enable notifications. You don't need to stare at the screen. When Traxora fires a signal during a kill zone, your phone buzzes. You decide." },
-                { time:"After market close", icon:"📊", title:"Review your paper portfolio", desc:"Check your $10,000 paper portfolio. Which signals worked? Study the ICT concept behind each trade. This is how you build intuition for real money." },
+                { time:"Before 9:30 AM ET", icon:"🌅", title:"Check overnight futures", desc:"Look at ES, NQ, GC on the Dashboard. Up or down from yesterday's close tells you institutional bias for the day." },
+                { time:"9:30 – 10:30 AM ET", icon:"🎯", title:"NY Kill Zone — your prime window", desc:"The majority of institutional moves happen here. High confidence BUY + active Kill Zone = best setup." },
+                { time:"During the day", icon:"📡", title:"Let push alerts do the work", desc:"Enable notifications. When Traxora fires a signal during a Kill Zone, your phone buzzes. You decide." },
+                { time:"After market close", icon:"📊", title:"Review your paper portfolio", desc:"Which signals worked? Study the ICT concept behind each trade. This builds intuition before real money." },
               ].map((r) => (
                 <div key={r.title} className="flex gap-4">
                   <div className="flex flex-col items-center gap-1 shrink-0">
@@ -670,48 +651,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ ALPACA BROKER ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col lg:flex-row gap-16 items-start">
-          <div className="lg:w-[45%]">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-5">Broker Connection</p>
-            <h2 className="text-3xl font-black tracking-tight mb-4">Automate your trades<br />with Alpaca.</h2>
-            <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              Robinhood doesn&apos;t have a public stock API — so you can&apos;t automate trades there. <strong className="text-[#F1F5F9]">Alpaca Markets</strong> does. It&apos;s free, commission-free on stocks and ETFs, and has a dead-simple REST API.
-            </p>
-            <p className="text-[#7B8DB4] leading-relaxed mb-6">
-              Connect once in Settings. Then every time a BUY or SELL signal fires, you can send a real market order to Alpaca in one tap — directly from the Signals page.
-            </p>
-            <div className="flex gap-3 flex-wrap">
-              <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
-                Open Free Alpaca Account →
-              </a>
-              <Link href="/settings" className="border border-[#1C2333] hover:border-[#2D3A50] bg-transparent transition-all px-5 py-2.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
-                Go to Settings →
-              </Link>
-            </div>
-          </div>
-          <div className="lg:w-[55%] space-y-4">
-            {[
-              { n:"1", title:"Create a free Alpaca account", desc:"Visit alpaca.markets → Get Started → sign up with email. Takes 5 minutes. No funding required to use paper trading mode.", color:"border-emerald-500/20 bg-emerald-500/5" },
-              { n:"2", title:"Generate your API keys", desc:"Inside Alpaca Dashboard → Paper Trading → API Keys → Generate. Copy both the Key ID and Secret Key — shown only once.", color:"border-indigo-500/20 bg-indigo-500/5" },
-              { n:"3", title:"Paste keys into Traxora Settings", desc:"Settings → Broker Connection → paste both keys → toggle Paper mode ON → Save & Test. Traxora verifies and shows your buying power.", color:"border-violet-500/20 bg-violet-500/5" },
-              { n:"4", title:"Execute your first trade from a signal", desc:"Signals page → search any ticker → BUY signal → enter 1 share → tap the green BUY button. Order placed instantly.", color:"border-cyan-500/20 bg-cyan-500/5" },
-            ].map((s) => (
-              <div key={s.n} className={`border rounded-2xl p-5 ${s.color} hover:scale-[1.01] transition-transform`}>
-                <div className="flex gap-4 items-start">
-                  <span className="w-7 h-7 rounded-full bg-[#0C1017] border border-[#1C2333] text-xs font-black text-[#F1F5F9] flex items-center justify-center shrink-0">{s.n}</span>
-                  <div>
-                    <p className="font-bold text-[#F1F5F9] text-sm mb-1">{s.title}</p>
-                    <p className="text-xs text-[#7B8DB4] leading-relaxed">{s.desc}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ══ COMPETITOR COMPARISON ══ */}
       <section className="px-6 sm:px-8 py-24 max-w-5xl mx-auto w-full">
         <div className="text-center mb-12">
@@ -743,7 +682,6 @@ export default function HomePage() {
                 { feature:"Claude Opus 4.7 AI",      traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Live BUY/SELL signals",   traxora:true,  ti:true,  ss:true,  ts:true  },
                 { feature:"Paper trading simulator", traxora:true,  ti:false, ss:false, ts:true  },
-                { feature:"Broker execution (API)",  traxora:true,  ti:true,  ss:false, ts:false },
                 { feature:"Push notifications",      traxora:true,  ti:false, ss:true,  ts:false },
                 { feature:"Morning briefing AI",     traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Free to use",             traxora:true,  ti:false, ss:false, ts:false },
@@ -805,14 +743,11 @@ export default function HomePage() {
             Ready to read the market<br />like smart money?
           </h2>
           <p className="text-[#7B8DB4] text-base leading-relaxed mb-10">
-            Free to start. No subscription. ICT signals powered by Claude Opus 4.7. Alpaca broker link. Push alerts. Morning briefing. Paper trading simulator.
+            Free, no subscription. ICT signals powered by Claude Opus 4.7. Push alerts. Morning briefing. $10K paper simulator.
           </p>
-          <div className="flex items-center justify-center gap-3 flex-wrap">
+          <div className="flex items-center justify-center">
             <Link href="/dashboard" className="bg-indigo-600 hover:bg-indigo-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-indigo-500/25 hover:scale-105 active:scale-95">
-              Launch Dashboard →
-            </Link>
-            <Link href="/settings" className="border border-[#1C2333] hover:border-[#2D3A50] bg-[#0C1017]/60 backdrop-blur-sm hover:bg-[#111827]/60 transition-all px-7 py-4 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
-              Connect Alpaca →
+              Start Trading Free →
             </Link>
           </div>
         </div>

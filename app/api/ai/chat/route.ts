@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const SYSTEM_PROMPT = `You are Traxora AI, a knowledgeable financial assistant embedded in a paper trading platform. You help users understand stocks, markets, and trading strategies.
 
@@ -18,9 +19,10 @@ Keep responses concise and focused. Always remind users this is a paper trading 
 const MAX_MESSAGES   = 20;
 const MAX_MSG_LENGTH = 2000;
 
+type Msg = { role: "user" | "assistant"; content: string };
 type RawMsg = { role: unknown; content: unknown };
 
-function sanitizeMessages(raw: unknown): { role: "user" | "assistant"; content: string }[] {
+function sanitizeMessages(raw: unknown): Msg[] {
   if (!Array.isArray(raw)) return [];
   const filtered = (raw as RawMsg[])
     .filter(m => m.role === "user" || m.role === "assistant")
@@ -29,8 +31,7 @@ function sanitizeMessages(raw: unknown): { role: "user" | "assistant"; content: 
       role:    m.role as "user" | "assistant",
       content: String(m.content ?? "").slice(0, MAX_MSG_LENGTH),
     }));
-  // Enforce alternating roles starting with user
-  const cleaned: { role: "user" | "assistant"; content: string }[] = [];
+  const cleaned: Msg[] = [];
   for (const m of filtered) {
     if (cleaned.length === 0 && m.role !== "user") continue;
     if (cleaned.length > 0 && m.role === cleaned[cleaned.length - 1].role) continue;
@@ -39,54 +40,89 @@ function sanitizeMessages(raw: unknown): { role: "user" | "assistant"; content: 
   return cleaned;
 }
 
-export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
-  }
-  if (!checkRateLimit(`chat:${session.user.email}`, 20, 60_000)) {
-    return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });
-  }
+// Try Anthropic first, fall back to DeepSeek
+async function getAIReply(messages: Msg[]): Promise<string> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
-  const body = await req.json().catch(() => ({})) as { messages?: unknown };
-  const messages = sanitizeMessages(body.messages);
-  if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
-    return Response.json({ ok: false, reason: "INVALID_MESSAGES" }, { status: 400 });
-  }
-
-  let stream;
-  try {
-    stream = await client.messages.stream({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
-      messages,
-    });
-  } catch (err) {
-    const status = (err as { status?: unknown }).status;
-    if (status === 401 || status === 403) {
-      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+  // ── Anthropic ──────────────────────────────────────────────────────────────
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const res = await client.messages.create({
+        model:      "claude-haiku-4-5-20251001",
+        max_tokens: 1024,
+        system:     SYSTEM_PROMPT,
+        messages,
+      });
+      return res.content
+        .filter(b => b.type === "text")
+        .map(b => (b as { type: "text"; text: string }).text)
+        .join("");
+    } catch (err) {
+      const status = (err as { status?: number }).status;
+      // Only fall through on auth errors; re-throw everything else
+      if (status !== 401 && status !== 403) throw err;
     }
-    return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
   }
 
-  const encoder = new TextEncoder();
+  // ── DeepSeek fallback ──────────────────────────────────────────────────────
+  if (deepseekKey) {
+    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
+      method:  "POST",
+      headers: {
+        "Content-Type":  "application/json",
+        "Authorization": `Bearer ${deepseekKey}`,
+      },
+      body: JSON.stringify({
+        model:      "deepseek-chat",
+        max_tokens: 1024,
+        messages:   [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+      }),
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => res.statusText);
+      throw new Error(`DeepSeek ${res.status}: ${txt}`);
+    }
+    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+    return data.choices?.[0]?.message?.content ?? "";
+  }
 
-  const readable = new ReadableStream({
-    async start(controller) {
-      for await (const event of stream) {
-        if (
-          event.type === "content_block_delta" &&
-          event.delta.type === "text_delta"
-        ) {
-          controller.enqueue(encoder.encode(event.delta.text));
-        }
-      }
-      controller.close();
-    },
-  });
+  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY or DEEPSEEK_API_KEY.");
+}
 
-  return new Response(readable, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
-  });
+export async function POST(req: Request) {
+  try {
+    const session = await auth();
+    let rateLimitKey: string;
+    let rateLimitMax: number;
+
+    if (session?.user?.email) {
+      rateLimitKey = `chat:${session.user.email}`;
+      rateLimitMax = 20;
+    } else {
+      const ip =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+        req.headers.get("x-real-ip") ??
+        "anonymous";
+      rateLimitKey = `chat-guest:${ip}`;
+      rateLimitMax = 5;
+    }
+
+    if (!checkRateLimit(rateLimitKey, rateLimitMax, 60_000)) {
+      return Response.json({ ok: false, error: "Rate limited. Please wait a moment." }, { status: 429 });
+    }
+
+    const body = await req.json().catch(() => ({})) as { messages?: unknown };
+    const messages = sanitizeMessages(body.messages);
+    if (messages.length === 0 || messages[messages.length - 1].role !== "user") {
+      return Response.json({ ok: false, error: "Invalid request." }, { status: 400 });
+    }
+
+    const text = await getAIReply(messages);
+    return Response.json({ ok: true, text });
+  } catch (err) {
+    console.error("Chat API error:", err instanceof Error ? err.message : err);
+    return Response.json({ ok: false, error: "Something went wrong. Please try again." }, { status: 500 });
+  }
 }

@@ -108,88 +108,41 @@ function MetricCard({
   );
 }
 
-// Vertical thermometer gauge (-100 to +100)
+// Horizontal score bar (-100 to +100)
 function SentimentGauge({ score }: { score: number }) {
   const clamp = Math.max(-100, Math.min(100, score));
-  const pct   = (clamp + 100) / 200;
+  const pct   = (clamp + 100) / 200; // 0 → 1
 
-  const sX = 44, sY = 12, sW = 28, sH = 220;
-  const bCX = sX + sW / 2, bCY = sY + sH + 24, bR = 22;
-  const fillY = sY + (1 - pct) * sH;
-  const fillH = pct * sH;
-
-  const color = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#EF4444";
-  const label = clamp >= 50 ? "Strong Bullish" : clamp >= 20 ? "Bullish" : clamp >= -20 ? "Neutral" : clamp >= -50 ? "Bearish" : "Strong Bearish";
-
-  const ticks = [
-    { p: 1,    lbl: "+100" },
-    { p: 0.75, lbl: "+50"  },
-    { p: 0.5,  lbl: "0"    },
-    { p: 0.25, lbl: "−50"  },
-    { p: 0,    lbl: "−100" },
-  ].map(t => ({ ...t, y: sY + (1 - t.p) * sH }));
+  const color      = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#EF4444";
+  const scoreClass = clamp >= 30 ? "text-emerald-400" : clamp >= -30 ? "text-amber-400" : "text-rose-400";
+  const label      = clamp >= 50 ? "Strong Bullish" : clamp >= 20 ? "Bullish" : clamp >= -20 ? "Neutral" : clamp >= -50 ? "Bearish" : "Strong Bearish";
 
   return (
-    <div className="flex items-center gap-6 justify-center w-full py-3">
-      <svg viewBox="0 0 110 286" width="90" aria-hidden="true">
-        <defs>
-          <linearGradient id="pg" x1="0" y1={sY + sH} x2="0" y2={sY} gradientUnits="userSpaceOnUse">
-            <stop offset="0%"   stopColor="#EF4444" />
-            <stop offset="28%"  stopColor="#F97316" />
-            <stop offset="50%"  stopColor="#F59E0B" />
-            <stop offset="72%"  stopColor="#22C55E" />
-            <stop offset="100%" stopColor="#10B981" />
-          </linearGradient>
-          <clipPath id="pclip">
-            <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} />
-          </clipPath>
-        </defs>
-
-        {/* Shaft background */}
-        <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} fill="#080E1B" />
-
-        {/* Fill */}
-        <g clipPath="url(#pclip)">
-          <rect x={sX} y={sY} width={sW} height={sH} fill="url(#pg)" opacity="0.14" />
-          {fillH > 0 && <rect x={sX} y={fillY} width={sW} height={fillH} fill="url(#pg)" />}
-        </g>
-
-        {/* Zero line */}
-        <line x1={sX + 5} y1={sY + sH / 2} x2={sX + sW - 5} y2={sY + sH / 2}
-              stroke="#232F46" strokeWidth="1.5" strokeDasharray="3 2" />
-
-        {/* Tick marks + labels */}
-        {ticks.map((t, i) => (
-          <g key={i}>
-            <line x1={sX - 7} y1={t.y} x2={sX - 1} y2={t.y}
-                  stroke="#253145" strokeWidth="2" strokeLinecap="round" />
-            <text x={sX - 11} y={t.y} fontSize="9.5" fill="#3A4F6A"
-                  fontFamily="monospace" textAnchor="end" dominantBaseline="central">
-              {t.lbl}
-            </text>
-          </g>
-        ))}
-
-        {/* Pointer arrow */}
-        <polygon
-          points={`${sX + sW + 1},${fillY - 6} ${sX + sW + 13},${fillY} ${sX + sW + 1},${fillY + 6}`}
-          fill={color}
-        />
-
-        {/* Bulb */}
-        <circle cx={bCX} cy={bCY} r={bR + 7} fill={color} fillOpacity="0.12" />
-        <circle cx={bCX} cy={bCY} r={bR}     fill={color} />
-        <circle cx={bCX} cy={bCY} r={bR * 0.38} fill="#060A14" />
-      </svg>
-
-      {/* Score + label alongside */}
-      <div className="flex flex-col">
-        <p className={`text-5xl font-black font-mono tabular-nums leading-none ${
-          clamp >= 30 ? "text-emerald-400" : clamp >= -30 ? "text-amber-400" : "text-rose-400"
-        }`}>
+    <div className="w-full py-2">
+      <div className="flex items-baseline justify-between mb-4">
+        <span className={`text-5xl font-black font-mono tabular-nums leading-none ${scoreClass}`}>
           {clamp > 0 ? "+" : ""}{clamp}
-        </p>
-        <p className="text-xs font-semibold text-[#7B8DB4] mt-2 tracking-wide">{label}</p>
+        </span>
+        <span className="text-sm font-semibold text-[#7B8DB4] tracking-wide">{label}</span>
+      </div>
+
+      {/* Track: −100 ··· 0 ··· +100 */}
+      <div className="relative h-5 bg-[#080E1B] rounded-full overflow-hidden border border-[#1C2333]">
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.18 }}
+        />
+        {/* Zero tick */}
+        <div className="absolute top-0 bottom-0 w-px bg-[#2D3A50]" style={{ left: "50%" }} />
+        {/* Needle */}
+        <div
+          className="absolute top-1.5 bottom-1.5 w-2.5 rounded-full"
+          style={{ left: `calc(${pct * 100}% - 5px)`, background: color, boxShadow: `0 0 10px ${color}` }}
+        />
+      </div>
+
+      <div className="flex justify-between text-[9px] text-[#2D3A50] font-mono mt-1.5 px-0.5">
+        <span>−100</span><span>−50</span><span>0</span><span>+50</span><span>+100</span>
       </div>
     </div>
   );

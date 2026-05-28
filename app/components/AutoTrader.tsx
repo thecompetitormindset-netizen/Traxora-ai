@@ -257,12 +257,13 @@ export default function AutoTrader() {
   }
 
   // ── Dashboard signal listener (instant trade on alert) ────────────────────
+  // Signals always execute — no need to start the scanner.
   useEffect(() => {
     function handleSignal(e: Event) {
       const { symbol, signal, price, confidence, name } = (e as CustomEvent).detail as {
         symbol: string; signal: string; price: number; confidence: string; name: string;
       };
-      if (!activeRef.current) return;
+      if (signal !== "BUY" && signal !== "SELL") return;
       const short = symbol.replace(".US","").replace(".COMM","");
       push("signal", `⚡ Alert → ${signal} ${short}`, `${name} · $${price.toFixed(2)} · ${confidence}`);
       if (signal === "BUY")  executeBuy(symbol, price, "signal");
@@ -544,7 +545,7 @@ export default function AutoTrader() {
       )}
 
       {/* ── FAB + Panel ──────────────────────────────────────────────────────── */}
-      <div className="fixed bottom-[88px] right-6 z-50 flex flex-col items-end gap-2">
+      <div className="fixed top-[76px] right-2 sm:top-auto sm:bottom-[88px] sm:right-6 z-50 flex flex-col-reverse sm:flex-col items-end gap-2">
         {open && (
           <div className="w-72 bg-[#0C1017]/95 border border-[#1C2333] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#1C2333]">

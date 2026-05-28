@@ -1,18 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { scopedKey } from "../lib/userState";
+import { scopedKey, setCurrentUser } from "../lib/userState";
 
 type Alert = {
-  symbol: string;
-  name: string;
-  signal: "BUY" | "SELL";
-  price: number;
-  time: number;
+  symbol:      string;
+  name:        string;
+  signal:      "BUY" | "SELL";
+  price:       number;
+  confidence?: string;
+  time:        number;
 };
 
 function timeAgo(ms: number) {
@@ -27,14 +27,27 @@ function timeAgo(ms: number) {
 
 export default function NotificationsPage() {
   const { data: session } = useSession();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts,     setAlerts]     = useState<Alert[]>([]);
+  const [paused,     setPaused]     = useState(false);
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
+  // Tracks whether we've loaded from the correct user-scoped key
+  const loadedForEmail = useRef<string | null>(null);
 
+  // Sync user ID from session then read localStorage — must happen in this order
   useEffect(() => {
-    const raw = localStorage.getItem(scopedKey("traxora_alerts"));
-    if (raw) {
-      try { setAlerts(JSON.parse(raw)); } catch { /* ignore */ }
-    }
+    const email = session?.user?.email ?? null;
+    // Don't re-load if session hasn't resolved yet and we already have data
+    if (email === loadedForEmail.current) return;
+    // Set the scoped key to the confirmed email
+    setCurrentUser(email);
+    loadedForEmail.current = email;
+
+    try {
+      const raw = localStorage.getItem(scopedKey("traxora_alerts"));
+      setAlerts(raw ? JSON.parse(raw) : []);
+      setPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
+    } catch { /* ignore */ }
+
     if (!("Notification" in window)) {
       setPermission("unsupported");
     } else {
@@ -42,9 +55,27 @@ export default function NotificationsPage() {
     }
   }, [session]);
 
+  // Live-update alert list when new signals arrive
+  useEffect(() => {
+    function onSignal() {
+      try {
+        const raw = localStorage.getItem(scopedKey("traxora_alerts"));
+        if (raw) setAlerts(JSON.parse(raw));
+      } catch { /* ignore */ }
+    }
+    window.addEventListener("traxora-signal", onSignal);
+    return () => window.removeEventListener("traxora-signal", onSignal);
+  }, []);
+
   async function requestPermission() {
     const result = await Notification.requestPermission();
     setPermission(result);
+  }
+
+  function togglePause() {
+    const next = !paused;
+    setPaused(next);
+    localStorage.setItem(scopedKey("traxora_alerts_paused"), String(next));
   }
 
   function clearAll() {
@@ -59,132 +90,159 @@ export default function NotificationsPage() {
         <Topbar />
         <div className="max-w-3xl mx-auto w-full">
 
-        <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="text-4xl font-bold">Signal Alerts</h1>
-            <p className="text-[#7B8DB4] mt-2">
-              Push notifications from Traxora AI — BUY &amp; SELL signals fired while the dashboard was open.
-            </p>
-          </div>
-          {alerts.length > 0 && (
-            <button
-              type="button"
-              onClick={clearAll}
-              className="text-sm text-[#4B5675] hover:text-rose-400 transition border border-[#1C2333] px-4 py-2 rounded-xl"
-            >
-              Clear all
-            </button>
-          )}
-        </div>
-
-        {/* Permission Banner */}
-        {permission === "default" && (
-          <div className="mt-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between gap-4">
+          {/* ── Header ── */}
+          <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <p className="font-semibold text-emerald-400">Enable push alerts</p>
-              <p className="text-sm text-[#7B8DB4] mt-0.5">
-                Get notified on your phone the moment Traxora AI fires a BUY or SELL signal.
+              <h1 className="text-4xl font-bold">Signal Alerts</h1>
+              <p className="text-[#7B8DB4] mt-2 text-sm">
+                AI-generated BUY &amp; SELL signals from your watchlist.
               </p>
+              {session?.user?.email && (
+                <p className="text-[10px] text-[#2D3A50] mt-1 font-mono">
+                  Saved to · {session.user.email}
+                </p>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={requestPermission}
-              className="shrink-0 bg-emerald-600 hover:bg-emerald-500 transition px-5 py-2.5 rounded-xl text-sm font-semibold"
-            >
-              Enable Alerts
-            </button>
-          </div>
-        )}
-
-        {permission === "granted" && (
-          <div className="mt-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 flex items-center gap-3">
-            <span className="text-emerald-400 text-lg">🔔</span>
-            <div>
-              <p className="text-sm font-semibold text-emerald-400">Alerts are active</p>
-              <p className="text-xs text-[#7B8DB4] mt-0.5">
-                You&apos;ll receive a push notification whenever a BUY or SELL signal fires on the dashboard.
-                Install Traxora to your home screen for alerts even when your browser is minimized.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {permission === "denied" && (
-          <div className="mt-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center gap-3">
-            <span className="text-rose-400 text-lg">🔕</span>
-            <div>
-              <p className="text-sm font-semibold text-rose-400">Notifications blocked</p>
-              <p className="text-xs text-[#7B8DB4] mt-0.5">
-                Go to your browser settings → Site permissions → Notifications → allow this site.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Install hint */}
-        <div className="mt-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-center gap-3">
-          <span className="text-indigo-400 text-lg">📱</span>
-          <div>
-            <p className="text-sm font-semibold text-indigo-300">Install on your phone</p>
-            <p className="text-xs text-[#7B8DB4] mt-0.5">
-              On iPhone: tap <strong className="text-[#F1F5F9]">Share → Add to Home Screen</strong>.
-              On Android: tap the browser menu → <strong className="text-[#F1F5F9]">Install App</strong>.
-              Traxora will appear next to your Robinhood icon.
-            </p>
-          </div>
-        </div>
-
-        {/* Alert History */}
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">
-            Alert History
-            {alerts.length > 0 && (
-              <span className="ml-2 text-sm text-[#4B5675] font-normal">{alerts.length} alerts</span>
-            )}
-          </h2>
-
-          {alerts.length === 0 ? (
-            <div className="bg-[#0C1017] border border-[#1C2333] rounded-3xl p-8 text-center">
-              <p className="text-[#4B5675] text-sm">No alerts yet.</p>
-              <p className="text-[#4B5675] text-xs mt-1 opacity-70">
-                Alerts fire automatically when Traxora AI detects a BUY or SELL signal on the dashboard.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {alerts.map((alert, i) => (
-                <Link
-                  key={i}
-                  href={`/analysis?symbol=${encodeURIComponent(alert.symbol)}`}
-                  className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] hover:border-indigo-500/40 transition flex items-center gap-4"
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={togglePause}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
+                  paused
+                    ? "bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20"
+                    : "bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20"
+                }`}
+              >
+                {paused ? (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="5 3 19 12 5 21 5 3" />
+                    </svg>
+                    Resume Alerts
+                  </>
+                ) : (
+                  <>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+                    </svg>
+                    Pause Alerts
+                  </>
+                )}
+              </button>
+              {alerts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAll}
+                  className="text-sm text-[#4B5675] hover:text-rose-400 transition border border-[#1C2333] px-4 py-2 rounded-xl"
                 >
-                  <span className="text-2xl w-12 text-center shrink-0">
-                    {alert.signal === "BUY" ? "🟢" : "🔴"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-bold text-[#F1F5F9]">
-                        {alert.symbol.replace(".US","").replace(".COMM","")}
-                      </p>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded border ${
-                        alert.signal === "BUY"
-                          ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                          : "text-rose-400 bg-rose-500/10 border-rose-500/20"
-                      }`}>
-                        {alert.signal}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[#7B8DB4] truncate">{alert.name}</p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[#F1F5F9] font-semibold">${alert.price.toFixed(2)}</p>
-                    <p className="text-xs text-[#4B5675] mt-0.5">{timeAgo(alert.time)}</p>
-                  </div>
-                </Link>
-              ))}
+                  Clear all
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* ── Paused banner ── */}
+          {paused && (
+            <div className="mt-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center gap-3">
+              <span className="text-rose-400 text-lg">🔕</span>
+              <div>
+                <p className="text-sm font-semibold text-rose-400">Alerts paused</p>
+                <p className="text-xs text-[#7B8DB4] mt-0.5">
+                  No new signals will fire while paused. Paper trading still works normally.
+                </p>
+              </div>
             </div>
           )}
-        </div>
+
+          {/* ── Push permission ── */}
+          {!paused && permission === "default" && (
+            <div className="mt-5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5 flex items-center justify-between gap-4">
+              <div>
+                <p className="font-semibold text-emerald-400">Enable push notifications</p>
+                <p className="text-sm text-[#7B8DB4] mt-0.5">
+                  Get notified the moment Traxora AI fires a BUY or SELL signal.
+                </p>
+              </div>
+              <button type="button" onClick={requestPermission}
+                className="shrink-0 bg-emerald-600 hover:bg-emerald-500 transition px-5 py-2.5 rounded-xl text-sm font-semibold">
+                Enable
+              </button>
+            </div>
+          )}
+
+          {permission === "denied" && (
+            <div className="mt-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center gap-3">
+              <span className="text-rose-400">🔕</span>
+              <p className="text-xs text-[#7B8DB4]">
+                Notifications blocked — go to browser settings → Site permissions → allow this site.
+              </p>
+            </div>
+          )}
+
+          {/* ── Alert history ── */}
+          <div className="mt-8">
+            <h2 className="text-base font-semibold text-[#7B8DB4] uppercase tracking-widest mb-4">
+              Alert History
+              {alerts.length > 0 && (
+                <span className="ml-2 text-sm text-[#2D3A50] font-normal normal-case tracking-normal">
+                  {alerts.length} signals
+                </span>
+              )}
+            </h2>
+
+            {alerts.length === 0 ? (
+              <div className="bg-[#0C1017] border border-[#1C2333] rounded-3xl p-10 text-center">
+                <p className="text-[#4B5675] text-sm">No alerts yet.</p>
+                <p className="text-[#2D3A50] text-xs mt-1">
+                  Signals fire automatically when the dashboard detects a BUY or SELL.
+                </p>
+              </div>
+            ) : (
+              <div className="bg-[#0C1017] border border-[#1C2333] rounded-3xl overflow-hidden divide-y divide-[#1C2333]">
+                {alerts.map((alert, i) => {
+                  const clean = alert.symbol.replace(".US", "").replace(".COMM", "");
+                  const isBuy = alert.signal === "BUY";
+
+                  return (
+                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#0F1623] transition-colors">
+                      {/* Signal dot */}
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${isBuy ? "bg-emerald-400 shadow-[0_0_6px_#10B981]" : "bg-rose-400 shadow-[0_0_6px_#EF4444]"}`} />
+
+                      {/* Symbol + signal */}
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <span className="font-bold text-[#F1F5F9] font-mono text-sm">{clean}</span>
+                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border ${
+                          isBuy
+                            ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                            : "text-rose-400 bg-rose-500/10 border-rose-500/20"
+                        }`}>
+                          {alert.signal}
+                        </span>
+                        {alert.confidence && (
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                            alert.confidence === "High"
+                              ? "text-emerald-400 bg-emerald-500/8 border-emerald-500/15"
+                              : alert.confidence === "Low"
+                                ? "text-rose-400 bg-rose-500/8 border-rose-500/15"
+                                : "text-amber-400 bg-amber-500/8 border-amber-500/15"
+                          }`}>
+                            {alert.confidence}
+                          </span>
+                        )}
+                        <span className="text-[#4B5675] text-xs truncate hidden sm:block">{alert.name}</span>
+                      </div>
+
+                      {/* Price + time */}
+                      <div className="text-right shrink-0">
+                        <p className="text-[#F1F5F9] font-semibold font-mono text-sm">${alert.price.toFixed(2)}</p>
+                        <p className="text-[10px] text-[#4B5675] mt-0.5">{timeAgo(alert.time)}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>

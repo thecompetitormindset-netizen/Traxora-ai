@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import {
@@ -30,14 +31,18 @@ const QUICK_PICKS = [
   { sym: "QQQ",   label: "QQQ"  },
 ];
 
-export default function PaperTradingPage() {
+function PaperTradingPage() {
+  const searchParams = useSearchParams();
+  const urlSymbol = searchParams.get("symbol") ?? "AAPL";
+  const urlSide   = (searchParams.get("side") ?? "BUY") as "BUY" | "SELL";
+
   const [portfolio, setPortfolio] = useState<Portfolio>({ cash: STARTING_BALANCE, holdings: [], trades: [], pendingOrders: [] });
-  const [symbol, setSymbol]       = useState("AAPL");
-  const [inputSymbol, setInputSymbol] = useState("AAPL");
+  const [symbol, setSymbol]       = useState(urlSymbol);
+  const [inputSymbol, setInputSymbol] = useState(urlSymbol);
   const [quote, setQuote]         = useState<QuoteData | null>(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [quantity, setQuantity]   = useState(1);
-  const [side, setSide]           = useState<"BUY" | "SELL">("BUY");
+  const [side, setSide]           = useState<"BUY" | "SELL">(urlSide);
   const [orderType, setOrderType] = useState<OrderType>("market");
   const [limitPrice, setLimitPrice]   = useState("");
   const [stopLossPrice,   setStopLossPrice]   = useState("");
@@ -47,7 +52,12 @@ export default function PaperTradingPage() {
   const [journal,    setJournal]   = useState<JournalEntry[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  useEffect(() => { setPortfolio(getPortfolio()); }, []);
+  useEffect(() => {
+    const load = () => setPortfolio(getPortfolio());
+    load();
+    window.addEventListener("portfolio-updated", load);
+    return () => window.removeEventListener("portfolio-updated", load);
+  }, []);
 
   useEffect(() => {
     const load = () => setJournal(getJournal());
@@ -668,5 +678,13 @@ export default function PaperTradingPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function PaperTradingPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center text-[#4B5675] text-sm">Loading…</div>}>
+      <PaperTradingPage />
+    </Suspense>
   );
 }
