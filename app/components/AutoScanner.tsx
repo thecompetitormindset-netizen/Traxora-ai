@@ -72,7 +72,13 @@ function snapPct(v: number): string {
   return `w-pct-${Math.round(Math.min(Math.max(v, 0), 100) / 5) * 5}`;
 }
 
-function VolBar({ ratio }: { ratio: number }) {
+function fmtVol(v: number): string {
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
+  return v.toString();
+}
+
+function VolBar({ ratio, volume, avgVolume }: { ratio: number; volume?: number; avgVolume?: number }) {
   const fill = Math.min((ratio / 5) * 100, 100);
   return (
     <div className="flex items-center gap-1.5">
@@ -82,6 +88,11 @@ function VolBar({ ratio }: { ratio: number }) {
       <span className={`text-[9px] font-mono font-bold ${ratio >= 3 ? "text-rose-400" : ratio >= 2 ? "text-amber-400" : "text-emerald-400"}`}>
         {ratio.toFixed(1)}x
       </span>
+      {volume != null && (
+        <span className="text-[9px] font-mono text-[#4B5675]">
+          {fmtVol(volume)}{avgVolume ? ` / avg ${fmtVol(avgVolume)}` : ""}
+        </span>
+      )}
     </div>
   );
 }
@@ -295,7 +306,7 @@ export default function AutoScanner() {
                               </div>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-xs font-mono font-bold text-[#F1F5F9]">
+                              <p className={`text-xs font-mono font-bold ${chgPos ? "text-emerald-400" : "text-rose-400"}`}>
                                 {r.price != null ? `$${r.price.toFixed(2)}` : "—"}
                               </p>
                               <p className={`text-[10px] font-mono ${chgPos ? "text-emerald-400" : "text-rose-400"}`}>
@@ -308,7 +319,7 @@ export default function AutoScanner() {
                           <div className="mt-2 space-y-1.5">
                             <div className="flex items-center gap-1.5">
                               <span className="text-[9px] text-[#4B5675] w-10 shrink-0">Vol</span>
-                              <VolBar ratio={r.volumeRatio ?? 1} />
+                              <VolBar ratio={r.volumeRatio ?? 1} volume={r.volume} avgVolume={r.avgVolume} />
                             </div>
                             {r.yearRangePct != null && (
                               <div className="flex items-center gap-1.5">

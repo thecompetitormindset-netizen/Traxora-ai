@@ -225,7 +225,7 @@ function PaperTradingPage() {
                 {loadingQuote ? <p className="text-2xl font-black text-[#4B5675] animate-pulse">—</p>
                   : price ? (
                     <>
-                      <p className="text-2xl font-black font-mono text-[#F1F5F9]">${price.toFixed(2)}</p>
+                      <p className={`text-2xl font-black font-mono ${dayChangePct === null ? "text-[#F1F5F9]" : dayChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>${price.toFixed(2)}</p>
                       {dayChangePct !== null && (
                         <p className={`text-xs font-semibold mt-0.5 ${dayChangePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                           {dayChangePct >= 0 ? "+" : ""}{dayChangePct.toFixed(2)}% today

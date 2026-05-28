@@ -217,13 +217,6 @@ html[data-theme="light"] *[class~="border-[#2B3E64]"]          { border-color: #
 html[data-theme="light"] *[class~="border-white/[0.08]"]       { border-color: rgba(100,120,180,0.12) !important; }
 html[data-theme="light"] *[class~="divide-[#1C2333]"] > * + * { border-color: #D8E0EF !important; }
 
-/* ── Price/value numbers — bold monospace elements (prices, totals, OHLC) */
-html[data-theme="light"] *[class~="font-mono"][class~="font-black"][class~="text-[#F1F5F9]"],
-html[data-theme="light"] *[class~="font-mono"][class~="font-bold"][class~="text-[#F1F5F9]"],
-html[data-theme="light"] *[class~="font-mono"][class~="font-semibold"][class~="text-[#F1F5F9]"] {
-  color: #059669 !important;
-}
-
 /* ── Text */
 html[data-theme="light"] *[class~="text-[#F1F5F9]"]  { color: #3D4663 !important; }
 html[data-theme="light"] *[class~="text-[#7B8DB4]"]  { color: #6B7699 !important; }

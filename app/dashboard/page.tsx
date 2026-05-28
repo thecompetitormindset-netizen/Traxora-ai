@@ -580,7 +580,7 @@ export default function DashboardPage() {
                           : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#111827] text-[#4B5675] border-[#1C2333]">—</span>
                         }
                       </div>
-                      <p className="text-xl font-bold font-mono">
+                      <p className={`text-xl font-bold font-mono ${changeColor(stock.change)}`}>
                         {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                       </p>
                       <p className={`text-xs mt-1 font-medium font-mono ${changeColor(stock.change)}`}>
