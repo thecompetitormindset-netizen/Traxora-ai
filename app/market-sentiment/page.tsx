@@ -108,107 +108,89 @@ function MetricCard({
   );
 }
 
-// Realistic speedometer gauge (-100 to +100) — 240° sweep, 5 zones, dial readout
+// Vertical thermometer gauge (-100 to +100)
 function SentimentGauge({ score }: { score: number }) {
   const clamp = Math.max(-100, Math.min(100, score));
   const pct   = (clamp + 100) / 200;
 
-  const cx = 160, cy = 148;
-  const Ra = 118;
-  const startDeg = 150;
-  const sweepDeg = 240;
-  const toRad = (d: number) => (d * Math.PI) / 180;
-
-  function pt(p: number, r: number) {
-    const deg = startDeg + p * sweepDeg;
-    return { x: cx + r * Math.cos(toRad(deg)), y: cy + r * Math.sin(toRad(deg)) };
-  }
-
-  function arcD(p0: number, p1: number, r: number): string {
-    const s = pt(p0, r), e = pt(p1, r);
-    const lg = (p1 - p0) * sweepDeg > 180 ? 1 : 0;
-    return `M ${s.x.toFixed(1)} ${s.y.toFixed(1)} A ${r} ${r} 0 ${lg} 1 ${e.x.toFixed(1)} ${e.y.toFixed(1)}`;
-  }
-
-  const nRad = toRad(startDeg + pct * sweepDeg);
-  const nx = cx + Ra * 0.83 * Math.cos(nRad);
-  const ny = cy + Ra * 0.83 * Math.sin(nRad);
-  const tx = cx - 20 * Math.cos(nRad);
-  const ty = cy - 20 * Math.sin(nRad);
+  const sX = 44, sY = 12, sW = 28, sH = 220;
+  const bCX = sX + sW / 2, bCY = sY + sH + 24, bR = 22;
+  const fillY = sY + (1 - pct) * sH;
+  const fillH = pct * sH;
 
   const color = clamp >= 30 ? "#10B981" : clamp >= -30 ? "#F59E0B" : "#EF4444";
-  const label = clamp >= 50 ? "STRONG BULLISH" : clamp >= 20 ? "BULLISH" : clamp >= -20 ? "NEUTRAL" : clamp >= -50 ? "BEARISH" : "STRONG BEARISH";
+  const label = clamp >= 50 ? "Strong Bullish" : clamp >= 20 ? "Bullish" : clamp >= -20 ? "Neutral" : clamp >= -50 ? "Bearish" : "Strong Bearish";
 
-  const majorTicks = [
-    { p: 0,    lbl: "−100" },
-    { p: 0.25, lbl: "−50"  },
-    { p: 0.5,  lbl: "0"    },
-    { p: 0.75, lbl: "+50"  },
+  const ticks = [
     { p: 1,    lbl: "+100" },
-  ];
-  const minorTicks = [0.125, 0.375, 0.625, 0.875];
+    { p: 0.75, lbl: "+50"  },
+    { p: 0.5,  lbl: "0"    },
+    { p: 0.25, lbl: "−50"  },
+    { p: 0,    lbl: "−100" },
+  ].map(t => ({ ...t, y: sY + (1 - t.p) * sH }));
 
   return (
-    <div className="w-full flex flex-col items-center">
-      <svg viewBox="0 0 320 235" width="100%" aria-hidden="true">
+    <div className="flex items-center gap-6 justify-center w-full py-3">
+      <svg viewBox="0 0 110 286" width="90" aria-hidden="true">
+        <defs>
+          <linearGradient id="pg" x1="0" y1={sY + sH} x2="0" y2={sY} gradientUnits="userSpaceOnUse">
+            <stop offset="0%"   stopColor="#EF4444" />
+            <stop offset="28%"  stopColor="#F97316" />
+            <stop offset="50%"  stopColor="#F59E0B" />
+            <stop offset="72%"  stopColor="#22C55E" />
+            <stop offset="100%" stopColor="#10B981" />
+          </linearGradient>
+          <clipPath id="pclip">
+            <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} />
+          </clipPath>
+        </defs>
 
-        {/* Outer bezel arc */}
-        <path d={arcD(0, 1, Ra + 20)} fill="none" stroke="#151D2E" strokeWidth="10" strokeLinecap="butt" />
+        {/* Shaft background */}
+        <rect x={sX} y={sY} width={sW} height={sH} rx={sW / 2} fill="#080E1B" />
 
-        {/* Dark dial face */}
-        <circle cx={cx} cy={cy} r={Ra - 2} fill="#070C16" />
+        {/* Fill */}
+        <g clipPath="url(#pclip)">
+          <rect x={sX} y={sY} width={sW} height={sH} fill="url(#pg)" opacity="0.14" />
+          {fillH > 0 && <rect x={sX} y={fillY} width={sW} height={fillH} fill="url(#pg)" />}
+        </g>
 
-        {/* Background arc groove */}
-        <path d={arcD(0, 1, Ra)} fill="none" stroke="#09101E" strokeWidth="24" strokeLinecap="butt" />
+        {/* Zero line */}
+        <line x1={sX + 5} y1={sY + sH / 2} x2={sX + sW - 5} y2={sY + sH / 2}
+              stroke="#232F46" strokeWidth="1.5" strokeDasharray="3 2" />
 
-        {/* Zone arcs */}
-        <path d={arcD(0,    0.2,  Ra)} fill="none" stroke="#EF4444" strokeWidth="22" strokeOpacity="0.92" strokeLinecap="butt" />
-        <path d={arcD(0.2,  0.4,  Ra)} fill="none" stroke="#F97316" strokeWidth="22" strokeOpacity="0.78" strokeLinecap="butt" />
-        <path d={arcD(0.4,  0.6,  Ra)} fill="none" stroke="#EAB308" strokeWidth="22" strokeOpacity="0.72" strokeLinecap="butt" />
-        <path d={arcD(0.6,  0.8,  Ra)} fill="none" stroke="#22C55E" strokeWidth="22" strokeOpacity="0.78" strokeLinecap="butt" />
-        <path d={arcD(0.8,  1,    Ra)} fill="none" stroke="#10B981" strokeWidth="22" strokeOpacity="0.92" strokeLinecap="butt" />
+        {/* Tick marks + labels */}
+        {ticks.map((t, i) => (
+          <g key={i}>
+            <line x1={sX - 7} y1={t.y} x2={sX - 1} y2={t.y}
+                  stroke="#253145" strokeWidth="2" strokeLinecap="round" />
+            <text x={sX - 11} y={t.y} fontSize="9.5" fill="#3A4F6A"
+                  fontFamily="monospace" textAnchor="end" dominantBaseline="central">
+              {t.lbl}
+            </text>
+          </g>
+        ))}
 
-        {/* Zone dividers */}
-        {[0.2, 0.4, 0.6, 0.8].map((p, i) => {
-          const a = pt(p, Ra - 11), b = pt(p, Ra + 11);
-          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#060A14" strokeWidth="3" />;
-        })}
+        {/* Pointer arrow */}
+        <polygon
+          points={`${sX + sW + 1},${fillY - 6} ${sX + sW + 13},${fillY} ${sX + sW + 1},${fillY + 6}`}
+          fill={color}
+        />
 
-        {/* Major tick marks + labels */}
-        {majorTicks.map(({ p, lbl }, i) => {
-          const a = pt(p, Ra - 26), b = pt(p, Ra + 12), lb = pt(p, Ra + 34);
-          return (
-            <g key={i}>
-              <line x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#9DB0CC" strokeWidth="3" strokeLinecap="round" />
-              <text x={lb.x.toFixed(1)} y={lb.y.toFixed(1)} fontSize="10" fill="#4E6280" fontFamily="monospace" textAnchor="middle" dominantBaseline="central">{lbl}</text>
-            </g>
-          );
-        })}
-
-        {/* Minor tick marks */}
-        {minorTicks.map((p, i) => {
-          const a = pt(p, Ra - 14), b = pt(p, Ra + 6);
-          return <line key={i} x1={a.x.toFixed(1)} y1={a.y.toFixed(1)} x2={b.x.toFixed(1)} y2={b.y.toFixed(1)} stroke="#2A3A52" strokeWidth="2" strokeLinecap="round" />;
-        })}
-
-        {/* Needle */}
-        <line x1={tx.toFixed(1)} y1={ty.toFixed(1)} x2={nx.toFixed(1)} y2={ny.toFixed(1)}
-              stroke={color} strokeWidth="3" strokeLinecap="round" />
-
-        {/* Center hub */}
-        <circle cx={cx} cy={cy} r="22" fill="#060A14" stroke="#1C2A45" strokeWidth="2.5" />
-        <circle cx={cx} cy={cy} r="13" fill={color} fillOpacity="0.22" />
-        <circle cx={cx} cy={cy} r="8"  fill={color} />
-        <circle cx={cx} cy={cy} r="4"  fill="#060A14" />
-
-        {/* Score + label inside dial */}
-        <text x={cx} y={cy + 50} textAnchor="middle" fontSize="36" fontWeight="900" fontFamily="monospace" fill={color}>
-          {clamp > 0 ? "+" : ""}{clamp}
-        </text>
-        <text x={cx} y={cy + 72} textAnchor="middle" fontSize="9" fontFamily="monospace" fill="#3E5270" letterSpacing="1.5">
-          {label}
-        </text>
+        {/* Bulb */}
+        <circle cx={bCX} cy={bCY} r={bR + 7} fill={color} fillOpacity="0.12" />
+        <circle cx={bCX} cy={bCY} r={bR}     fill={color} />
+        <circle cx={bCX} cy={bCY} r={bR * 0.38} fill="#060A14" />
       </svg>
+
+      {/* Score + label alongside */}
+      <div className="flex flex-col">
+        <p className={`text-5xl font-black font-mono tabular-nums leading-none ${
+          clamp >= 30 ? "text-emerald-400" : clamp >= -30 ? "text-amber-400" : "text-rose-400"
+        }`}>
+          {clamp > 0 ? "+" : ""}{clamp}
+        </p>
+        <p className="text-xs font-semibold text-[#7B8DB4] mt-2 tracking-wide">{label}</p>
+      </div>
     </div>
   );
 }
