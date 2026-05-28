@@ -404,8 +404,10 @@ export default function MorningBriefing() {
         setError("Briefing timed out — the server took too long. Please try again in a moment.");
         return;
       }
-      if (data.reason === "AI_UNAVAILABLE") {
-        setError("AI unavailable — your Anthropic API key is invalid or missing. Add a valid key to .env.local to enable the morning briefing.");
+      if (data.reason === "OUTSIDE_WINDOW") {
+        setError("Morning briefing is only available 6–7 AM ET.");
+      } else if (data.reason === "AI_UNAVAILABLE") {
+        setError("AI unavailable — no AI provider configured.");
       } else if (data.error) {
         setError(data.error);
       } else if (data.opportunities?.length) {
@@ -427,7 +429,7 @@ export default function MorningBriefing() {
     const { hour, minute, day } = getETHour();
     const totalMins  = hour * 60 + minute;
     const isWeekday  = day >= 1 && day <= 5;
-    const isMorning  = totalMins >= 9 * 60 && totalMins < 10 * 60 + 30;
+    const isMorning  = totalMins >= 6 * 60 && totalMins < 7 * 60;
     const today      = new Date().toDateString();
     const alreadySeen = localStorage.getItem(scopedKey(DATE_KEY_BASE)) === today;
 

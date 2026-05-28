@@ -175,6 +175,18 @@ function parseJSON(raw: string): Record<string, unknown> {
   throw new Error(`JSON parse failed after repair attempt`);
 }
 
+function etHour(): number {
+  const now = new Date();
+  const etOff = now.getTimezoneOffset() < new Date(now.getFullYear(), 6, 1).getTimezoneOffset() ? -4 : -5;
+  const et = new Date(now.getTime() + (now.getTimezoneOffset() + etOff * 60) * 60_000);
+  return et.getHours();
+}
+
+function inBriefingWindow(): boolean {
+  const h = etHour();
+  return h >= 6 && h < 7;
+}
+
 // ─── Main handler ────────────────────────────────────────────────────────────
 
 type PortfolioSnapshot = {
@@ -190,6 +202,9 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   }
+  if (!inBriefingWindow()) {
+    return Response.json({ ok: false, reason: "OUTSIDE_WINDOW", message: "Morning briefing is only available 6–7 AM ET." }, { status: 403 });
+  }
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
   }
@@ -202,6 +217,9 @@ export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) {
     return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  }
+  if (!inBriefingWindow()) {
+    return Response.json({ ok: false, reason: "OUTSIDE_WINDOW", message: "Morning briefing is only available 6–7 AM ET." }, { status: 403 });
   }
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
