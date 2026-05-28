@@ -3,18 +3,18 @@
 :root {
   --font-inter: "Inter", system-ui, sans-serif;
 
-  --bg-canvas:   #0A0F1E;
-  --bg-surface:  #0D1429;
-  --bg-elevated: #101C35;
-  --border:      #1E2D4A;
-  --border-hover:#2B3E64;
+  --bg-canvas:   #0D1B35;
+  --bg-surface:  #122040;
+  --bg-elevated: #192C4E;
+  --border:      #253B5E;
+  --border-hover:#345280;
 
   --text-primary:   #F1F5F9;
   --text-secondary: #7B8DB4;
   --text-muted:     #4B5675;
 
-  --accent:      #6366F1;
-  --accent-hover:#818CF8;
+  --accent:      #10B981;
+  --accent-hover:#34D399;
 
   --buy:  #10B981;
   --sell: #F43F5E;
@@ -58,7 +58,7 @@ body {
 
 /* Selection */
 ::selection {
-  background: #6366F130;
+  background: #10B98130;
   color: var(--text-primary);
 }
 

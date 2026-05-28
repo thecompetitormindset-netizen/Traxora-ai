@@ -107,7 +107,7 @@ export default function AnalysisChart({ symbol }: AnalysisChartProps) {
         const points = stockJson?.points;
         if (Array.isArray(points) && points.length > 0) {
           const lineSeries = chart.addSeries(LineSeries, {
-            color: "#6366F1",
+            color: "#10B981",
             lineWidth: 2,
           });
           lineSeries.setData(points);

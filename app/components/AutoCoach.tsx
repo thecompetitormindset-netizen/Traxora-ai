@@ -101,7 +101,7 @@ export default function AutoCoach() {
       <div className="w-full max-w-lg bg-[#0C1017] border border-[#1C2333] rounded-3xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1C2333] bg-gradient-to-r from-violet-500/5 to-transparent">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1C2333] bg-gradient-to-r from-teal-500/5 to-transparent">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎯</span>
             <div>
@@ -140,8 +140,8 @@ export default function AutoCoach() {
             <div className="space-y-5">
               {/* Assessment */}
               {parsed.assessment && (
-                <div className="bg-[#060A14] border border-indigo-500/20 rounded-2xl p-4">
-                  <p className="text-[9px] text-indigo-400 uppercase tracking-widest font-semibold mb-1.5">Overall Assessment</p>
+                <div className="bg-[#060A14] border border-emerald-500/20 rounded-2xl p-4">
+                  <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-semibold mb-1.5">Overall Assessment</p>
                   <p className="text-sm text-[#CBD5E1] leading-relaxed">{parsed.assessment}</p>
                 </div>
               )}
@@ -165,11 +165,11 @@ export default function AutoCoach() {
               {/* Tips */}
               {parsed.tips.length > 0 && (
                 <div>
-                  <p className="text-[9px] text-violet-400 uppercase tracking-widest font-semibold mb-3">3 Tactical Tips</p>
+                  <p className="text-[9px] text-teal-400 uppercase tracking-widest font-semibold mb-3">3 Tactical Tips</p>
                   <div className="space-y-2.5">
                     {parsed.tips.map((tip, i) => (
                       <div key={i} className="flex gap-3 items-start">
-                        <span className="w-5 h-5 rounded-full bg-violet-500/15 border border-violet-500/20 text-[9px] font-black text-violet-400 flex items-center justify-center shrink-0">
+                        <span className="w-5 h-5 rounded-full bg-teal-500/15 border border-teal-500/20 text-[9px] font-black text-teal-400 flex items-center justify-center shrink-0">
                           {i + 1}
                         </span>
                         <p className="text-xs text-[#7B8DB4] leading-relaxed">{tip}</p>
@@ -189,7 +189,7 @@ export default function AutoCoach() {
           <button
             type="button"
             onClick={() => setVisible(false)}
-            className="bg-violet-600 hover:bg-violet-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold"
+            className="bg-teal-600 hover:bg-teal-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold"
           >
             Keep Trading →
           </button>

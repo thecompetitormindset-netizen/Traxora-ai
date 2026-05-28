@@ -168,7 +168,7 @@ function PaperTradingPage() {
 
           {/* Header */}
           <div className="text-center">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-400 mb-2">Paper Trading Simulator</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Paper Trading Simulator</p>
             <h1 className="text-3xl font-black tracking-tight">Practice without risk</h1>
             <p className="text-[#7B8DB4] text-sm mt-2 max-w-sm mx-auto">
               Market orders, limit orders, and stop losses — all with virtual money and live prices.
@@ -179,7 +179,7 @@ function PaperTradingPage() {
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: "Cash",      value: `$${portfolio.cash.toFixed(2)}`,       color: "text-emerald-400" },
-              { label: "Portfolio", value: `$${totalValue.toFixed(2)}`,            color: "text-indigo-400"  },
+              { label: "Portfolio", value: `$${totalValue.toFixed(2)}`,            color: "text-emerald-400"  },
               { label: "P / L",     value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`, color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map((s) => (
               <div key={s.label} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-4 text-center">
@@ -196,7 +196,7 @@ function PaperTradingPage() {
                 onClick={() => { setSymbol(q.sym); setInputSymbol(q.sym); }}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                   symbol === q.sym
-                    ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                    ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
                     : "bg-[#0C1017] border-[#1C2333] text-[#4B5675] hover:text-[#F1F5F9] hover:border-[#2D3A50]"
                 }`}>{q.label}</button>
             ))}
@@ -207,9 +207,9 @@ function PaperTradingPage() {
             <input type="text" value={inputSymbol}
               onChange={(e) => setInputSymbol(e.target.value)}
               placeholder="AAPL · NVDA · MSFT · SPY"
-              className="flex-1 bg-[#0C1017] border border-[#1C2333] focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none transition"
+              className="flex-1 bg-[#0C1017] border border-[#1C2333] focus:border-emerald-500/50 rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none transition"
             />
-            <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 transition px-5 py-3 rounded-xl text-sm font-bold">
+            <button type="submit" className="bg-emerald-600 hover:bg-emerald-500 transition px-5 py-3 rounded-xl text-sm font-bold">
               Load
             </button>
           </form>
@@ -276,7 +276,7 @@ function PaperTradingPage() {
                   <button key={t} type="button" onClick={() => setOrderType(t)}
                     className={`py-2.5 rounded-xl text-xs font-bold border transition-all capitalize ${
                       orderType === t
-                        ? "bg-indigo-500/20 border-indigo-500/40 text-indigo-300"
+                        ? "bg-emerald-500/20 border-emerald-500/40 text-emerald-300"
                         : "bg-[#060A14]/60 border-[#1C2333] text-[#4B5675] hover:text-[#F1F5F9]"
                     }`}>{t} Order
                   </button>
@@ -290,7 +290,7 @@ function PaperTradingPage() {
               <input type="number" min="1" value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
                 placeholder="1"
-                className="w-full bg-[#060A14]/60 border border-[#1C2333] focus:border-indigo-500/50 rounded-xl px-4 py-3 text-[#F1F5F9] outline-none text-sm font-mono transition"
+                className="w-full bg-[#060A14]/60 border border-[#1C2333] focus:border-emerald-500/50 rounded-xl px-4 py-3 text-[#F1F5F9] outline-none text-sm font-mono transition"
               />
             </div>
 
@@ -303,7 +303,7 @@ function PaperTradingPage() {
                 <input type="number" step="0.01" min="0.01" value={limitPrice}
                   onChange={(e) => setLimitPrice(e.target.value)}
                   placeholder={price ? `e.g. $${(price * (side === "BUY" ? 0.98 : 1.02)).toFixed(2)}` : "0.00"}
-                  className="w-full bg-[#060A14]/60 border border-indigo-500/30 focus:border-indigo-500/60 rounded-xl px-4 py-3 text-[#F1F5F9] outline-none text-sm font-mono transition"
+                  className="w-full bg-[#060A14]/60 border border-emerald-500/30 focus:border-emerald-500/60 rounded-xl px-4 py-3 text-[#F1F5F9] outline-none text-sm font-mono transition"
                 />
               </div>
             )}
@@ -339,7 +339,7 @@ function PaperTradingPage() {
               {orderType === "limit" && limitPrice && (
                 <div className="flex justify-between text-sm">
                   <span className="text-[#4B5675]">Limit price</span>
-                  <span className="font-mono text-indigo-400">${parseFloat(limitPrice).toFixed(2)}</span>
+                  <span className="font-mono text-emerald-400">${parseFloat(limitPrice).toFixed(2)}</span>
                 </div>
               )}
               <div className="flex justify-between text-sm">
@@ -380,7 +380,7 @@ function PaperTradingPage() {
               <div className={`rounded-xl px-4 py-3 text-sm font-medium text-center ${
                 message.type === "success" ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
                 : message.type === "error" ? "bg-rose-500/10 border border-rose-500/20 text-rose-400"
-                : "bg-indigo-500/10 border border-indigo-500/20 text-indigo-400"
+                : "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
               }`}>{message.text}</div>
             )}
           </div>
@@ -394,7 +394,7 @@ function PaperTradingPage() {
                 {(["trade","holdings","orders","history","journal"] as const).map((tab) => (
                   <button key={tab} type="button" onClick={() => setActiveTab(tab)}
                     className={`flex-1 py-2 rounded-lg text-[10px] font-bold capitalize transition-all min-w-[60px] ${
-                      activeTab === tab ? "bg-indigo-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"
+                      activeTab === tab ? "bg-emerald-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"
                     }`}>
                     {tab === "holdings" ? `Holdings (${portfolio.holdings.length})`
                       : tab === "orders" ? `Orders (${portfolio.pendingOrders.length})`
@@ -440,7 +440,7 @@ function PaperTradingPage() {
                   <div className="divide-y divide-[#1C2333]">
                     {portfolio.holdings.map((h) => (
                       <div key={h.symbol} className="grid grid-cols-5 px-5 py-3.5 items-center">
-                        <span className="font-bold text-indigo-400 text-sm">{h.symbol.replace(".US","").replace(".COMM","")}</span>
+                        <span className="font-bold text-emerald-400 text-sm">{h.symbol.replace(".US","").replace(".COMM","")}</span>
                         <span className="text-center font-mono text-[#7B8DB4] text-sm">{h.quantity}</span>
                         <span className="text-center font-mono text-[#7B8DB4] text-sm">${h.avgPrice.toFixed(2)}</span>
                         <span className="text-center font-mono text-sm">
@@ -517,15 +517,15 @@ function PaperTradingPage() {
             const symJournal = journal.filter(e => e.symbol.replace(".US","").replace(".COMM","") === symbolBase);
 
             const ICT_META: Record<string, { label: string; color: string; bg: string; border: string; desc: string }> = {
-              OB:   { label: "Order Block",          color: "text-purple-400",  bg: "bg-purple-500/10",  border: "border-purple-500/20",  desc: "Last opposing candle before a strong impulse — institutional order origin zone." },
+              OB:   { label: "Order Block",          color: "text-teal-400",  bg: "bg-teal-500/10",  border: "border-teal-500/20",  desc: "Last opposing candle before a strong impulse — institutional order origin zone." },
               FVG:  { label: "Fair Value Gap",        color: "text-blue-400",   bg: "bg-blue-500/10",   border: "border-blue-500/20",   desc: "Price imbalance where orders went unfilled — price is magnetically drawn back to fill it." },
               LIQ:  { label: "Liquidity Sweep",       color: "text-yellow-400", bg: "bg-yellow-500/10", border: "border-yellow-500/20", desc: "Stop clusters above highs or below lows swept by institutions to fill large orders." },
               MSS:  { label: "Market Structure Shift",color: "text-cyan-400",   bg: "bg-cyan-500/10",   border: "border-cyan-500/20",   desc: "Trend reversal confirmed by breaking a key swing high or low — marks the bias change." },
-              OTE:  { label: "Optimal Trade Entry",   color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/20", desc: "62–79% Fibonacci retracement of a swing — the highest-probability pullback entry zone." },
+              OTE:  { label: "Optimal Trade Entry",   color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20", desc: "62–79% Fibonacci retracement of a swing — the highest-probability pullback entry zone." },
               PD:   { label: "Premium / Discount",    color: "text-emerald-400",bg: "bg-emerald-500/10",border: "border-emerald-500/20",desc: "Above the 50% midpoint = premium (sell zone). Below = discount (buy zone)." },
               BRK:  { label: "Breaker Block",         color: "text-orange-400", bg: "bg-orange-500/10", border: "border-orange-500/20", desc: "Failed OB that has been breached — flips polarity and becomes strong support/resistance." },
               PO3:  { label: "Power of Three",        color: "text-pink-400",   bg: "bg-pink-500/10",   border: "border-pink-500/20",   desc: "Accumulation → Manipulation (Judas swing) → Distribution — institutional 3-phase cycle." },
-              KZ:   { label: "Kill Zone",             color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/20", desc: "London Open (2–5 AM ET) and NY Open (7–10 AM ET) — highest-probability ICT time windows." },
+              KZ:   { label: "Kill Zone",             color: "text-teal-400", bg: "bg-teal-500/10", border: "border-teal-500/20", desc: "London Open (2–5 AM ET) and NY Open (7–10 AM ET) — highest-probability ICT time windows." },
               NDOG: { label: "New Day Opening Gap",   color: "text-teal-400",   bg: "bg-teal-500/10",   border: "border-teal-500/20",   desc: "Gap between yesterday's close and today's open — acts as a fill magnet during the session." },
               BPR:  { label: "Balanced Price Range",  color: "text-sky-400",    bg: "bg-sky-500/10",    border: "border-sky-500/20",    desc: "Overlapping bullish + bearish FVGs — equilibrium zone where price pauses or sharply reverses." },
               CE:   { label: "Consequent Encroachment",color:"text-rose-400",   bg: "bg-rose-500/10",   border: "border-rose-500/20",   desc: "Exact 50% midpoint of a FVG or OB — the most precise ICT entry level for tight stops." },
@@ -584,7 +584,7 @@ function PaperTradingPage() {
                             </div>
                           </div>
                           {/* Entry text — always visible */}
-                          <p className="text-xs text-[#7B8DB4] mt-2 leading-relaxed border-l-2 border-indigo-500/30 pl-2">{e.entry}</p>
+                          <p className="text-xs text-[#7B8DB4] mt-2 leading-relaxed border-l-2 border-emerald-500/30 pl-2">{e.entry}</p>
                         </button>
 
                         {/* Full ICT Detail */}
@@ -658,9 +658,9 @@ function PaperTradingPage() {
                                     {e.analysis.wins.map((w,i) => <p key={i} className="text-xs text-[#7B8DB4] flex gap-1.5"><span className="text-emerald-400">✓</span>{w}</p>)}
                                   </div>
                                 )}
-                                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-2.5">
+                                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-2.5">
                                   <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">Key Lesson</p>
-                                  <p className="text-xs text-indigo-300 leading-relaxed">{e.analysis.lesson}</p>
+                                  <p className="text-xs text-emerald-300 leading-relaxed">{e.analysis.lesson}</p>
                                 </div>
                               </div>
                             )}

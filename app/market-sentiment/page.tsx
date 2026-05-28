@@ -68,7 +68,7 @@ function Skeleton({ h = "h-4", w = "w-full", rounded = "rounded-lg" }: { h?: str
 }
 
 function MetricCard({
-  label, sublabel, children, badge, whyContent, accentColor = "indigo",
+  label, sublabel, children, badge, whyContent, accentColor = "emerald",
 }: {
   label:       string;
   sublabel?:   string;
@@ -91,7 +91,7 @@ function MetricCard({
             <button
               type="button"
               onClick={() => setShowWhy(v => !v)}
-              className="text-[10px] text-[#4B5675] hover:text-indigo-400 border border-[#1C2333] hover:border-indigo-500/30 px-2 py-0.5 rounded-lg transition-colors"
+              className="text-[10px] text-[#4B5675] hover:text-emerald-400 border border-[#1C2333] hover:border-emerald-500/30 px-2 py-0.5 rounded-lg transition-colors"
             >
               Why?
             </button>
@@ -396,7 +396,7 @@ export default function MarketSentimentPage() {
           <div className="flex gap-2 mt-4 flex-wrap">
             {[
               { model: "Haiku",  task: "Classify",      color: "sky",    tokens: "~150 tok/call" },
-              { model: "Sonnet", task: "Synthesize",     color: "violet", tokens: "~512 tok/call" },
+              { model: "Sonnet", task: "Synthesize",     color: "teal", tokens: "~512 tok/call" },
               { model: "Opus",   task: "Master Report",  color: "amber",  tokens: "~1500 tok/call" },
             ].map(b => (
               <div key={b.model} className={`flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-lg bg-${b.color}-500/10 border border-${b.color}-500/20 text-${b.color}-400`}>
@@ -422,7 +422,7 @@ export default function MarketSentimentPage() {
             <MetricCard
               label="Overall Market Score"
               sublabel="Composite institutional sentiment"
-              accentColor="indigo"
+              accentColor="emerald"
               whyContent="Derived from VIX volatility (60%), SPY 5-day momentum (30%), and news sentiment (10%). Range: -100 (extreme bearish) to +100 (extreme bullish)."
             >
               {mdLoading ? (
@@ -469,7 +469,7 @@ export default function MarketSentimentPage() {
                     }`}>
                       {md.vix < 15 ? "Complacency" : md.vix < 25 ? "Normal" : md.vix < 35 ? "Elevated Fear" : "Panic"}
                     </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold capitalize">
+                    <span className="text-[10px] px-2 py-0.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-semibold capitalize">
                       {md.vixTermStructure}
                     </span>
                   </div>
@@ -493,7 +493,7 @@ export default function MarketSentimentPage() {
                     { sym: "IWM", price: md?.iwmPrice, chg: md?.iwmChange },
                   ].map(row => (
                     <div key={row.sym} className="flex items-center justify-between bg-[#060A14]/60 border border-[#1C2333] rounded-xl px-3 py-2">
-                      <span className="text-xs font-mono font-bold text-indigo-400">{row.sym}</span>
+                      <span className="text-xs font-mono font-bold text-emerald-400">{row.sym}</span>
                       <span className="text-sm font-mono text-[#F1F5F9]">{row.price != null ? `$${row.price.toFixed(2)}` : "—"}</span>
                       <ChgPill v={row.chg ?? null} />
                     </div>
@@ -607,7 +607,7 @@ export default function MarketSentimentPage() {
                   href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-400 hover:text-indigo-300 text-xs transition-colors mt-1 block"
+                  className="text-emerald-400 hover:text-emerald-300 text-xs transition-colors mt-1 block"
                 >
                   View latest COT report →
                 </a>
@@ -762,14 +762,14 @@ export default function MarketSentimentPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Contrarian Signal */}
-                <div className="bg-[#0C1017] border border-violet-500/20 rounded-2xl p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-violet-400 mb-2">Contrarian Signal</p>
+                <div className="bg-[#0C1017] border border-teal-500/20 rounded-2xl p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-400 mb-2">Contrarian Signal</p>
                   <p className="text-sm text-[#CBD5E1] leading-relaxed">{report.contrarian}</p>
                 </div>
 
                 {/* Smart Money Signal */}
-                <div className="bg-[#0C1017] border border-indigo-500/20 rounded-2xl p-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-indigo-400 mb-2">Smart Money Phase</p>
+                <div className="bg-[#0C1017] border border-emerald-500/20 rounded-2xl p-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Smart Money Phase</p>
                   <p className={`text-xl font-black ${biasColor}`}>{report.smartMoneySignal}</p>
                   <p className="text-xs text-[#7B8DB4] mt-2 leading-relaxed">{report.retailVsInstitutional}</p>
                 </div>
@@ -782,7 +782,7 @@ export default function MarketSentimentPage() {
                   <div className="space-y-2">
                     {report.themes.map((t, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="w-4 h-4 rounded-full bg-indigo-500/15 border border-indigo-500/20 text-[9px] font-black text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
+                        <span className="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/20 text-[9px] font-black text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">{i + 1}</span>
                         <p className="text-xs text-[#7B8DB4]">{t}</p>
                       </div>
                     ))}
@@ -845,7 +845,7 @@ export default function MarketSentimentPage() {
                   return (
                     <div
                       key={i}
-                      className="bg-[#0C1017] border border-[#1C2333] hover:border-indigo-500/20 rounded-xl p-4 flex items-start gap-3 transition-colors cursor-pointer"
+                      className="bg-[#0C1017] border border-[#1C2333] hover:border-emerald-500/20 rounded-xl p-4 flex items-start gap-3 transition-colors cursor-pointer"
                       onClick={() => toggleCard(`h-${i}`)}
                     >
                       {/* Pre-scored AV label */}

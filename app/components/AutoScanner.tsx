@@ -65,7 +65,7 @@ function confStyle(c: string) {
 function volColor(ratio: number) {
   if (ratio >= 3) return "bg-rose-500";
   if (ratio >= 2) return "bg-amber-500";
-  return "bg-indigo-500";
+  return "bg-emerald-500";
 }
 
 function snapPct(v: number): string {
@@ -79,7 +79,7 @@ function VolBar({ ratio }: { ratio: number }) {
       <div className="flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${volColor(ratio)} ${snapPct(fill)}`} />
       </div>
-      <span className={`text-[9px] font-mono font-bold ${ratio >= 3 ? "text-rose-400" : ratio >= 2 ? "text-amber-400" : "text-indigo-400"}`}>
+      <span className={`text-[9px] font-mono font-bold ${ratio >= 3 ? "text-rose-400" : ratio >= 2 ? "text-amber-400" : "text-emerald-400"}`}>
         {ratio.toFixed(1)}x
       </span>
     </div>
@@ -89,7 +89,7 @@ function VolBar({ ratio }: { ratio: number }) {
 function YearBar({ pct }: { pct: number | null | undefined }) {
   if (pct == null) return null;
   const fill = Math.max(0, Math.min(pct, 100));
-  const color = pct <= 20 ? "bg-emerald-500" : pct >= 80 ? "bg-rose-500" : "bg-indigo-400";
+  const color = pct <= 20 ? "bg-emerald-500" : pct >= 80 ? "bg-rose-500" : "bg-emerald-400";
   return (
     <div className="flex items-center gap-1.5">
       <div className="flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
@@ -230,7 +230,7 @@ export default function AutoScanner() {
                   <button
                     type="button"
                     onClick={runScan}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 transition-colors py-2.5 rounded-xl text-xs font-bold"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-2.5 rounded-xl text-xs font-bold"
                   >
                     Run Deep Scan →
                   </button>
@@ -241,13 +241,13 @@ export default function AutoScanner() {
               {scanning && (
                 <div className="py-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2.5">
+                    <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
                     </svg>
                     <p className="text-[10px] text-[#7B8DB4] leading-snug">{step}</p>
                   </div>
                   <div className="h-1.5 bg-[#1C2333] rounded-full overflow-hidden">
-                    <div className={`h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-700 ${snapPct(progress)}`} />
+                    <div className={`h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-700 ${snapPct(progress)}`} />
                   </div>
                   <p className="text-[9px] text-[#2D3A50] text-right">{progress}%</p>
                 </div>
@@ -258,8 +258,8 @@ export default function AutoScanner() {
                 <div className="space-y-2">
                   {/* Market context */}
                   {marketCtx && (
-                    <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl px-3 py-2">
-                      <p className="text-[9px] text-indigo-400 uppercase tracking-widest font-semibold mb-1">Market Context</p>
+                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl px-3 py-2">
+                      <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-semibold mb-1">Market Context</p>
                       <p className="text-[10px] text-[#7B8DB4] leading-snug">{marketCtx}</p>
                     </div>
                   )}
@@ -377,7 +377,7 @@ export default function AutoScanner() {
 
                             <Link
                               href={`/analysis?symbol=${encodeURIComponent(r.symbol + ".US")}`}
-                              className="flex items-center justify-center gap-1.5 w-full bg-indigo-600 hover:bg-indigo-500 transition-colors py-2 rounded-xl text-[10px] font-bold mt-1"
+                              className="flex items-center justify-center gap-1.5 w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-2 rounded-xl text-[10px] font-bold mt-1"
                             >
                               Full ICT Analysis →
                             </Link>
@@ -401,7 +401,7 @@ export default function AutoScanner() {
                 <div className="py-6 text-center space-y-2">
                   <p className="text-xs text-[#4B5675]">No high-conviction setups found.</p>
                   <p className="text-[10px] text-[#2D3A50]">Market may be ranging — try again later.</p>
-                  <button type="button" onClick={runScan} className="text-[10px] text-indigo-400 hover:underline">
+                  <button type="button" onClick={runScan} className="text-[10px] text-emerald-400 hover:underline">
                     Re-scan
                   </button>
                 </div>
@@ -415,7 +415,7 @@ export default function AutoScanner() {
           type="button"
           onClick={() => setOpen((o) => !o)}
           title="Deep Market Scanner"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 bg-[#0C1017]/90 border border-[#1C2333] hover:border-indigo-500/40 text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 bg-[#0C1017]/90 border border-[#1C2333] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"
         >
           <span className="text-sm">📡</span>
           Scan

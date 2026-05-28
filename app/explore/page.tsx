@@ -54,7 +54,7 @@ const EXCHANGES: Exchange[] = [
     fullName: "Chicago Board Options Exchange",
     city: "Chicago, IL",
     description: "World's largest options exchange — volatility products & equity options",
-    color: "purple",
+    color: "teal",
     items: [
       { symbol: "VX.COMM",  ticker: "VX",   name: "CBOE Volatility Index (VIX) Futures", category: "Volatility" },
       { symbol: "VA.COMM",  ticker: "VA",   name: "Mini-VIX Futures",                    category: "Volatility" },
@@ -173,12 +173,12 @@ const EXCHANGES: Exchange[] = [
 
 // ── Color maps ────────────────────────────────────────────────────────────────
 const COLOR: Record<string, { tab: string; activetab: string; badge: string; glow: string; dot: string }> = {
-  purple: {
-    tab: "border-purple-500/30 text-purple-400 bg-purple-500/10",
-    activetab: "border-purple-400 bg-purple-500/20 text-purple-300",
-    badge: "text-purple-400 bg-purple-500/10 border-purple-500/20",
-    glow: "hover:border-purple-500/40",
-    dot: "bg-purple-500",
+  teal: {
+    tab: "border-teal-500/30 text-teal-400 bg-teal-500/10",
+    activetab: "border-teal-400 bg-teal-500/20 text-teal-300",
+    badge: "text-teal-400 bg-teal-500/10 border-teal-500/20",
+    glow: "hover:border-teal-500/40",
+    dot: "bg-teal-500",
   },
   yellow: {
     tab: "border-yellow-500/30 text-yellow-400 bg-yellow-500/10",
@@ -327,12 +327,12 @@ export default function ExplorePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by company name or ticker (e.g. Tesla, AAPL, ES)"
-            className="flex-1 bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4 text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-indigo-500/50 transition text-sm"
+            className="flex-1 bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4 text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition text-sm"
           />
           <button
             type="submit"
             disabled={searching}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition px-6 py-4 rounded-2xl font-semibold text-sm"
+            className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition px-6 py-4 rounded-2xl font-semibold text-sm"
           >
             {searching ? "Searching…" : "Search"}
           </button>
@@ -365,7 +365,7 @@ export default function ExplorePage() {
                     <span className="text-[#2D3A50]">·</span>
                     <span className="text-xs text-[#4B5675]">{r.type}</span>
                   </div>
-                  <p className="text-xs text-indigo-400 mt-3">Analyze with AI →</p>
+                  <p className="text-xs text-emerald-400 mt-3">Analyze with AI →</p>
                 </Link>
               ))}
             </div>
@@ -402,7 +402,7 @@ export default function ExplorePage() {
                               {cat}
                             </span>
                           </div>
-                          <p className="text-xs text-indigo-400 mt-4">View AI analysis →</p>
+                          <p className="text-xs text-emerald-400 mt-4">View AI analysis →</p>
                         </Link>
                       ))}
                   </div>
@@ -430,11 +430,11 @@ export default function ExplorePage() {
                         <p className="font-bold text-[#F1F5F9]">{stock.symbol.replace(".US", "")}</p>
                         <p className="text-sm text-[#7B8DB4] mt-0.5">{stock.name}</p>
                       </div>
-                      <span className="text-xs text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-lg border border-indigo-500/20">
+                      <span className="text-xs text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20">
                         {stock.sector}
                       </span>
                     </div>
-                    <p className="text-xs text-indigo-400 mt-4">View AI analysis →</p>
+                    <p className="text-xs text-emerald-400 mt-4">View AI analysis →</p>
                   </Link>
                 ))}
               </div>

@@ -25,9 +25,9 @@ const SECTIONS: Section[] = [
     icon: "📊",
     title: "Dashboard",
     subtitle: "Your mission control — live prices, signals, and AI concepts.",
-    color: "text-indigo-400",
-    border: "border-indigo-500/20",
-    bg: "bg-indigo-500/5",
+    color: "text-emerald-400",
+    border: "border-emerald-500/20",
+    bg: "bg-emerald-500/5",
     href: "/dashboard",
     steps: [
       { step: "Open the Dashboard", detail: "This is your home base. You'll see 9 live stock cards (AAPL, NVDA, TSLA, etc.) and 8 futures contracts (ES, NQ, GC, CL, etc.) with real-time prices updating automatically." },
@@ -46,9 +46,9 @@ const SECTIONS: Section[] = [
     icon: "📡",
     title: "Signals (Analysis)",
     subtitle: "Get a full ICT breakdown and execute trades from one screen.",
-    color: "text-violet-400",
-    border: "border-violet-500/20",
-    bg: "bg-violet-500/5",
+    color: "text-teal-400",
+    border: "border-teal-500/20",
+    bg: "bg-teal-500/5",
     href: "/analysis",
     steps: [
       { step: "Search any ticker", detail: "Type a symbol into the search bar at the top (AAPL, NVDA, TSLA for stocks — ES, NQ, GC for futures). Select from the dropdown. The page loads a live chart and price data instantly." },
@@ -110,9 +110,9 @@ const SECTIONS: Section[] = [
     icon: "🤖",
     title: "AutoTrader",
     subtitle: "Fully autonomous paper trading — runs every 3 minutes on its own.",
-    color: "text-indigo-400",
-    border: "border-indigo-500/20",
-    bg: "bg-indigo-500/5",
+    color: "text-emerald-400",
+    border: "border-emerald-500/20",
+    bg: "bg-emerald-500/5",
     steps: [
       { step: "Open the AutoTrader panel", detail: "Press the 'Auto' button in the bottom-right corner of any page. A control panel slides up showing status, last action, and a countdown to the next scan." },
       { step: "Press 'Start AutoTrader'", detail: "Click the green button. The bot immediately scans the first stock (Apple) and begins rotating through the 8-stock watchlist every 3 minutes." },
@@ -138,7 +138,7 @@ const SECTIONS: Section[] = [
     steps: [
       { step: "No setup needed", detail: "The journal runs in the background on every page. Every time you execute a paper trade — manually or via AutoTrader — the journal listener detects it automatically." },
       { step: "AI writes the entry", detail: "Within seconds of a trade executing, Claude Opus 4.7 is called with the trade details (symbol, side, quantity, price) and writes a 2-sentence ICT-focused journal entry. Sentence 1 explains the setup. Sentence 2 gives the target or exit condition." },
-      { step: "Read your entries", detail: "Open the Journal page from the nav bar. Entries appear newest first. Each shows the trade details (BUY/SELL badge, symbol, shares, price, total cost) and the AI-written note below a purple left border." },
+      { step: "Read your entries", detail: "Open the Journal page from the nav bar. Entries appear newest first. Each shows the trade details (BUY/SELL badge, symbol, shares, price, total cost) and the AI-written note below a teal left border." },
       { step: "Study the patterns", detail: "Read your journal regularly. After 20+ entries, you'll start to see patterns — which setups you're trading most, which ones result in wins vs. losses, and what the AI consistently flags as a concern." },
       { step: "Use it before the coaching report", detail: "Before your Auto-Coach milestone fires (every 10 trades), skim your last 10 journal entries. This gives you your own view of your trading before Claude gives its assessment." },
     ],
@@ -159,7 +159,7 @@ const SECTIONS: Section[] = [
     steps: [
       { step: "Enable AutoTrader first", detail: "The rival bots (Apex, Delta, Vera) only trade when AutoTrader is scanning. Start AutoTrader from any page, then open the Compete page to watch them trade in real time." },
       { step: "Read the leaderboard", detail: "The table ranks all 4 accounts (You, Apex, Delta, Vera) by current account value. Your position is highlighted in blue. The leader gets a gold #1 badge." },
-      { step: "Understand each bot", detail: "Apex (red) is aggressive — buys on any signal, 20% of cash per trade. Delta (indigo) is balanced — Medium+ confidence, 12% per trade. Vera (green) is conservative — High confidence only, 8% per trade." },
+      { step: "Understand each bot", detail: "Apex (red) is aggressive — buys on any signal, 20% of cash per trade. Delta (emerald) is balanced — Medium+ confidence, 12% per trade. Vera (green) is conservative — High confidence only, 8% per trade." },
       { step: "Beat the bots manually", detail: "You can outperform the bots by trading manually on the Practice page or using the Signals page. Your manual trades count toward your total account value on the leaderboard." },
       { step: "Check win rate and trade count", detail: "The leaderboard also shows trades placed and win rate for each competitor. A bot with many trades but a low win rate is gambling. One with few trades but a high win rate is selective — like Vera." },
       { step: "Reset any bot to restart the contest", detail: "Inside the bot profile cards below the leaderboard, press 'Reset bot' to wipe that bot's portfolio back to $10,000. Useful if a bot has blown up or if you want to restart the competition." },
@@ -214,9 +214,9 @@ const SECTIONS: Section[] = [
     icon: "🎯",
     title: "Auto-Coach",
     subtitle: "Claude reviews your trade history every 10 trades and gives you a personalized breakdown.",
-    color: "text-violet-400",
-    border: "border-violet-500/20",
-    bg: "bg-violet-500/5",
+    color: "text-teal-400",
+    border: "border-teal-500/20",
+    bg: "bg-teal-500/5",
     steps: [
       { step: "Trigger is automatic — every 10 trades", detail: "After your 10th trade, 20th trade, 30th trade, etc., the coaching modal appears automatically on screen. You don't need to do anything to trigger it." },
       { step: "Read the assessment", detail: "The top section is an honest 1-sentence summary of your overall performance. Claude doesn't sugarcoat — if your win rate is poor, it says so directly." },
@@ -348,8 +348,8 @@ export default function GuidePage() {
           </div>
 
           {/* Quick start */}
-          <div className="mt-6 bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-5">
-            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-3">Quick Start — 3 Steps</p>
+          <div className="mt-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl p-5">
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Quick Start — 3 Steps</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { n: "1", title: "Practice first", desc: "Go to Practice → buy 1 share of AAPL → watch your portfolio update. Get comfortable with the interface before using real money." },
@@ -357,7 +357,7 @@ export default function GuidePage() {
                 { n: "3", title: "Start AutoTrader", desc: "Press the 'Auto' button bottom-right → Start AutoTrader. Watch it scan every 3 minutes and place trades automatically while you learn." },
               ].map(s => (
                 <div key={s.n} className="flex gap-3">
-                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">{s.n}</span>
+                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">{s.n}</span>
                   <div>
                     <p className="text-xs font-bold text-[#F1F5F9] mb-0.5">{s.title}</p>
                     <p className="text-[11px] text-[#7B8DB4] leading-relaxed">{s.desc}</p>

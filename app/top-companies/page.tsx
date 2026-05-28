@@ -74,7 +74,7 @@ export default function TopCompaniesPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name, ticker, or sector…"
-            className="w-full max-w-md bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-indigo-500/50 transition"
+            className="w-full max-w-md bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition"
           />
         </div>
 
@@ -99,7 +99,7 @@ export default function TopCompaniesPage() {
                     onClick={() => openCompany(company.eodhdSymbol)}
                     className="w-full grid grid-cols-3 items-center text-sm px-5 py-3.5 hover:bg-[#111827] text-left transition"
                   >
-                    <span className="font-bold text-indigo-400">{company.eodhdSymbol}</span>
+                    <span className="font-bold text-emerald-400">{company.eodhdSymbol}</span>
                     <span className="text-[#CBD5E1] truncate pr-4">{company.name}</span>
                     <span className="text-[#4B5675]">{company.sector}</span>
                   </button>

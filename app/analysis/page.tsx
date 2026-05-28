@@ -253,7 +253,7 @@ function SetupCard({
       <div className="flex flex-wrap gap-3 pt-1 border-t border-white/5 text-[10px]">
         <span className="text-[#4B5675]">
           Best entry:{" "}
-          <span className="text-indigo-400 font-semibold">
+          <span className="text-emerald-400 font-semibold">
             {setup.bestEntryTime}
           </span>
         </span>
@@ -403,8 +403,8 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
                 <ICTRow key={r.label} label={r.label} value={r.value} />
               ))}
             </div>
-            <div className="mt-2 bg-indigo-500/5 border border-indigo-500/15 rounded-xl px-4 py-2.5">
-              <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mb-0.5">
+            <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
+              <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-0.5">
                 Draw on Liquidity
               </p>
               <p className="text-xs text-[#CBD5E1]">
@@ -450,7 +450,7 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
                 {
                   label: "ATR (14d)",
                   value: data.keyLevels.atr14,
-                  accent: "text-indigo-400",
+                  accent: "text-emerald-400",
                 },
                 {
                   label: "RSI (14d)",
@@ -500,8 +500,8 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
                   </p>
                 ))}
               </div>
-              <div className="bg-[#060A14] border border-indigo-500/15 rounded-xl p-3">
-                <p className="text-[8px] text-indigo-400 font-black uppercase tracking-widest mb-1">
+              <div className="bg-[#060A14] border border-emerald-500/15 rounded-xl p-3">
+                <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1">
                   Likely Target
                 </p>
                 <p className="text-[10px] text-[#CBD5E1]">
@@ -593,8 +593,8 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
                 </div>
               )}
               {data.fvgs.currentlyInFVG && (
-                <div className="bg-indigo-500/10 border border-indigo-500/25 rounded-xl px-3 py-2">
-                  <p className="text-[9px] text-indigo-400 font-bold">
+                <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2">
+                  <p className="text-[9px] text-emerald-400 font-bold">
                     ⚡ Price currently inside FVG
                   </p>
                 </div>
@@ -669,7 +669,7 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
             <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-2">
               Kill Zones
             </p>
-            <p className="text-xs font-bold text-indigo-400 mb-2">
+            <p className="text-xs font-bold text-emerald-400 mb-2">
               {data.killZones.nextKillZone}
             </p>
             <p className="text-[10px] text-[#7B8DB4] leading-relaxed">
@@ -704,7 +704,7 @@ function DeepICTPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
             <ul className="space-y-2">
               {data.watchList.map((w, i) => (
                 <li key={i} className="flex items-start gap-2">
-                  <span className="text-indigo-400 shrink-0 mt-0.5 text-xs">
+                  <span className="text-emerald-400 shrink-0 mt-0.5 text-xs">
                     ›
                   </span>
                   <p className="text-xs text-[#7B8DB4] leading-relaxed">{w}</p>
@@ -812,7 +812,7 @@ function MarketDepth({ price, high, low, symbol }: { price: number; high: number
     const color = side === "ask" ? "bg-rose-500/25" : "bg-emerald-500/25";
     const txt   = side === "ask" ? "text-rose-400" : "text-emerald-400";
     return (
-      <div className={`relative flex items-center gap-2 px-2 py-[3px] rounded-sm ${lvl.myOrder ? "ring-1 ring-indigo-500/50 bg-indigo-500/5" : ""}`}>
+      <div className={`relative flex items-center gap-2 px-2 py-[3px] rounded-sm ${lvl.myOrder ? "ring-1 ring-emerald-500/50 bg-emerald-500/5" : ""}`}>
         {/* Bar */}
         <div className="absolute inset-y-0 left-0 rounded-sm" style={{ width: `${pct}%`, background: side === "ask" ? "rgba(239,68,68,0.12)" : "rgba(16,185,129,0.12)" }} />
         <span className={`relative z-10 text-[10px] font-mono w-20 shrink-0 ${txt}`}>
@@ -825,7 +825,7 @@ function MarketDepth({ price, high, low, symbol }: { price: number; high: number
           {lvl.volume.toLocaleString()}
         </span>
         {lvl.myOrder && (
-          <span className="relative z-10 text-[9px] font-bold text-indigo-400 shrink-0">MY ORDER</span>
+          <span className="relative z-10 text-[9px] font-bold text-emerald-400 shrink-0">MY ORDER</span>
         )}
       </div>
     );
@@ -865,7 +865,7 @@ function MarketDepth({ price, high, low, symbol }: { price: number; high: number
       </div>
 
       {userOrders.length > 0 && (
-        <p className="text-[9px] text-indigo-400 mt-3 text-center">
+        <p className="text-[9px] text-emerald-400 mt-3 text-center">
           {userOrders.length} paper limit order{userOrders.length > 1 ? "s" : ""} shown — go to Paper Trading to manage
         </p>
       )}
@@ -1052,7 +1052,7 @@ function AnalysisContent() {
                       });
                   }}
                   id="share-btn"
-                  className="bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/25 text-indigo-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                  className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
                 >
                   Share Signal
                 </button>
@@ -1067,7 +1067,7 @@ function AnalysisContent() {
               type="button"
               onClick={() => setExpandChart(e => !e)}
               title={expandChart ? "Collapse chart" : "Expand chart"}
-              className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[#0C1017]/90 border border-[#1C2333] hover:border-indigo-500/40 text-[#7B8DB4] hover:text-indigo-400 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all backdrop-blur-sm"
+              className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[#0C1017]/90 border border-[#1C2333] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-emerald-400 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all backdrop-blur-sm"
             >
               {expandChart ? (
                 <>
@@ -1096,8 +1096,8 @@ function AnalysisContent() {
 
               {/* Current portfolio position for this symbol */}
               {holding && (
-                <div className="mb-3 flex items-center gap-2 bg-indigo-500/8 border border-indigo-500/20 rounded-xl px-3 py-2">
-                  <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wide">Position</span>
+                <div className="mb-3 flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-xl px-3 py-2">
+                  <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wide">Position</span>
                   <span className="text-[10px] font-mono text-[#F1F5F9]">{holding.quantity} sh @ ${holding.avgPrice.toFixed(2)}</span>
                   {quoteData.price && (
                     <span className={`ml-auto text-[10px] font-black font-mono ${
@@ -1213,7 +1213,7 @@ function AnalysisContent() {
                 </div>
                 <div className="space-y-2">
                   {[
-                    { tag: "OB",  color: "text-purple-400", text: analysis.ict.orderBlock    },
+                    { tag: "OB",  color: "text-teal-400", text: analysis.ict.orderBlock    },
                     { tag: "FVG", color: "text-blue-400",   text: analysis.ict.fairValueGap  },
                     { tag: "LIQ", color: "text-yellow-400", text: analysis.ict.liquidity     },
                     { tag: "OTE", color: "text-cyan-400",   text: analysis.ict.ote           },
@@ -1239,7 +1239,7 @@ function AnalysisContent() {
             )}
 
             {/* Deep ICT Analysis trigger */}
-            <div className="bg-[#0C1017] rounded-2xl p-5 border border-indigo-500/20">
+            <div className="bg-[#0C1017] rounded-2xl p-5 border border-emerald-500/20">
               <div className="flex items-center gap-2 mb-2">
                 <span>🎯</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">Deep ICT Analysis</p>
@@ -1251,7 +1251,7 @@ function AnalysisContent() {
                 type="button"
                 onClick={runDeepICT}
                 disabled={loadingDeep}
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
               >
                 {loadingDeep ? (
                   <>

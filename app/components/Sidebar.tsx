@@ -136,13 +136,13 @@ function NavItem({ name, href, icon, isActive, showMarketDot }: NavItemProps) {
       href={href}
       className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[16px] transition-all duration-200 min-w-[52px] ${
         isActive
-          ? "bg-indigo-500/[0.12] text-indigo-300"
+          ? "bg-emerald-500/[0.12] text-emerald-300"
           : "text-[#4B5675] hover:text-[#94A3B8] hover:bg-white/[0.05]"
       }`}
     >
       {showMarketDot && <MarketDot />}
       {isActive && (
-        <span className="absolute bottom-[7px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full bg-indigo-400 opacity-60" />
+        <span className="absolute bottom-[7px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full bg-emerald-400 opacity-60" />
       )}
       <span className={`transition-transform duration-200 ${isActive ? "scale-110" : ""}`}>
         {icon}

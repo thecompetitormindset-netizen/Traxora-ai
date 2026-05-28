@@ -12,7 +12,7 @@ type Sparkle = {
   color: string;
 };
 
-const COLORS = ["#6366F1", "#818CF8", "#C4B5FD", "#FFFFFF", "#A5B4FC", "#E0E7FF"];
+const COLORS = ["#10B981", "#34D399", "#6EE7B7", "#FFFFFF", "#A7F3D0", "#D1FAE5"];
 
 export default function SparkleBackground({
   count = 50,

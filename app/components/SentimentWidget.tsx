@@ -118,7 +118,7 @@ export default function SentimentWidget() {
       {loading ? (
         <div className="h-24 flex items-center justify-center">
           <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24"
-               fill="none" stroke="#818CF8" strokeWidth="2.5">
+               fill="none" stroke="#34D399" strokeWidth="2.5">
             <path d="M21 12a9 9 0 1 1-6.219-8.56" />
           </svg>
         </div>
@@ -134,8 +134,8 @@ export default function SentimentWidget() {
           {/* Math breakdown */}
           {data.breakdown && (
             <div className="mt-4 flex gap-2">
-              <Bar label="VIX"   weight={data.breakdown.weights.vix}      value={data.breakdown.vixInput}      accent="text-indigo-400" />
-              <Bar label="Trend" weight={data.breakdown.weights.momentum}  value={data.breakdown.momentumInput} accent="text-violet-400" />
+              <Bar label="VIX"   weight={data.breakdown.weights.vix}      value={data.breakdown.vixInput}      accent="text-emerald-400" />
+              <Bar label="Trend" weight={data.breakdown.weights.momentum}  value={data.breakdown.momentumInput} accent="text-teal-400" />
               <Bar label="News"  weight={data.breakdown.weights.news}      value={data.breakdown.newsInput}     accent="text-sky-400"    />
             </div>
           )}
@@ -156,7 +156,7 @@ export default function SentimentWidget() {
               </div>
             ))}
             <Link href="/market-sentiment"
-                  className="ml-auto text-[10px] font-semibold text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1">
+                  className="ml-auto text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
               Full Pulse
               <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/>

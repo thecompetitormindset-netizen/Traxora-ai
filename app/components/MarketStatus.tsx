@@ -22,7 +22,7 @@ function getMarketStatus() {
   if (isWeekend) return { status: "Closed", label: "Weekend", color: "text-[#4B5675]", dot: "bg-[#4B5675]" };
   if (totalMins >= openMins && totalMins < closeMins) return { status: "Open", label: "Market Open", color: "text-emerald-400", dot: "bg-emerald-400 animate-pulse" };
   if (totalMins >= preMarketMins && totalMins < openMins) return { status: "Pre-Market", label: "Pre-Market", color: "text-amber-400", dot: "bg-amber-400" };
-  if (totalMins >= closeMins && totalMins < afterMarketMins) return { status: "After-Hours", label: "After-Hours", color: "text-indigo-400", dot: "bg-indigo-400" };
+  if (totalMins >= closeMins && totalMins < afterMarketMins) return { status: "After-Hours", label: "After-Hours", color: "text-emerald-400", dot: "bg-emerald-400" };
   return { status: "Closed", label: "Market Closed", color: "text-[#4B5675]", dot: "bg-[#4B5675]" };
 }
 

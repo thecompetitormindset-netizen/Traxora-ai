@@ -180,14 +180,14 @@ type Toast = { id: number; type: ToastType; title: string; body?: string };
 let nextId = 0;
 function toastCfg(type: ToastType) {
   switch (type) {
-    case "scan":   return { icon: "🔍", ring: "border-indigo-500/30 bg-indigo-500/10",   title: "text-indigo-300"  };
+    case "scan":   return { icon: "🔍", ring: "border-emerald-500/30 bg-emerald-500/10",   title: "text-emerald-300"  };
     case "buy":    return { icon: "🟢", ring: "border-emerald-500/30 bg-emerald-500/10", title: "text-emerald-300" };
     case "sell":   return { icon: "🔴", ring: "border-rose-500/30 bg-rose-500/10",       title: "text-rose-300"    };
     case "hold":   return { icon: "🟡", ring: "border-amber-500/30 bg-amber-500/10",     title: "text-amber-300"   };
     case "cash":   return { icon: "💰", ring: "border-amber-500/30 bg-amber-500/10",     title: "text-amber-300"   };
     case "error":  return { icon: "⚠️", ring: "border-[#2D3A50] bg-[#0C1017]/80",        title: "text-[#7B8DB4]"   };
-    case "info":   return { icon: "✨", ring: "border-indigo-500/30 bg-indigo-500/10",   title: "text-indigo-300"  };
-    case "signal": return { icon: "⚡", ring: "border-violet-500/30 bg-violet-500/10",   title: "text-violet-300"  };
+    case "info":   return { icon: "✨", ring: "border-emerald-500/30 bg-emerald-500/10",   title: "text-emerald-300"  };
+    case "signal": return { icon: "⚡", ring: "border-teal-500/30 bg-teal-500/10",   title: "text-teal-300"  };
   }
 }
 
@@ -494,7 +494,7 @@ export default function AutoTrader() {
             </div>
             <div className="grid grid-cols-3 border-b border-[#1C2333]">
               {[
-                { label:"Trades",   value: dayTrades.length.toString(),                                                   color:"text-indigo-400"  },
+                { label:"Trades",   value: dayTrades.length.toString(),                                                   color:"text-emerald-400"  },
                 { label:"P&L",      value: `${realizedPL >= 0 ? "+" : ""}$${realizedPL.toFixed(2)}`,                    color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label:"Win Rate", value: winRate != null ? `${winRate}%` : "—",                                         color:"text-amber-400"   },
               ].map(s => (
@@ -505,8 +505,8 @@ export default function AutoTrader() {
               ))}
             </div>
             <div className="px-5 py-2.5 border-b border-[#1C2333] flex items-center justify-between text-[10px]">
-              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-violet-400">⚡</span>{signalTrades} signal trade{signalTrades !== 1 ? "s" : ""}</span>
-              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-indigo-400">🔍</span>{scanTrades} scan trade{scanTrades !== 1 ? "s" : ""}</span>
+              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-teal-400">⚡</span>{signalTrades} signal trade{signalTrades !== 1 ? "s" : ""}</span>
+              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-emerald-400">🔍</span>{scanTrades} scan trade{scanTrades !== 1 ? "s" : ""}</span>
             </div>
             <div className="max-h-72 overflow-y-auto">
               {dayTrades.length === 0 ? (
@@ -525,7 +525,7 @@ export default function AutoTrader() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="font-bold text-[#F1F5F9] text-sm">{clean}</p>
-                          <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-violet-400" : "text-indigo-400"}`}>{t.source === "signal" ? "⚡" : "🔍"}</span>
+                          <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-teal-400" : "text-emerald-400"}`}>{t.source === "signal" ? "⚡" : "🔍"}</span>
                         </div>
                         <p className="text-[10px] text-[#4B5675] font-mono">{t.quantity} × ${t.price.toFixed(2)} · {time}</p>
                       </div>
@@ -557,11 +557,11 @@ export default function AutoTrader() {
             </div>
             <div className="px-4 py-3 space-y-3">
               {active && (
-                <div className="bg-violet-500/5 border border-violet-500/15 rounded-xl px-3 py-2">
-                  <p className="text-[9px] text-violet-400 font-bold uppercase tracking-widest mb-1">Active Modes</p>
+                <div className="bg-teal-500/5 border border-teal-500/15 rounded-xl px-3 py-2">
+                  <p className="text-[9px] text-teal-400 font-bold uppercase tracking-widest mb-1">Active Modes</p>
                   <div className="flex gap-4 text-[10px] text-[#7B8DB4]">
-                    <span className="flex items-center gap-1"><span className="text-violet-400">⚡</span>Signals (instant)</span>
-                    <span className="flex items-center gap-1"><span className="text-indigo-400">🔍</span>All 20 stocks / 5 min</span>
+                    <span className="flex items-center gap-1"><span className="text-teal-400">⚡</span>Signals (instant)</span>
+                    <span className="flex items-center gap-1"><span className="text-emerald-400">🔍</span>All 20 stocks / 5 min</span>
                   </div>
                 </div>
               )}
@@ -593,7 +593,7 @@ export default function AutoTrader() {
                   <p className="text-[9px] font-mono text-[#4B5675]">{countdownStr}</p>
                 </div>
                 <div className="h-1 bg-[#1C2333] rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-1000 ${active ? "bg-indigo-500" : "bg-[#1C2333]"} w-pct-${Math.round(progressPct / 5) * 5}`} />
+                  <div className={`h-full rounded-full transition-all duration-1000 ${active ? "bg-emerald-500" : "bg-[#1C2333]"} w-pct-${Math.round(progressPct / 5) * 5}`} />
                 </div>
               </div>
               <p className="text-[9px] text-[#2D3A50] leading-relaxed pt-1 border-t border-[#1C2333]">Scans all 20 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>

@@ -117,7 +117,7 @@ export default function JournalPage() {
           {entries.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
               {[
-                { label: "Total Trades",  value: entries.length.toString(),                    color: "text-indigo-400" },
+                { label: "Total Trades",  value: entries.length.toString(),                    color: "text-emerald-400" },
                 { label: "Win Rate",      value: sells.length > 0 ? `${winRate}%` : "—",        color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Total P&L",     value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`, color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Avg P&L %",     value: sells.length > 0 ? `${Number(avgPLPct) >= 0 ? "+" : ""}${avgPLPct}%` : "—", color: Number(avgPLPct) >= 0 ? "text-emerald-400" : "text-rose-400" },
@@ -154,7 +154,7 @@ export default function JournalPage() {
             <button
               onClick={getCoaching}
               disabled={reviewing}
-              className="w-full mt-4 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-60 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
+              className="w-full mt-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
             >
               {reviewing ? (
                 <>
@@ -170,7 +170,7 @@ export default function JournalPage() {
 
           {/* Coaching Report */}
           {review && (
-            <div className="mt-4 bg-[#0C1017] border border-indigo-500/30 rounded-2xl p-5 space-y-4">
+            <div className="mt-4 bg-[#0C1017] border border-emerald-500/30 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="font-bold text-base text-[#F1F5F9]">AI Coaching Report</p>
                 <span className={`text-sm font-black px-3 py-1 rounded-lg border ${GRADE_STYLE[review.overallGrade] ?? GRADE_STYLE.C}`}>
@@ -227,15 +227,15 @@ export default function JournalPage() {
 
               {/* Next focus */}
               {review.nextFocusArea && (
-                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
+                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">This Week's Focus</p>
-                  <p className="text-xs text-indigo-300 leading-relaxed">{review.nextFocusArea}</p>
+                  <p className="text-xs text-emerald-300 leading-relaxed">{review.nextFocusArea}</p>
                 </div>
               )}
 
               <button
                 onClick={getCoaching}
-                className="text-xs text-[#4B5675] hover:text-indigo-400 transition-colors"
+                className="text-xs text-[#4B5675] hover:text-emerald-400 transition-colors"
               >
                 Refresh report
               </button>
@@ -325,7 +325,7 @@ export default function JournalPage() {
                       </div>
 
                       {/* AI entry — always shown */}
-                      <div className="border-l-2 border-indigo-500/30 pl-3 mt-3">
+                      <div className="border-l-2 border-emerald-500/30 pl-3 mt-3">
                         <p className="text-xs text-[#7B8DB4] leading-relaxed">{e.entry}</p>
                       </div>
                     </button>
@@ -374,9 +374,9 @@ export default function JournalPage() {
 
                         {/* Lesson */}
                         {e.analysis.lesson && (
-                          <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
+                          <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
                             <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Key Lesson</p>
-                            <p className="text-xs text-indigo-300 leading-relaxed">{e.analysis.lesson}</p>
+                            <p className="text-xs text-emerald-300 leading-relaxed">{e.analysis.lesson}</p>
                           </div>
                         )}
 

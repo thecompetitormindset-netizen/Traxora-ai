@@ -128,7 +128,7 @@ export default function LiveTradingRoom() {
       {(liveTrades.length > 0 || portfolio.holdings.length > 0) && (
         <div className={`grid gap-3 mb-5 ${portfolio.holdings.length > 0 ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3"}`}>
           {[
-            { label: "Trades Today", value: liveTrades.length.toString(),                                   color: "text-indigo-400",  show: true },
+            { label: "Trades Today", value: liveTrades.length.toString(),                                   color: "text-emerald-400",  show: true },
             { label: "Realized P&L", value: `${realizedPL >= 0 ? "+" : ""}$${realizedPL.toFixed(2)}`,     color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400", show: liveTrades.length > 0 },
             { label: "Unrealized",   value: `${unrealizedPL >= 0 ? "+" : ""}$${unrealizedPL.toFixed(2)}`, color: unrealizedPL >= 0 ? "text-emerald-400" : "text-rose-400", show: portfolio.holdings.length > 0 },
             { label: "Win Rate",     value: winRate != null ? `${winRate}%` : "—",                         color: "text-amber-400",   show: liveTrades.length > 0 },
@@ -199,7 +199,7 @@ export default function LiveTradingRoom() {
                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${ACTION_STYLE[actionKey] ?? ACTION_STYLE["no-position"]}`}>
                   {ACTION_LABEL[actionKey] ?? "—"}
                 </span>
-                <span className="text-[9px] text-indigo-400 group-hover:text-indigo-300 transition-colors">→</span>
+                <span className="text-[9px] text-emerald-400 group-hover:text-emerald-300 transition-colors">→</span>
               </div>
             </Link>
           );
@@ -229,7 +229,7 @@ export default function LiveTradingRoom() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-bold text-[#F1F5F9]">{clean}</p>
-                      <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-violet-400" : "text-indigo-400"}`}>
+                      <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-teal-400" : "text-emerald-400"}`}>
                         {t.source === "signal" ? "⚡" : "🔍"}
                       </span>
                     </div>

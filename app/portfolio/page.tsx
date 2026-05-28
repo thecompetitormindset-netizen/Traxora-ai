@@ -113,7 +113,7 @@ export default function PortfolioPage() {
           <div className="grid grid-cols-2 xl:grid-cols-4 gap-4 mt-6">
             {[
               { label: "Cash Balance",    value: `$${portfolio.cash.toFixed(2)}`,                                              color: "text-emerald-400", sub: `${totalShares} share${totalShares !== 1 ? "s" : ""} held` },
-              { label: "Account Value",   value: `$${totalAccountValue.toFixed(2)}`,                                           color: "text-violet-400",  sub: "at live market price" },
+              { label: "Account Value",   value: `$${totalAccountValue.toFixed(2)}`,                                           color: "text-teal-400",  sub: "at live market price" },
               { label: "Total P / L",     value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`,                          color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400", sub: "realized + unrealized" },
               { label: "Unrealized P&L",  value: `${unrealizedPL >= 0 ? "+" : ""}$${unrealizedPL.toFixed(2)}`,               color: unrealizedPL >= 0 ? "text-emerald-400" : "text-rose-400", sub: "open positions, live" },
             ].map((s) => (
@@ -224,7 +224,7 @@ export default function PortfolioPage() {
                       const pos = upl === null ? null : upl >= 0;
                       return (
                         <tr key={h.symbol} className="border-b border-[#1C2333] last:border-0">
-                          <td className="px-1 py-4 font-bold text-indigo-400">{h.symbol.replace(".US","").replace(".COMM","")}</td>
+                          <td className="px-1 py-4 font-bold text-emerald-400">{h.symbol.replace(".US","").replace(".COMM","")}</td>
                           <td className="px-1 py-4 font-mono text-[#7B8DB4]">{h.quantity}</td>
                           <td className="px-1 py-4 font-mono text-[#7B8DB4]">${h.avgPrice.toFixed(2)}</td>
                           <td className={`px-1 py-4 font-mono ${pos === null ? "text-[#4B5675] animate-pulse" : pos ? "text-emerald-400" : "text-rose-400"}`}>

@@ -60,7 +60,7 @@ export default function Chart({ symbol }: ChartProps) {
         }
 
         const series = chart.addSeries(LineSeries, {
-          color: "#6366F1",
+          color: "#10B981",
           lineWidth: 2,
         });
 

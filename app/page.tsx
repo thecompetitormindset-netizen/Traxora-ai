@@ -79,12 +79,12 @@ function OteDiagram() {
       <polyline points="15,78 55,10" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
       <line x1="55" y1="10" x2="140" y2="10" stroke="#94A3B8" strokeWidth="0.5" strokeDasharray="2 2"/>
       <line x1="55" y1="78" x2="140" y2="78" stroke="#94A3B8" strokeWidth="0.5" strokeDasharray="2 2"/>
-      <rect x="55" y="38" width="85" height="8" fill="#6366F1" fillOpacity="0.2" rx="1"/>
-      <line x1="55" y1="38" x2="140" y2="38" stroke="#6366F1" strokeWidth="0.6" strokeDasharray="2 2"/>
-      <line x1="55" y1="46" x2="140" y2="46" stroke="#6366F1" strokeWidth="0.6" strokeDasharray="2 2"/>
-      <text x="8" y="41" fill="#6366F1" fontSize="6.5">61.8</text>
-      <text x="8" y="49" fill="#6366F1" fontSize="6.5">78.6</text>
-      <text x="100" y="44" fill="#818CF8" fontSize="7" fontWeight="bold">OTE</text>
+      <rect x="55" y="38" width="85" height="8" fill="#10B981" fillOpacity="0.2" rx="1"/>
+      <line x1="55" y1="38" x2="140" y2="38" stroke="#10B981" strokeWidth="0.6" strokeDasharray="2 2"/>
+      <line x1="55" y1="46" x2="140" y2="46" stroke="#10B981" strokeWidth="0.6" strokeDasharray="2 2"/>
+      <text x="8" y="41" fill="#10B981" fontSize="6.5">61.8</text>
+      <text x="8" y="49" fill="#10B981" fontSize="6.5">78.6</text>
+      <text x="100" y="44" fill="#34D399" fontSize="7" fontWeight="bold">OTE</text>
       <polyline points="55,10 80,42 95,42 130,5" stroke="#10B981" strokeWidth="1.5" fill="none"/>
     </svg>
   );
@@ -93,9 +93,9 @@ function KzDiagram() {
   return (
     <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
       <line x1="10" y1="75" x2="155" y2="75" stroke="#4B5675" strokeWidth="0.8"/>
-      <rect x="38" y="20" width="30" height="55" fill="#6366F1" fillOpacity="0.12" rx="2"/>
-      <text x="42" y="17" fill="#818CF8" fontSize="6.5" fontWeight="bold">London</text>
-      <polyline points="38,53 46,40 52,28 62,35 68,22" stroke="#6366F1" strokeWidth="1.5" fill="none"/>
+      <rect x="38" y="20" width="30" height="55" fill="#10B981" fillOpacity="0.12" rx="2"/>
+      <text x="42" y="17" fill="#34D399" fontSize="6.5" fontWeight="bold">London</text>
+      <polyline points="38,53 46,40 52,28 62,35 68,22" stroke="#10B981" strokeWidth="1.5" fill="none"/>
       <rect x="90" y="20" width="30" height="55" fill="#10B981" fillOpacity="0.12" rx="2"/>
       <text x="97" y="17" fill="#10B981" fontSize="6.5" fontWeight="bold">NY</text>
       <polyline points="90,45 98,30 106,20 112,28 118,15" stroke="#10B981" strokeWidth="1.5" fill="none"/>
@@ -105,11 +105,11 @@ function KzDiagram() {
 }
 
 const CONCEPTS = [
-  { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-purple-950 to-indigo-950",  accent:"text-purple-400", border:"border-purple-500/20",  tagBg:"bg-purple-500/10 border-purple-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"ICT Order Blocks tutorial" },
+  { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-teal-950 to-emerald-950",  accent:"text-teal-400", border:"border-teal-500/20",  tagBg:"bg-teal-500/10 border-teal-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"ICT Order Blocks tutorial" },
   { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-emerald-950 to-cyan-950",      accent:"text-emerald-400",   border:"border-emerald-500/20",    tagBg:"bg-emerald-500/10 border-emerald-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"ICT Fair Value Gap FVG explained" },
   { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"ICT Liquidity sweep stop hunt tutorial" },
   { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"ICT Market Structure Shift CHoCH BOS" },
-  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-violet-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"ICT Optimal Trade Entry OTE Fibonacci" },
+  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-teal-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"ICT Optimal Trade Entry OTE Fibonacci" },
   { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (7–10 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"ICT Kill Zones London New York session" },
 ];
 
@@ -264,7 +264,7 @@ export default function HomePage() {
         {/* Background glows */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-emerald-600/8 rounded-full blur-3xl animate-pulse" />
-          <div className="absolute top-1/3 left-1/3 w-[400px] h-[200px] bg-violet-600/5 rounded-full blur-3xl" />
+          <div className="absolute top-1/3 left-1/3 w-[400px] h-[200px] bg-teal-600/5 rounded-full blur-3xl" />
           <div className="absolute top-1/2 right-1/4 w-[300px] h-[200px] bg-cyan-600/4 rounded-full blur-3xl" />
         </div>
 
@@ -284,7 +284,7 @@ export default function HomePage() {
               {hero.top}
             </span>
             <span
-              className="block bg-gradient-to-r from-emerald-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent transition-all duration-400"
+              className="block bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent transition-all duration-400"
               style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? "translateY(0)" : "translateY(8px)" }}
             >
               {hero.bottom}
@@ -383,7 +383,7 @@ export default function HomePage() {
             {[
               { value:"6",        label:"ICT Smart Money concepts analyzed on every ticker",         color:"text-emerald-400",  glow:"shadow-emerald-500/20" },
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
-              { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-violet-400",  glow:"shadow-violet-500/20" },
+              { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",  glow:"shadow-teal-500/20" },
               { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
               { value:"$10K",     label:"Paper trading simulator — practice risk-free",              color:"text-amber-400",   glow:"shadow-amber-500/20"  },
               { value:"Free",     label:"No subscription, no hidden fees",                          color:"text-rose-400",    glow:"shadow-rose-500/20"   },
@@ -400,7 +400,7 @@ export default function HomePage() {
       {/* ══ ROTATING QUOTE ══ */}
       <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0A0F1E]/40">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-violet-600/3" />
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-teal-600/3" />
         </div>
         <div className="relative z-10 max-w-2xl mx-auto text-center">
           <div className="min-h-[100px] flex flex-col items-center justify-center">
@@ -465,7 +465,7 @@ export default function HomePage() {
         {/* Step 2 */}
         <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
           <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Step 02 · Read Your Signal</p>
+            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-3">Step 02 · Read Your Signal</p>
             <h3 className="text-2xl font-black mb-4">AI analyses 6 ICT concepts — one clear answer</h3>
             <p className="text-[#7B8DB4] leading-relaxed">
               Tap <strong className="text-[#F1F5F9]">&ldquo;Analyze&rdquo;</strong>. Claude Opus 4.7 checks Order Blocks, FVGs, Liquidity sweeps, Market Structure, OTE zones, and Kill Zone timing — then returns a BUY / HOLD / SELL with the full reasoning behind it.
@@ -720,7 +720,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
               { icon:"🧠", title:"Institutional-grade analysis", desc:"Order Blocks, FVGs, Liquidity sweeps — what hedge funds use. Now free.", color:"border-emerald-500/20" },
-              { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-violet-500/20" },
+              { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-teal-500/20" },
               { icon:"🔒", title:"Practice before you risk money", desc:"$10K paper simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
             ].map((c) => (
               <div key={c.title} className={`bg-[#0D1429]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>

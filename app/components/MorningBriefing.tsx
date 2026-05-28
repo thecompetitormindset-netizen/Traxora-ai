@@ -147,7 +147,7 @@ function riskCls(r: string) {
   if (r === "Low")      return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
   if (r === "Medium")   return "bg-amber-500/10  text-amber-400  border-amber-500/20";
   if (r === "High")     return "bg-rose-500/10   text-rose-400   border-rose-500/20";
-  return "bg-purple-500/10 text-purple-400 border-purple-500/20";
+  return "bg-teal-500/10 text-teal-400 border-teal-500/20";
 }
 function trendIcon(t: string) {
   if (t === "Bullish") return "↑";
@@ -208,7 +208,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
         className="w-full text-left px-4 py-3 flex items-start gap-3 hover:bg-[#0D1420] transition-colors"
       >
         {/* Rank badge */}
-        <span className="w-6 h-6 rounded-full bg-indigo-500/15 border border-indigo-500/25 text-[10px] font-black text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+        <span className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-[10px] font-black text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
           {opp.rank}
         </span>
 
@@ -248,8 +248,8 @@ function OppCard({ opp }: { opp: Opportunity }) {
         <div className="px-4 pb-4 border-t border-[#1C2333] space-y-4 pt-3">
 
           {/* ICT Setup */}
-          <div className="bg-indigo-500/5 border border-indigo-500/15 rounded-xl p-3">
-            <p className="text-[8px] font-black text-indigo-400 uppercase tracking-widest mb-1">ICT Setup</p>
+          <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
+            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">ICT Setup</p>
             <p className="text-xs text-[#CBD5E1] leading-relaxed">{opp.ictSetup}</p>
           </div>
 
@@ -289,8 +289,8 @@ function OppCard({ opp }: { opp: Opportunity }) {
 
           {/* Options play */}
           {opp.optionsPlay && (
-            <div className="bg-purple-500/5 border border-purple-500/15 rounded-xl p-3">
-              <p className="text-[8px] font-black text-purple-400 uppercase tracking-widest mb-1">Options Play</p>
+            <div className="bg-teal-500/5 border border-teal-500/15 rounded-xl p-3">
+              <p className="text-[8px] font-black text-teal-400 uppercase tracking-widest mb-1">Options Play</p>
               <p className="text-xs text-[#CBD5E1] leading-relaxed">{opp.optionsPlay}</p>
             </div>
           )}
@@ -314,7 +314,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
               <ul className="space-y-1">
                 {(opp.facts ?? []).map((f, i) => (
                   <li key={i} className="text-[9px] text-[#7B8DB4] leading-relaxed flex gap-1.5">
-                    <span className="text-indigo-400 shrink-0">•</span>{f}
+                    <span className="text-emerald-400 shrink-0">•</span>{f}
                   </li>
                 ))}
               </ul>
@@ -551,7 +551,7 @@ export default function MorningBriefing() {
               ))}
             </div>
             <div className="flex items-center gap-2 mt-2">
-              <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818CF8" strokeWidth="2.5">
+              <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
               <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments using institutional ICT framework…</p>
@@ -574,7 +574,7 @@ export default function MorningBriefing() {
             <button
               type="button"
               onClick={() => fetchBriefing(true)}
-              className="bg-indigo-600 hover:bg-indigo-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold mx-auto block"
+              className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold mx-auto block"
             >
               Retry →
             </button>
@@ -593,7 +593,7 @@ export default function MorningBriefing() {
                   onClick={() => setTab(t.id)}
                   className={`px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-colors ${
                     tab === t.id
-                      ? "text-indigo-400 border-b-2 border-indigo-500"
+                      ? "text-emerald-400 border-b-2 border-emerald-500"
                       : "text-[#4B5675] hover:text-[#7B8DB4]"
                   }`}
                 >
@@ -629,7 +629,7 @@ export default function MorningBriefing() {
                 <div className="px-6 pt-5">
                   <SectionHead label="ICT Smart Money Analysis" icon="🎯" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                    <div className="bg-[#060A14] border border-indigo-500/20 rounded-xl p-3">
+                    <div className="bg-[#060A14] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Market Bias</p>
                       <p className={`text-sm font-black ${biasCls}`}>{ict?.bias}</p>
                     </div>
@@ -639,7 +639,7 @@ export default function MorningBriefing() {
                     </div>
                     <div className="bg-[#060A14] border border-[#1C2333] rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">MM Phase</p>
-                      <p className="text-xs font-bold text-purple-400">{ict?.marketMakerModel}</p>
+                      <p className="text-xs font-bold text-teal-400">{ict?.marketMakerModel}</p>
                     </div>
                     <div className="bg-[#060A14] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-emerald-400 uppercase tracking-widest mb-1">BSL (Liq. Above)</p>
@@ -659,7 +659,7 @@ export default function MorningBriefing() {
                   <div className="space-y-2">
                     {ict?.keyFVG && (
                       <div className="flex items-start gap-2 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2">
-                        <span className="text-[8px] font-black text-indigo-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">FVG</span>
+                        <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">FVG</span>
                         <p className="text-[10px] text-[#CBD5E1]">{ict.keyFVG}</p>
                       </div>
                     )}
@@ -670,8 +670,8 @@ export default function MorningBriefing() {
                       </div>
                     )}
                     {ict?.smtDivergence && (
-                      <div className="flex items-start gap-2 bg-[#060A14] border border-purple-500/20 rounded-xl px-3 py-2">
-                        <span className="text-[8px] font-black text-purple-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">SMT</span>
+                      <div className="flex items-start gap-2 bg-[#060A14] border border-teal-500/20 rounded-xl px-3 py-2">
+                        <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">SMT</span>
                         <p className="text-[10px] text-[#CBD5E1]">{ict.smtDivergence}</p>
                       </div>
                     )}
@@ -780,7 +780,7 @@ export default function MorningBriefing() {
                           </div>
                           {"fvg" in lv && lv.fvg && (
                             <div className="col-span-2">
-                              <span className="text-[8px] text-indigo-400 uppercase tracking-widest">FVG · </span>
+                              <span className="text-[8px] text-emerald-400 uppercase tracking-widest">FVG · </span>
                               <span className="text-[9px] text-[#7B8DB4]">{lv.fvg}</span>
                             </div>
                           )}
@@ -835,7 +835,7 @@ export default function MorningBriefing() {
           <button
             type="button"
             onClick={close}
-            className="bg-indigo-600 hover:bg-indigo-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold"
+            className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2 rounded-xl text-xs font-bold"
           >
             Start Trading →
           </button>

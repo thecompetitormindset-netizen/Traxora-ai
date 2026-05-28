@@ -117,12 +117,12 @@ export default function ProfitLossPage() {
             {/* Live price-age indicator */}
             <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-mono transition-colors ${
               fetching
-                ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
                 : ageMs < 3_000
                 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                 : "bg-[#0C1017] border-[#1C2333] text-[#4B5675]"
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${fetching ? "bg-indigo-400 animate-pulse" : ageMs < 3_000 ? "bg-emerald-400" : "bg-[#4B5675]"}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${fetching ? "bg-emerald-400 animate-pulse" : ageMs < 3_000 ? "bg-emerald-400" : "bg-[#4B5675]"}`} />
               {fetching
                 ? "updating prices…"
                 : hasPos
@@ -179,7 +179,7 @@ export default function ProfitLossPage() {
               {
                 label: "Portfolio Value",
                 value: `$${totalValue.toFixed(2)}`,
-                color: "text-indigo-400",
+                color: "text-emerald-400",
                 sub: "at live market price",
               },
               {
@@ -240,7 +240,7 @@ export default function ProfitLossPage() {
                       return (
                         <tr key={h.symbol} className="border-b border-[#1C2333] last:border-0 hover:bg-white/[0.02] transition-colors">
                           <td className="px-4 py-4">
-                            <span className="font-bold text-indigo-400">{clean}</span>
+                            <span className="font-bold text-emerald-400">{clean}</span>
                             {h.stopLoss && (
                               <span className="ml-2 text-[9px] text-rose-400 font-mono">SL ${h.stopLoss.toFixed(2)}</span>
                             )}

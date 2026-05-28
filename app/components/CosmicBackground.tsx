@@ -43,17 +43,17 @@ export default function CosmicBackground() {
       {/* Base canvas */}
       <div className="absolute inset-0 bg-[#060A14]" />
 
-      {/* Nebula orb A — indigo, top-left */}
-      <div className="absolute -top-40 -left-20 w-[700px] h-[500px] rounded-full bg-indigo-600/[0.09] blur-[160px] animate-float-a" />
+      {/* Nebula orb A — emerald, top-left */}
+      <div className="absolute -top-40 -left-20 w-[700px] h-[500px] rounded-full bg-emerald-600/[0.09] blur-[160px] animate-float-a" />
 
-      {/* Nebula orb B — violet, right */}
-      <div className="absolute top-[40%] -right-32 w-[600px] h-[600px] rounded-full bg-violet-600/[0.07] blur-[140px] animate-float-b" />
+      {/* Nebula orb B — teal, right */}
+      <div className="absolute top-[40%] -right-32 w-[600px] h-[600px] rounded-full bg-teal-600/[0.07] blur-[140px] animate-float-b" />
 
       {/* Nebula orb C — cyan, bottom-center */}
       <div className="absolute -bottom-32 left-[30%] w-[500px] h-[400px] rounded-full bg-cyan-600/[0.06] blur-[120px] animate-float-a [animation-delay:-14s]" />
 
-      {/* Nebula orb D — purple, center */}
-      <div className="absolute top-[20%] left-[50%] w-[350px] h-[350px] rounded-full bg-purple-600/[0.05] blur-[100px] animate-float-b [animation-delay:-8s]" />
+      {/* Nebula orb D — teal, center */}
+      <div className="absolute top-[20%] left-[50%] w-[350px] h-[350px] rounded-full bg-teal-600/[0.05] blur-[100px] animate-float-b [animation-delay:-8s]" />
 
       {/* Nebula orb E — blue, bottom-left */}
       <div className="absolute bottom-[25%] -left-16 w-[300px] h-[300px] rounded-full bg-blue-600/[0.05] blur-[90px] animate-float-a [animation-delay:-5s]" />

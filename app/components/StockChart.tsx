@@ -88,7 +88,7 @@ export default function StockChart({
                 onClick={() => setInterval(iv.value)}
                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all ${
                   interval === iv.value
-                    ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                     : "text-[#4B5675] hover:text-[#94A3B8] hover:bg-white/[0.04]"
                 }`}
               >

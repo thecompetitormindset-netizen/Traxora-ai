@@ -62,10 +62,10 @@ function Row({
   );
 }
 
-function Badge({ children, color = "default" }: { children: React.ReactNode; color?: "green" | "indigo" | "amber" | "default" }) {
+function Badge({ children, color = "default" }: { children: React.ReactNode; color?: "green" | "emerald" | "amber" | "default" }) {
   const styles = {
     green:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-    indigo:  "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
+    emerald:  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     amber:   "bg-amber-500/10 text-amber-400 border-amber-500/20",
     default: "bg-[#111827] text-[#7B8DB4] border-[#1C2333]",
   };
@@ -254,7 +254,7 @@ export default function SettingsPage() {
                     {session.user.image ? (
                       <img src={session.user.image} alt="Avatar" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                     ) : (
-                      <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-lg font-bold shrink-0">
+                      <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-lg font-bold shrink-0">
                         {session.user.name?.[0] ?? "U"}
                       </div>
                     )}
@@ -313,7 +313,7 @@ export default function SettingsPage() {
                   ) : notifPermission === "unsupported" ? (
                     <Badge>Unsupported</Badge>
                   ) : (
-                    <Badge color="indigo">Off</Badge>
+                    <Badge color="emerald">Off</Badge>
                   )
                 }
                 onClick={notifPermission === "default" ? enableNotifications : undefined}
@@ -344,14 +344,14 @@ export default function SettingsPage() {
             <Section title="Daily Morning Brief">
               <div className="px-5 py-5 border-b border-[#1C2333]">
                 <div className="flex items-start gap-3 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0 text-base">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-base">
                     🌅
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#F1F5F9] text-sm">Daily email brief</p>
                     <p className="text-xs text-[#4B5675] mt-0.5">
                       Top 10 ICT opportunities delivered to your Google account email every weekday at{" "}
-                      <span className="text-indigo-400 font-medium">7:30 AM Mountain Time</span>
+                      <span className="text-emerald-400 font-medium">7:30 AM Mountain Time</span>
                     </p>
                   </div>
                   {subscribed && <Badge color="green">Active</Badge>}
@@ -379,7 +379,7 @@ export default function SettingsPage() {
                       type="button"
                       onClick={subscribe}
                       disabled={subscribing}
-                      className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
+                      className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
                     >
                       {subscribing ? "Subscribing…" : "Subscribe"}
                     </button>
@@ -389,7 +389,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={sendTestEmail}
                         disabled={testStatus === "sending"}
-                        className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
+                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
                       >
                         {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "✓ Email sent!" : "Send Daily Email"}
                       </button>
@@ -417,7 +417,7 @@ export default function SettingsPage() {
                 icon={<span className="text-base">📱</span>}
                 label="Add to home screen"
                 sublabel="iPhone: Share → Add to Home Screen · Android: browser menu → Install App"
-                value={<Badge color="indigo">PWA</Badge>}
+                value={<Badge color="emerald">PWA</Badge>}
               />
               <Row
                 icon={<span className="text-base">🤖</span>}
@@ -465,7 +465,7 @@ export default function SettingsPage() {
                 }
                 label="AI model"
                 sublabel="Signals powered by Claude Opus 4.7 with ICT Smart Money"
-                value={<Badge color="indigo">Opus 4.7</Badge>}
+                value={<Badge color="emerald">Opus 4.7</Badge>}
               />
             </Section>
 
@@ -535,7 +535,7 @@ export default function SettingsPage() {
                       value={alpacaKey}
                       onChange={(e) => setAlpacaKey(e.target.value)}
                       placeholder="PKXXXXXXXXXXXXXXXX"
-                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-indigo-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
+                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
                     />
                   </div>
                   <div>
@@ -545,13 +545,13 @@ export default function SettingsPage() {
                       value={alpacaSecret}
                       onChange={(e) => setAlpacaSecret(e.target.value)}
                       placeholder="••••••••••••••••••••••••••••••••"
-                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-indigo-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
+                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
                     />
                   </div>
                   <label className="flex items-center gap-3 cursor-pointer select-none">
                     <div
                       onClick={() => setAlpacaPaper(!alpacaPaper)}
-                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${alpacaPaper ? "bg-indigo-600" : "bg-[#1C2333]"}`}
+                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${alpacaPaper ? "bg-emerald-600" : "bg-[#1C2333]"}`}
                     >
                       <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${alpacaPaper ? "left-5" : "left-0.5"}`} />
                     </div>

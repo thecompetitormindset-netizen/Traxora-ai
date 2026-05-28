@@ -24,10 +24,10 @@ const BOTS = [
     name: "Delta",
     style: "Balanced",
     desc: "Buys on Medium+ confidence signals, 12% of cash per trade. Mirrors AutoTrader.",
-    color: "text-indigo-400",
-    border: "border-indigo-500/20",
-    bg: "bg-indigo-500/5",
-    dot: "bg-indigo-400",
+    color: "text-emerald-400",
+    border: "border-emerald-500/20",
+    bg: "bg-emerald-500/5",
+    dot: "bg-emerald-400",
   },
   {
     id: "vera",
@@ -152,7 +152,7 @@ export default function CompetePage() {
                 return (
                   <div
                     key={isUser ? "user" : bot!.id}
-                    className={`flex items-center gap-4 px-5 py-4 ${isUser ? "bg-indigo-500/5" : ""}`}
+                    className={`flex items-center gap-4 px-5 py-4 ${isUser ? "bg-emerald-500/5" : ""}`}
                   >
                     {/* Rank */}
                     <span className={`text-lg font-black font-mono w-7 shrink-0 ${
@@ -164,7 +164,7 @@ export default function CompetePage() {
                     {/* Avatar */}
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                       isUser
-                        ? "bg-indigo-600"
+                        ? "bg-emerald-600"
                         : `${bot!.bg} border ${bot!.border}`
                     }`}>
                       {isUser
@@ -181,7 +181,7 @@ export default function CompetePage() {
                         </p>
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-lg border ${
                           isUser
-                            ? "text-indigo-400 bg-indigo-500/10 border-indigo-500/20"
+                            ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
                             : `${bot!.color} ${bot!.bg} ${bot!.border}`
                         }`}>
                           {isUser ? "Manual + Auto" : bot!.style}
@@ -307,14 +307,14 @@ export default function CompetePage() {
             <p className="text-xs font-semibold text-[#F1F5F9] mb-3">How the rival bots work</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-[10px] text-[#4B5675] leading-relaxed">
               <p><span className="text-rose-400 font-semibold">Apex (Aggressive)</span> — Trades on any signal regardless of confidence. Uses 20% of cash per buy. Highest potential upside, highest drawdown risk.</p>
-              <p><span className="text-indigo-400 font-semibold">Delta (Balanced)</span> — Only trades Medium or High confidence signals. Uses 12% of cash. Mirrors your AutoTrader settings.</p>
+              <p><span className="text-emerald-400 font-semibold">Delta (Balanced)</span> — Only trades Medium or High confidence signals. Uses 12% of cash. Mirrors your AutoTrader settings.</p>
               <p><span className="text-emerald-400 font-semibold">Vera (Conservative)</span> — Only trades High confidence signals. Uses 8% of cash. Slowest growth but smallest drawdowns.</p>
             </div>
             <p className="text-[10px] text-[#2D3A50] mt-4">Bots execute trades automatically every time AutoTrader scans. They share the same signals but apply different risk rules. Enable AutoTrader to start the competition.</p>
           </div>
 
           <div className="mt-4 text-center">
-            <Link href="/dashboard" className="text-xs text-indigo-400 hover:underline">
+            <Link href="/dashboard" className="text-xs text-emerald-400 hover:underline">
               ← Go to Dashboard and enable AutoTrader to start competing
             </Link>
           </div>

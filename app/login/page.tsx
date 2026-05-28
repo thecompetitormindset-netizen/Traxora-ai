@@ -37,7 +37,7 @@ function LoginContent() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/25">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/25">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
               <polyline points="16 7 22 7 22 13" />
@@ -81,7 +81,7 @@ function LoginContent() {
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 transition-colors text-white font-semibold py-3 px-5 rounded-xl text-sm"
+            className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors text-white font-semibold py-3 px-5 rounded-xl text-sm"
           >
             Sign in with Google →
           </button>

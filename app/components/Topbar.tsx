@@ -82,7 +82,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
     <div className="h-[68px] flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 sm:px-6 shrink-0 relative bg-[#060A14]/70 backdrop-blur-xl sticky top-0 z-30">
       {/* Logo — links back to landing page */}
       <Link href="/" className="flex items-center gap-2 shrink-0 group">
-        <div className="w-7 h-7 rounded-lg bg-indigo-600 group-hover:bg-indigo-500 transition-colors flex items-center justify-center">
+        <div className="w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
             <polyline points="16 7 22 7 22 13"/>
@@ -93,7 +93,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
       {/* Search */}
       <div className="flex-1 max-w-xl relative">
-        <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] rounded-xl px-4 py-2.5 transition-colors focus-within:border-indigo-500/50 focus-within:bg-[#060A14]">
+        <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] rounded-xl px-4 py-2.5 transition-colors focus-within:border-emerald-500/50 focus-within:bg-[#060A14]">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
@@ -157,7 +157,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           {alertCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
               {alertCount > 99 ? "99+" : alertCount}
             </span>
           )}
@@ -174,7 +174,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
                   className="w-7 h-7 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
                   {session.user.name?.[0] ?? "U"}
                 </div>
               )}
@@ -199,7 +199,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="bg-indigo-600 hover:bg-indigo-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white"
+            className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white"
           >
             Sign in
           </button>

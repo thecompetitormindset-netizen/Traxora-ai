@@ -118,7 +118,7 @@ export default function HistoryPage() {
                   type="button"
                   onClick={() => setView(v)}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                    view === v ? "bg-indigo-600 text-white" : "text-[#4B5675] hover:text-[#7B8DB4]"
+                    view === v ? "bg-emerald-600 text-white" : "text-[#4B5675] hover:text-[#7B8DB4]"
                   }`}
                 >
                   {v === "roundtrip" ? "Round Trips" : "All Trades"}
@@ -130,8 +130,8 @@ export default function HistoryPage() {
           {/* Stats strip */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
-              { label: "Total Trades",     value: trades.length.toString(),                       color: "text-indigo-400" },
-              { label: "Completed Pairs",  value: roundTrips.length.toString(),                    color: "text-indigo-400" },
+              { label: "Total Trades",     value: trades.length.toString(),                       color: "text-emerald-400" },
+              { label: "Completed Pairs",  value: roundTrips.length.toString(),                    color: "text-emerald-400" },
               { label: "Win Rate",         value: roundTrips.length ? `${winRate}%` : "—",          color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
               { label: "Realised P&L",     value: roundTrips.length ? `${totalPL >= 0 ? "+" : ""}$${fmt(totalPL)}` : "—", color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(s => (
@@ -294,9 +294,9 @@ export default function HistoryPage() {
 
                             {/* Lesson */}
                             {rt.sellEntry.analysis.lesson && (
-                              <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
+                              <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
                                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Key Lesson</p>
-                                <p className="text-xs text-indigo-300 leading-relaxed">{rt.sellEntry.analysis.lesson}</p>
+                                <p className="text-xs text-emerald-300 leading-relaxed">{rt.sellEntry.analysis.lesson}</p>
                               </div>
                             )}
                           </>
