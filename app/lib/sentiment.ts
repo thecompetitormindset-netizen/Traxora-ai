@@ -75,6 +75,9 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2): Promise<T> {
 
 // ── Core callClaude helper ─────────────────────────────────────────────────
 // Routes to the correct model, logs cost, handles failures gracefully.
+// Hard timeout: 25s so callers never hang past Vercel's function limit.
+
+const CALL_TIMEOUT_MS = 25_000;
 
 export async function callClaude(
   task: TaskKey,
@@ -89,14 +92,19 @@ export async function callClaude(
   const client = new Anthropic({ apiKey });
 
   try {
-    const resp = await withRetry(() =>
-      client.messages.create({
-        model,
-        max_tokens: maxTokens,
-        system,
-        messages: [{ role: "user", content: userContent }],
-      }),
-    );
+    const resp = await Promise.race([
+      withRetry(() =>
+        client.messages.create({
+          model,
+          max_tokens: maxTokens,
+          system,
+          messages: [{ role: "user", content: userContent }],
+        }),
+      ),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("claude_timeout")), CALL_TIMEOUT_MS)
+      ),
+    ]);
 
     const text = resp.content.find(b => b.type === "text")?.text ?? "";
 
