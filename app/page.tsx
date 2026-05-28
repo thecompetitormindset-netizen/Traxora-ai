@@ -223,7 +223,7 @@ export default function HomePage() {
     <div className="min-h-screen text-[#F1F5F9] flex flex-col overflow-hidden">
 
       {/* ══ NAV ══ */}
-      <nav className="relative z-20 border-b border-[#1C2333]/60 px-6 sm:px-8 h-16 flex items-center justify-between backdrop-blur-sm bg-[#060A14]/80 sticky top-0">
+      <nav className="relative z-20 border-b border-[#1E2D4A]/60 px-6 sm:px-8 h-16 flex items-center justify-between backdrop-blur-sm bg-[#0A0F1E]/80 sticky top-0">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -243,7 +243,7 @@ export default function HomePage() {
       </nav>
 
       {/* ══ TICKER BAR ══ */}
-      <div className="border-b border-[#1C2333]/60 bg-[#060A14]/60 overflow-hidden py-2 relative">
+      <div className="border-b border-[#1E2D4A]/60 bg-[#0A0F1E]/60 overflow-hidden py-2 relative">
         <div
           className="flex gap-0 whitespace-nowrap"
           style={{ transform: `translateX(-${tickOffset}px)`, transition: "transform 0.03s linear" }}
@@ -253,7 +253,7 @@ export default function HomePage() {
               <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
               <span className="text-[#F1F5F9]">{t.price}</span>
               <span className={t.up ? "text-emerald-400" : "text-rose-400"}>{t.chg}</span>
-              <span className="text-[#1C2333]">|</span>
+              <span className="text-[#1E2D4A]">|</span>
             </span>
           ))}
         </div>
@@ -303,7 +303,7 @@ export default function HomePage() {
             <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
               Open Dashboard →
             </Link>
-            <Link href="/explore" className="border border-[#1C2333] bg-[#0C1017]/60 hover:border-[#2D3A50] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
+            <Link href="/explore" className="border border-[#1E2D4A] bg-[#0D1429]/60 hover:border-[#2B3E64] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
               Browse Markets
             </Link>
           </div>
@@ -312,10 +312,10 @@ export default function HomePage() {
         {/* Floating signal card — animates between different signals */}
         <div className="relative z-10 mt-16 w-full max-w-sm mx-auto">
           <div
-            className={`bg-[#0C1017] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl transition-all duration-350`}
+            className={`bg-[#0D1429] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl transition-all duration-350`}
             style={{ opacity: signalFade ? 1 : 0, transform: signalFade ? "translateY(0) scale(1)" : "translateY(4px) scale(0.99)" }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1C2333]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1E2D4A]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <p className="font-bold text-sm text-[#F1F5F9]">{signal.sym}</p>
@@ -344,7 +344,7 @@ export default function HomePage() {
               <p className="text-[10px] font-mono text-[#F1F5F9]">{signal.price}</p>
             </div>
           </div>
-          <p className="text-[10px] text-[#2D3A50] text-center mt-2">Live AI analysis · Updates every few seconds</p>
+          <p className="text-[10px] text-[#2B3E64] text-center mt-2">Live AI analysis · Updates every few seconds</p>
         </div>
       </section>
 
@@ -373,7 +373,7 @@ export default function HomePage() {
               <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
                 Start Free →
               </Link>
-              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2D3A50]">
+              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2B3E64]">
                 Read the Guide →
               </Link>
             </div>
@@ -388,7 +388,7 @@ export default function HomePage() {
               { value:"$10K",     label:"Paper trading simulator — practice risk-free",              color:"text-amber-400",   glow:"shadow-amber-500/20"  },
               { value:"Free",     label:"No subscription, no hidden fees",                          color:"text-rose-400",    glow:"shadow-rose-500/20"   },
             ].map((s) => (
-              <div key={s.label} className={`bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-4 hover:border-[#2D3A50] transition-all hover:shadow-lg ${s.glow}`}>
+              <div key={s.label} className={`bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-4 hover:border-[#2B3E64] transition-all hover:shadow-lg ${s.glow}`}>
                 <p className={`text-2xl font-black mb-1 ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-[#4B5675] leading-relaxed">{s.label}</p>
               </div>
@@ -398,7 +398,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ ROTATING QUOTE ══ */}
-      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#060A14]/40">
+      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0A0F1E]/40">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-violet-600/3" />
         </div>
@@ -412,7 +412,7 @@ export default function HomePage() {
           </div>
           <div className="flex justify-center gap-2 mt-6">
             {QUOTES.map((_, i) => (
-              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#2D3A50]"}`} />
+              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#2B3E64]"}`} />
             ))}
           </div>
         </div>
@@ -434,7 +434,7 @@ export default function HomePage() {
               Type any ticker — <strong className="text-[#F1F5F9]">AAPL, NVDA, TSLA</strong> for stocks, or <strong className="text-[#F1F5F9]">ES, NQ, GC</strong> for futures. Or browse the 20+ symbol watchlist on the Dashboard with live prices and color-coded signals.
             </p>
           </div>
-          <div className="md:w-1/2 bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-6">
+          <div className="md:w-1/2 bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-6">
             <p className="text-xs text-[#4B5675] mb-3 uppercase tracking-widest font-semibold">Live Watchlist Preview</p>
             <div className="space-y-2">
               {[
@@ -444,7 +444,7 @@ export default function HomePage() {
                 { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
                 { sym:"TSLA", name:"Tesla Inc.",     price:"$178.40", chg:"-3.2%", sig:"SELL", sc:"text-rose-400 bg-rose-500/10 border-rose-500/20"       },
               ].map((r) => (
-                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#1C2333] pl-3 py-1 hover:border-emerald-500/40 transition-colors">
+                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#1E2D4A] pl-3 py-1 hover:border-emerald-500/40 transition-colors">
                   <div>
                     <p className="text-xs font-bold text-[#F1F5F9]">{r.sym}</p>
                     <p className="text-[10px] text-[#4B5675]">{r.name}</p>
@@ -472,17 +472,17 @@ export default function HomePage() {
             </p>
           </div>
           <div className="md:w-1/2">
-            <div className={`bg-[#0C1017]/80 border ${sigBorder} rounded-2xl overflow-hidden transition-all duration-350 shadow-xl`} style={{ opacity: signalFade ? 1 : 0 }}>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#1C2333]">
+            <div className={`bg-[#0D1429]/80 border ${sigBorder} rounded-2xl overflow-hidden transition-all duration-350 shadow-xl`} style={{ opacity: signalFade ? 1 : 0 }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#1E2D4A]">
                 <div>
                   <p className="font-bold text-[#F1F5F9]">{signal.sym}.US</p>
                   <p className="text-xs text-[#4B5675]">{signal.name}</p>
                 </div>
                 <span className={`text-sm font-black px-3 py-1.5 rounded-lg border ${sigColor}`}>{signal.sig}</span>
               </div>
-              <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#1C2333]">
+              <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#1E2D4A]">
                 {[
-                  { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#111827] border-[#1C2333]"              },
+                  { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#101C35] border-[#1E2D4A]"              },
                   { l:"Confidence", v:signal.conf,                                                       c:signal.conf === "High" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20" },
                   { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20"      },
                 ].map((b) => (
@@ -523,7 +523,7 @@ export default function HomePage() {
             </p>
           </div>
           <div className="md:w-1/2 space-y-3">
-            <div className="bg-[#0C1017]/80 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-500/40 transition-colors">
+            <div className="bg-[#0D1429]/80 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-500/40 transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📊</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">Paper Simulator</p>
@@ -531,7 +531,7 @@ export default function HomePage() {
               </div>
               <p className="text-xs text-[#4B5675] leading-relaxed">Virtual portfolio with live-priced equity curve, full trade journal, and P&amp;L tracking. No risk.</p>
             </div>
-            <div className="bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-5 hover:border-[#2D3A50] transition-colors">
+            <div className="bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-5 hover:border-[#2B3E64] transition-colors">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-base">📱</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">Manual execution — any broker</p>
@@ -558,7 +558,7 @@ export default function HomePage() {
                 <div key={r.title} className="flex gap-4">
                   <div className="flex flex-col items-center gap-1 shrink-0">
                     <span className="text-xl">{r.icon}</span>
-                    <div className="w-px flex-1 bg-[#1C2333] min-h-[24px]" />
+                    <div className="w-px flex-1 bg-[#1E2D4A] min-h-[24px]" />
                   </div>
                   <div className="pb-2">
                     <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider mb-1">{r.time}</p>
@@ -570,7 +570,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lg:w-[45%] lg:sticky lg:top-24">
-            <div className="bg-[#0C1017]/80 border border-[#1C2333] rounded-2xl p-6">
+            <div className="bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-6">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-5">6 Risk Rules to Live By</p>
               <div className="space-y-4">
                 {[
@@ -593,7 +593,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ ICT CONCEPTS — animated carousel ══ */}
-      <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#060A14]/40">
+      <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#0A0F1E]/40">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-600/3 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-14">
@@ -608,7 +608,7 @@ export default function HomePage() {
           <div className="flex justify-center gap-2 mb-8">
             {CONCEPTS.map((c, i) => (
               <button key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#1C2333] text-[#4B5675] bg-transparent"}`}>
+                className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#1E2D4A] text-[#4B5675] bg-transparent"}`}>
                 {c.tag}
               </button>
             ))}
@@ -620,7 +620,7 @@ export default function HomePage() {
               <div key={c.tag} className={`transition-all duration-500 ${i === conceptIdx ? "opacity-100 scale-100" : "opacity-0 scale-98 absolute pointer-events-none"}`}
                 style={{ display: i === conceptIdx ? "block" : "none" }}>
                 <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(c.search)}`} target="_blank" rel="noopener noreferrer"
-                  className={`block bg-[#0C1017] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all max-w-2xl mx-auto`}>
+                  className={`block bg-[#0D1429] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all max-w-2xl mx-auto`}>
                   <div className={`bg-gradient-to-br ${c.gradient} px-6 pt-6 pb-4 h-56 flex items-center`}>
                     {c.diagram}
                   </div>
@@ -641,7 +641,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {CONCEPTS.map((c, i) => (
               <button key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`bg-[#0C1017] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#1C2333]"}`}
+                className={`bg-[#0D1429] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#1E2D4A]"}`}
 >
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
                 <p className="text-[10px] text-[#7B8DB4] mt-1.5 leading-snug">{c.title}</p>
@@ -658,10 +658,10 @@ export default function HomePage() {
           <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is free.</h2>
           <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use ICT Smart Money methodology or Claude Opus 4.7.</p>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-[#1C2333]">
+        <div className="overflow-x-auto rounded-2xl border border-[#1E2D4A]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#1C2333]">
+              <tr className="border-b border-[#1E2D4A]">
                 <th className="text-left py-4 pl-5 pr-6 text-[#4B5675] text-xs uppercase tracking-widest font-semibold">Feature</th>
                 {[
                   { name:"Traxora",     price:"Free",    highlight:true  },
@@ -686,7 +686,7 @@ export default function HomePage() {
                 { feature:"Morning briefing AI",     traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Free to use",             traxora:true,  ti:false, ss:false, ts:false },
               ].map((row, i) => (
-                <tr key={row.feature} className={`border-b border-[#1C2333] last:border-0 ${i % 2 === 0 ? "" : "bg-[#0C1017]/40"}`}>
+                <tr key={row.feature} className={`border-b border-[#1E2D4A] last:border-0 ${i % 2 === 0 ? "" : "bg-[#0D1429]/40"}`}>
                   <td className="py-3.5 pl-5 pr-6 text-[#CBD5E1] text-xs">{row.feature}</td>
                   {[
                     { val:row.traxora, highlight:true  },
@@ -695,7 +695,7 @@ export default function HomePage() {
                     { val:row.ts,      highlight:false },
                   ].map((cell, ci) => (
                     <td key={ci} className={`py-3.5 px-4 text-center text-base ${cell.highlight ? "bg-emerald-600/10 border-x border-emerald-500/20" : ""}`}>
-                      {cell.val ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-[#2D3A50]">—</span>}
+                      {cell.val ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-[#2B3E64]">—</span>}
                     </td>
                   ))}
                 </tr>
@@ -711,7 +711,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ BUILT DIFFERENT ══ */}
-      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#060A14]/40">
+      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0A0F1E]/40">
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Built different</p>
@@ -723,7 +723,7 @@ export default function HomePage() {
               { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-violet-500/20" },
               { icon:"🔒", title:"Practice before you risk money", desc:"$10K paper simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
             ].map((c) => (
-              <div key={c.title} className={`bg-[#0C1017]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>
+              <div key={c.title} className={`bg-[#0D1429]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>
                 <span className="text-3xl block mb-4">{c.icon}</span>
                 <h3 className="font-bold text-[#F1F5F9] mb-2">{c.title}</h3>
                 <p className="text-xs text-[#7B8DB4] leading-relaxed">{c.desc}</p>
@@ -754,7 +754,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="border-t border-[#1C2333] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#060A14]/60">
+      <footer className="border-t border-[#1E2D4A] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#0A0F1E]/60">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-5 h-5 rounded bg-emerald-600 flex items-center justify-center">

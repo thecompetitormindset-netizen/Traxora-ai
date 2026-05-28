@@ -3,11 +3,11 @@
 :root {
   --font-inter: "Inter", system-ui, sans-serif;
 
-  --bg-canvas:   #060A14;
-  --bg-surface:  #0C1017;
-  --bg-elevated: #111827;
-  --border:      #1C2333;
-  --border-hover:#2D3A50;
+  --bg-canvas:   #0A0F1E;
+  --bg-surface:  #0D1429;
+  --bg-elevated: #101C35;
+  --border:      #1E2D4A;
+  --border-hover:#2B3E64;
 
   --text-primary:   #F1F5F9;
   --text-secondary: #7B8DB4;
