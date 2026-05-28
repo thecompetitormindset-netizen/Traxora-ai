@@ -5,7 +5,6 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { resetPortfolio } from "../lib/trading";
-import { getTheme, setTheme, type Theme } from "../lib/theme";
 import { scopedKey } from "../lib/userState";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -80,7 +79,7 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [resetInput, setResetInput] = useState("");
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme] = useState("dark");
   const [resetDone, setResetDone] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
 
@@ -100,7 +99,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    setThemeState(getTheme());
     if (!("Notification" in window)) {
       setNotifPermission("unsupported");
     } else {
@@ -132,12 +130,6 @@ export default function SettingsPage() {
     if (!("Notification" in window)) return;
     const result = await Notification.requestPermission();
     setNotifPermission(result);
-  }
-
-  function toggleTheme() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    setThemeState(next);
   }
 
   function clearAlerts() {
@@ -428,24 +420,6 @@ export default function SettingsPage() {
 
             {/* Preferences */}
             <Section title="Preferences">
-              <Row
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="5" />
-                    <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-                  </svg>
-                }
-                label="Theme"
-                sublabel={theme === "dark" ? "Dark mode — deep space background" : "Soft indigo mode — easy on the eyes"}
-                value={
-                  <div
-                    className={`relative w-10 h-5 rounded-full transition-colors ${theme === "light" ? "bg-indigo-600" : "bg-[#1C2333]"}`}
-                  >
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${theme === "light" ? "left-5" : "left-0.5"}`} />
-                  </div>
-                }
-                onClick={toggleTheme}
-              />
               <Row
                 icon={
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
