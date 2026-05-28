@@ -84,12 +84,6 @@ export default function SettingsPage() {
   const [resetDone, setResetDone] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
 
-  // Alpaca state
-  const [alpacaKey,    setAlpacaKey]    = useState("");
-  const [alpacaSecret, setAlpacaSecret] = useState("");
-  const [alpacaPaper,  setAlpacaPaper]  = useState(true);
-  const [alpacaStatus, setAlpacaStatus] = useState<"idle" | "testing" | "connected" | string>("idle");
-  const [alpacaInfo,   setAlpacaInfo]   = useState<{ buyingPower?: string; portfolioValue?: string } | null>(null);
 
   // Email subscription state
   const [subscribed,   setSubscribed]   = useState(false);
@@ -115,17 +109,6 @@ export default function SettingsPage() {
       .then(d => { setSubscribed(!!d.subscribed); setSubEmail(d.subscribedEmail ?? null); })
       .catch(() => {/* ignore */});
 
-    // Load saved Alpaca creds
-    const saved = localStorage.getItem(scopedKey("traxora_alpaca"));
-    if (saved) {
-      try {
-        const p = JSON.parse(saved);
-        setAlpacaKey(p.apiKey ?? "");
-        setAlpacaSecret(p.apiSecret ?? "");
-        setAlpacaPaper(p.paper ?? true);
-        setAlpacaStatus(p.connected ? "connected" : "idle");
-      } catch { /* ignore */ }
-    }
   }, []);
 
   async function enableNotifications() {
@@ -153,38 +136,6 @@ export default function SettingsPage() {
     setTimeout(() => setResetDone(false), 3000);
   }
 
-  async function saveAlpacaCredentials() {
-    if (!alpacaKey.trim() || !alpacaSecret.trim()) {
-      setAlpacaStatus("Enter both API Key and Secret first");
-      return;
-    }
-    setAlpacaStatus("testing");
-    setAlpacaInfo(null);
-    try {
-      const res = await fetch("/api/alpaca/account", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: alpacaKey.trim(), apiSecret: alpacaSecret.trim(), paper: alpacaPaper }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setAlpacaStatus(data.error || "Connection failed");
-        return;
-      }
-      setAlpacaInfo({ buyingPower: data.buyingPower, portfolioValue: data.portfolioValue });
-      setAlpacaStatus("connected");
-      localStorage.setItem(scopedKey("traxora_alpaca"), JSON.stringify({
-        apiKey: alpacaKey.trim(), apiSecret: alpacaSecret.trim(), paper: alpacaPaper, connected: true,
-      }));
-    } catch {
-      setAlpacaStatus("Network error — try again");
-    }
-  }
-
-  function disconnectAlpaca() {
-    localStorage.removeItem(scopedKey("traxora_alpaca"));
-    setAlpacaKey(""); setAlpacaSecret(""); setAlpacaStatus("idle"); setAlpacaInfo(null);
-  }
 
   async function subscribe() {
     setSubscribing(true);
@@ -485,114 +436,6 @@ export default function SettingsPage() {
               />
             </Section>
 
-            {/* Broker Connection */}
-            <Section title="Broker Connection">
-              <div className="px-5 py-5 border-b border-[#1C2333]">
-                <div className="flex items-start gap-3 mb-4">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#F1F5F9] text-sm">Alpaca Markets</p>
-                    <p className="text-xs text-[#4B5675] mt-0.5">
-                      Free broker API — execute trades directly from Traxora signals. Get keys at{" "}
-                      <a href="https://alpaca.markets" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">alpaca.markets</a>
-                    </p>
-                  </div>
-                  {alpacaStatus === "connected" && (
-                    <Badge color="green">Connected</Badge>
-                  )}
-                </div>
-
-                {alpacaStatus === "connected" && alpacaInfo && (
-                  <div className="flex gap-3 mb-4 flex-wrap">
-                    <div className="bg-[#111827] border border-[#1C2333] rounded-xl px-3 py-2 flex-1 min-w-[120px]">
-                      <p className="text-[10px] text-[#4B5675]">Buying Power</p>
-                      <p className="text-sm font-bold text-emerald-400">
-                        ${parseFloat(alpacaInfo.buyingPower ?? "0").toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    <div className="bg-[#111827] border border-[#1C2333] rounded-xl px-3 py-2 flex-1 min-w-[120px]">
-                      <p className="text-[10px] text-[#4B5675]">Portfolio Value</p>
-                      <p className="text-sm font-bold text-[#F1F5F9]">
-                        ${parseFloat(alpacaInfo.portfolioValue ?? "0").toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                      </p>
-                    </div>
-                    <div className="bg-[#111827] border border-[#1C2333] rounded-xl px-3 py-2 flex-1 min-w-[120px]">
-                      <p className="text-[10px] text-[#4B5675]">Mode</p>
-                      <p className="text-sm font-bold text-[#F1F5F9]">{alpacaPaper ? "Paper" : "Live"}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-[11px] text-[#4B5675] font-medium mb-1.5 block uppercase tracking-wide">API Key ID</label>
-                    <input
-                      type="text"
-                      value={alpacaKey}
-                      onChange={(e) => setAlpacaKey(e.target.value)}
-                      placeholder="PKXXXXXXXXXXXXXXXX"
-                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-[#4B5675] font-medium mb-1.5 block uppercase tracking-wide">API Secret</label>
-                    <input
-                      type="password"
-                      value={alpacaSecret}
-                      onChange={(e) => setAlpacaSecret(e.target.value)}
-                      placeholder="••••••••••••••••••••••••••••••••"
-                      className="w-full bg-[#060A14]/80 border border-[#1C2333] hover:border-[#2D3A50] focus:border-emerald-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono"
-                    />
-                  </div>
-                  <label className="flex items-center gap-3 cursor-pointer select-none">
-                    <div
-                      onClick={() => setAlpacaPaper(!alpacaPaper)}
-                      className={`relative w-10 h-5 rounded-full transition-colors cursor-pointer ${alpacaPaper ? "bg-emerald-600" : "bg-[#1C2333]"}`}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${alpacaPaper ? "left-5" : "left-0.5"}`} />
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-[#F1F5F9]">Paper trading mode</span>
-                      <p className="text-xs text-[#4B5675]">Test trades with fake money — zero real risk</p>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-3 mt-4 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={saveAlpacaCredentials}
-                    disabled={alpacaStatus === "testing"}
-                    className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
-                  >
-                    {alpacaStatus === "testing" ? "Testing…" : alpacaStatus === "connected" ? "Re-test Connection" : "Save & Test Connection"}
-                  </button>
-                  {alpacaStatus === "connected" && (
-                    <button type="button" onClick={disconnectAlpaca} className="text-sm text-[#4B5675] hover:text-rose-400 transition-colors">
-                      Disconnect
-                    </button>
-                  )}
-                  {alpacaStatus !== "idle" && alpacaStatus !== "testing" && alpacaStatus !== "connected" && (
-                    <p className="text-xs text-rose-400">{alpacaStatus}</p>
-                  )}
-                </div>
-              </div>
-              <Row
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                    <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
-                  </svg>
-                }
-                label="Open Alpaca Markets"
-                sublabel="Create a free account and get your API keys"
-                onClick={() => window.open("https://alpaca.markets", "_blank")}
-              />
-            </Section>
 
             {/* Danger zone */}
             <Section title="Danger Zone">
