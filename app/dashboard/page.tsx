@@ -191,8 +191,7 @@ export default function DashboardPage() {
   const [futures, setFutures] = useState<FuturesCard[]>(
     FUTURES_LIST.map((f) => ({ ...f, price: null, change: null, loading: true }))
   );
-  const [competeRank,  setCompeteRank]  = useState<number | null>(null);
-  const [competeTotal, setCompeteTotal] = useState<number | null>(null);
+
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [alertsPaused, setAlertsPaused] = useState(false);
 
@@ -345,24 +344,6 @@ export default function DashboardPage() {
     return 7; // HOLD or no data
   }
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const p = getPortfolio();
-      const invested = p.holdings.reduce((s, h) => s + h.quantity * h.avgPrice, 0);
-      const total = p.cash + invested;
-      setCompeteTotal(total);
-      let rank = 1;
-      for (const id of ["apex","delta","vera"]) {
-        const br = localStorage.getItem(scopedKey(`traxora-bot-${id}`));
-        if (!br) continue;
-        const bp = JSON.parse(br);
-        const bi = (bp.holdings ?? []).reduce((s: number, h: { quantity: number; avgPrice: number }) => s + h.quantity * h.avgPrice, 0);
-        if ((bp.cash ?? 10000) + bi > total) rank++;
-      }
-      setCompeteRank(rank);
-    } catch { /* ignore */ }
-  }, []);
 
   const buyCount  = stocks.filter((s) => s.signal === "BUY").length;
   const holdCount = stocks.filter((s) => s.signal === "HOLD").length;
@@ -544,29 +525,6 @@ export default function DashboardPage() {
               </div>
             </Link>
 
-            {/* Compete widget */}
-            {competeRank !== null && competeTotal !== null && (
-              <Link href="/compete" className="mt-4 flex items-center justify-between gap-4 bg-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 rounded-2xl px-5 py-4 transition-all group">
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-black font-mono text-xl border ${
-                    competeRank === 1 ? "bg-amber-500/10 border-amber-500/20 text-amber-400" :
-                    competeRank === 2 ? "bg-[#1C2333] border-[#2D3A50] text-[#7B8DB4]" :
-                                        "bg-[#0C1017] border-[#1C2333] text-[#4B5675]"
-                  }`}>
-                    #{competeRank}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#F1F5F9] text-sm">
-                      {competeRank === 1 ? "🏆 You lead the bots!" : competeRank === 2 ? "2nd place — one bot ahead" : `${competeRank === 3 ? "3rd" : "4th"} place — keep trading`}
-                    </p>
-                    <p className="text-[10px] text-[#4B5675] mt-0.5">
-                      Portfolio ${competeTotal.toFixed(2)} · Competing vs Apex, Delta &amp; Vera
-                    </p>
-                  </div>
-                </div>
-                <span className="text-xs text-emerald-400 group-hover:text-emerald-300 font-medium shrink-0">View Leaderboard →</span>
-              </Link>
-            )}
 
             {/* Watchlist */}
             <div className="mt-8">

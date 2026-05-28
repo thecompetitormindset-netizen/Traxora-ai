@@ -147,28 +147,7 @@ const SECTIONS: Section[] = [
       "The journal captures manual AND AutoTrader trades equally. If the bot placed 50 trades overnight, you'll have 50 journal entries waiting in the morning.",
     ],
   },
-  {
-    id: "compete",
-    icon: "🏆",
-    title: "Compete",
-    subtitle: "Your portfolio vs 3 AI rival bots — all starting at $10,000.",
-    color: "text-rose-400",
-    border: "border-rose-500/20",
-    bg: "bg-rose-500/5",
-    href: "/compete",
-    steps: [
-      { step: "Enable AutoTrader first", detail: "The rival bots (Apex, Delta, Vera) only trade when AutoTrader is scanning. Start AutoTrader from any page, then open the Compete page to watch them trade in real time." },
-      { step: "Read the leaderboard", detail: "The table ranks all 4 accounts (You, Apex, Delta, Vera) by current account value. Your position is highlighted in blue. The leader gets a gold #1 badge." },
-      { step: "Understand each bot", detail: "Apex (red) is aggressive — buys on any signal, 20% of cash per trade. Delta (emerald) is balanced — Medium+ confidence, 12% per trade. Vera (green) is conservative — High confidence only, 8% per trade." },
-      { step: "Beat the bots manually", detail: "You can outperform the bots by trading manually on the Practice page or using the Signals page. Your manual trades count toward your total account value on the leaderboard." },
-      { step: "Check win rate and trade count", detail: "The leaderboard also shows trades placed and win rate for each competitor. A bot with many trades but a low win rate is gambling. One with few trades but a high win rate is selective — like Vera." },
-      { step: "Reset any bot to restart the contest", detail: "Inside the bot profile cards below the leaderboard, press 'Reset bot' to wipe that bot's portfolio back to $10,000. Useful if a bot has blown up or if you want to restart the competition." },
-    ],
-    tips: [
-      "Vera (conservative) often wins over long timeframes because she avoids low-confidence losses. Apex often wins short-term but can blow up during choppy markets.",
-      "Your own trading style shows up on the leaderboard. If you only trade manually on High confidence signals, your win rate should beat all 3 bots over time.",
-    ],
-  },
+
   {
     id: "riskguard",
     icon: "🛡️",

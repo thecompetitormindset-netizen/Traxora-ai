@@ -49,18 +49,7 @@ function JournalIcon() {
   );
 }
 
-function CompeteIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M6 9H4a2 2 0 0 0 0 4c0 2.21 1.79 4 4 4h8c2.21 0 4-1.79 4-4a2 2 0 0 0 0-4h-2" />
-      <path d="M6 6v3" />
-      <path d="M18 6v3" />
-      <rect x="6" y="2" width="12" height="4" rx="1" />
-      <line x1="12" y1="17" x2="12" y2="21" />
-      <line x1="8"  y1="21" x2="16" y2="21" />
-    </svg>
-  );
-}
+
 
 function ExploreIcon() {
   return (
@@ -113,7 +102,7 @@ const NAV_LINKS = [
   { name: "Trade",     href: "/paper",             icon: <TradeIcon /> },
   { name: "Signals",   href: "/analysis",          icon: <SignalsIcon /> },
   { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
-  { name: "Compete",   href: "/compete",           icon: <CompeteIcon /> },
+
   { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
   { name: "Portfolio", href: "/portfolio",         icon: <PortfolioIcon /> },
   { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },
