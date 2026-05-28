@@ -40,9 +40,28 @@ function sanitizeMessages(raw: unknown): Msg[] {
   return cleaned;
 }
 
-// Try Anthropic first, fall back to DeepSeek
+async function callOpenAICompat(url: string, key: string, model: string, messages: Msg[]): Promise<string> {
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
+    }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => res.statusText);
+    throw new Error(`${url} ${res.status}: ${txt}`);
+  }
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content ?? "";
+}
+
+// Priority: Anthropic → Groq (free) → DeepSeek
 async function getAIReply(messages: Msg[]): Promise<string> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const groqKey      = process.env.GROQ_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
   // ── Anthropic ──────────────────────────────────────────────────────────────
@@ -61,34 +80,31 @@ async function getAIReply(messages: Msg[]): Promise<string> {
         .join("");
     } catch (err) {
       const status = (err as { status?: number }).status;
-      // Only fall through on auth errors; re-throw everything else
       if (status !== 401 && status !== 403) throw err;
     }
   }
 
-  // ── DeepSeek fallback ──────────────────────────────────────────────────────
-  if (deepseekKey) {
-    const res = await fetch("https://api.deepseek.com/v1/chat/completions", {
-      method:  "POST",
-      headers: {
-        "Content-Type":  "application/json",
-        "Authorization": `Bearer ${deepseekKey}`,
-      },
-      body: JSON.stringify({
-        model:      "deepseek-chat",
-        max_tokens: 1024,
-        messages:   [{ role: "system", content: SYSTEM_PROMPT }, ...messages],
-      }),
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => res.statusText);
-      throw new Error(`DeepSeek ${res.status}: ${txt}`);
-    }
-    const data = await res.json() as { choices?: { message?: { content?: string } }[] };
-    return data.choices?.[0]?.message?.content ?? "";
+  // ── Groq (free tier) ───────────────────────────────────────────────────────
+  if (groqKey) {
+    return callOpenAICompat(
+      "https://api.groq.com/openai/v1/chat/completions",
+      groqKey,
+      "llama-3.3-70b-versatile",
+      messages,
+    );
   }
 
-  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY or DEEPSEEK_API_KEY.");
+  // ── DeepSeek fallback ──────────────────────────────────────────────────────
+  if (deepseekKey) {
+    return callOpenAICompat(
+      "https://api.deepseek.com/v1/chat/completions",
+      deepseekKey,
+      "deepseek-chat",
+      messages,
+    );
+  }
+
+  throw new Error("No AI provider configured. Add GROQ_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
 }
 
 export async function POST(req: Request) {
