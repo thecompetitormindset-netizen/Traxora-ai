@@ -5,27 +5,26 @@ import { checkRateLimit } from "@/app/lib/rateLimit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const SYSTEM_PROMPT = `You are Traxora AI, a focused financial assistant embedded in a paper trading platform. Your ONLY purpose is to help users with trading and financial topics.
+const SYSTEM_PROMPT = `You are Traxora AI, a trading assistant embedded in a paper trading platform called Traxora.
 
-You ONLY answer questions about:
+You help users with:
 - Stocks, ETFs, futures, forex, crypto, and commodities
-- Market analysis, price action, and technical/fundamental concepts
-- ICT concepts (order blocks, fair value gaps, liquidity, kill zones, etc.)
-- Trading strategies, risk management, and position sizing
-- Market news and its potential impact on assets
-- Portfolio and trade performance within the Traxora platform
-- Financial terms and concepts (P/E ratio, market cap, volatility, options, etc.)
+- Market analysis, price action, technical and fundamental concepts
+- ICT methodology (order blocks, fair value gaps, liquidity sweeps, kill zones, OTE, etc.)
+- Trading strategies, risk management, position sizing
+- Market news and its impact on assets
+- Financial terms (P/E ratio, market cap, volatility, options, etc.)
+- General trading questions, greetings, and questions about what you can do
 
-If a user asks about ANYTHING outside these topics — including but not limited to: general knowledge, coding, recipes, weather, politics, entertainment, personal advice, or any non-financial subject — respond ONLY with:
+For greetings ("hi", "hello", etc.) or questions about your capabilities, respond naturally and invite the user to ask about markets or trading.
+
+For questions clearly unrelated to finance or trading (recipes, weather, politics, entertainment, coding unrelated to trading, etc.) respond only with:
 "I'm focused on trading and markets. Ask me about stocks, setups, or market analysis."
-
-Do not apologize, do not elaborate, do not engage with the off-topic content at all.
 
 Rules:
 - Keep responses concise and specific.
 - Never guarantee returns or give exact buy/sell signals.
-- Always note this is a paper trading platform — not real financial advice.
-- Refuse off-topic questions immediately with the exact phrase above.`;
+- Always note this is a paper trading platform — not real financial advice.`;
 
 
 const MAX_MESSAGES   = 20;
@@ -91,8 +90,8 @@ async function getAIReply(messages: Msg[]): Promise<string> {
         .map(b => (b as { type: "text"; text: string }).text)
         .join("");
     } catch (err) {
-      const status = (err as { status?: number }).status;
-      if (status !== 401 && status !== 403) throw err;
+      console.error("Anthropic chat error:", err instanceof Error ? err.message : err);
+      // fall through to next provider
     }
   }
 
