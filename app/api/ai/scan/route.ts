@@ -54,7 +54,12 @@ function ictAnalyze(s: StockInput) {
   );
 
   const { signal, confidence, score, priceZone, marketStructure,
-          volRatio, highVol, lowVol, yearPct, dayH, dayL, dayMid } = ict;
+          yearPct, dayH, dayL, dayMid } = ict;
+
+  // Fall back to the pre-computed ratio when ictScore returns null (avgVolume === 0 from data source)
+  const volRatio = ict.volRatio ?? s.volumeRatio;
+  const highVol  = volRatio >= 1.4;
+  const lowVol   = volRatio < 0.75;
 
   const yearZone =
     yearPct == null ? "N/A" :
@@ -65,11 +70,10 @@ function ictAnalyze(s: StockInput) {
                       `Mid-Range (${yearPct.toFixed(0)}%)`;
 
   const volVerdict =
-    volRatio != null && volRatio >= 2.5 ? `${volRatio.toFixed(1)}x volume — strong institutional move` :
-    highVol                             ? `${volRatio!.toFixed(1)}x volume — above average activity` :
-    lowVol                              ? `${volRatio!.toFixed(1)}x volume — low conviction` :
-    volRatio != null                    ? `${volRatio.toFixed(1)}x volume — normal` :
-                                          "Volume data unavailable";
+    volRatio >= 2.5 ? `${volRatio.toFixed(1)}x volume — strong institutional move` :
+    highVol         ? `${volRatio.toFixed(1)}x volume — above average activity` :
+    lowVol          ? `${volRatio.toFixed(1)}x volume — low conviction` :
+                      `${volRatio.toFixed(1)}x volume — normal`;
 
   const ictSetup =
     signal === "BUY"

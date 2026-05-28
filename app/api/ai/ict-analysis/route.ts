@@ -617,49 +617,73 @@ FILL keyLevels with the exact pre-calculated numbers above.
 All price targets must derive from real data — no guesses.
 Return ONLY valid JSON.`;
 
+  function parseAndOverwrite(text: string): DeepICTAnalysis {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON in response");
+    const parsed = JSON.parse(match[0]) as DeepICTAnalysis;
+    parsed.keyLevels = {
+      pwh: px(pwh), pwl: px(pwl), pdh: px(pdh), pdl: px(pdl),
+      weeklyOpen: px(weeklyOpen), monthlyOpen: px(monthlyOpen),
+      atr14: atr14 ? px(atr14) : "N/A", rsi14: rsi14 ? rsi14.toFixed(1) : "N/A",
+      swingHigh: px(swingHigh), swingLow: px(swingLow), eq50: px(swingEq),
+    };
+    parsed.risk.earningsWithin5Days = earningsWithin5Days;
+    parsed.risk.earningsDate        = fhEarningsDate ?? null;
+    return parsed;
+  }
+
+  let analysisText: string | null = null;
+
+  // ── Try Anthropic ─────────────────────────────────────────────────────────────
   try {
     const response = await client.messages.create({
       model:      "claude-sonnet-4-6",
       max_tokens: 8000,
       messages:   [{ role: "user", content: prompt }],
     });
-
-    const text = response.content
+    analysisText = response.content
       .filter(b => b.type === "text")
       .map(b => (b as { type: "text"; text: string }).text)
       .join("").trim();
-
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON in response");
-
-    const parsed = JSON.parse(match[0]) as DeepICTAnalysis;
-
-    // Overwrite keyLevels with ground-truth computed values
-    parsed.keyLevels = {
-      pwh:         px(pwh),
-      pwl:         px(pwl),
-      pdh:         px(pdh),
-      pdl:         px(pdl),
-      weeklyOpen:  px(weeklyOpen),
-      monthlyOpen: px(monthlyOpen),
-      atr14:       atr14 ? px(atr14) : "N/A",
-      rsi14:       rsi14 ? rsi14.toFixed(1) : "N/A",
-      swingHigh:   px(swingHigh),
-      swingLow:    px(swingLow),
-      eq50:        px(swingEq),
-    };
-
-    parsed.risk.earningsWithin5Days = earningsWithin5Days;
-    parsed.risk.earningsDate        = fhEarningsDate ?? null;
-
-    return Response.json(parsed);
   } catch (err) {
-    const status = (err as { status?: unknown }).status;
-    if (status === 401 || status === 403) {
-      return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+    console.error("Anthropic ICT error:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Fallback: Groq ────────────────────────────────────────────────────────────
+  if (!analysisText) {
+    const groqKey = process.env.GROQ_API_KEY;
+    if (groqKey) {
+      try {
+        const gr = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
+          body: JSON.stringify({
+            model:      "llama-3.3-70b-versatile",
+            max_tokens: 8000,
+            messages: [
+              { role: "system", content: "You are an ICT analyst. Return ONLY valid JSON, no markdown, no text outside JSON." },
+              { role: "user",   content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(50000),
+        });
+        const gd = await gr.json() as { choices?: { message?: { content?: string } }[] };
+        analysisText = gd.choices?.[0]?.message?.content?.trim() ?? null;
+      } catch (err) {
+        console.error("Groq ICT error:", err instanceof Error ? err.message : err);
+      }
     }
+  }
+
+  if (!analysisText) {
+    return Response.json({ ok: false, reason: "AI_UNAVAILABLE" }, { status: 503 });
+  }
+
+  try {
+    return Response.json(parseAndOverwrite(analysisText));
+  } catch (err) {
     return Response.json(
-      { error: `ICT analysis failed: ${err instanceof Error ? err.message : String(err)}` },
+      { error: `ICT analysis parse failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 },
     );
   }

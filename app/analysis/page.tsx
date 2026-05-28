@@ -927,7 +927,7 @@ function AnalysisContent() {
       });
       const data = await res.json();
       if (data.reason === "AI_UNAVAILABLE") {
-        setDeepError("AI unavailable — check your Anthropic API key in settings.");
+        setDeepError("AI unavailable — all providers failed. Check your API keys in settings.");
         return;
       }
       if (!res.ok || data.error) {
