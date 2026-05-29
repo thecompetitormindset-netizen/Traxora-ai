@@ -5,6 +5,8 @@ import { checkRateLimit } from "@/app/lib/rateLimit";
 export const runtime     = "nodejs";
 export const maxDuration = 55;
 
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -427,7 +429,7 @@ export async function POST(req: Request) {
   ].filter(Boolean).join(", ");
 
   const dataBlock = `
-=== DEEP ICT MARKET DATA: ${ticker} ===
+=== DEEP MARKET DATA: ${ticker} ===
 Data sources: ${dataProviders}
 Session: ${etSession()}
 
@@ -494,14 +496,14 @@ ${news.length ? news.map(n => `  • ${n}`).join("\n") : "  No recent headlines.
 `.trim();
 
   // ── Claude prompt ─────────────────────────────────────────────────────────────
-  const prompt = `You are an elite ICT (Inner Circle Trader) analyst trained in the complete methodology of Michael J. Huddleston. Think Smart Money — not retail.
+  const prompt = `You are an elite institutional market analyst with deep expertise in smart money concepts, price action, order flow, liquidity, and multi-timeframe market structure. Think like an institution — not retail.
 
-The data below is live and pre-calculated. Use it to perform a FULL multi-timeframe ICT analysis.
+The data below is live and pre-calculated. Use it to perform a FULL multi-timeframe institutional market analysis.
 
 ${dataBlock}
 
 ═══════════════════════════════════════════════════════════
-TASK: PRODUCE COMPLETE ICT ANALYSIS — valid JSON only
+TASK: PRODUCE COMPLETE MARKET ANALYSIS — valid JSON only
 ═══════════════════════════════════════════════════════════
 
 Top-down: Monthly → Weekly → Daily → 4H → 1H
@@ -520,7 +522,7 @@ OUTPUT — Valid JSON only. No markdown, no text outside JSON:
 {
   "overallBias": "BULLISH | BEARISH | NEUTRAL",
   "confidence": "High | Medium | Low",
-  "biasReasoning": "2-3 sentences using ICT concepts only",
+  "biasReasoning": "2-3 sentences using smart money and market structure concepts",
 
   "marketStructure": {
     "monthly": "...",
@@ -582,7 +584,7 @@ OUTPUT — Valid JSON only. No markdown, no text outside JSON:
   "scenarioA": {
     "direction": "LONG | SHORT",
     "entryFrom": "$X.XX", "entryTo": "$X.XX",
-    "entryTrigger": "specific 15M ICT confirmation required",
+    "entryTrigger": "specific 15M entry confirmation required",
     "stopLoss": "$X.XX", "stopReason": "...",
     "target1": "$X.XX", "target1Reason": "...",
     "target2": "$X.XX", "target2Reason": "...",
@@ -632,46 +634,70 @@ Return ONLY valid JSON.`;
     return parsed;
   }
 
+  async function callOpenAICompat(url: string, key: string, model: string, maxTokens: number): Promise<string | null> {
+    try {
+      const res = await fetch(url, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          max_tokens: maxTokens,
+          messages: [
+            { role: "system", content: `You are an institutional market analyst. Return ONLY valid JSON, no markdown, no text outside JSON.\n\n${SYSTEM_FRAMEWORK}` },
+            { role: "user",   content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(50000),
+      });
+      if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
+      const d = await res.json() as { choices?: { message?: { content?: string } }[] };
+      return d.choices?.[0]?.message?.content?.trim() ?? null;
+    } catch (err) {
+      console.error(`[ict-analysis] ${url} error:`, err instanceof Error ? err.message : err);
+      return null;
+    }
+  }
+
   let analysisText: string | null = null;
 
   // ── Try Anthropic ─────────────────────────────────────────────────────────────
-  try {
-    const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 8000,
-      messages:   [{ role: "user", content: prompt }],
-    });
-    analysisText = response.content
-      .filter(b => b.type === "text")
-      .map(b => (b as { type: "text"; text: string }).text)
-      .join("").trim();
-  } catch (err) {
-    console.error("Anthropic ICT error:", err instanceof Error ? err.message : err);
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (anthropicKey) {
+    try {
+      const response = await client.messages.create({
+        model:      "claude-sonnet-4-6",
+        max_tokens: 4096,
+        system:     SYSTEM_FRAMEWORK,
+        messages:   [{ role: "user", content: prompt }],
+      });
+      analysisText = response.content
+        .filter(b => b.type === "text")
+        .map(b => (b as { type: "text"; text: string }).text)
+        .join("").trim();
+    } catch (err) {
+      console.error("[ict-analysis] Anthropic error:", err instanceof Error ? err.message : err);
+    }
   }
 
   // ── Fallback: Groq ────────────────────────────────────────────────────────────
   if (!analysisText) {
     const groqKey = process.env.GROQ_API_KEY;
     if (groqKey) {
-      try {
-        const gr = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
-          body: JSON.stringify({
-            model:      "llama-3.3-70b-versatile",
-            max_tokens: 8000,
-            messages: [
-              { role: "system", content: "You are an ICT analyst. Return ONLY valid JSON, no markdown, no text outside JSON." },
-              { role: "user",   content: prompt },
-            ],
-          }),
-          signal: AbortSignal.timeout(50000),
-        });
-        const gd = await gr.json() as { choices?: { message?: { content?: string } }[] };
-        analysisText = gd.choices?.[0]?.message?.content?.trim() ?? null;
-      } catch (err) {
-        console.error("Groq ICT error:", err instanceof Error ? err.message : err);
-      }
+      analysisText = await callOpenAICompat(
+        "https://api.groq.com/openai/v1/chat/completions",
+        groqKey, "llama-3.3-70b-versatile", 4096,
+      );
+    }
+  }
+
+  // ── Fallback: DeepSeek ────────────────────────────────────────────────────────
+  if (!analysisText) {
+    const deepseekKey = process.env.DEEPSEEK_API_KEY;
+    if (deepseekKey) {
+      analysisText = await callOpenAICompat(
+        "https://api.deepseek.com/v1/chat/completions",
+        deepseekKey, "deepseek-chat", 4096,
+      );
     }
   }
 
@@ -682,8 +708,9 @@ Return ONLY valid JSON.`;
   try {
     return Response.json(parseAndOverwrite(analysisText));
   } catch (err) {
+    console.error("[ict-analysis] Parse failed. Raw snippet:", analysisText.slice(0, 400));
     return Response.json(
-      { error: `ICT analysis parse failed: ${err instanceof Error ? err.message : String(err)}` },
+      { error: `Analysis parse failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 },
     );
   }
