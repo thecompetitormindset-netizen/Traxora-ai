@@ -36,7 +36,7 @@ export default function WalletPage() {
         </div>
 
         {/* Main balance card */}
-        <div className="mt-6 bg-[#0C1017] border border-[#1C2333] rounded-3xl p-8">
+        <div className="mt-6 bg-[#13112A] border border-[#252345] rounded-3xl p-8">
           <p className="text-xs text-[#4B5675] font-semibold uppercase tracking-widest mb-3">Available Cash</p>
           <p className="text-6xl font-black text-emerald-400 font-mono">
             ${portfolio.cash.toFixed(2)}
@@ -46,7 +46,7 @@ export default function WalletPage() {
               <p className="text-[11px] text-[#4B5675] uppercase tracking-wide">Invested</p>
               <p className="text-lg font-bold font-mono text-[#F1F5F9] mt-0.5">${investedValue.toFixed(2)}</p>
             </div>
-            <div className="w-px bg-[#1C2333]" />
+            <div className="w-px bg-[#252345]" />
             <div>
               <p className="text-[11px] text-[#4B5675] uppercase tracking-wide">Total Account</p>
               <p className="text-lg font-bold font-mono text-[#F1F5F9] mt-0.5">${(portfolio.cash + investedValue).toFixed(2)}</p>
@@ -55,7 +55,7 @@ export default function WalletPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6">
+          <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-sm">💰</span>
               <h3 className="text-base font-semibold">Add Funds</h3>
@@ -69,7 +69,7 @@ export default function WalletPage() {
             </button>
           </div>
 
-          <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6">
+          <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6">
             <div className="flex items-center gap-2 mb-3">
               <span className="w-8 h-8 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-sm">📤</span>
               <h3 className="text-base font-semibold">Withdraw Funds</h3>

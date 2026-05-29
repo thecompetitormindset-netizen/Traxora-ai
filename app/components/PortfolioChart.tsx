@@ -150,19 +150,19 @@ export default function PortfolioChart() {
         fontSize: 11,
       },
       grid: {
-        vertLines: { color: "#111827" },
-        horzLines: { color: "#111827" },
+        vertLines: { color: "#1A1838" },
+        horzLines: { color: "#1A1838" },
       },
       crosshair: {
-        vertLine: { color: "#4B5675", labelBackgroundColor: "#1C2333" },
-        horzLine: { color: "#4B5675", labelBackgroundColor: "#1C2333" },
+        vertLine: { color: "#4B5675", labelBackgroundColor: "#252345" },
+        horzLine: { color: "#4B5675", labelBackgroundColor: "#252345" },
       },
       rightPriceScale: {
-        borderColor: "#1C2333",
+        borderColor: "#252345",
         scaleMargins: { top: 0.1, bottom: 0.05 },
       },
       timeScale: {
-        borderColor: "#1C2333",
+        borderColor: "#252345",
         timeVisible: true,
         secondsVisible: false,
       },
@@ -220,7 +220,7 @@ export default function PortfolioChart() {
   return (
     <div>
       <div ref={containerRef} className="w-full h-56" />
-      <p className="text-[9px] text-[#2D3A50] mt-1 px-1">
+      <p className="text-[9px] text-[#333368] mt-1 px-1">
         Historical points at cost basis · rightmost point at live market price
       </p>
     </div>

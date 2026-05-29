@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       `${clean} is trading at $${price.toFixed(2)}, ` +
       `${dayChangePercent >= 0 ? "up" : "down"} ${Math.abs(dayChangePercent).toFixed(2)}% in a ` +
       `${priceZone.toLowerCase()} zone (${pctPos.toFixed(0)}% of today's range).${volStr}${yearStr} ` +
-      `ICT ${dailyBias.toLowerCase()} bias with ${marketStructure.toLowerCase()} structure — ` +
+      `${dailyBias} bias with ${marketStructure.toLowerCase()} structure — ` +
       (signal === "HOLD"
         ? "no clear directional edge yet."
         : `favoring ${signal === "BUY" ? "long entries near discount" : "caution / exits near premium"}.`);

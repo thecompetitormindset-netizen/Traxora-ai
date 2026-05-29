@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
-/* ── ICT SVG diagrams ─────────────────────────────────────────────────────── */
+/* ── Smart Money concept diagrams ────────────────────────────────────────── */
 function OBDiagram() {
   return (
     <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
@@ -105,12 +105,12 @@ function KzDiagram() {
 }
 
 const CONCEPTS = [
-  { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-teal-950 to-emerald-950",  accent:"text-teal-400", border:"border-teal-500/20",  tagBg:"bg-teal-500/10 border-teal-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"ICT Order Blocks tutorial" },
-  { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-emerald-950 to-cyan-950",      accent:"text-emerald-400",   border:"border-emerald-500/20",    tagBg:"bg-emerald-500/10 border-emerald-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"ICT Fair Value Gap FVG explained" },
-  { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"ICT Liquidity sweep stop hunt tutorial" },
-  { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"ICT Market Structure Shift CHoCH BOS" },
-  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-teal-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"ICT Optimal Trade Entry OTE Fibonacci" },
-  { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (7–10 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"ICT Kill Zones London New York session" },
+  { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-teal-950 to-emerald-950",  accent:"text-teal-400", border:"border-teal-500/20",  tagBg:"bg-teal-500/10 border-teal-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"Order Blocks institutional trading" },
+  { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-emerald-950 to-cyan-950",      accent:"text-emerald-400",   border:"border-emerald-500/20",    tagBg:"bg-emerald-500/10 border-emerald-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"Fair Value Gap FVG price imbalance trading" },
+  { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"Liquidity sweep stop hunt institutional trading" },
+  { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"Market Structure Shift CHoCH BOS break of structure" },
+  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-teal-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"Optimal Trade Entry Fibonacci retracement zone" },
+  { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (7–10 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"Kill Zones London New York trading sessions" },
 ];
 
 /* ── Dynamic data ─────────────────────────────────────────────────────────── */
@@ -124,9 +124,9 @@ const HERO_LINES = [
 
 const HERO_SUBS = [
   "AI that reads price action like institutions — one clear signal per setup.",
-  "ICT Smart Money concepts automated. Plain English, every trade.",
+  "Smart Money concepts automated. Plain English, every trade.",
   "Order Blocks, FVGs, Liquidity sweeps — the framework that moves billions, now free.",
-  "6 ICT concepts checked in seconds. One clear BUY, HOLD, or SELL.",
+  "6 key market concepts checked in seconds. One clear BUY, HOLD, or SELL.",
   "Know which sessions matter, which levels count, and when institutions move.",
 ];
 
@@ -155,7 +155,7 @@ const LIVE_SIGNALS = [
 
 const QUOTES = [
   { text: "The market doesn't move randomly.", highlight: "Smart money leaves footprints.", end: "Traxora reads them." },
-  { text: "Institutions don't buy at random.", highlight: "They accumulate at Order Blocks.", end: "Now you can see them too." },
+  { text: "Institutions don't buy at random.", highlight: "They accumulate at key levels.", end: "Now you can see them too." },
   { text: "Most traders react to price.", highlight: "Smart money creates the move.", end: "Know the difference." },
 ];
 
@@ -200,7 +200,7 @@ export default function HomePage() {
     return () => clearInterval(id);
   }, []);
 
-  // ICT concept rotation (one at a time, wraps)
+  // Concept rotation (one at a time, wraps)
   useEffect(() => {
     const id = setInterval(() => setConceptIdx(i => (i + 1) % CONCEPTS.length), 4000);
     return () => clearInterval(id);
@@ -223,7 +223,7 @@ export default function HomePage() {
     <div className="min-h-screen text-[#F1F5F9] flex flex-col overflow-hidden">
 
       {/* ══ NAV ══ */}
-      <nav className="relative z-20 border-b border-[#1E2D4A]/60 px-6 sm:px-8 h-16 flex items-center justify-between backdrop-blur-sm bg-[#0A0F1E]/80 sticky top-0">
+      <nav className="relative z-20 border-b border-[#252345]/60 px-6 sm:px-8 h-16 flex items-center justify-between backdrop-blur-sm bg-[#0D0B1A]/80 sticky top-0">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -243,7 +243,7 @@ export default function HomePage() {
       </nav>
 
       {/* ══ TICKER BAR ══ */}
-      <div className="border-b border-[#1E2D4A]/60 bg-[#0A0F1E]/60 overflow-hidden py-2 relative">
+      <div className="border-b border-[#252345]/60 bg-[#0D0B1A]/60 overflow-hidden py-2 relative">
         <div
           className="flex gap-0 whitespace-nowrap"
           style={{ transform: `translateX(-${tickOffset}px)`, transition: "transform 0.03s linear" }}
@@ -253,7 +253,7 @@ export default function HomePage() {
               <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
               <span className="text-[#F1F5F9]">{t.price}</span>
               <span className={t.up ? "text-emerald-400" : "text-rose-400"}>{t.chg}</span>
-              <span className="text-[#1E2D4A]">|</span>
+              <span className="text-[#252345]">|</span>
             </span>
           ))}
         </div>
@@ -272,7 +272,7 @@ export default function HomePage() {
           {/* Live badge */}
           <div className="inline-flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-4 py-1.5 text-xs text-emerald-400 font-medium mb-10">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Powered by Claude Opus 4.7 · ICT Smart Money Methodology
+            Powered by Claude Opus 4.7 · Smart Money Methodology
           </div>
 
           {/* Rotating headline */}
@@ -303,7 +303,7 @@ export default function HomePage() {
             <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
               Open Dashboard →
             </Link>
-            <Link href="/explore" className="border border-[#1E2D4A] bg-[#0D1429]/60 hover:border-[#2B3E64] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
+            <Link href="/explore" className="border border-[#252345] bg-[#13112A]/60 hover:border-[#333368] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
               Browse Markets
             </Link>
           </div>
@@ -312,10 +312,10 @@ export default function HomePage() {
         {/* Floating signal card — animates between different signals */}
         <div className="relative z-10 mt-16 w-full max-w-sm mx-auto">
           <div
-            className={`bg-[#0D1429] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl transition-all duration-350`}
+            className={`bg-[#13112A] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl transition-all duration-350`}
             style={{ opacity: signalFade ? 1 : 0, transform: signalFade ? "translateY(0) scale(1)" : "translateY(4px) scale(0.99)" }}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1E2D4A]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                 <p className="font-bold text-sm text-[#F1F5F9]">{signal.sym}</p>
@@ -344,7 +344,7 @@ export default function HomePage() {
               <p className="text-[10px] font-mono text-[#F1F5F9]">{signal.price}</p>
             </div>
           </div>
-          <p className="text-[10px] text-[#2B3E64] text-center mt-2">Live AI analysis · Updates every few seconds</p>
+          <p className="text-[10px] text-[#333368] text-center mt-2">Live AI analysis · Updates every few seconds</p>
         </div>
       </section>
 
@@ -359,7 +359,7 @@ export default function HomePage() {
             <div className="space-y-4 text-[#7B8DB4] text-[15px] leading-relaxed">
               <p>
                 <strong className="text-[#F1F5F9]">Traxora</strong> is an AI signal platform built on{" "}
-                <strong className="text-[#F1F5F9]">ICT Smart Money methodology</strong> — the framework institutional traders use.
+                <strong className="text-[#F1F5F9]">Smart Money methodology</strong> — the framework institutional traders use.
               </p>
               <p>
                 Enter any ticker. Claude Opus 4.7 checks 6 Smart Money concepts and returns a clear{" "}
@@ -373,7 +373,7 @@ export default function HomePage() {
               <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
                 Start Free →
               </Link>
-              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#2B3E64]">
+              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#333368]">
                 Read the Guide →
               </Link>
             </div>
@@ -381,14 +381,14 @@ export default function HomePage() {
 
           <div className="lg:w-[45%] grid grid-cols-2 gap-3">
             {[
-              { value:"6",        label:"ICT Smart Money concepts analyzed on every ticker",         color:"text-emerald-400",  glow:"shadow-emerald-500/20" },
+              { value:"6",        label:"Smart Money concepts analyzed on every ticker",              color:"text-emerald-400",  glow:"shadow-emerald-500/20" },
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
               { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",  glow:"shadow-teal-500/20" },
               { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
               { value:"$10K",     label:"Paper trading simulator — practice risk-free",              color:"text-amber-400",   glow:"shadow-amber-500/20"  },
               { value:"Free",     label:"No subscription, no hidden fees",                          color:"text-rose-400",    glow:"shadow-rose-500/20"   },
             ].map((s) => (
-              <div key={s.label} className={`bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-4 hover:border-[#2B3E64] transition-all hover:shadow-lg ${s.glow}`}>
+              <div key={s.label} className={`bg-[#13112A]/80 border border-[#252345] rounded-2xl p-4 hover:border-[#333368] transition-all hover:shadow-lg ${s.glow}`}>
                 <p className={`text-2xl font-black mb-1 ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-[#4B5675] leading-relaxed">{s.label}</p>
               </div>
@@ -398,7 +398,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ ROTATING QUOTE ══ */}
-      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0A0F1E]/40">
+      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0D0B1A]/40">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-teal-600/3" />
         </div>
@@ -412,31 +412,31 @@ export default function HomePage() {
           </div>
           <div className="flex justify-center gap-2 mt-6">
             {QUOTES.map((_, i) => (
-              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#2B3E64]"}`} />
+              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#333368]"}`} />
             ))}
           </div>
         </div>
       </section>
 
       {/* ══ HOW TO USE IT ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full space-y-24">
-        <div className="text-center mb-4">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Complete Guide</p>
-          <h2 className="text-3xl font-black tracking-tight">How to use Traxora</h2>
+      <section className="px-6 sm:px-8 py-12 max-w-6xl mx-auto w-full space-y-10">
+        <div className="text-center mb-2">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">How it works</p>
+          <h2 className="text-2xl font-black tracking-tight">Two steps to your next trade</h2>
         </div>
 
         {/* Step 1 */}
-        <div className="flex flex-col md:flex-row gap-12 items-center">
+        <div className="flex flex-col md:flex-row gap-8 items-center">
           <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Step 01 · Pick Your Market</p>
-            <h3 className="text-2xl font-black mb-4">Search any stock or futures contract</h3>
-            <p className="text-[#7B8DB4] leading-relaxed">
-              Type any ticker — <strong className="text-[#F1F5F9]">AAPL, NVDA, TSLA</strong> for stocks, or <strong className="text-[#F1F5F9]">ES, NQ, GC</strong> for futures. Or browse the 20+ symbol watchlist on the Dashboard with live prices and color-coded signals.
+            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">Step 01 · Pick Your Market</p>
+            <h3 className="text-xl font-black mb-2">Search any stock or futures ticker</h3>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed">
+              Type <strong className="text-[#F1F5F9]">AAPL, NVDA, ES, GC</strong> — or browse the live watchlist on the Dashboard. Color-coded signals update in real time.
             </p>
           </div>
-          <div className="md:w-1/2 bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-6">
-            <p className="text-xs text-[#4B5675] mb-3 uppercase tracking-widest font-semibold">Live Watchlist Preview</p>
-            <div className="space-y-2">
+          <div className="md:w-1/2 bg-[#13112A]/80 border border-[#252345] rounded-2xl p-4">
+            <p className="text-[10px] text-[#4B5675] mb-2 uppercase tracking-widest font-semibold">Live Watchlist</p>
+            <div className="space-y-1.5">
               {[
                 { sym:"NVDA", name:"NVIDIA Corp.",   price:"$134.50", chg:"+2.4%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
                 { sym:"AAPL", name:"Apple Inc.",     price:"$189.20", chg:"-0.8%", sig:"HOLD", sc:"text-amber-400 bg-amber-500/10 border-amber-500/20"   },
@@ -444,13 +444,13 @@ export default function HomePage() {
                 { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
                 { sym:"TSLA", name:"Tesla Inc.",     price:"$178.40", chg:"-3.2%", sig:"SELL", sc:"text-rose-400 bg-rose-500/10 border-rose-500/20"       },
               ].map((r) => (
-                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#1E2D4A] pl-3 py-1 hover:border-emerald-500/40 transition-colors">
+                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#252345] pl-3 py-0.5 hover:border-emerald-500/40 transition-colors">
                   <div>
                     <p className="text-xs font-bold text-[#F1F5F9]">{r.sym}</p>
                     <p className="text-[10px] text-[#4B5675]">{r.name}</p>
                   </div>
-                  <div className="text-right flex items-center gap-2">
-                    <div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
                       <p className="text-xs font-mono text-[#F1F5F9]">{r.price}</p>
                       <p className={`text-[10px] font-mono ${r.chg.startsWith("+") ? "text-emerald-400" : "text-rose-400"}`}>{r.chg}</p>
                     </div>
@@ -463,26 +463,26 @@ export default function HomePage() {
         </div>
 
         {/* Step 2 */}
-        <div className="flex flex-col md:flex-row-reverse gap-12 items-center">
+        <div className="flex flex-col md:flex-row-reverse gap-8 items-center">
           <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-3">Step 02 · Read Your Signal</p>
-            <h3 className="text-2xl font-black mb-4">AI analyses 6 ICT concepts — one clear answer</h3>
-            <p className="text-[#7B8DB4] leading-relaxed">
-              Tap <strong className="text-[#F1F5F9]">&ldquo;Analyze&rdquo;</strong>. Claude Opus 4.7 checks Order Blocks, FVGs, Liquidity sweeps, Market Structure, OTE zones, and Kill Zone timing — then returns a BUY / HOLD / SELL with the full reasoning behind it.
+            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-2">Step 02 · Read Your Signal</p>
+            <h3 className="text-xl font-black mb-2">One tap — BUY, HOLD, or SELL</h3>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed">
+              Tap <strong className="text-[#F1F5F9]">Analyze</strong>. The AI checks Order Blocks, FVGs, liquidity sweeps, and Kill Zone timing, then gives you a clear verdict with the reasoning.
             </p>
           </div>
           <div className="md:w-1/2">
-            <div className={`bg-[#0D1429]/80 border ${sigBorder} rounded-2xl overflow-hidden transition-all duration-350 shadow-xl`} style={{ opacity: signalFade ? 1 : 0 }}>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#1E2D4A]">
+            <div className={`bg-[#13112A]/80 border ${sigBorder} rounded-2xl overflow-hidden transition-all duration-350 shadow-xl`} style={{ opacity: signalFade ? 1 : 0 }}>
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
                 <div>
                   <p className="font-bold text-[#F1F5F9]">{signal.sym}.US</p>
                   <p className="text-xs text-[#4B5675]">{signal.name}</p>
                 </div>
                 <span className={`text-sm font-black px-3 py-1.5 rounded-lg border ${sigColor}`}>{signal.sig}</span>
               </div>
-              <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#1E2D4A]">
+              <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#252345]">
                 {[
-                  { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#101C35] border-[#1E2D4A]"              },
+                  { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#1A1838] border-[#252345]"              },
                   { l:"Confidence", v:signal.conf,                                                       c:signal.conf === "High" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20" },
                   { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20"      },
                 ].map((b) => (
@@ -510,36 +510,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Step 3 */}
-        <div className="flex flex-col md:flex-row gap-12 items-center">
-          <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Step 03 · Act on It</p>
-            <h3 className="text-2xl font-black mb-4">Paper trade first, then go live</h3>
-            <p className="text-[#7B8DB4] leading-relaxed mb-4">
-              Start with the built-in <strong className="text-[#F1F5F9]">$10K paper simulator</strong>. Execute risk-free, track your equity curve, and journal every trade before going live.
-            </p>
-            <p className="text-[#7B8DB4] leading-relaxed">
-              The Signals page gives step-by-step instructions — order type, stop-loss, and timing — for any broker.
-            </p>
-          </div>
-          <div className="md:w-1/2 space-y-3">
-            <div className="bg-[#0D1429]/80 border border-emerald-500/20 rounded-2xl p-5 hover:border-emerald-500/40 transition-colors">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">📊</span>
-                <p className="text-sm font-bold text-[#F1F5F9]">Paper Simulator</p>
-                <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-lg">$10K</span>
-              </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed">Virtual portfolio with live-priced equity curve, full trade journal, and P&amp;L tracking. No risk.</p>
-            </div>
-            <div className="bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-5 hover:border-[#2B3E64] transition-colors">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-base">📱</span>
-                <p className="text-sm font-bold text-[#F1F5F9]">Manual execution — any broker</p>
-              </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed">The Signals page gives step-by-step execution instructions. Works with Robinhood, Webull, or any platform you prefer.</p>
-            </div>
-          </div>
-        </div>
       </section>
 
       {/* ══ DAILY ROUTINE ══ */}
@@ -553,12 +523,12 @@ export default function HomePage() {
                 { time:"Before 9:30 AM ET", icon:"🌅", title:"Check overnight futures", desc:"Look at ES, NQ, GC on the Dashboard. Up or down from yesterday's close tells you institutional bias for the day." },
                 { time:"9:30 – 10:30 AM ET", icon:"🎯", title:"NY Kill Zone — your prime window", desc:"The majority of institutional moves happen here. High confidence BUY + active Kill Zone = best setup." },
                 { time:"During the day", icon:"📡", title:"Let push alerts do the work", desc:"Enable notifications. When Traxora fires a signal during a Kill Zone, your phone buzzes. You decide." },
-                { time:"After market close", icon:"📊", title:"Review your paper portfolio", desc:"Which signals worked? Study the ICT concept behind each trade. This builds intuition before real money." },
+                { time:"After market close", icon:"📊", title:"Review your paper portfolio", desc:"Which signals worked? Study the market structure behind each trade. This builds intuition before real money." },
               ].map((r) => (
                 <div key={r.title} className="flex gap-4">
                   <div className="flex flex-col items-center gap-1 shrink-0">
                     <span className="text-xl">{r.icon}</span>
-                    <div className="w-px flex-1 bg-[#1E2D4A] min-h-[24px]" />
+                    <div className="w-px flex-1 bg-[#252345] min-h-[24px]" />
                   </div>
                   <div className="pb-2">
                     <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider mb-1">{r.time}</p>
@@ -570,7 +540,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="lg:w-[45%] lg:sticky lg:top-24">
-            <div className="bg-[#0D1429]/80 border border-[#1E2D4A] rounded-2xl p-6">
+            <div className="bg-[#13112A]/80 border border-[#252345] rounded-2xl p-6">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-5">6 Risk Rules to Live By</p>
               <div className="space-y-4">
                 {[
@@ -592,8 +562,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ ICT CONCEPTS — animated carousel ══ */}
-      <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#0A0F1E]/40">
+      {/* ══ SMART MONEY CONCEPTS — animated carousel ══ */}
+      <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#0D0B1A]/40">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-600/3 to-transparent pointer-events-none" />
         <div className="relative z-10 max-w-6xl mx-auto">
           <div className="text-center mb-14">
@@ -608,7 +578,7 @@ export default function HomePage() {
           <div className="flex justify-center gap-2 mb-8">
             {CONCEPTS.map((c, i) => (
               <button key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#1E2D4A] text-[#4B5675] bg-transparent"}`}>
+                className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#252345] text-[#4B5675] bg-transparent"}`}>
                 {c.tag}
               </button>
             ))}
@@ -620,7 +590,7 @@ export default function HomePage() {
               <div key={c.tag} className={`transition-all duration-500 ${i === conceptIdx ? "opacity-100 scale-100" : "opacity-0 scale-98 absolute pointer-events-none"}`}
                 style={{ display: i === conceptIdx ? "block" : "none" }}>
                 <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(c.search)}`} target="_blank" rel="noopener noreferrer"
-                  className={`block bg-[#0D1429] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all max-w-2xl mx-auto`}>
+                  className={`block bg-[#13112A] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all max-w-2xl mx-auto`}>
                   <div className={`bg-gradient-to-br ${c.gradient} px-6 pt-6 pb-4 h-56 flex items-center`}>
                     {c.diagram}
                   </div>
@@ -641,7 +611,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {CONCEPTS.map((c, i) => (
               <button key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`bg-[#0D1429] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#1E2D4A]"}`}
+                className={`bg-[#13112A] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#252345]"}`}
 >
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
                 <p className="text-[10px] text-[#7B8DB4] mt-1.5 leading-snug">{c.title}</p>
@@ -656,12 +626,12 @@ export default function HomePage() {
         <div className="text-center mb-12">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-400 mb-3">Why Traxora?</p>
           <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is free.</h2>
-          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use ICT Smart Money methodology or Claude Opus 4.7.</p>
+          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use institutional Smart Money methodology or Claude Opus 4.7.</p>
         </div>
-        <div className="overflow-x-auto rounded-2xl border border-[#1E2D4A]">
+        <div className="overflow-x-auto rounded-2xl border border-[#252345]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[#1E2D4A]">
+              <tr className="border-b border-[#252345]">
                 <th className="text-left py-4 pl-5 pr-6 text-[#4B5675] text-xs uppercase tracking-widest font-semibold">Feature</th>
                 {[
                   { name:"Traxora",     price:"Free",    highlight:true  },
@@ -678,7 +648,7 @@ export default function HomePage() {
             </thead>
             <tbody>
               {[
-                { feature:"ICT Smart Money signals", traxora:true,  ti:false, ss:false, ts:false },
+                { feature:"Smart Money signals", traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Claude Opus 4.7 AI",      traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Live BUY/SELL signals",   traxora:true,  ti:true,  ss:true,  ts:true  },
                 { feature:"Paper trading simulator", traxora:true,  ti:false, ss:false, ts:true  },
@@ -686,7 +656,7 @@ export default function HomePage() {
                 { feature:"Morning briefing AI",     traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Free to use",             traxora:true,  ti:false, ss:false, ts:false },
               ].map((row, i) => (
-                <tr key={row.feature} className={`border-b border-[#1E2D4A] last:border-0 ${i % 2 === 0 ? "" : "bg-[#0D1429]/40"}`}>
+                <tr key={row.feature} className={`border-b border-[#252345] last:border-0 ${i % 2 === 0 ? "" : "bg-[#13112A]/40"}`}>
                   <td className="py-3.5 pl-5 pr-6 text-[#CBD5E1] text-xs">{row.feature}</td>
                   {[
                     { val:row.traxora, highlight:true  },
@@ -695,7 +665,7 @@ export default function HomePage() {
                     { val:row.ts,      highlight:false },
                   ].map((cell, ci) => (
                     <td key={ci} className={`py-3.5 px-4 text-center text-base ${cell.highlight ? "bg-emerald-600/10 border-x border-emerald-500/20" : ""}`}>
-                      {cell.val ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-[#2B3E64]">—</span>}
+                      {cell.val ? <span className="text-emerald-400 font-bold">✓</span> : <span className="text-[#333368]">—</span>}
                     </td>
                   ))}
                 </tr>
@@ -711,11 +681,11 @@ export default function HomePage() {
       </section>
 
       {/* ══ BUILT DIFFERENT ══ */}
-      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0A0F1E]/40">
+      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0D0B1A]/40">
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Built different</p>
-            <h2 className="text-3xl font-black tracking-tight">The only free ICT signal platform powered by Claude Opus 4.7</h2>
+            <h2 className="text-3xl font-black tracking-tight">The only free Smart Money signal platform powered by Claude Opus 4.7</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
@@ -723,7 +693,7 @@ export default function HomePage() {
               { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-teal-500/20" },
               { icon:"🔒", title:"Practice before you risk money", desc:"$10K paper simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
             ].map((c) => (
-              <div key={c.title} className={`bg-[#0D1429]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>
+              <div key={c.title} className={`bg-[#13112A]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>
                 <span className="text-3xl block mb-4">{c.icon}</span>
                 <h3 className="font-bold text-[#F1F5F9] mb-2">{c.title}</h3>
                 <p className="text-xs text-[#7B8DB4] leading-relaxed">{c.desc}</p>
@@ -743,7 +713,7 @@ export default function HomePage() {
             Ready to read the market<br />like smart money?
           </h2>
           <p className="text-[#7B8DB4] text-base leading-relaxed mb-10">
-            Free forever. ICT signals, push alerts, morning briefing, $10K simulator.
+            Free forever. Smart money signals, push alerts, morning briefing, $10K simulator.
           </p>
           <div className="flex items-center justify-center">
             <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
@@ -754,7 +724,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ FOOTER ══ */}
-      <footer className="border-t border-[#1E2D4A] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#0A0F1E]/60">
+      <footer className="border-t border-[#252345] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#0D0B1A]/60">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-5 h-5 rounded bg-emerald-600 flex items-center justify-center">

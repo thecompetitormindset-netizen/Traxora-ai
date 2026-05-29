@@ -1,15 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
-import LiveTradingRoom from "../components/LiveTradingRoom";
-import { getPortfolio, STARTING_BALANCE, PORTFOLIO_UPDATED_EVENT, type Portfolio } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
-import { fifoRealizedPL } from "../lib/pl";
 
 type StockCard = {
   symbol: string;
@@ -66,7 +63,7 @@ function signalBadge(signal: string | null) {
 function signalBorder(signal: string | null) {
   if (signal === "BUY")  return "border-l-emerald-500/40";
   if (signal === "SELL") return "border-l-rose-500/40";
-  return "border-l-[#1C2333]";
+  return "border-l-[#252345]";
 }
 
 function changeColor(v: number | null) {
@@ -117,71 +114,53 @@ function markAlertFired(symbol: string, signal: "BUY" | "SELL") {
 }
 
 
+const PAPER_KEY   = "paper_portfolio_v2";
+const PAPER_START = 10_000;
+
+type PaperStats = {
+  accountValue: number;
+  realizedPL:   number;
+  openCount:    number;
+  closedCount:  number;
+  winRate:      number | null;
+};
+
+function loadPaperStats(storageKey: string): PaperStats {
+  const empty: PaperStats = { accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null };
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return empty;
+    const trades = JSON.parse(raw) as Array<{
+      direction: string; entryPrice: number; exitPrice: number | null; shares: number; status: string;
+    }>;
+    const open   = trades.filter(t => t.status === "OPEN");
+    const closed = trades.filter(t => t.status === "CLOSED");
+    const pl     = (t: typeof trades[0], price: number) =>
+      (t.direction === "LONG" ? price - t.entryPrice : t.entryPrice - price) * t.shares;
+    const realizedPL  = closed.reduce((s, t) => t.exitPrice != null ? s + pl(t, t.exitPrice) : s, 0);
+    const wins        = closed.filter(t => t.exitPrice != null && pl(t, t.exitPrice) > 0).length;
+    return {
+      accountValue: PAPER_START + realizedPL,
+      realizedPL,
+      openCount:   open.length,
+      closedCount: closed.length,
+      winRate:     closed.length > 0 ? Math.round((wins / closed.length) * 100) : null,
+    };
+  } catch { return empty; }
+}
+
 export default function DashboardPage() {
-  const [portfolio, setPortfolio] = useState<Portfolio>({
-    cash: STARTING_BALANCE, holdings: [], trades: [], pendingOrders: [],
+  const [paperStats, setPaperStats] = useState<PaperStats>({
+    accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
-  const [prices, setPrices]   = useState<Record<string, number>>({});
-  const [ageMs,  setAgeMs]    = useState(0);
-  const lastFetchRef = useRef<number>(Date.now());
 
   useEffect(() => {
-    const load = () => setPortfolio(getPortfolio());
-    load();
-    window.addEventListener(PORTFOLIO_UPDATED_EVENT, load);
-    return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, load);
+    const key     = scopedKey(PAPER_KEY);
+    const refresh = () => setPaperStats(loadPaperStats(key));
+    refresh();
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
   }, []);
-
-  const fetchPrices = useCallback(async (holdings: Portfolio["holdings"]) => {
-    if (document.hidden) return; // skip while tab is hidden
-    if (holdings.length === 0) { setPrices({}); return; }
-    const results = await Promise.allSettled(
-      holdings.map(async (h) => {
-        const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(h.symbol)}`, { cache: "no-store" });
-        const data = await res.json();
-        return { symbol: h.symbol, price: typeof data.price === "number" ? data.price : null };
-      }),
-    );
-    const map: Record<string, number> = {};
-    for (const r of results) {
-      if (r.status === "fulfilled" && r.value.price !== null) map[r.value.symbol] = r.value.price;
-    }
-    setPrices(map);
-    lastFetchRef.current = Date.now();
-    setAgeMs(0);
-  }, []);
-
-  useEffect(() => {
-    fetchPrices(portfolio.holdings);
-    const id = setInterval(() => fetchPrices(portfolio.holdings), 5_000);
-    return () => clearInterval(id);
-  }, [portfolio.holdings, fetchPrices]);
-
-  // Tick every 100 ms for the live age counter
-  useEffect(() => {
-    const id = setInterval(() => setAgeMs(Date.now() - lastFetchRef.current), 100);
-    return () => clearInterval(id);
-  }, []);
-
-  const realizedPL = useMemo(() => fifoRealizedPL(portfolio.trades), [portfolio.trades]);
-
-  const unrealizedPL = useMemo(() =>
-    portfolio.holdings.reduce((s, h) => {
-      const p = prices[h.symbol];
-      return p != null ? s + (p - h.avgPrice) * h.quantity : s;
-    }, 0),
-    [portfolio.holdings, prices],
-  );
-
-  const marketValue = useMemo(() =>
-    portfolio.holdings.reduce((s, h) => s + h.quantity * (prices[h.symbol] ?? h.avgPrice), 0),
-    [portfolio.holdings, prices],
-  );
-
-  const totalPL    = realizedPL + unrealizedPL;
-  const totalValue = portfolio.cash + marketValue;
-  const ageSec     = Math.floor(ageMs / 1000);
-  const ageMs10    = Math.floor((ageMs % 1000) / 100);
 
   const [stocks, setStocks] = useState<StockCard[]>(
     WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, loading: true }))
@@ -425,7 +404,7 @@ export default function DashboardPage() {
             {/* Stat cards */}
             <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Sentiment card — pulsing while AI signals are loading */}
-              <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4">
+              <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
                 <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
                 {isAnalyzing ? (
                   <div className="flex items-center gap-2 mt-2">
@@ -445,83 +424,69 @@ export default function DashboardPage() {
                 { label: "Hold Signals", value: holdCount.toString(), color: "text-amber-400" },
                 { label: "Sell Signals", value: sellCount.toString(), color: "text-rose-400" },
               ].map((s) => (
-                <div key={s.label} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4">
+                <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
                   <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">{s.label}</p>
                   <p className={`text-2xl font-bold mt-2 font-mono ${s.color}`}>{s.value}</p>
                 </div>
               ))}
             </div>
 
-            {/* ── Portfolio P&L summary ── */}
-            <Link href="/profit-loss" className="mt-4 block group">
-              <div className="bg-[#0C1017] border border-[#1C2333] hover:border-[#2D3A50] rounded-2xl px-5 py-4 transition-all">
+            {/* ── Paper Portfolio summary ── */}
+            <Link href="/paper" className="mt-4 block group">
+              <div className="bg-[#13112A] border border-[#252345] hover:border-[#333368] rounded-2xl px-5 py-4 transition-all">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs text-[#4B5675] font-semibold uppercase tracking-widest">Portfolio P / L</p>
-                  <div className="flex items-center gap-2">
-                    {portfolio.holdings.length > 0 && (
-                      <span className={`flex items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded-lg border ${
-                        ageMs < 3_000
-                          ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-                          : "bg-[#111827] border-[#1C2333] text-[#4B5675]"
-                      }`}>
-                        <span className={`w-1 h-1 rounded-full ${ageMs < 3_000 ? "bg-emerald-400" : "bg-[#4B5675]"}`} />
-                        {ageSec}.{ageMs10}s ago
-                      </span>
-                    )}
-                    <span className="text-[10px] text-emerald-400 group-hover:text-emerald-300 font-medium">Full breakdown →</span>
-                  </div>
+                  <p className="text-xs text-[#4B5675] font-semibold uppercase tracking-widest">Paper Portfolio</p>
+                  <span className="text-[10px] text-emerald-400 group-hover:text-emerald-300 font-medium">View trades →</span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
                     {
-                      label: "Total P / L",
-                      value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`,
-                      color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400",
-                      sub: `${((totalPL / STARTING_BALANCE) * 100).toFixed(2)}%`,
-                    },
-                    {
-                      label: "Unrealized",
-                      value: `${unrealizedPL >= 0 ? "+" : ""}$${unrealizedPL.toFixed(2)}`,
-                      color: unrealizedPL >= 0 ? "text-emerald-400" : "text-rose-400",
-                      sub: portfolio.holdings.length > 0 ? `${portfolio.holdings.length} position${portfolio.holdings.length !== 1 ? "s" : ""}` : "no open positions",
-                    },
-                    {
-                      label: "Realized",
-                      value: `${realizedPL >= 0 ? "+" : ""}$${realizedPL.toFixed(2)}`,
-                      color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400",
-                      sub: `${portfolio.trades.filter(t => t.side === "SELL").length} closed trades`,
-                    },
-                    {
-                      label: "Cash",
-                      value: `$${portfolio.cash.toFixed(2)}`,
+                      label: "Account Value",
+                      value: `$${paperStats.accountValue.toFixed(2)}`,
                       color: "text-[#F1F5F9]",
-                      sub: `of $${STARTING_BALANCE.toLocaleString()} started`,
+                      sub: `of $${PAPER_START.toLocaleString()} started`,
+                    },
+                    {
+                      label: "Realized P / L",
+                      value: `${paperStats.realizedPL >= 0 ? "+" : ""}$${paperStats.realizedPL.toFixed(2)}`,
+                      color: paperStats.realizedPL >= 0 ? "text-emerald-400" : "text-rose-400",
+                      sub: `${paperStats.closedCount} closed trade${paperStats.closedCount !== 1 ? "s" : ""}`,
+                    },
+                    {
+                      label: "Open Positions",
+                      value: paperStats.openCount.toString(),
+                      color: "text-[#F1F5F9]",
+                      sub: "active trades",
+                    },
+                    {
+                      label: "Win Rate",
+                      value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",
+                      color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]",
+                      sub: paperStats.closedCount > 0 ? `${paperStats.closedCount} trades` : "no history yet",
                     },
                   ].map((s) => (
                     <div key={s.label}>
                       <p className="text-[10px] text-[#4B5675] uppercase tracking-widest">{s.label}</p>
                       <p className={`text-xl font-black font-mono tabular-nums mt-1 ${s.color}`}>{s.value}</p>
-                      <p className="text-[10px] text-[#2D3A50] mt-0.5">{s.sub}</p>
+                      <p className="text-[10px] text-[#333368] mt-0.5">{s.sub}</p>
                     </div>
                   ))}
                 </div>
 
                 {/* Mini equity bar */}
-                {totalValue > 0 && (
-                  <div className="mt-4">
-                    <div className="flex justify-between text-[9px] text-[#2D3A50] mb-1">
-                      <span>Account Value ${totalValue.toFixed(2)}</span>
-                      <span>Start ${STARTING_BALANCE.toLocaleString()}</span>
-                    </div>
-                    <div className="h-1.5 bg-[#111827] rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${totalPL >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                        style={{ width: `${Math.min(100, Math.max(2, (totalValue / Math.max(totalValue, STARTING_BALANCE)) * 100))}%` }}
-                      />
-                    </div>
+                <div className="mt-4">
+                  <div className="flex justify-between text-[9px] text-[#333368] mb-1">
+                    <span>Account Value ${paperStats.accountValue.toFixed(2)}</span>
+                    <span>Start $10,000</span>
                   </div>
-                )}
+                  <div className="h-1.5 bg-[#1A1838] rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${paperStats.realizedPL >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                      style={{ width: `${Math.min(100, Math.max(2, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100))}%` }}
+                    />
+                  </div>
+                </div>
               </div>
             </Link>
 
@@ -552,7 +517,7 @@ export default function DashboardPage() {
                     <Link
                       key={stock.symbol}
                       href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`}
-                      className={`group bg-[#0C1017] rounded-2xl p-5 border border-l-2 hover:border-[#2D3A50] hover:bg-[#111827] transition-colors border-[#1C2333] ${signalBorder(stock.signal)} ${animClass}`}
+                      className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${signalBorder(stock.signal)} ${animClass}`}
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
@@ -577,7 +542,7 @@ export default function DashboardPage() {
                               )}
                             </div>
                           )
-                          : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#111827] text-[#4B5675] border-[#1C2333]">—</span>
+                          : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
                         }
                       </div>
                       <p className={`text-xl font-bold font-mono ${changeColor(stock.change)}`}>
@@ -593,9 +558,6 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
-
-          {/* ── LIVE TRADING ROOM ── */}
-          <LiveTradingRoom />
 
           {/* ── PAGE 2: FUTURES MARKETS ── */}
           <section>
@@ -614,13 +576,13 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                     {items.map((f) => (
                       <Link key={f.symbol} href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-                        className="group bg-[#0C1017] border border-[#1C2333] hover:border-[#2D3A50] hover:bg-[#111827] rounded-2xl p-4 transition-all">
+                        className="group bg-[#13112A] border border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] rounded-2xl p-4 transition-all">
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <p className="font-bold text-sm tracking-tight">{f.symbol.replace(".COMM","")}</p>
                             <p className="text-[11px] text-[#4B5675] mt-0.5 truncate max-w-[100px]">{f.name}</p>
                           </div>
-                          <span className="text-[10px] font-bold text-[#4B5675] bg-[#111827] border border-[#1C2333] px-1.5 py-0.5 rounded-md shrink-0">{f.exchange}</span>
+                          <span className="text-[10px] font-bold text-[#4B5675] bg-[#1A1838] border border-[#252345] px-1.5 py-0.5 rounded-md shrink-0">{f.exchange}</span>
                         </div>
                         <p className="text-lg font-bold font-mono">
                           {f.loading ? <span className="text-[#4B5675] animate-pulse text-sm">Loading…</span>
@@ -641,18 +603,18 @@ export default function DashboardPage() {
           {/* ── PAGE 3: RISK RULES + BROKER CTA ── */}
           <section>
             {/* Risk rules */}
-            <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5 mb-6">
+            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
               <p className="text-sm font-semibold mb-4">5 rules to protect your money</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { icon: "💰", rule: "Never risk more than 5–10% per trade", detail: "If you have $500, max $25–$50 per signal." },
                   { icon: "🛡️", rule: "Always set a stop-loss", detail: "4–5% below your buy price on Robinhood. Non-negotiable." },
-                  { icon: "🧠", rule: "Understand before you act", detail: "Read the ICT analysis. Know why the signal fired." },
+                  { icon: "🧠", rule: "Understand before you act", detail: "Read the market analysis. Know why the signal fired." },
                   { icon: "⏳", rule: "Patience beats FOMO", detail: "Not every signal is worth taking. Wait for high confidence." },
                   { icon: "📓", rule: "Keep a trade journal", detail: "Note why you entered, what happened, what you learned." },
                   { icon: "⚠️", rule: "AI is not 100% right", detail: "No tool is. This is a starting point, not a guarantee." },
                 ].map((r) => (
-                  <div key={r.rule} className="flex gap-3 bg-[#060A14] border border-[#1C2333] rounded-xl p-3">
+                  <div key={r.rule} className="flex gap-3 bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                     <span className="text-base shrink-0">{r.icon}</span>
                     <div>
                       <p className="text-xs font-semibold text-[#F1F5F9]">{r.rule}</p>
@@ -664,7 +626,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Exchange CTA */}
-            <div className="mt-4 rounded-2xl border border-[#1C2333] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 p-6 flex items-center justify-between gap-6 flex-wrap">
+            <div className="mt-4 rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 p-6 flex items-center justify-between gap-6 flex-wrap">
               <div>
                 <h3 className="font-semibold">Explore all exchanges</h3>
                 <p className="text-sm text-[#7B8DB4] mt-1">CBOE, CBOT, CME, KCBT, MGE, NYBOT &amp; NYMEX — instant AI analysis on every contract.</p>

@@ -277,8 +277,8 @@ export default function ExplorePage() {
               onClick={() => { setSelectedExchange(null); setSearched(false); }}
               className={`px-4 py-2 rounded-xl border text-sm font-semibold transition ${
                 !selectedExchange && !searched
-                  ? "border-[#2D3A50] bg-[#0C1017]/80 text-[#F1F5F9]"
-                  : "border-[#1C2333] text-[#4B5675] hover:text-[#F1F5F9] hover:bg-[#0C1017]"
+                  ? "border-[#333368] bg-[#13112A]/80 text-[#F1F5F9]"
+                  : "border-[#252345] text-[#4B5675] hover:text-[#F1F5F9] hover:bg-[#13112A]"
               }`}
             >
               All Markets
@@ -327,7 +327,7 @@ export default function ExplorePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by company name or ticker (e.g. Tesla, AAPL, ES)"
-            className="flex-1 bg-[#0C1017] border border-[#1C2333] rounded-2xl px-5 py-4 text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition text-sm"
+            className="flex-1 bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4 text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition text-sm"
           />
           <button
             type="submit"
@@ -349,20 +349,20 @@ export default function ExplorePage() {
                 <Link
                   key={`${r.symbol}-${i}`}
                   href={`/analysis?symbol=${encodeURIComponent(r.symbol)}`}
-                  className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] hover:border-[#2D3A50] transition block"
+                  className="bg-[#13112A] rounded-2xl p-5 border border-[#252345] hover:border-[#333368] transition block"
                 >
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="font-bold text-[#F1F5F9]">{r.symbol}</p>
                       <p className="text-sm text-[#7B8DB4] mt-0.5 truncate max-w-[200px]">{r.name}</p>
                     </div>
-                    <span className="text-xs text-[#4B5675] bg-[#111827] px-2 py-1 rounded-lg border border-[#1C2333]">
+                    <span className="text-xs text-[#4B5675] bg-[#1A1838] px-2 py-1 rounded-lg border border-[#252345]">
                       {r.exchange}
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-3">
                     <span className="text-xs text-[#4B5675]">{r.country}</span>
-                    <span className="text-[#2D3A50]">·</span>
+                    <span className="text-[#333368]">·</span>
                     <span className="text-xs text-[#4B5675]">{r.type}</span>
                   </div>
                   <p className="text-xs text-emerald-400 mt-3">Analyze with AI →</p>
@@ -391,7 +391,7 @@ export default function ExplorePage() {
                         <Link
                           key={item.symbol}
                           href={`/analysis?symbol=${encodeURIComponent(item.symbol)}`}
-                          className={`bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] ${c.glow} transition block`}
+                          className={`bg-[#13112A] rounded-2xl p-5 border border-[#252345] ${c.glow} transition block`}
                         >
                           <div className="flex items-start justify-between">
                             <div>
@@ -423,7 +423,7 @@ export default function ExplorePage() {
                   <Link
                     key={stock.symbol}
                     href={`/analysis?symbol=${encodeURIComponent(stock.symbol)}`}
-                    className="bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] hover:border-[#2D3A50] transition block"
+                    className="bg-[#13112A] rounded-2xl p-5 border border-[#252345] hover:border-[#333368] transition block"
                   >
                     <div className="flex items-start justify-between">
                       <div>
@@ -455,7 +455,7 @@ export default function ExplorePage() {
                       key={ex.id}
                       type="button"
                       onClick={() => setSelectedExchange(ex.id)}
-                      className={`bg-[#0C1017] rounded-2xl p-5 border border-[#1C2333] ${c.glow} transition text-left block w-full`}
+                      className={`bg-[#13112A] rounded-2xl p-5 border border-[#252345] ${c.glow} transition text-left block w-full`}
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div className="flex items-center gap-2">
@@ -464,7 +464,7 @@ export default function ExplorePage() {
                             {ex.short}
                           </p>
                         </div>
-                        <span className="text-xs text-[#4B5675] bg-[#111827] px-2 py-1 rounded-lg border border-[#1C2333]">
+                        <span className="text-xs text-[#4B5675] bg-[#1A1838] px-2 py-1 rounded-lg border border-[#252345]">
                           {ex.items.length} contracts
                         </span>
                       </div>
@@ -478,7 +478,7 @@ export default function ExplorePage() {
                           </span>
                         ))}
                         {cats.length > 3 && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-[#1F2937] text-gray-600">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded border border-[#1E1C42] text-gray-600">
                             +{cats.length - 3} more
                           </span>
                         )}

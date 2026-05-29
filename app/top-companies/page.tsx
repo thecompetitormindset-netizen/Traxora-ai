@@ -61,7 +61,7 @@ export default function TopCompaniesPage() {
             </p>
           </div>
           {!loading && (
-            <span className="text-xs text-[#4B5675] border border-[#1C2333] px-3 py-1.5 rounded-xl">
+            <span className="text-xs text-[#4B5675] border border-[#252345] px-3 py-1.5 rounded-xl">
               {filtered.length} companies
             </span>
           )}
@@ -74,30 +74,30 @@ export default function TopCompaniesPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Filter by name, ticker, or sector…"
-            className="w-full max-w-md bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition"
+            className="w-full max-w-md bg-[#13112A] border border-[#252345] rounded-xl px-4 py-3 text-sm text-[#F1F5F9] placeholder-[#4B5675] outline-none focus:border-emerald-500/50 transition"
           />
         </div>
 
-        <div className="mt-5 bg-[#0C1017] border border-[#1C2333] rounded-2xl overflow-hidden">
+        <div className="mt-5 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-[#4B5675] text-sm animate-pulse">Loading companies…</div>
           ) : filtered.length === 0 ? (
             <div className="p-8 text-center text-[#4B5675] text-sm">No companies found.</div>
           ) : (
             <>
-              <div className="grid grid-cols-3 text-[10px] text-[#4B5675] px-5 py-3 border-b border-[#1C2333] uppercase tracking-widest font-semibold">
+              <div className="grid grid-cols-3 text-[10px] text-[#4B5675] px-5 py-3 border-b border-[#252345] uppercase tracking-widest font-semibold">
                 <span>Symbol</span>
                 <span>Company</span>
                 <span>Sector</span>
               </div>
 
-              <div className="divide-y divide-[#1C2333] max-h-[70vh] overflow-y-auto">
+              <div className="divide-y divide-[#252345] max-h-[70vh] overflow-y-auto">
                 {filtered.map((company) => (
                   <button
                     key={company.eodhdSymbol}
                     type="button"
                     onClick={() => openCompany(company.eodhdSymbol)}
-                    className="w-full grid grid-cols-3 items-center text-sm px-5 py-3.5 hover:bg-[#111827] text-left transition"
+                    className="w-full grid grid-cols-3 items-center text-sm px-5 py-3.5 hover:bg-[#1A1838] text-left transition"
                   >
                     <span className="font-bold text-emerald-400">{company.eodhdSymbol}</span>
                     <span className="text-[#CBD5E1] truncate pr-4">{company.name}</span>

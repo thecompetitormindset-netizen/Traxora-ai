@@ -73,7 +73,7 @@ export default function RiskGuard() {
         warnedRef.current.add(concKey);
         push("⚠️",
           `${symbol} is ${(concPct * 100).toFixed(0)}% of your account`,
-          `Consider reducing — ICT rule: no single position > 25%`,
+          `Consider reducing — rule: no single position > 25%`,
           "border-amber-500/30 bg-amber-500/10 text-amber-300"
         );
       }

@@ -32,7 +32,7 @@ export default function MiniSentiment() {
       title={`Market Pulse: ${score > 0 ? "+" : ""}${score} (${regime ?? label})`}
       className="fixed left-2 top-1/2 -translate-y-1/2 z-40 hidden xl:block group"
     >
-      <div className="bg-[#0C1017]/90 border border-[#1C2333] group-hover:border-emerald-500/30 rounded-xl p-2.5 transition-all backdrop-blur-sm shadow-lg">
+      <div className="bg-[#13112A]/90 border border-[#252345] group-hover:border-emerald-500/30 rounded-xl p-2.5 transition-all backdrop-blur-sm shadow-lg">
         {/* Score */}
         <p
           className="text-[9px] font-black font-mono tabular-nums text-center leading-none"
@@ -42,7 +42,7 @@ export default function MiniSentiment() {
         </p>
 
         {/* Horizontal bar */}
-        <div className="mt-1.5 w-14 h-2 bg-[#080E1B] rounded-full overflow-hidden border border-[#1C2333]/50 relative">
+        <div className="mt-1.5 w-14 h-2 bg-[#080E1B] rounded-full overflow-hidden border border-[#252345]/50 relative">
           {/* Gradient backdrop */}
           <div
             className="absolute inset-0 rounded-full"

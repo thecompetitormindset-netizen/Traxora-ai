@@ -60,15 +60,6 @@ function ExploreIcon() {
   );
 }
 
-function PortfolioIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-      <path d="M22 12A10 10 0 0 0 12 2v10z" />
-    </svg>
-  );
-}
-
 function SettingsIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -104,7 +95,6 @@ const NAV_LINKS = [
   { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
 
   { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
-  { name: "Portfolio", href: "/portfolio",         icon: <PortfolioIcon /> },
   { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },
   { name: "Settings",  href: "/settings",          icon: <SettingsIcon /> },
 ] as const;
@@ -152,7 +142,7 @@ function MarketDot() {
   return (
     <span
       title={`US Market ${open ? "Open" : "Closed"}`}
-      className={`absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-full border-2 border-[#0C1017] ${
+      className={`absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-full border-2 border-[#13112A] ${
         open ? "bg-emerald-400 shadow-[0_0_8px_#10B981]" : "bg-[#4B5675]"
       }`}
     />
@@ -166,12 +156,12 @@ export default function Sidebar() {
 
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50" aria-label="Main navigation">
-      <div className="flex items-center gap-0.5 px-2 py-2 rounded-[22px] bg-[#0C1017]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)_inset,0_0_60px_rgba(99,102,241,0.08)] overflow-x-auto max-w-[96vw]">
+      <div className="flex items-center gap-0.5 px-2 py-2 rounded-[22px] bg-[#13112A]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)_inset,0_0_60px_rgba(99,102,241,0.08)] overflow-x-auto max-w-[96vw]">
 
         {NAV_LINKS.map((link) => {
           const isActive =
             pathname === link.href ||
-            (link.href !== "/dashboard" && link.href !== "/paper" && link.href !== "/portfolio" && pathname?.startsWith(link.href));
+            (link.href !== "/dashboard" && link.href !== "/paper" && pathname?.startsWith(link.href));
 
           return (
             <NavItem

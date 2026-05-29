@@ -32,9 +32,9 @@ const SECTIONS: Section[] = [
     steps: [
       { step: "Open the Dashboard", detail: "This is your home base. You'll see 9 live stock cards (AAPL, NVDA, TSLA, etc.) and 8 futures contracts (ES, NQ, GC, CL, etc.) with real-time prices updating automatically." },
       { step: "Read the signal badges", detail: "Each card shows a BUY (green), HOLD (amber), or SELL (red) badge. These are updated whenever the market is fetched. Green = AI detected a bullish Smart Money setup. Red = bearish." },
-      { step: "Click any card to go deeper", detail: "Tapping a stock card takes you to the full Signals page for that ticker, where Claude Opus 4.7 runs a complete ICT analysis with Order Blocks, FVGs, Liquidity, and OTE zones." },
-      { step: "Enable AutoTrader", detail: "Press the green 'Auto' button in the bottom-right corner. It starts scanning your watchlist every 3 minutes and automatically places paper trades. You'll see live toasts in the bottom-left as it works." },
-      { step: "Watch the ICT concepts panel", detail: "Scroll down past the stock cards to see the 6 Smart Money concepts (OB, FVG, Liquidity, MSS, OTE, Kill Zone) explained with diagrams. This teaches you what the AI is looking for." },
+      { step: "Click any card to go deeper", detail: "Tapping a stock card takes you to the full Signals page for that ticker, where Claude Opus 4.7 runs a complete market analysis with Order Blocks, FVGs, Liquidity, and OTE zones." },
+      { step: "Explore the market", detail: "Use the Markets tab to browse live prices across stocks and futures. Click any ticker for a full signal breakdown." },
+      { step: "Watch the concepts panel", detail: "Scroll down past the stock cards to see the 6 Smart Money concepts (OB, FVG, Liquidity, MSS, OTE, Kill Zone) explained with diagrams. This teaches you what the AI is looking for." },
     ],
     tips: [
       "The market status badge at the top shows whether the NYSE is Open, Pre-Market, After-Hours, or Closed — always check this before acting on a signal.",
@@ -45,15 +45,15 @@ const SECTIONS: Section[] = [
     id: "signals",
     icon: "📡",
     title: "Signals (Analysis)",
-    subtitle: "Get a full ICT breakdown and execute trades from one screen.",
+    subtitle: "Get a full signal breakdown and execute trades from one screen.",
     color: "text-teal-400",
     border: "border-teal-500/20",
     bg: "bg-teal-500/5",
     href: "/analysis",
     steps: [
       { step: "Search any ticker", detail: "Type a symbol into the search bar at the top (AAPL, NVDA, TSLA for stocks — ES, NQ, GC for futures). Select from the dropdown. The page loads a live chart and price data instantly." },
-      { step: "Press 'Analyze'", detail: "Hit the blue Analyze button. Claude Opus 4.7 receives the live price, open, high, low, previous close, and day change — then applies all 6 ICT concepts and returns a verdict in 5–10 seconds." },
-      { step: "Read the signal card", detail: "You'll see: the main signal (BUY / HOLD / SELL), confidence level (High / Medium / Low), risk rating, a 2-sentence summary, and 3 key observations. Below that are the ICT details — market structure, daily bias, order block, fair value gap, liquidity, and OTE." },
+      { step: "Press 'Analyze'", detail: "Hit the blue Analyze button. Claude Opus 4.7 receives the live price, open, high, low, previous close, and day change — then applies 6 smart money concepts and returns a verdict in 5–10 seconds." },
+      { step: "Read the signal card", detail: "You'll see: the main signal (BUY / HOLD / SELL), confidence level (High / Medium / Low), risk rating, a 2-sentence summary, and 3 key observations. Below that are the market structure details — daily bias, order block, fair value gap, liquidity, and OTE." },
       { step: "Execute on Robinhood (manual)", detail: "Scroll down to the step-by-step Robinhood guide below the signal. It tells you exactly which order type to use, how to set a stop-loss, how many shares to consider, and when to exit." },
       { step: "Execute on Alpaca (automated)", detail: "If you've connected Alpaca in Settings, enter the number of shares in the Trade box and press BUY or SELL. Your paper (or live) order fires instantly via the Alpaca API." },
       { step: "Share the signal", detail: "Press the 'Share Signal' button to copy the signal to your clipboard — ready to paste into Discord, Twitter, or a group chat." },
@@ -96,34 +96,13 @@ const SECTIONS: Section[] = [
     steps: [
       { step: "Open the scanner", detail: "Press the '📡 Scan' floating button in the bottom-right corner of any page (just to the left of the 'Auto' button)." },
       { step: "Press 'Run Full Scan'", detail: "The scanner fetches live quotes for 20 major stocks in parallel. It ranks them by today's momentum (biggest price moves = most interesting) and selects the top 6 for AI analysis." },
-      { step: "Wait for AI analysis", detail: "Claude Opus 4.7 analyzes each of the 6 most active stocks using the same ICT framework as the Signals page. This takes 30–60 seconds depending on market conditions." },
-      { step: "Read the top 3 results", detail: "You'll see the 3 best setups ranked by a composite score (confidence × signal strength × momentum). Each shows: ticker, price, day change, BUY/HOLD/SELL signal, confidence level, and the key ICT setup that triggered it." },
+      { step: "Wait for AI analysis", detail: "Claude Opus 4.7 analyzes each of the 6 most active stocks using the same framework as the Signals page. This takes 30–60 seconds depending on market conditions." },
+      { step: "Read the top 3 results", detail: "You'll see the 3 best setups ranked by a composite score (confidence × signal strength × momentum). Each shows: ticker, price, day change, BUY/HOLD/SELL signal, confidence level, and the key setup that triggered it." },
       { step: "Act on the best setup", detail: "Tap any result to go to the full Signals page for that ticker, where you can see the complete analysis and execute a trade." },
     ],
     tips: [
       "Run the scanner during NY Kill Zone (9:30–10:30 AM ET) for the highest-probability setups — this is when institutional volume is highest.",
-      "The scanner picks stocks by momentum, not by fundamentals. A stock with a big move today (up or down) has more ICT confluence than one that's flat.",
-    ],
-  },
-  {
-    id: "autotrader",
-    icon: "🤖",
-    title: "AutoTrader",
-    subtitle: "Fully autonomous paper trading — runs every 3 minutes on its own.",
-    color: "text-emerald-400",
-    border: "border-emerald-500/20",
-    bg: "bg-emerald-500/5",
-    steps: [
-      { step: "Open the AutoTrader panel", detail: "Press the 'Auto' button in the bottom-right corner of any page. A control panel slides up showing status, last action, and a countdown to the next scan." },
-      { step: "Press 'Start AutoTrader'", detail: "Click the green button. The bot immediately scans the first stock (Apple) and begins rotating through the 8-stock watchlist every 3 minutes." },
-      { step: "Watch the toast notifications", detail: "Live pop-ups appear in the bottom-left corner for every action: scanning, getting a quote, receiving a signal, buying shares, selling shares, or skipping (HOLD or low cash)." },
-      { step: "Monitor the panel", detail: "The Auto panel shows: current status, your last executed trade, and a progress bar counting down to the next scan. The green pulsing dot means the bot is running." },
-      { step: "Let it run", detail: "You don't need to do anything. The bot rotates: AAPL → NVDA → MSFT → TSLA → AMZN → GOOGL → META → JPM → repeat. Position size is ~12% of available cash per trade." },
-      { step: "Press 'Stop AutoTrader' to pause", detail: "The bot stops immediately. All existing paper positions are kept. You can restart anytime — it picks up from where it left off." },
-    ],
-    tips: [
-      "AutoTrader also drives the 3 rival bots on the Compete page — Apex, Delta, and Vera. They receive the same signals but apply different position sizing and confidence thresholds.",
-      "AutoTrader works best during active market hours. Running it overnight or on weekends will still scan but market data may be delayed or unavailable for some providers.",
+      "The scanner picks stocks by momentum, not by fundamentals. A stock with a big move today (up or down) has more technical confluence than one that's flat.",
     ],
   },
   {
@@ -136,15 +115,15 @@ const SECTIONS: Section[] = [
     bg: "bg-amber-500/5",
     href: "/journal",
     steps: [
-      { step: "No setup needed", detail: "The journal runs in the background on every page. Every time you execute a paper trade — manually or via AutoTrader — the journal listener detects it automatically." },
-      { step: "AI writes the entry", detail: "Within seconds of a trade executing, Claude Opus 4.7 is called with the trade details (symbol, side, quantity, price) and writes a 2-sentence ICT-focused journal entry. Sentence 1 explains the setup. Sentence 2 gives the target or exit condition." },
+      { step: "No setup needed", detail: "The journal works automatically. Every time you close a paper trade, the AI generates a structured entry analyzing your execution and outcome." },
+      { step: "AI writes the entry", detail: "Within seconds of a trade executing, Claude Opus 4.7 is called with the trade details (symbol, side, quantity, price) and writes a 2-sentence structured journal entry. Sentence 1 explains the setup. Sentence 2 gives the target or exit condition." },
       { step: "Read your entries", detail: "Open the Journal page from the nav bar. Entries appear newest first. Each shows the trade details (BUY/SELL badge, symbol, shares, price, total cost) and the AI-written note below a teal left border." },
       { step: "Study the patterns", detail: "Read your journal regularly. After 20+ entries, you'll start to see patterns — which setups you're trading most, which ones result in wins vs. losses, and what the AI consistently flags as a concern." },
       { step: "Use it before the coaching report", detail: "Before your Auto-Coach milestone fires (every 10 trades), skim your last 10 journal entries. This gives you your own view of your trading before Claude gives its assessment." },
     ],
     tips: [
       "Journal entries are stored in your browser (localStorage). They persist between sessions but are device-specific. If you clear your browser data, entries are lost.",
-      "The journal captures manual AND AutoTrader trades equally. If the bot placed 50 trades overnight, you'll have 50 journal entries waiting in the morning.",
+      "The journal is automatically generated when you close a trade in your paper portfolio — no extra steps needed.",
     ],
   },
 
@@ -201,7 +180,7 @@ const SECTIONS: Section[] = [
       { step: "Read the assessment", detail: "The top section is an honest 1-sentence summary of your overall performance. Claude doesn't sugarcoat — if your win rate is poor, it says so directly." },
       { step: "Study your weakness", detail: "The Weakness card (red) identifies a specific pattern in your trade log — e.g., 'You're overtrading low-confidence signals during off-hours' or 'Frequent TSLA sells too early before full target reached.'" },
       { step: "Build on your strength", detail: "The Strength card (green) finds something genuine you're doing right — e.g., 'You consistently wait for the NY session before entering, which improves Kill Zone alignment.'" },
-      { step: "Apply the 3 tactical tips", detail: "Three numbered tips give you specific things to change next. These are always ICT-methodology based — entry timing, exit rules, position sizing, or mindset adjustments." },
+      { step: "Apply the 3 tactical tips", detail: "Three numbered tips give you specific things to change next. These are always structure-based — entry timing, exit rules, position sizing, or mindset adjustments." },
       { step: "Close and implement", detail: "Press 'Keep Trading' and immediately apply the #1 tip to your next trade. Come back to the other two tips the following day." },
     ],
     tips: [
@@ -252,7 +231,7 @@ function SectionCard({ s }: { s: Section }) {
                 <Link
                   href={s.href}
                   onClick={e => e.stopPropagation()}
-                  className="text-[9px] font-bold text-[#4B5675] hover:text-[#F1F5F9] border border-[#2D3A50] px-2 py-0.5 rounded-lg transition-colors"
+                  className="text-[9px] font-bold text-[#4B5675] hover:text-[#F1F5F9] border border-[#333368] px-2 py-0.5 rounded-lg transition-colors"
                 >
                   Open →
                 </Link>
@@ -332,8 +311,8 @@ export default function GuidePage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { n: "1", title: "Practice first", desc: "Go to Practice → buy 1 share of AAPL → watch your portfolio update. Get comfortable with the interface before using real money." },
-                { n: "2", title: "Read a signal", desc: "Go to Signals → type NVDA → press Analyze. Read the ICT breakdown. If it says BUY with High confidence, that's a valid paper trade." },
-                { n: "3", title: "Start AutoTrader", desc: "Press the 'Auto' button bottom-right → Start AutoTrader. Watch it scan every 3 minutes and place trades automatically while you learn." },
+                { n: "2", title: "Read a signal", desc: "Go to Signals → type NVDA → press Analyze. Read the market structure breakdown. If it says BUY with High confidence, that's a valid paper trade." },
+                { n: "3", title: "Log a paper trade", desc: "Go to Practice → log a trade with entry price, stop loss, and target. The AI scores your setup before you commit." },
               ].map(s => (
                 <div key={s.n} className="flex gap-3">
                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center shrink-0">{s.n}</span>
@@ -355,7 +334,7 @@ export default function GuidePage() {
 
           {/* Footer note */}
           <div className="mt-8 text-center">
-            <p className="text-[11px] text-[#2D3A50] leading-relaxed max-w-md mx-auto">
+            <p className="text-[11px] text-[#333368] leading-relaxed max-w-md mx-auto">
               Traxora is a paper trading and AI signal platform for educational purposes only.
               Nothing here constitutes financial advice. Always practice with paper money before trading real capital.
             </p>

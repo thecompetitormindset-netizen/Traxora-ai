@@ -64,7 +64,7 @@ interface MasterReport {
 // ── Sub-components ────────────────────────────────────────────────────────
 
 function Skeleton({ h = "h-4", w = "w-full", rounded = "rounded-lg" }: { h?: string; w?: string; rounded?: string }) {
-  return <div className={`${h} ${w} ${rounded} bg-[#1C2333] animate-pulse`} />;
+  return <div className={`${h} ${w} ${rounded} bg-[#252345] animate-pulse`} />;
 }
 
 function MetricCard({
@@ -79,11 +79,11 @@ function MetricCard({
 }) {
   const [showWhy, setShowWhy] = useState(false);
   return (
-    <div className={`bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5 flex flex-col gap-3 hover:border-${accentColor}-500/30 transition-colors`}>
+    <div className={`bg-[#13112A] border border-[#252345] rounded-2xl p-5 flex flex-col gap-3 hover:border-${accentColor}-500/30 transition-colors`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675]">{label}</p>
-          {sublabel && <p className="text-[10px] text-[#2D3A50] mt-0.5">{sublabel}</p>}
+          {sublabel && <p className="text-[10px] text-[#333368] mt-0.5">{sublabel}</p>}
         </div>
         <div className="flex items-center gap-2 shrink-0">
           {badge}
@@ -91,7 +91,7 @@ function MetricCard({
             <button
               type="button"
               onClick={() => setShowWhy(v => !v)}
-              className="text-[10px] text-[#4B5675] hover:text-emerald-400 border border-[#1C2333] hover:border-emerald-500/30 px-2 py-0.5 rounded-lg transition-colors"
+              className="text-[10px] text-[#4B5675] hover:text-emerald-400 border border-[#252345] hover:border-emerald-500/30 px-2 py-0.5 rounded-lg transition-colors"
             >
               Why?
             </button>
@@ -100,7 +100,7 @@ function MetricCard({
       </div>
       {children}
       {showWhy && whyContent && (
-        <p className="text-[11px] text-[#7B8DB4] border-t border-[#1C2333] pt-3 leading-relaxed">
+        <p className="text-[11px] text-[#7B8DB4] border-t border-[#252345] pt-3 leading-relaxed">
           {whyContent}
         </p>
       )}
@@ -127,13 +127,13 @@ function SentimentGauge({ score }: { score: number }) {
       </div>
 
       {/* Track: −100 ··· 0 ··· +100 */}
-      <div className="relative h-5 bg-[#080E1B] rounded-full overflow-hidden border border-[#1C2333]">
+      <div className="relative h-5 bg-[#080E1B] rounded-full overflow-hidden border border-[#252345]">
         <div
           className="absolute inset-0 rounded-full"
           style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.18 }}
         />
         {/* Zero tick */}
-        <div className="absolute top-0 bottom-0 w-px bg-[#2D3A50]" style={{ left: "50%" }} />
+        <div className="absolute top-0 bottom-0 w-px bg-[#333368]" style={{ left: "50%" }} />
         {/* Needle */}
         <div
           className="absolute top-1.5 bottom-1.5 w-2.5 rounded-full"
@@ -141,7 +141,7 @@ function SentimentGauge({ score }: { score: number }) {
         />
       </div>
 
-      <div className="flex justify-between text-[9px] text-[#2D3A50] font-mono mt-1.5 px-0.5">
+      <div className="flex justify-between text-[9px] text-[#333368] font-mono mt-1.5 px-0.5">
         <span>−100</span><span>−50</span><span>0</span><span>+50</span><span>+100</span>
       </div>
     </div>
@@ -160,7 +160,7 @@ function FGGauge({ value }: { value: number }) {
         <span className="font-black font-mono text-sm" style={{ color }}>{clamp}</span>
         <span>Extreme Greed</span>
       </div>
-      <div className="h-2.5 bg-[#1C2333] rounded-full overflow-hidden">
+      <div className="h-2.5 bg-[#252345] rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${clamp}%`, backgroundColor: color }}
@@ -195,7 +195,7 @@ function ScoreBar({ score }: { score: number }) {
   const color = score >= 30 ? "#10B981" : score >= -30 ? "#F59E0B" : "#F43F5E";
   return (
     <div className="mt-2">
-      <div className="h-1.5 bg-[#1C2333] rounded-full overflow-hidden">
+      <div className="h-1.5 bg-[#252345] rounded-full overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{ width: `${pct}%`, backgroundColor: color }}
@@ -385,7 +385,7 @@ export default function MarketSentimentPage() {
                 type="button"
                 onClick={loadMarketData}
                 disabled={mdLoading}
-                className="text-xs bg-[#1C2333] hover:bg-[#2D3A50] border border-[#2D3A50] px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
+                className="text-xs bg-[#252345] hover:bg-[#333368] border border-[#333368] px-3 py-1.5 rounded-xl transition-colors disabled:opacity-50"
               >
                 {mdLoading ? "Refreshing…" : "↻ Refresh"}
               </button>
@@ -492,7 +492,7 @@ export default function MarketSentimentPage() {
                     { sym: "QQQ", price: md?.qqqPrice, chg: md?.qqqChange },
                     { sym: "IWM", price: md?.iwmPrice, chg: md?.iwmChange },
                   ].map(row => (
-                    <div key={row.sym} className="flex items-center justify-between bg-[#060A14]/60 border border-[#1C2333] rounded-xl px-3 py-2">
+                    <div key={row.sym} className="flex items-center justify-between bg-[#0D0B1A]/60 border border-[#252345] rounded-xl px-3 py-2">
                       <span className="text-xs font-mono font-bold text-emerald-400">{row.sym}</span>
                       <span className="text-sm font-mono text-[#F1F5F9]">{row.price != null ? `$${row.price.toFixed(2)}` : "—"}</span>
                       <ChgPill v={row.chg ?? null} />
@@ -636,12 +636,12 @@ export default function MarketSentimentPage() {
           {/* ── SECTION 3: User-Specific ─────────────────────────────────── */}
           <h2 className="text-xs font-bold uppercase tracking-widest text-[#4B5675] mt-8 mb-4">
             Your Portfolio Sentiment
-            {!session?.user && <span className="ml-2 text-[#2D3A50] normal-case font-normal">— sign in to personalize</span>}
+            {!session?.user && <span className="ml-2 text-[#333368] normal-case font-normal">— sign in to personalize</span>}
           </h2>
 
           {synthLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[1,2,3].map(i => <div key={i} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5"><Skeleton h="h-16" /></div>)}
+              {[1,2,3].map(i => <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5"><Skeleton h="h-16" /></div>)}
             </div>
           ) : syntheses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -659,7 +659,7 @@ export default function MarketSentimentPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6 text-center">
+            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
               <p className="text-[#4B5675] text-sm">
                 {getPortfolio().holdings.length === 0
                   ? "No open positions — buy a stock to see sentiment for your holdings."
@@ -701,7 +701,7 @@ export default function MarketSentimentPage() {
                     </svg>
                     Opus thinking…
                   </>
-                ) : "Generate ICT Report (Opus)"}
+                ) : "Generate Smart Money Report (Opus)"}
               </button>
             )}
             {report && (
@@ -725,7 +725,7 @@ export default function MarketSentimentPage() {
           {reportLoading && !report && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[1,2,3,4].map(i => (
-                <div key={i} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5 space-y-3">
+                <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 space-y-3">
                   <Skeleton h="h-3" w="w-1/3" />
                   <Skeleton h="h-4" />
                   <Skeleton h="h-4" w="w-5/6" />
@@ -739,7 +739,7 @@ export default function MarketSentimentPage() {
             <div className="mt-4 space-y-4">
 
               {/* Narrative + bias */}
-              <div className="bg-[#0C1017] border border-amber-500/20 rounded-2xl p-5">
+              <div className="bg-[#13112A] border border-amber-500/20 rounded-2xl p-5">
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-400">Today&apos;s Dominant Narrative</p>
                   <div className="flex items-center gap-2 shrink-0">
@@ -762,13 +762,13 @@ export default function MarketSentimentPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Contrarian Signal */}
-                <div className="bg-[#0C1017] border border-teal-500/20 rounded-2xl p-5">
+                <div className="bg-[#13112A] border border-teal-500/20 rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-teal-400 mb-2">Contrarian Signal</p>
                   <p className="text-sm text-[#CBD5E1] leading-relaxed">{report.contrarian}</p>
                 </div>
 
                 {/* Smart Money Signal */}
-                <div className="bg-[#0C1017] border border-emerald-500/20 rounded-2xl p-5">
+                <div className="bg-[#13112A] border border-emerald-500/20 rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Smart Money Phase</p>
                   <p className={`text-xl font-black ${biasColor}`}>{report.smartMoneySignal}</p>
                   <p className="text-xs text-[#7B8DB4] mt-2 leading-relaxed">{report.retailVsInstitutional}</p>
@@ -777,7 +777,7 @@ export default function MarketSentimentPage() {
 
               {/* Themes + Catalysts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5">
+                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">News Themes</p>
                   <div className="space-y-2">
                     {report.themes.map((t, i) => (
@@ -789,7 +789,7 @@ export default function MarketSentimentPage() {
                   </div>
                 </div>
 
-                <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5">
+                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">Tomorrow&apos;s Catalysts</p>
                   <div className="space-y-2">
                     {report.catalysts.map((c, i) => (
@@ -804,7 +804,7 @@ export default function MarketSentimentPage() {
 
               {/* Divergences + Position Guidance */}
               {report.divergences.length > 0 && (
-                <div className="bg-[#0C1017] border border-rose-500/20 rounded-2xl p-5">
+                <div className="bg-[#13112A] border border-rose-500/20 rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-400 mb-3">Sentiment vs Price Divergences</p>
                   <div className="flex flex-wrap gap-2">
                     {report.divergences.map((d, i) => (
@@ -824,7 +824,7 @@ export default function MarketSentimentPage() {
                 </div>
               )}
 
-              <p className="text-[10px] text-[#2D3A50] text-right">
+              <p className="text-[10px] text-[#333368] text-right">
                 Generated {new Date(report.generatedAt).toLocaleTimeString()} · Cached 4h · claude-opus-4-7
               </p>
             </div>
@@ -835,7 +835,7 @@ export default function MarketSentimentPage() {
             <>
               <h2 className="text-xs font-bold uppercase tracking-widest text-[#4B5675] mt-8 mb-4">
                 Live Headlines
-                <span className="ml-2 normal-case font-normal text-[#2D3A50]">
+                <span className="ml-2 normal-case font-normal text-[#333368]">
                   — {classLoading ? "classifying with Haiku…" : classified ? `${classified.length} classified` : "classification pending"}
                 </span>
               </h2>
@@ -845,7 +845,7 @@ export default function MarketSentimentPage() {
                   return (
                     <div
                       key={i}
-                      className="bg-[#0C1017] border border-[#1C2333] hover:border-emerald-500/20 rounded-xl p-4 flex items-start gap-3 transition-colors cursor-pointer"
+                      className="bg-[#13112A] border border-[#252345] hover:border-emerald-500/20 rounded-xl p-4 flex items-start gap-3 transition-colors cursor-pointer"
                       onClick={() => toggleCard(`h-${i}`)}
                     >
                       {/* Pre-scored AV label */}
@@ -856,7 +856,7 @@ export default function MarketSentimentPage() {
                           <span className="text-[10px] text-[#4B5675]">{h.source}</span>
                           {cl && (
                             <>
-                              <span className="text-[#2D3A50]">·</span>
+                              <span className="text-[#333368]">·</span>
                               <span className="text-[10px] text-[#4B5675]">
                                 Haiku: <span className={cl.sentiment === "Bullish" ? "text-emerald-400" : cl.sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}>{cl.sentiment}</span> ({cl.confidence}%)
                               </span>
@@ -867,7 +867,7 @@ export default function MarketSentimentPage() {
                           )}
                         </div>
                         {expandedCard === `h-${i}` && cl?.reason && (
-                          <p className="text-[11px] text-[#7B8DB4] mt-2 border-t border-[#1C2333] pt-2">{cl.reason}</p>
+                          <p className="text-[11px] text-[#7B8DB4] mt-2 border-t border-[#252345] pt-2">{cl.reason}</p>
                         )}
                       </div>
                       <span className="text-[#4B5675] text-lg shrink-0">{expandedCard === `h-${i}` ? "↑" : "↓"}</span>
@@ -879,7 +879,7 @@ export default function MarketSentimentPage() {
           )}
 
           {/* Disclaimer */}
-          <p className="text-[10px] text-[#2D3A50] text-center mt-10 max-w-2xl mx-auto">
+          <p className="text-[10px] text-[#333368] text-center mt-10 max-w-2xl mx-auto">
             Market Sentiment is for informational purposes only. AI-generated analysis does not constitute financial advice.
             All sentiment scores are derived from public market data and news sources.
           </p>

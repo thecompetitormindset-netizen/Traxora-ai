@@ -82,7 +82,7 @@ function VolBar({ ratio, volume, avgVolume }: { ratio: number; volume?: number; 
   const fill = Math.min((ratio / 5) * 100, 100);
   return (
     <div className="flex items-center gap-1.5">
-      <div className="flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-[#252345] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${volColor(ratio)} ${snapPct(fill)}`} />
       </div>
       <span className={`text-[9px] font-mono font-bold ${ratio >= 3 ? "text-rose-400" : ratio >= 2 ? "text-amber-400" : "text-emerald-400"}`}>
@@ -103,7 +103,7 @@ function YearBar({ pct }: { pct: number | null | undefined }) {
   const color = pct <= 20 ? "bg-emerald-500" : pct >= 80 ? "bg-rose-500" : "bg-emerald-400";
   return (
     <div className="flex items-center gap-1.5">
-      <div className="flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-[#252345] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color} ${snapPct(fill)}`} />
       </div>
       <span className="text-[9px] font-mono text-[#4B5675]">{pct.toFixed(0)}%</span>
@@ -146,7 +146,7 @@ export default function AutoScanner() {
       setProgress(50);
 
       // Phase 2: AI analysis
-      setStep(`AI analyzing top ${top.length} opportunities with ICT Smart Money framework…`);
+      setStep(`AI analyzing top ${top.length} opportunities with Smart Money framework…`);
       setProgress(60);
 
       const aiRes = await fetch("/api/ai/scan", {
@@ -195,10 +195,10 @@ export default function AutoScanner() {
 
         {/* Panel */}
         {open && (
-          <div className="w-[290px] sm:w-[340px] lg:w-[380px] bg-[#080D14]/96 border border-[#1C2333] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col max-h-[80vh]">
+          <div className="w-[290px] sm:w-[340px] lg:w-[380px] bg-[#0B091A]/96 border border-[#252345] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col max-h-[80vh]">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1C2333] shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345] shrink-0">
               <div className="flex items-center gap-2">
                 <span className="text-base">📡</span>
                 <div>
@@ -224,7 +224,7 @@ export default function AutoScanner() {
               {!scanning && !done && (
                 <div className="py-4 text-center space-y-3">
                   <p className="text-[11px] text-[#7B8DB4] leading-relaxed">
-                    Pulls live quotes, volume surge data, 52-week positioning, and breaking news for 55 stocks — then Claude identifies the top ICT setups right now.
+                    Pulls live quotes, volume surge data, 52-week positioning, and breaking news for 55 stocks — then Claude identifies the top smart money setups right now.
                   </p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     {[
@@ -232,7 +232,7 @@ export default function AutoScanner() {
                       { icon: "⚡", label: "Volume surge" },
                       { icon: "📰", label: "Live news" },
                     ].map((f) => (
-                      <div key={f.label} className="bg-[#0C1017] border border-[#1C2333] rounded-xl py-2.5">
+                      <div key={f.label} className="bg-[#13112A] border border-[#252345] rounded-xl py-2.5">
                         <p className="text-base">{f.icon}</p>
                         <p className="text-[9px] text-[#4B5675] mt-1">{f.label}</p>
                       </div>
@@ -257,10 +257,10 @@ export default function AutoScanner() {
                     </svg>
                     <p className="text-[10px] text-[#7B8DB4] leading-snug">{step}</p>
                   </div>
-                  <div className="h-1.5 bg-[#1C2333] rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-[#252345] rounded-full overflow-hidden">
                     <div className={`h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full transition-all duration-700 ${snapPct(progress)}`} />
                   </div>
-                  <p className="text-[9px] text-[#2D3A50] text-right">{progress}%</p>
+                  <p className="text-[9px] text-[#333368] text-right">{progress}%</p>
                 </div>
               )}
 
@@ -281,7 +281,7 @@ export default function AutoScanner() {
                     const isExp = expanded === r.symbol;
                     const chgPos = (r.changePercent ?? 0) >= 0;
                     return (
-                      <div key={r.symbol} className="bg-[#0C1017] border border-[#1C2333] rounded-xl overflow-hidden">
+                      <div key={r.symbol} className="bg-[#13112A] border border-[#252345] rounded-xl overflow-hidden">
 
                         {/* Main row */}
                         <button
@@ -351,10 +351,10 @@ export default function AutoScanner() {
 
                         {/* Expanded detail */}
                         {isExp && (
-                          <div className="border-t border-[#1C2333] px-3 py-3 space-y-2.5 bg-[#060A14]">
+                          <div className="border-t border-[#252345] px-3 py-3 space-y-2.5 bg-[#0D0B1A]">
 
                             {[
-                              { label: "ICT Setup",    value: r.ictSetup },
+                              { label: "Smart Money Setup", value: r.ictSetup },
                               { label: "Catalyst",     value: r.catalyst },
                               { label: "Volume",       value: r.volumeVerdict },
                               { label: "Structure",    value: r.marketStructure },
@@ -377,7 +377,7 @@ export default function AutoScanner() {
                                 <p className="text-[8px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1.5">Breaking News</p>
                                 <div className="space-y-1">
                                   {r.news!.map((n, ni) => (
-                                    <div key={ni} className="bg-[#0C1017] border border-[#1C2333] rounded-lg px-2 py-1.5">
+                                    <div key={ni} className="bg-[#13112A] border border-[#252345] rounded-lg px-2 py-1.5">
                                       <p className="text-[9px] text-[#CBD5E1] leading-snug">{n.title}</p>
                                       <p className="text-[8px] text-[#4B5675] mt-0.5">{n.publisher} · {n.age}</p>
                                     </div>
@@ -390,7 +390,7 @@ export default function AutoScanner() {
                               href={`/analysis?symbol=${encodeURIComponent(r.symbol + ".US")}`}
                               className="flex items-center justify-center gap-1.5 w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-2 rounded-xl text-[10px] font-bold mt-1"
                             >
-                              Full ICT Analysis →
+                              Full Analysis →
                             </Link>
                           </div>
                         )}
@@ -401,7 +401,7 @@ export default function AutoScanner() {
                   <button
                     type="button"
                     onClick={runScan}
-                    className="w-full border border-[#1C2333] hover:border-[#2D3A50] py-2 rounded-xl text-[10px] font-semibold text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
+                    className="w-full border border-[#252345] hover:border-[#333368] py-2 rounded-xl text-[10px] font-semibold text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
                   >
                     Re-scan
                   </button>
@@ -411,7 +411,7 @@ export default function AutoScanner() {
               {done && results.length === 0 && (
                 <div className="py-6 text-center space-y-2">
                   <p className="text-xs text-[#4B5675]">No high-conviction setups found.</p>
-                  <p className="text-[10px] text-[#2D3A50]">Market may be ranging — try again later.</p>
+                  <p className="text-[10px] text-[#333368]">Market may be ranging — try again later.</p>
                   <button type="button" onClick={runScan} className="text-[10px] text-emerald-400 hover:underline">
                     Re-scan
                   </button>
@@ -426,7 +426,7 @@ export default function AutoScanner() {
           type="button"
           onClick={() => setOpen((o) => !o)}
           title="Deep Market Scanner"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 bg-[#0C1017]/90 border border-[#1C2333] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 bg-[#13112A]/90 border border-[#252345] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"
         >
           <span className="text-sm">📡</span>
           Scan

@@ -83,7 +83,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
   const categories = Array.from(new Set(BENCHMARKS.map((b) => b.category)));
 
   return (
-    <div className="bg-[#111827] rounded-3xl p-6 border border-[#1F2937] mt-6">
+    <div className="bg-[#1A1838] rounded-3xl p-6 border border-[#1E1C42] mt-6">
       <div className="flex items-center justify-between mb-5">
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-widest">Performance Comparison</p>
@@ -100,7 +100,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
             className={`flex items-center gap-3 rounded-2xl px-4 py-3 border transition hover:border-blue-500/40 ${
               row.isCurrent
                 ? "border-blue-500/40 bg-blue-500/5"
-                : "border-[#1F2937] hover:bg-[#1F2937]/40"
+                : "border-[#1E1C42] hover:bg-[#1E1C42]/40"
             }`}
           >
             <span className={`w-6 text-xs font-bold shrink-0 ${rank === 0 ? "text-yellow-400" : "text-gray-600"}`}>
@@ -119,7 +119,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
             </div>
 
             {/* Bar */}
-            <div className="w-24 h-1.5 bg-[#1F2937] rounded-full overflow-hidden shrink-0">
+            <div className="w-24 h-1.5 bg-[#1E1C42] rounded-full overflow-hidden shrink-0">
               <div
                 className={`h-full rounded-full transition-all ${
                   row.dayChange !== null && row.dayChange >= 0 ? "bg-green-500" : "bg-red-500"
@@ -140,7 +140,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
       </div>
 
       {/* Category breakdown */}
-      <div className="border-t border-[#1F2937] pt-4">
+      <div className="border-t border-[#1E1C42] pt-4">
         <p className="text-xs text-gray-500 uppercase tracking-widest mb-3">By Category</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {categories.map((cat) => {
@@ -149,7 +149,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
               ? rows.reduce((sum, b) => sum + (b.dayChange ?? 0), 0) / rows.length
               : null;
             return (
-              <div key={cat} className="bg-[#0B0F19] rounded-xl p-3 border border-[#1F2937]">
+              <div key={cat} className="bg-[#0B0F19] rounded-xl p-3 border border-[#1E1C42]">
                 <p className="text-xs text-gray-500 mb-1">{cat}</p>
                 <p className={`text-sm font-bold ${changeColor(avg)}`}>
                   {avg !== null ? `${avg >= 0 ? "+" : ""}${avg.toFixed(2)}%` : "—"}

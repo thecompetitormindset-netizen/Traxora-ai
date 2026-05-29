@@ -111,7 +111,7 @@ export default function HistoryPage() {
               </p>
             </div>
             {/* View toggle */}
-            <div className="flex gap-1 bg-[#111827] rounded-xl p-1 text-xs">
+            <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
               {(["roundtrip", "raw"] as const).map(v => (
                 <button
                   key={v}
@@ -135,7 +135,7 @@ export default function HistoryPage() {
               { label: "Win Rate",         value: roundTrips.length ? `${winRate}%` : "—",          color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
               { label: "Realised P&L",     value: roundTrips.length ? `${totalPL >= 0 ? "+" : ""}$${fmt(totalPL)}` : "—", color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(s => (
-              <div key={s.label} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-4 text-center">
+              <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
                 <p className={`text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mt-1">{s.label}</p>
               </div>
@@ -147,7 +147,7 @@ export default function HistoryPage() {
             <div className="mt-6 space-y-3">
 
               {roundTrips.length === 0 && unmatchedBuys.length === 0 && (
-                <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-10 text-center">
+                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
                   <p className="text-3xl mb-3">📊</p>
                   <p className="font-semibold text-[#F1F5F9]">No completed trades yet</p>
                   <p className="text-[#4B5675] text-sm mt-2">A round trip is one BUY matched to one SELL of the same symbol.</p>
@@ -164,7 +164,7 @@ export default function HistoryPage() {
                 return (
                   <div
                     key={key}
-                    className={`bg-[#0C1017] border rounded-2xl overflow-hidden ${
+                    className={`bg-[#13112A] border rounded-2xl overflow-hidden ${
                       pos ? "border-emerald-500/20" : "border-rose-500/20"
                     }`}
                   >
@@ -217,7 +217,7 @@ export default function HistoryPage() {
 
                     {/* Expanded detail */}
                     {isOpen && (
-                      <div className="border-t border-[#1C2333] px-5 pb-5 pt-4 space-y-4">
+                      <div className="border-t border-[#252345] px-5 pb-5 pt-4 space-y-4">
 
                         {/* Entry vs Exit timeline */}
                         <div className="grid grid-cols-2 gap-3">
@@ -314,7 +314,7 @@ export default function HistoryPage() {
                   {unmatchedBuys.map((t, i) => {
                     const clean = t.symbol.replace(".US", "").replace(".COMM", "");
                     return (
-                      <div key={i} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-4 flex items-center justify-between mb-2">
+                      <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
                           <span className="text-xs font-black px-2.5 py-1 rounded-lg border text-emerald-400 bg-emerald-500/10 border-emerald-500/20">
                             OPEN
@@ -337,7 +337,7 @@ export default function HistoryPage() {
 
           {/* ─── Raw Trade Log View ─── */}
           {view === "raw" && (
-            <div className="mt-6 bg-[#0C1017] border border-[#1C2333] rounded-2xl overflow-hidden">
+            <div className="mt-6 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
               {trades.length === 0 ? (
                 <div className="text-center py-10">
                   <p className="text-[#4B5675] text-sm">No trades yet. Go to Market and place a trade.</p>
@@ -346,7 +346,7 @@ export default function HistoryPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="text-[#4B5675] text-[10px] uppercase tracking-wide border-b border-[#1C2333]">
+                      <tr className="text-[#4B5675] text-[10px] uppercase tracking-wide border-b border-[#252345]">
                         <th className="px-4 py-3 font-semibold">Type</th>
                         <th className="px-4 py-3 font-semibold">Symbol</th>
                         <th className="px-4 py-3 font-semibold">Qty</th>
@@ -358,7 +358,7 @@ export default function HistoryPage() {
                     </thead>
                     <tbody>
                       {trades.map((trade, index) => (
-                        <tr key={`${trade.symbol}-${trade.time}-${index}`} className="border-b border-[#1C2333] last:border-0">
+                        <tr key={`${trade.symbol}-${trade.time}-${index}`} className="border-b border-[#252345] last:border-0">
                           <td className="px-4 py-3">
                             <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border ${
                               trade.side === "BUY"
@@ -394,7 +394,7 @@ export default function HistoryPage() {
           )}
 
           {trades.length > 0 && (
-            <p className="text-center text-[10px] text-[#2D3A50] mt-6">
+            <p className="text-center text-[10px] text-[#333368] mt-6">
               {buyCount} buys · {sellCount} sells · {roundTrips.length} completed round trips
             </p>
           )}

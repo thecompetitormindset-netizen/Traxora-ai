@@ -41,7 +41,7 @@ export default function CosmicBackground() {
   return (
     <div id="cosmic-bg" className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
       {/* Base canvas */}
-      <div className="absolute inset-0 bg-[#060A14]" />
+      <div className="absolute inset-0 bg-[#0D0B1A]" />
 
       {/* Nebula orb A — emerald, top-left */}
       <div className="absolute -top-40 -left-20 w-[700px] h-[500px] rounded-full bg-emerald-600/[0.09] blur-[160px] animate-float-a" />

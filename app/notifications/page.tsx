@@ -98,7 +98,7 @@ export default function NotificationsPage() {
                 AI-generated BUY &amp; SELL signals from your watchlist.
               </p>
               {session?.user?.email && (
-                <p className="text-[10px] text-[#2D3A50] mt-1 font-mono">
+                <p className="text-[10px] text-[#333368] mt-1 font-mono">
                   Saved to · {session.user.email}
                 </p>
               )}
@@ -133,7 +133,7 @@ export default function NotificationsPage() {
                 <button
                   type="button"
                   onClick={clearAll}
-                  className="text-sm text-[#4B5675] hover:text-rose-400 transition border border-[#1C2333] px-4 py-2 rounded-xl"
+                  className="text-sm text-[#4B5675] hover:text-rose-400 transition border border-[#252345] px-4 py-2 rounded-xl"
                 >
                   Clear all
                 </button>
@@ -148,7 +148,7 @@ export default function NotificationsPage() {
               <div>
                 <p className="text-sm font-semibold text-rose-400">Alerts paused</p>
                 <p className="text-xs text-[#7B8DB4] mt-0.5">
-                  No new signals will fire while paused. Paper trading still works normally.
+                  No new signal toasts or push notifications while paused. Your paper portfolio still works normally.
                 </p>
               </div>
             </div>
@@ -184,21 +184,21 @@ export default function NotificationsPage() {
             <h2 className="text-base font-semibold text-[#7B8DB4] uppercase tracking-widest mb-4">
               Alert History
               {alerts.length > 0 && (
-                <span className="ml-2 text-sm text-[#2D3A50] font-normal normal-case tracking-normal">
+                <span className="ml-2 text-sm text-[#333368] font-normal normal-case tracking-normal">
                   {alerts.length} signals
                 </span>
               )}
             </h2>
 
             {alerts.length === 0 ? (
-              <div className="bg-[#0C1017] border border-[#1C2333] rounded-3xl p-10 text-center">
+              <div className="bg-[#13112A] border border-[#252345] rounded-3xl p-10 text-center">
                 <p className="text-[#4B5675] text-sm">No alerts yet.</p>
-                <p className="text-[#2D3A50] text-xs mt-1">
+                <p className="text-[#333368] text-xs mt-1">
                   Signals fire automatically when the dashboard detects a BUY or SELL.
                 </p>
               </div>
             ) : (
-              <div className="bg-[#0C1017] border border-[#1C2333] rounded-3xl overflow-hidden divide-y divide-[#1C2333]">
+              <div className="bg-[#13112A] border border-[#252345] rounded-3xl overflow-hidden divide-y divide-[#252345]">
                 {alerts.map((alert, i) => {
                   const clean = alert.symbol.replace(".US", "").replace(".COMM", "");
                   const isBuy = alert.signal === "BUY";
@@ -232,10 +232,16 @@ export default function NotificationsPage() {
                         <span className="text-[#4B5675] text-xs truncate hidden sm:block">{alert.name}</span>
                       </div>
 
-                      {/* Price + time */}
+                      {/* Price + time + log action */}
                       <div className="text-right shrink-0">
                         <p className="text-[#F1F5F9] font-semibold font-mono text-sm">${alert.price.toFixed(2)}</p>
                         <p className="text-[10px] text-[#4B5675] mt-0.5">{timeAgo(alert.time)}</p>
+                        <a
+                          href={`/paper?symbol=${encodeURIComponent(clean)}&direction=${alert.signal}&price=${alert.price.toFixed(2)}`}
+                          className={`text-[9px] font-bold transition-colors ${isBuy ? "text-emerald-400 hover:text-emerald-300" : "text-rose-400 hover:text-rose-300"}`}
+                        >
+                          Log trade →
+                        </a>
                       </div>
                     </div>
                   );

@@ -163,7 +163,7 @@ Respond ONLY with valid JSON:
 Base the score on the distribution of Bullish/Bearish/Neutral signals, weighted by confidence.
 Identify the 3 dominant narratives driving sentiment.`,
 
-  master: `You are an ICT-trained (Inner Circle Trader) institutional market analyst with expertise in smart money concepts, liquidity, and order flow. Generate a comprehensive market sentiment report.
+  master: `You are an institutional market analyst with expertise in smart money concepts, price action, liquidity, and order flow. Generate a comprehensive market sentiment report.
 
 Respond ONLY with valid JSON:
 {
@@ -179,6 +179,6 @@ Respond ONLY with valid JSON:
   "confidence": 0-100
 }
 
-Use ICT concepts: liquidity sweeps, fair value gaps, order blocks, institutional order flow.
+Use smart money concepts: liquidity sweeps, fair value gaps, order blocks, institutional order flow.
 Focus on where smart money is positioned vs. where retail is positioned.`,
 };

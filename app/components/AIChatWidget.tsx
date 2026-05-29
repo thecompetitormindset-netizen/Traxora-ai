@@ -82,9 +82,9 @@ export default function AIChatWidget() {
 
       {/* Chat panel — anchors from the left on mobile (matching button), right on desktop */}
       {open && (
-        <div className="fixed bottom-[100px] right-2 left-2 sm:left-auto sm:right-6 sm:bottom-[76px] sm:w-[360px] h-[60vh] sm:h-[500px] max-h-[500px] bg-[#0C1017] border border-[#1C2333] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden z-50">
+        <div className="fixed bottom-[100px] right-2 left-2 sm:left-auto sm:right-6 sm:bottom-[76px] sm:w-[360px] h-[60vh] sm:h-[500px] max-h-[500px] bg-[#13112A] border border-[#252345] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden z-50">
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#1C2333] bg-[#060A14] shrink-0">
+          <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#252345] bg-[#0D0B1A] shrink-0">
             <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
@@ -127,7 +127,7 @@ export default function AIChatWidget() {
                 <div>
                   <p className="text-sm font-medium text-[#F1F5F9]">Ask Traxora AI</p>
                   <p className="text-xs text-[#4B5675] mt-1 leading-relaxed max-w-[220px]">
-                    Market analysis, ICT concepts, trade ideas, or any question about stocks and futures.
+                    Market analysis, smart money concepts, trade ideas, or any question about stocks and futures.
                   </p>
                 </div>
               </div>
@@ -138,7 +138,7 @@ export default function AIChatWidget() {
                   className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
                     msg.role === "user"
                       ? "bg-emerald-600 text-white rounded-br-sm"
-                      : "bg-[#111827] border border-[#1C2333] text-[#CBD5E1] rounded-bl-sm"
+                      : "bg-[#1A1838] border border-[#252345] text-[#CBD5E1] rounded-bl-sm"
                   }`}
                 >
                   {msg.role === "assistant" && msg.content === "" && loading
@@ -155,10 +155,10 @@ export default function AIChatWidget() {
           </div>
 
           {/* Input */}
-          <div className="p-3 border-t border-[#1C2333] flex gap-2 shrink-0">
+          <div className="p-3 border-t border-[#252345] flex gap-2 shrink-0">
             <textarea
               rows={1}
-              className="flex-1 bg-[#060A14] border border-[#1C2333] focus:border-emerald-500/50 text-[#F1F5F9] text-sm rounded-xl px-3.5 py-2.5 resize-none outline-none placeholder:text-[#4B5675] transition-colors"
+              className="flex-1 bg-[#0D0B1A] border border-[#252345] focus:border-emerald-500/50 text-[#F1F5F9] text-sm rounded-xl px-3.5 py-2.5 resize-none outline-none placeholder:text-[#4B5675] transition-colors"
               placeholder="Ask about a stock or market…"
               value={input}
               onChange={(e) => setInput(e.target.value)}

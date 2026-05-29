@@ -15,7 +15,7 @@ function signalBadge(signal: string | null) {
 function signalBorderL(signal: string | null) {
   if (signal === "BUY")  return "border-l-emerald-500/40";
   if (signal === "SELL") return "border-l-rose-500/40";
-  return "border-l-[#1C2333]";
+  return "border-l-[#252345]";
 }
 
 function changeColor(v: number) {
@@ -26,8 +26,8 @@ const ACTION_STYLE: Record<string, string> = {
   bought:             "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
   sold:               "text-rose-400 bg-rose-500/10 border-rose-500/20",
   "insufficient-cash":"text-amber-400 bg-amber-500/10 border-amber-500/20",
-  held:               "text-[#4B5675] bg-[#1C2333]/50 border-[#2D3A50]",
-  "no-position":      "text-[#4B5675] bg-[#1C2333]/50 border-[#2D3A50]",
+  held:               "text-[#4B5675] bg-[#252345]/50 border-[#333368]",
+  "no-position":      "text-[#4B5675] bg-[#252345]/50 border-[#333368]",
 };
 const ACTION_LABEL: Record<string, string> = {
   bought:             "BOUGHT",
@@ -133,7 +133,7 @@ export default function LiveTradingRoom() {
             { label: "Unrealized",   value: `${unrealizedPL >= 0 ? "+" : ""}$${unrealizedPL.toFixed(2)}`, color: unrealizedPL >= 0 ? "text-emerald-400" : "text-rose-400", show: portfolio.holdings.length > 0 },
             { label: "Win Rate",     value: winRate != null ? `${winRate}%` : "—",                         color: "text-amber-400",   show: liveTrades.length > 0 },
           ].filter(s => s.show).map(s => (
-            <div key={s.label} className="bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-3">
+            <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-xl px-4 py-3">
               <p className="text-[10px] text-[#4B5675] uppercase tracking-wider font-medium">{s.label}</p>
               <p className={`text-xl font-black font-mono mt-1 ${s.color}`}>{s.value}</p>
             </div>
@@ -154,7 +154,7 @@ export default function LiveTradingRoom() {
             <Link
               key={r.symbol}
               href={`/analysis?symbol=${encodeURIComponent(r.symbol)}`}
-              className={`group bg-[#0C1017] rounded-2xl p-4 border border-l-2 hover:border-[#2D3A50] hover:bg-[#111827] transition-colors border-[#1C2333] ${signalBorderL(r.signal)}`}
+              className={`group bg-[#13112A] rounded-2xl p-4 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${signalBorderL(r.signal)}`}
             >
               {/* Header */}
               <div className="flex items-start justify-between mb-2">
@@ -178,11 +178,11 @@ export default function LiveTradingRoom() {
               {/* Intraday range bar */}
               {r.low !== null && r.high !== null && r.high > r.low && (
                 <div className="mt-3 mb-2">
-                  <div className="relative h-1.5 bg-[#1C2333] rounded-full overflow-visible">
+                  <div className="relative h-1.5 bg-[#252345] rounded-full overflow-visible">
                     <div className="absolute inset-0 bg-gradient-to-r from-rose-500/30 via-amber-500/20 to-emerald-500/30 rounded-full" />
                     {rangePct !== null && (
                       <span
-                        className={`absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#0C1017] shadow z-10 ${r.dayChangePct >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                        className={`absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-[#13112A] shadow z-10 ${r.dayChangePct >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
                         style={{ left: `calc(${Math.min(92, Math.max(8, rangePct))}% - 5px)` }}
                       />
                     )}
@@ -208,14 +208,14 @@ export default function LiveTradingRoom() {
 
       {/* ── Activity feed ── */}
       {liveTrades.length > 0 && (
-        <div className="mt-5 bg-[#0C1017] border border-[#1C2333] rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-[#1C2333]">
+        <div className="mt-5 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-[#252345]">
             <p className="text-xs font-semibold text-[#F1F5F9]">Today&apos;s Activity</p>
             <p className="text-[10px] text-[#4B5675]">
               {liveTrades.length} execution{liveTrades.length !== 1 ? "s" : ""}
             </p>
           </div>
-          <div className="divide-y divide-[#1C2333]">
+          <div className="divide-y divide-[#252345]">
             {liveTrades.slice(0, 10).map((t, i) => {
               const clean = t.symbol.replace(".US","").replace(".COMM","");
               const isBuy = t.side === "BUY";
@@ -247,7 +247,7 @@ export default function LiveTradingRoom() {
             })}
           </div>
           {liveTrades.length > 10 && (
-            <div className="px-5 py-2.5 border-t border-[#1C2333] text-center">
+            <div className="px-5 py-2.5 border-t border-[#252345] text-center">
               <p className="text-[10px] text-[#4B5675]">
                 +{liveTrades.length - 10} more — open AutoTrader ▶ Day Recap for full log
               </p>

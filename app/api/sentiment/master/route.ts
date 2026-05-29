@@ -87,7 +87,7 @@ ${syntheses || "None available"}
 USER POSITIONS: ${positions || "None"}
 USER WATCHLIST: ${watchlist || "None"}
 
-Generate an ICT-aligned institutional sentiment report.`;
+Generate a comprehensive institutional sentiment report.`;
 
     const result = await callClaude("master", PROMPTS.master, userContent, 1_500);
 

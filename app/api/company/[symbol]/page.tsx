@@ -73,7 +73,7 @@ export default function CompanyPage({
                     className="w-16 h-16 rounded-2xl bg-white object-contain"
                   />
                 ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-[#111827] border border-[#1F2937]" />
+                  <div className="w-16 h-16 rounded-2xl bg-[#1A1838] border border-[#1E1C42]" />
                 )}
 
                 <div>
@@ -93,28 +93,28 @@ export default function CompanyPage({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
-              <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-5">
+              <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5">
                 <p className="text-sm text-gray-400">Sector</p>
                 <p className="text-xl font-semibold mt-2">
                   {company.sector || "--"}
                 </p>
               </div>
 
-              <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-5">
+              <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5">
                 <p className="text-sm text-gray-400">Industry</p>
                 <p className="text-xl font-semibold mt-2">
                   {company.industry || "--"}
                 </p>
               </div>
 
-              <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-5">
+              <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5">
                 <p className="text-sm text-gray-400">IPO Date</p>
                 <p className="text-xl font-semibold mt-2">
                   {company.ipoDate || "--"}
                 </p>
               </div>
 
-              <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-5">
+              <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5">
                 <p className="text-sm text-gray-400">Employees</p>
                 <p className="text-xl font-semibold mt-2">
                   {company.employees || "--"}
@@ -123,14 +123,14 @@ export default function CompanyPage({
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-              <div className="xl:col-span-2 bg-[#111827] border border-[#1F2937] rounded-3xl p-6">
+              <div className="xl:col-span-2 bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-6">
                 <h2 className="text-2xl font-semibold mb-4">About</h2>
                 <p className="text-gray-300 leading-7">
                   {company.description || "No description available."}
                 </p>
               </div>
 
-              <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-6">
+              <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-6">
                 <h2 className="text-2xl font-semibold mb-4">Company Info</h2>
 
                 <div className="space-y-4 text-sm">

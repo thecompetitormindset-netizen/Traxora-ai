@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
+import { THEME_KEY } from "../lib/theme";
 import { useRouter } from "next/navigation";
 import { scopedKey } from "../lib/userState";
 
@@ -79,7 +80,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   }
 
   return (
-    <div className="h-[68px] flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 sm:px-6 shrink-0 relative bg-[#060A14]/70 backdrop-blur-xl sticky top-0 z-30">
+    <div className="h-[68px] flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 sm:px-6 shrink-0 relative bg-[#0D0B1A]/70 backdrop-blur-xl sticky top-0 z-30">
       {/* Logo — links back to landing page */}
       <Link href="/" className="flex items-center gap-2 shrink-0 group">
         <div className="w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
@@ -93,7 +94,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
       {/* Search */}
       <div className="flex-1 max-w-xl relative">
-        <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] rounded-xl px-4 py-2.5 transition-colors focus-within:border-emerald-500/50 focus-within:bg-[#060A14]">
+        <div className="flex items-center gap-2.5 bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] rounded-xl px-4 py-2.5 transition-colors focus-within:border-emerald-500/50 focus-within:bg-[#0D0B1A]">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
@@ -111,25 +112,25 @@ export default function Topbar({ onSearch }: TopbarProps) {
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
           )}
-          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#1C2333] text-[#4B5675] text-[10px] font-mono shrink-0">
+          <kbd className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#252345] text-[#4B5675] text-[10px] font-mono shrink-0">
             ⌘K
           </kbd>
         </div>
 
         {/* Dropdown */}
         {open && results.length > 0 && (
-          <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#0C1017] border border-[#1C2333] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+          <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
             {results.map((item, i) => (
               <button
                 key={`${item.symbol}-${i}`}
                 type="button"
                 onClick={() => handleSelect(item.symbol)}
-                className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#111827] transition-colors border-b border-[#1C2333] last:border-0"
+                className="w-full text-left px-4 py-3 flex items-center justify-between gap-3 hover:bg-[#1A1838] transition-colors border-b border-[#252345] last:border-0"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-bold text-[#F1F5F9] font-mono">{item.symbol}</p>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#1C2333] text-[#4B5675] font-medium capitalize shrink-0">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#252345] text-[#4B5675] font-medium capitalize shrink-0">
                       {item.type}
                     </span>
                   </div>
@@ -150,7 +151,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
         {/* Notifications */}
         <Link
           href="/notifications"
-          className="relative w-9 h-9 rounded-lg bg-[#060A14] border border-[#1C2333] hover:border-[#2D3A50] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-all"
+          className="relative w-9 h-9 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-all"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -165,7 +166,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
         {/* User */}
         {session?.user ? (
-          <div className="flex items-center gap-2.5 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-1.5">
+          <div className="flex items-center gap-2.5 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-1.5">
             <Link href="/settings">
               {session.user.image ? (
                 <img
@@ -189,7 +190,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             </Link>
             <button
               type="button"
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login" }); }}
               className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
               Sign out

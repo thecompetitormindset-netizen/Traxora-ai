@@ -70,14 +70,14 @@ export default function StockChart({
   ].join("");
 
   return (
-    <div className="bg-[#060A14] border border-[#1C2333] rounded-2xl overflow-hidden">
+    <div className="bg-[#0D0B1A] border border-[#252345] rounded-2xl overflow-hidden">
       {showIntervalPicker && (
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#1C2333]">
+        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[#252345]">
           <div className="flex items-center gap-2.5">
             <span className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest">
               {symbol.replace(".US","").replace(".COMM","")}
             </span>
-            <span className="text-[10px] text-[#2D3A50]">·</span>
+            <span className="text-[10px] text-[#333368]">·</span>
             <span className="text-[10px] text-[#4B5675]">TradingView</span>
           </div>
           <div className="flex gap-0.5">

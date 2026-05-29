@@ -100,7 +100,7 @@ export default function JournalPage() {
             <div>
               <h1 className="text-4xl font-bold">Trade Journal</h1>
               <p className="text-[#7B8DB4] mt-1 text-sm">
-                AI-written ICT analysis for every trade — mistakes, lessons, and coaching.
+                AI-written analysis for every trade — mistakes, lessons, and coaching.
               </p>
             </div>
             {entries.length > 0 && (
@@ -117,12 +117,12 @@ export default function JournalPage() {
           {entries.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
               {[
-                { label: "Total Trades",  value: entries.length.toString(),                    color: "text-emerald-400" },
+                { label: "Closed Trades", value: entries.length.toString(),                    color: "text-emerald-400" },
                 { label: "Win Rate",      value: sells.length > 0 ? `${winRate}%` : "—",        color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Total P&L",     value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`, color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Avg P&L %",     value: sells.length > 0 ? `${Number(avgPLPct) >= 0 ? "+" : ""}${avgPLPct}%` : "—", color: Number(avgPLPct) >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(s => (
-                <div key={s.label} className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-4 text-center">
+                <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
                   <p className={`text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
@@ -135,7 +135,7 @@ export default function JournalPage() {
             const grades = ["A", "B", "C", "D", "F"];
             const counts = Object.fromEntries(grades.map(g => [g, sells.filter(e => e.analysis?.grade === g).length]));
             return (
-              <div className="mt-3 bg-[#0C1017] border border-[#1C2333] rounded-2xl p-4">
+              <div className="mt-3 bg-[#13112A] border border-[#252345] rounded-2xl p-4">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Grade Distribution</p>
                 <div className="flex gap-2">
                   {grades.map(g => (
@@ -170,7 +170,7 @@ export default function JournalPage() {
 
           {/* Coaching Report */}
           {review && (
-            <div className="mt-4 bg-[#0C1017] border border-emerald-500/30 rounded-2xl p-5 space-y-4">
+            <div className="mt-4 bg-[#13112A] border border-emerald-500/30 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="font-bold text-base text-[#F1F5F9]">AI Coaching Report</p>
                 <span className={`text-sm font-black px-3 py-1 rounded-lg border ${GRADE_STYLE[review.overallGrade] ?? GRADE_STYLE.C}`}>
@@ -245,16 +245,16 @@ export default function JournalPage() {
           {/* Trade entries */}
           <div className="mt-6 space-y-3">
             {entries.length === 0 ? (
-              <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-10 text-center">
+              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
                 <p className="text-4xl mb-4">📓</p>
                 <p className="text-[#F1F5F9] font-semibold">No journal entries yet</p>
                 <p className="text-[#4B5675] text-sm mt-2 max-w-xs mx-auto">
-                  Every trade you execute — manual or via AutoTrader — gets an AI-written entry automatically.
+                  Close a trade in your Paper Portfolio and an AI-written coaching entry is generated automatically.
                 </p>
               </div>
             ) : (
               entries.map((e) => {
-                const isBuy   = e.side === "BUY";
+                const won     = (e.pl ?? 0) >= 0;
                 const clean   = e.symbol.replace(".US", "").replace(".COMM", "");
                 const isOpen  = expanded.has(e.id);
                 const hasAI   = Boolean(e.analysis);
@@ -264,8 +264,8 @@ export default function JournalPage() {
                 return (
                   <div
                     key={e.id}
-                    className={`bg-[#0C1017] border rounded-2xl overflow-hidden transition-all ${
-                      isBuy ? "border-emerald-500/20" : "border-rose-500/20"
+                    className={`bg-[#13112A] border rounded-2xl overflow-hidden transition-all ${
+                      won ? "border-emerald-500/20" : "border-rose-500/20"
                     }`}
                   >
                     {/* Card header — always visible */}
@@ -275,13 +275,13 @@ export default function JournalPage() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          {/* Side badge */}
+                          {/* Win/Loss badge */}
                           <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
-                            isBuy
+                            won
                               ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
                               : "text-rose-400 bg-rose-500/10 border-rose-500/20"
                           }`}>
-                            {e.side}
+                            {won ? "WIN" : "LOSS"}
                           </span>
 
                           <div className="min-w-0">
@@ -332,7 +332,7 @@ export default function JournalPage() {
 
                     {/* Expanded analysis — SELL trades only */}
                     {isOpen && e.analysis && (
-                      <div className="border-t border-[#1C2333] px-5 pb-5 pt-4 space-y-4">
+                      <div className="border-t border-[#252345] px-5 pb-5 pt-4 space-y-4">
 
                         {/* Verdict */}
                         <div className="flex items-start gap-3">
@@ -409,8 +409,8 @@ export default function JournalPage() {
           </div>
 
           {entries.length > 0 && (
-            <p className="text-center text-[10px] text-[#2D3A50] mt-6">
-              {entries.length} entries · {buys.length} buys · {sells.length} sells · AI-generated ICT analysis
+            <p className="text-center text-[10px] text-[#333368] mt-6">
+              {entries.length} closed trade{entries.length !== 1 ? "s" : ""} · AI-generated coaching
             </p>
           )}
         </div>

@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { getPortfolio, PORTFOLIO_UPDATED_EVENT, type Trade } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
-import { fifoEntryForSell } from "../lib/pl";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type TradeAnalysis = {
   grade:    string;
@@ -29,13 +28,12 @@ export type JournalEntry = {
   closeReason?: "manual" | "stop" | "tp";
   stopLoss?:    number;
   takeProfit?:  number;
-  autoClose?:   boolean;
   analysis?:    TradeAnalysis;
 };
 
 const JOURNAL_KEY_BASE = "traxora-journal";
 
-let _autoJournalStarted = false;
+// ── Storage helpers ───────────────────────────────────────────────────────────
 
 export function getJournal(): JournalEntry[] {
   if (typeof window === "undefined") return [];
@@ -48,9 +46,8 @@ export function clearJournal(): void {
   window.dispatchEvent(new Event("journal-updated"));
 }
 
-function saveJournalEntry(e: JournalEntry) {
+export function saveJournalEntry(e: JournalEntry) {
   const existing = getJournal();
-  // Avoid duplicates — drop if a matching key already exists
   const key = `${e.symbol}|${e.side}|${e.timestamp}`;
   if (existing.some(j => `${j.symbol}|${j.side}|${j.timestamp}` === key)) return;
   existing.unshift(e);
@@ -58,25 +55,30 @@ function saveJournalEntry(e: JournalEntry) {
   window.dispatchEvent(new Event("journal-updated"));
 }
 
-async function generateEntry(
-  trade: Trade,
-  allTrades: Trade[],
-): Promise<JournalEntry> {
-  let entryPrice: number | undefined;
-  let pl:         number | undefined;
-  let plPct:      number | undefined;
+// ── Paper portfolio journal entry generator ───────────────────────────────────
 
-  if (trade.side === "SELL") {
-    const fifo = fifoEntryForSell(trade, allTrades);
-    entryPrice = fifo.entryPrice;
-    pl         = fifo.pl;
-    plPct      = fifo.plPct;
-  }
+type PaperCloseData = {
+  id:          string;
+  symbol:      string;
+  direction:   "LONG" | "SHORT";
+  entryPrice:  number;
+  exitPrice:   number;
+  shares:      number;
+  stopLoss:    number | null;
+  takeProfit:  number | null;
+  exitDate:    string;
+  exitReason:  "manual" | "stop_hit" | "target_hit";
+};
 
+export async function generateAndSavePaperEntry(trade: PaperCloseData): Promise<void> {
+  const diff  = trade.direction === "LONG"
+    ? trade.exitPrice - trade.entryPrice
+    : trade.entryPrice - trade.exitPrice;
+  const pl    = diff * trade.shares;
+  const plPct = (diff / trade.entryPrice) * 100;
   const closeReason: JournalEntry["closeReason"] =
-    trade.closeReason === "tp"   ? "tp"   :
-    trade.closeReason === "stop" ? "stop" :
-    trade.autoClose              ? "stop" : "manual";
+    trade.exitReason === "stop_hit"   ? "stop"   :
+    trade.exitReason === "target_hit" ? "tp"     : "manual";
 
   let aiEntry    = "";
   let aiConcepts: string[] = [];
@@ -88,13 +90,13 @@ async function generateEntry(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         symbol:      trade.symbol,
-        side:        trade.side,
-        quantity:    trade.quantity,
-        price:       trade.price,
-        entryPrice,
+        side:        "SELL",
+        quantity:    trade.shares,
+        price:       trade.exitPrice,
+        entryPrice:  trade.entryPrice,
         pl,
         plPct,
-        closeReason: trade.side === "SELL" ? closeReason : undefined,
+        closeReason,
         stopLoss:    trade.stopLoss,
         takeProfit:  trade.takeProfit,
       }),
@@ -104,104 +106,37 @@ async function generateEntry(
       aiEntry    = data.entry;
       aiConcepts = data.concepts ?? [];
       aiAnalysis = data.analysis ?? undefined;
-    } else {
-      console.error("[Journal] API error:", data?.error ?? res.status);
     }
   } catch (err) {
-    console.error("[Journal] fetch failed:", err);
+    console.error("[Journal] paper entry generation failed:", err);
   }
 
-  // Fallback: always produce an entry even if AI fails
-  const clean = String(trade.symbol).replace(".US","").replace(".COMM","");
   if (!aiEntry) {
-    aiEntry = trade.side === "BUY"
-      ? `Entered ${clean} long at $${trade.price.toFixed(2)} — price showed ICT alignment at a key PD level; monitor for continuation and order flow confirmation.`
-      : `Closed ${clean} position at $${trade.price.toFixed(2)}${pl != null ? ` with ${pl >= 0 ? "+" : ""}$${pl.toFixed(2)} realised P&L` : ""} — review structure and execution quality against the original entry thesis.`;
+    aiEntry = `Closed ${trade.symbol} ${trade.direction} at $${trade.exitPrice.toFixed(2)} — ${pl >= 0 ? "+" : ""}$${pl.toFixed(2)} (${plPct.toFixed(2)}%). ${closeReason === "stop" ? "Stop loss hit." : closeReason === "tp" ? "Take profit reached." : "Closed manually."}`;
     aiConcepts = ["PD"];
   }
 
-  return {
-    id:          `${trade.time ?? Date.now()}-${Math.random().toString(36).slice(2)}`,
+  saveJournalEntry({
+    id:          `${trade.exitDate}-${Math.random().toString(36).slice(2)}`,
     symbol:      trade.symbol,
-    side:        trade.side,
-    quantity:    trade.quantity,
-    price:       trade.price,
+    side:        "SELL",
+    quantity:    trade.shares,
+    price:       trade.exitPrice,
     entry:       aiEntry,
     concepts:    aiConcepts,
-    timestamp:   trade.time ?? new Date().toISOString(),
-    entryPrice,
+    timestamp:   trade.exitDate,
+    entryPrice:  trade.entryPrice,
     pl,
     plPct,
-    closeReason: trade.side === "SELL" ? closeReason : undefined,
-    stopLoss:    trade.stopLoss,
-    takeProfit:  trade.takeProfit,
-    autoClose:   trade.autoClose,
+    closeReason,
+    stopLoss:    trade.stopLoss ?? undefined,
+    takeProfit:  trade.takeProfit ?? undefined,
     analysis:    aiAnalysis,
-  };
+  });
 }
 
+// ── Component (no-op — kept for layout.tsx compatibility) ─────────────────────
+
 export default function AutoJournal() {
-  const lastTradeCountRef = useRef<number | null>(null);
-  const backfillDoneRef   = useRef(false);
-
-  useEffect(() => {
-    if (_autoJournalStarted) { console.warn("[AutoJournal] duplicate mount — skipping"); return; }
-    _autoJournalStarted = true;
-
-    const portfolio = getPortfolio();
-    lastTradeCountRef.current = portfolio.trades.length;
-
-    // ── Backfill: generate entries for any trade not yet journaled ──────────
-    if (!backfillDoneRef.current) {
-      backfillDoneRef.current = true;
-
-      const journaledKeys = new Set(
-        getJournal().map(j => `${j.symbol}|${j.side}|${j.timestamp}`),
-      );
-
-      // trades are newest-first; process oldest-first for correct FIFO context
-      const unjournaled = [...portfolio.trades]
-        .reverse()
-        .filter(t => !journaledKeys.has(`${t.symbol}|${t.side}|${t.time}`));
-
-      if (unjournaled.length > 0) {
-        (async () => {
-          for (const trade of unjournaled) {
-            const entry = await generateEntry(trade, portfolio.trades);
-            saveJournalEntry(entry);
-            // Small pause between AI calls to avoid rate-limiting on large backfills
-            await new Promise(r => setTimeout(r, 300));
-          }
-        })();
-      }
-    }
-
-    // ── New-trade listener ──────────────────────────────────────────────────
-    async function handlePortfolioUpdate() {
-      const updated = getPortfolio();
-      const prev    = lastTradeCountRef.current ?? updated.trades.length;
-      const newCount = updated.trades.length - prev;
-
-      if (newCount <= 0) {
-        lastTradeCountRef.current = updated.trades.length;
-        return;
-      }
-
-      const newTrades = updated.trades.slice(0, newCount);
-      lastTradeCountRef.current = updated.trades.length;
-
-      for (const trade of newTrades as Trade[]) {
-        const entry = await generateEntry(trade, updated.trades);
-        saveJournalEntry(entry);
-      }
-    }
-
-    window.addEventListener(PORTFOLIO_UPDATED_EVENT, handlePortfolioUpdate);
-    return () => {
-      window.removeEventListener(PORTFOLIO_UPDATED_EVENT, handlePortfolioUpdate);
-      _autoJournalStarted = false;
-    };
-  }, []);
-
   return null;
 }

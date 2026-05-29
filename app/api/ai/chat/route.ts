@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ const SYSTEM_PROMPT = `You are Traxora AI, a trading assistant embedded in a pap
 You help users with:
 - Stocks, ETFs, futures, forex, crypto, and commodities
 - Market analysis, price action, technical and fundamental concepts
-- ICT methodology (order blocks, fair value gaps, liquidity sweeps, kill zones, OTE, etc.)
+- Smart money concepts (order blocks, fair value gaps, liquidity sweeps, kill zones, OTE, etc.)
 - Trading strategies, risk management, position sizing
 - Market news and its impact on assets
 - Financial terms (P/E ratio, market cap, volatility, options, etc.)
@@ -24,7 +25,9 @@ For questions clearly unrelated to finance or trading (recipes, weather, politic
 Rules:
 - Keep responses concise and specific.
 - Never guarantee returns or give exact buy/sell signals.
-- Always note this is a paper trading platform — not real financial advice.`;
+- Always note this is a paper trading platform — not real financial advice.
+
+${SYSTEM_FRAMEWORK}`;
 
 
 const MAX_MESSAGES   = 20;

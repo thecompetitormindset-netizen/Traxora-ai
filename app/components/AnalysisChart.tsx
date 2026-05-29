@@ -36,19 +36,19 @@ export default function AnalysisChart({ symbol }: AnalysisChartProps) {
         autoSize: true,
         height: 520,
         layout: {
-          background: { type: ColorType.Solid, color: "#0C1017" },
+          background: { type: ColorType.Solid, color: "#13112A" },
           textColor: "#94A3B8",
         },
         grid: {
-          vertLines: { color: "#1C2333" },
-          horzLines: { color: "#1C2333" },
+          vertLines: { color: "#252345" },
+          horzLines: { color: "#252345" },
         },
         crosshair: {
           vertLine: { color: "#4B5675" },
           horzLine: { color: "#4B5675" },
         },
-        rightPriceScale: { borderColor: "#1C2333" },
-        timeScale: { borderColor: "#1C2333" },
+        rightPriceScale: { borderColor: "#252345" },
+        timeScale: { borderColor: "#252345" },
       });
 
       try {
@@ -143,12 +143,12 @@ export default function AnalysisChart({ symbol }: AnalysisChartProps) {
       <div ref={containerRef} className="w-full h-[520px]" />
 
       {loading && (
-        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#0C1017] rounded-xl">
+        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#13112A] rounded-xl">
           <span className="text-[#4B5675] text-sm animate-pulse">Loading chart…</span>
         </div>
       )}
       {error && (
-        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#0C1017] rounded-xl border border-[#1C2333]">
+        <div className="absolute inset-0 h-[520px] flex items-center justify-center bg-[#13112A] rounded-xl border border-[#252345]">
           <span className="text-[#4B5675] text-sm">Chart unavailable</span>
         </div>
       )}

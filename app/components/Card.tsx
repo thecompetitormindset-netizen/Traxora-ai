@@ -33,7 +33,7 @@ function getValueColor(value: string, accent: CardAccent) {
 }
 
 function getBadgeClasses(badge?: string, accent: CardAccent = "default") {
-  if (!badge) return "bg-[#1F2937] text-gray-300";
+  if (!badge) return "bg-[#1E1C42] text-gray-300";
 
   if (badge.trim().startsWith("+")) {
     return "bg-green-500/15 text-green-400";
@@ -53,7 +53,7 @@ function getBadgeClasses(badge?: string, accent: CardAccent = "default") {
     case "yellow":
       return "bg-yellow-500/15 text-yellow-400";
     default:
-      return "bg-[#1F2937] text-gray-300";
+      return "bg-[#1E1C42] text-gray-300";
   }
 }
 
@@ -70,7 +70,7 @@ export default function Card({
   const badgeClasses = getBadgeClasses(badge, accent);
 
   const content = (
-    <div className="bg-[#111827] border border-[#1F2937] rounded-3xl p-5 h-full hover:bg-[#0F172A] transition">
+    <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5 h-full hover:bg-[#0F172A] transition">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-gray-400">{title}</p>
         {icon ? <span className="text-lg">{icon}</span> : null}

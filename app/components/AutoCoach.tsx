@@ -98,10 +98,10 @@ export default function AutoCoach() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-lg bg-[#0C1017] border border-[#1C2333] rounded-3xl shadow-2xl overflow-hidden">
+      <div className="w-full max-w-lg bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1C2333] bg-gradient-to-r from-teal-500/5 to-transparent">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#252345] bg-gradient-to-r from-teal-500/5 to-transparent">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎯</span>
             <div>
@@ -115,7 +115,7 @@ export default function AutoCoach() {
             type="button"
             onClick={() => setVisible(false)}
             aria-label="Close coaching report"
-            className="w-8 h-8 rounded-xl bg-[#1C2333] hover:bg-[#2D3A50] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
+            className="w-8 h-8 rounded-xl bg-[#252345] hover:bg-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
           >
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -133,14 +133,14 @@ export default function AutoCoach() {
                 <p className="text-sm text-[#7B8DB4]">Traxora AI is reviewing your trading history...</p>
               </div>
               {[1,2,3,4,5,6].map(i => (
-                <div key={i} className={`h-3 rounded-full bg-[#1C2333] animate-pulse ${i % 3 === 0 ? "w-2/3" : "w-full"}`} />
+                <div key={i} className={`h-3 rounded-full bg-[#252345] animate-pulse ${i % 3 === 0 ? "w-2/3" : "w-full"}`} />
               ))}
             </div>
           ) : parsed ? (
             <div className="space-y-5">
               {/* Assessment */}
               {parsed.assessment && (
-                <div className="bg-[#060A14] border border-emerald-500/20 rounded-2xl p-4">
+                <div className="bg-[#0D0B1A] border border-emerald-500/20 rounded-2xl p-4">
                   <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-semibold mb-1.5">Overall Assessment</p>
                   <p className="text-sm text-[#CBD5E1] leading-relaxed">{parsed.assessment}</p>
                 </div>
@@ -184,8 +184,8 @@ export default function AutoCoach() {
           )}
         </div>
 
-        <div className="px-6 pb-5 pt-2 border-t border-[#1C2333] flex justify-between items-center">
-          <p className="text-[10px] text-[#2D3A50]">Next report after {Math.ceil(getPortfolio().trades.length / MILESTONE_EVERY) * MILESTONE_EVERY + MILESTONE_EVERY} trades</p>
+        <div className="px-6 pb-5 pt-2 border-t border-[#252345] flex justify-between items-center">
+          <p className="text-[10px] text-[#333368]">Next report after {Math.ceil(getPortfolio().trades.length / MILESTONE_EVERY) * MILESTONE_EVERY + MILESTONE_EVERY} trades</p>
           <button
             type="button"
             onClick={() => setVisible(false)}

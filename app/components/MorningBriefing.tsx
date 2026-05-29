@@ -157,14 +157,14 @@ function trendIcon(t: string) {
 function impCls(imp: string) {
   if (imp === "High")   return "bg-rose-500/10 text-rose-400 border-rose-500/20";
   if (imp === "Medium") return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-  return "bg-[#1C2333] text-[#4B5675] border-[#1C2333]";
+  return "bg-[#252345] text-[#4B5675] border-[#252345]";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function Tile({ label, value, chg, sub }: { label: string; value: string; chg: number | null; sub?: string }) {
   return (
-    <div className="bg-[#060A14] border border-[#1C2333] rounded-xl p-2.5 text-center min-w-0">
+    <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-2.5 text-center min-w-0">
       <p className="text-[7px] text-[#4B5675] uppercase tracking-widest mb-1 truncate">{label}</p>
       <p className={`text-[11px] font-black font-mono leading-tight truncate ${chgCls(chg)}`}>{value}</p>
       {sub && <p className={`text-[9px] font-mono mt-0.5 truncate ${chgCls(chg)}`}>{sub}</p>}
@@ -177,7 +177,7 @@ function SectionHead({ label, icon }: { label: string; icon: string }) {
     <div className="flex items-center gap-2 mb-3">
       <span className="text-base">{icon}</span>
       <span className="text-[10px] font-black text-[#7B8DB4] uppercase tracking-widest">{label}</span>
-      <div className="flex-1 h-px bg-[#1C2333]" />
+      <div className="flex-1 h-px bg-[#252345]" />
     </div>
   );
 }
@@ -187,7 +187,7 @@ function ConfBar({ pct: p }: { pct: number }) {
   const cls = p >= 75 ? "bg-emerald-500" : p >= 55 ? "bg-amber-500" : "bg-rose-500";
   return (
     <div className="flex items-center gap-2 mt-1">
-      <div className="flex-1 h-1 bg-[#1C2333] rounded-full overflow-hidden">
+      <div className="flex-1 h-1 bg-[#252345] rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${cls} w-pct-${w}`} />
       </div>
       <span className={`text-[9px] font-black ${confCls(p)}`}>{p}%</span>
@@ -200,7 +200,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
   const trendCls = opp.trend === "Bullish" ? "text-emerald-400" : opp.trend === "Bearish" ? "text-rose-400" : "text-amber-400";
 
   return (
-    <div className="border border-[#1C2333] rounded-2xl overflow-hidden bg-[#060A14]">
+    <div className="border border-[#252345] rounded-2xl overflow-hidden bg-[#0D0B1A]">
       {/* Card header — always visible */}
       <button
         type="button"
@@ -219,7 +219,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
             <span className="text-[10px] text-[#4B5675] truncate max-w-[140px]">{opp.name}</span>
             <span className={`text-[9px] font-bold ${trendCls}`}>{trendIcon(opp.trend)} {opp.trend}</span>
             <span className={`text-[8px] px-1.5 py-0.5 rounded border ${riskCls(opp.riskLevel)}`}>{opp.riskLevel} risk</span>
-            <span className="text-[8px] text-[#4B5675] bg-[#1C2333] px-1.5 py-0.5 rounded">{opp.timeHorizon}</span>
+            <span className="text-[8px] text-[#4B5675] bg-[#252345] px-1.5 py-0.5 rounded">{opp.timeHorizon}</span>
           </div>
 
           {/* Row 2: thesis preview */}
@@ -245,30 +245,30 @@ function OppCard({ opp }: { opp: Opportunity }) {
 
       {/* Expanded detail */}
       {open && (
-        <div className="px-4 pb-4 border-t border-[#1C2333] space-y-4 pt-3">
+        <div className="px-4 pb-4 border-t border-[#252345] space-y-4 pt-3">
 
           {/* ICT Setup */}
           <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
-            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">ICT Setup</p>
+            <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Setup</p>
             <p className="text-xs text-[#CBD5E1] leading-relaxed">{opp.ictSetup}</p>
           </div>
 
           {/* Levels grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="bg-[#0C1017] border border-[#1C2333] rounded-xl p-2.5">
+            <div className="bg-[#13112A] border border-[#252345] rounded-xl p-2.5">
               <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Entry Zone</p>
               <p className="text-xs font-black font-mono text-[#F1F5F9]">{opp.entryZone}</p>
             </div>
-            <div className="bg-[#0C1017] border border-rose-500/20 rounded-xl p-2.5">
+            <div className="bg-[#13112A] border border-rose-500/20 rounded-xl p-2.5">
               <p className="text-[8px] text-rose-400 uppercase tracking-widest mb-1">Stop Loss</p>
               <p className="text-xs font-black font-mono text-rose-400">{opp.stopLoss}</p>
             </div>
-            <div className="bg-[#0C1017] border border-emerald-500/20 rounded-xl p-2.5">
+            <div className="bg-[#13112A] border border-emerald-500/20 rounded-xl p-2.5">
               <p className="text-[8px] text-emerald-400 uppercase tracking-widest mb-1">Target 1</p>
               <p className="text-xs font-black font-mono text-emerald-400">{opp.target1}</p>
             </div>
             {opp.target2 && (
-              <div className="bg-[#0C1017] border border-emerald-500/20 rounded-xl p-2.5">
+              <div className="bg-[#13112A] border border-emerald-500/20 rounded-xl p-2.5">
                 <p className="text-[8px] text-emerald-400 uppercase tracking-widest mb-1">Target 2</p>
                 <p className="text-xs font-black font-mono text-emerald-400">{opp.target2}</p>
               </div>
@@ -333,7 +333,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
 
           {/* Speculative */}
           {opp.speculative && (
-            <div className="bg-[#1C2333] border border-[#2D3A50] rounded-xl p-2.5">
+            <div className="bg-[#252345] border border-[#333368] rounded-xl p-2.5">
               <p className="text-[8px] font-black text-[#4B5675] uppercase tracking-widest mb-1">Speculative</p>
               <p className="text-[9px] text-[#4B5675] italic">{opp.speculative}</p>
             </div>
@@ -491,10 +491,10 @@ export default function MorningBriefing() {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="w-full max-w-3xl bg-[#0C1017] border border-[#1C2333] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="w-full max-w-3xl bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
 
         {/* ── Header ── */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1C2333] bg-gradient-to-r from-amber-500/8 to-transparent shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#252345] bg-gradient-to-r from-amber-500/8 to-transparent shrink-0">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🌅</span>
             <div>
@@ -506,7 +506,7 @@ export default function MorningBriefing() {
           </div>
           <div className="flex items-center gap-2">
             {briefing && (
-              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-[#1C2333] rounded-lg">
+              <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 bg-[#252345] rounded-lg">
                 <span className="text-[8px] text-[#4B5675] uppercase tracking-widest">Confidence</span>
                 <span className={`text-[10px] font-black ${confCls(briefing.overallConfidence)}`}>{briefing.overallConfidence}%</span>
               </div>
@@ -517,7 +517,7 @@ export default function MorningBriefing() {
                 onClick={() => fetchBriefing(true)}
                 title="Refresh briefing (bypasses cache)"
                 aria-label="Refresh briefing"
-                className="w-8 h-8 rounded-xl bg-[#1C2333] hover:bg-[#2D3A50] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
+                className="w-8 h-8 rounded-xl bg-[#252345] hover:bg-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -528,7 +528,7 @@ export default function MorningBriefing() {
               type="button"
               onClick={close}
               aria-label="Close morning briefing"
-              className="w-8 h-8 rounded-xl bg-[#1C2333] hover:bg-[#2D3A50] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
+              className="w-8 h-8 rounded-xl bg-[#252345] hover:bg-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
@@ -542,19 +542,19 @@ export default function MorningBriefing() {
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
             <div className="grid grid-cols-7 gap-2">
               {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-xl bg-[#1C2333] animate-pulse" />
+                <div key={i} className="h-14 rounded-xl bg-[#252345] animate-pulse" />
               ))}
             </div>
             <div className="space-y-2.5 mt-4">
               {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className={`h-3 rounded-full bg-[#1C2333] animate-pulse ${i % 3 === 2 ? "w-2/3" : "w-full"}`} />
+                <div key={i} className={`h-3 rounded-full bg-[#252345] animate-pulse ${i % 3 === 2 ? "w-2/3" : "w-full"}`} />
               ))}
             </div>
             <div className="flex items-center gap-2 mt-2">
               <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
-              <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments using institutional ICT framework…</p>
+              <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments using institutional smart money framework…</p>
             </div>
           </div>
         )}
@@ -585,7 +585,7 @@ export default function MorningBriefing() {
         {!loading && briefing && (
           <>
             {/* Tabs */}
-            <div className="flex border-b border-[#1C2333] shrink-0">
+            <div className="flex border-b border-[#252345] shrink-0">
               {tabs.map(t => (
                 <button
                   key={t.id}
@@ -613,7 +613,7 @@ export default function MorningBriefing() {
                 </div>
 
                 {/* VIX reading */}
-                <div className="mx-6 mt-2 px-4 py-2 bg-[#060A14] border border-[#1C2333] rounded-xl">
+                <div className="mx-6 mt-2 px-4 py-2 bg-[#0D0B1A] border border-[#252345] rounded-xl">
                   <span className="text-[8px] font-black text-[#4B5675] uppercase tracking-widest">VIX Reading · </span>
                   <span className="text-[10px] text-[#CBD5E1]">{briefing.vixReading}</span>
                 </div>
@@ -627,29 +627,29 @@ export default function MorningBriefing() {
 
                 {/* ICT Analysis */}
                 <div className="px-6 pt-5">
-                  <SectionHead label="ICT Smart Money Analysis" icon="🎯" />
+                  <SectionHead label="Smart Money Analysis" icon="🎯" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
-                    <div className="bg-[#060A14] border border-emerald-500/20 rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Market Bias</p>
                       <p className={`text-sm font-black ${biasCls}`}>{ict?.bias}</p>
                     </div>
-                    <div className="bg-[#060A14] border border-[#1C2333] rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Price Zone</p>
                       <p className="text-xs font-bold text-[#F1F5F9]">{ict?.priceZone}</p>
                     </div>
-                    <div className="bg-[#060A14] border border-[#1C2333] rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">MM Phase</p>
                       <p className="text-xs font-bold text-teal-400">{ict?.marketMakerModel}</p>
                     </div>
-                    <div className="bg-[#060A14] border border-emerald-500/20 rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-emerald-400 uppercase tracking-widest mb-1">BSL (Liq. Above)</p>
                       <p className="text-xs font-mono text-[#F1F5F9]">{ict?.liquidityAbove}</p>
                     </div>
-                    <div className="bg-[#060A14] border border-rose-500/20 rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-rose-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-rose-400 uppercase tracking-widest mb-1">SSL (Liq. Below)</p>
                       <p className="text-xs font-mono text-[#F1F5F9]">{ict?.liquidityBelow}</p>
                     </div>
-                    <div className="bg-[#060A14] border border-amber-500/20 rounded-xl p-3">
+                    <div className="bg-[#0D0B1A] border border-amber-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-amber-400 uppercase tracking-widest mb-1">Kill Zone</p>
                       <p className="text-[10px] text-[#CBD5E1] leading-snug">{ict?.killZone}</p>
                     </div>
@@ -658,19 +658,19 @@ export default function MorningBriefing() {
                   {/* FVG / OB / SMT */}
                   <div className="space-y-2">
                     {ict?.keyFVG && (
-                      <div className="flex items-start gap-2 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2">
+                      <div className="flex items-start gap-2 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">FVG</span>
                         <p className="text-[10px] text-[#CBD5E1]">{ict.keyFVG}</p>
                       </div>
                     )}
                     {ict?.keyOrderBlock && (
-                      <div className="flex items-start gap-2 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2">
+                      <div className="flex items-start gap-2 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">OB</span>
                         <p className="text-[10px] text-[#CBD5E1]">{ict.keyOrderBlock}</p>
                       </div>
                     )}
                     {ict?.smtDivergence && (
-                      <div className="flex items-start gap-2 bg-[#060A14] border border-teal-500/20 rounded-xl px-3 py-2">
+                      <div className="flex items-start gap-2 bg-[#0D0B1A] border border-teal-500/20 rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">SMT</span>
                         <p className="text-[10px] text-[#CBD5E1]">{ict.smtDivergence}</p>
                       </div>
@@ -767,7 +767,7 @@ export default function MorningBriefing() {
                   {(["SPY", "QQQ", "Gold"] as const).map(sym => {
                     const lv = briefing.keyLevels[sym];
                     return (
-                      <div key={sym} className="bg-[#060A14] border border-[#1C2333] rounded-xl p-3">
+                      <div key={sym} className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                         <p className="text-xs font-black text-[#F1F5F9] mb-2">{sym}</p>
                         <div className="grid grid-cols-2 gap-3 text-[10px]">
                           <div>
@@ -807,7 +807,7 @@ export default function MorningBriefing() {
                 {briefing.economicCalendar?.length > 0 ? (
                   <div className="space-y-2">
                     {briefing.economicCalendar.map((ev, i) => (
-                      <div key={i} className="flex items-start gap-3 bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2.5">
+                      <div key={i} className="flex items-start gap-3 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2.5">
                         <div className="shrink-0">
                           <p className="text-[8px] font-black text-[#7B8DB4] font-mono">{ev.time}</p>
                           <span className={`text-[7px] px-1.5 py-0.5 rounded border font-bold uppercase ${impCls(ev.importance)}`}>
@@ -830,8 +830,8 @@ export default function MorningBriefing() {
         )}
 
         {/* ── Footer ── */}
-        <div className="px-6 py-4 border-t border-[#1C2333] flex items-center justify-between shrink-0">
-          <p className="text-[10px] text-[#2D3A50]">Educational use only · Not financial advice</p>
+        <div className="px-6 py-4 border-t border-[#252345] flex items-center justify-between shrink-0">
+          <p className="text-[10px] text-[#333368]">Educational use only · Not financial advice</p>
           <button
             type="button"
             onClick={close}

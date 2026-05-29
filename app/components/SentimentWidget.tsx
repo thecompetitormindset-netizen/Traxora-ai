@@ -36,7 +36,7 @@ function ScoreBar({ score }: { score: number }) {
       </div>
 
       {/* Track: −100 ··· 0 ··· +100 */}
-      <div className="relative h-4 bg-[#080E1B] rounded-full overflow-hidden border border-[#1C2333]">
+      <div className="relative h-4 bg-[#080E1B] rounded-full overflow-hidden border border-[#252345]">
         {/* Gradient backdrop */}
         <div
           className="absolute inset-0 rounded-full"
@@ -52,7 +52,7 @@ function ScoreBar({ score }: { score: number }) {
       </div>
 
       {/* Scale labels */}
-      <div className="flex justify-between text-[8px] text-[#2D3A50] font-mono mt-1 px-0.5">
+      <div className="flex justify-between text-[8px] text-[#333368] font-mono mt-1 px-0.5">
         <span>−100</span><span>−50</span><span>0</span><span>+50</span><span>+100</span>
       </div>
     </div>
@@ -66,12 +66,12 @@ function Bar({ label, weight, value, accent }: { label: string; weight: number; 
   const fillClass = pct >= 60 ? "bg-emerald-400" : pct >= 40 ? "bg-amber-400" : "bg-rose-400";
   const numClass  = pct >= 60 ? "text-emerald-400" : pct >= 40 ? "text-amber-400" : "text-rose-400";
   return (
-    <div className="flex-1 min-w-0 bg-[#060A14] rounded-xl p-2.5 border border-[#1C2333]">
+    <div className="flex-1 min-w-0 bg-[#0D0B1A] rounded-xl p-2.5 border border-[#252345]">
       <div className="flex items-center justify-between mb-1.5">
         <span className={`text-[9px] font-black uppercase tracking-widest ${accent}`}>{label}</span>
         <span className="text-[9px] text-[#4B5675] font-mono">{weight}%</span>
       </div>
-      <div className="h-1.5 bg-[#1C2333] rounded-full overflow-hidden mb-1">
+      <div className="h-1.5 bg-[#252345] rounded-full overflow-hidden mb-1">
         <div className={`h-full rounded-full transition-all duration-700 ${fillClass}`}
              style={{ width: `${pct}%` }} />
       </div>
@@ -100,13 +100,13 @@ export default function SentimentWidget() {
                                   "bg-amber-500/10   text-amber-400   border-amber-500/20";
 
   return (
-    <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-5">
+    <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
           <p className="text-[11px] font-bold uppercase tracking-widest text-[#4B5675]">Market Sentiment</p>
-          <p className="text-[10px] text-[#2D3A50] mt-0.5">VIX · Momentum · News composite · math-driven</p>
+          <p className="text-[10px] text-[#333368] mt-0.5">VIX · Momentum · News composite · math-driven</p>
         </div>
         {!loading && data?.regime && (
           <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${regimeClass}`}>
@@ -146,7 +146,7 @@ export default function SentimentWidget() {
               { label: "SPY", chg: data.spyChange },
               { label: "QQQ", chg: data.qqqChange },
             ].map(({ label, chg }) => (
-              <div key={label} className="flex items-center gap-1.5 bg-[#060A14] border border-[#1C2333] rounded-lg px-2.5 py-1.5">
+              <div key={label} className="flex items-center gap-1.5 bg-[#0D0B1A] border border-[#252345] rounded-lg px-2.5 py-1.5">
                 <span className="text-[10px] font-bold text-[#4B5675] font-mono">{label}</span>
                 <span className={`text-[11px] font-black font-mono tabular-nums ${
                   chg == null ? "text-[#4B5675]" : chg >= 0 ? "text-emerald-400" : "text-rose-400"

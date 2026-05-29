@@ -185,7 +185,7 @@ function toastCfg(type: ToastType) {
     case "sell":   return { icon: "🔴", ring: "border-rose-500/30 bg-rose-500/10",       title: "text-rose-300"    };
     case "hold":   return { icon: "🟡", ring: "border-amber-500/30 bg-amber-500/10",     title: "text-amber-300"   };
     case "cash":   return { icon: "💰", ring: "border-amber-500/30 bg-amber-500/10",     title: "text-amber-300"   };
-    case "error":  return { icon: "⚠️", ring: "border-[#2D3A50] bg-[#0C1017]/80",        title: "text-[#7B8DB4]"   };
+    case "error":  return { icon: "⚠️", ring: "border-[#333368] bg-[#13112A]/80",        title: "text-[#7B8DB4]"   };
     case "info":   return { icon: "✨", ring: "border-emerald-500/30 bg-emerald-500/10",   title: "text-emerald-300"  };
     case "signal": return { icon: "⚡", ring: "border-teal-500/30 bg-teal-500/10",   title: "text-teal-300"  };
   }
@@ -484,27 +484,27 @@ export default function AutoTrader() {
       {showSummary && (
         <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4" onClick={() => setShowSummary(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-          <div className="relative w-full max-w-sm bg-[#0C1017] border border-[#1C2333] rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1C2333]">
+          <div className="relative w-full max-w-sm bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
               <div>
                 <p className="font-bold text-[#F1F5F9]">Today&apos;s Trading Recap</p>
                 <p className="text-[10px] text-[#4B5675] mt-0.5">{new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}</p>
               </div>
               <button type="button" onClick={() => setShowSummary(false)} className="text-[#4B5675] hover:text-[#F1F5F9] text-xl leading-none transition-colors">×</button>
             </div>
-            <div className="grid grid-cols-3 border-b border-[#1C2333]">
+            <div className="grid grid-cols-3 border-b border-[#252345]">
               {[
                 { label:"Trades",   value: dayTrades.length.toString(),                                                   color:"text-emerald-400"  },
                 { label:"P&L",      value: `${realizedPL >= 0 ? "+" : ""}$${realizedPL.toFixed(2)}`,                    color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label:"Win Rate", value: winRate != null ? `${winRate}%` : "—",                                         color:"text-amber-400"   },
               ].map(s => (
-                <div key={s.label} className="p-4 text-center border-r border-[#1C2333] last:border-0">
+                <div key={s.label} className="p-4 text-center border-r border-[#252345] last:border-0">
                   <p className={`text-xl font-black font-mono ${s.color}`}>{s.value}</p>
                   <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mt-0.5">{s.label}</p>
                 </div>
               ))}
             </div>
-            <div className="px-5 py-2.5 border-b border-[#1C2333] flex items-center justify-between text-[10px]">
+            <div className="px-5 py-2.5 border-b border-[#252345] flex items-center justify-between text-[10px]">
               <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-teal-400">⚡</span>{signalTrades} signal trade{signalTrades !== 1 ? "s" : ""}</span>
               <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-emerald-400">🔍</span>{scanTrades} scan trade{scanTrades !== 1 ? "s" : ""}</span>
             </div>
@@ -520,7 +520,7 @@ export default function AutoTrader() {
                   const isBuy = t.side === "BUY";
                   const time  = new Date(t.time).toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
                   return (
-                    <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-[#1C2333] last:border-0">
+                    <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-[#252345] last:border-0">
                       <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${isBuy ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-rose-400 bg-rose-500/10 border-rose-500/20"}`}>{t.side}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
@@ -538,7 +538,7 @@ export default function AutoTrader() {
               )}
             </div>
             <div className="px-5 py-3 text-center">
-              <p className="text-[10px] text-[#2D3A50]">⚡ Signal = instant trade on dashboard alert · 🔍 Scan = parallel 5-min cycle</p>
+              <p className="text-[10px] text-[#333368]">⚡ Signal = instant trade on dashboard alert · 🔍 Scan = parallel 5-min cycle</p>
             </div>
           </div>
         </div>
@@ -547,13 +547,13 @@ export default function AutoTrader() {
       {/* ── FAB + Panel ──────────────────────────────────────────────────────── */}
       <div className="fixed top-[76px] right-2 sm:top-[88px] sm:right-4 z-50 flex flex-col-reverse items-end gap-2">
         {open && (
-          <div className="w-72 bg-[#0C1017]/95 border border-[#1C2333] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#1C2333]">
+          <div className="w-72 bg-[#13112A]/95 border border-[#252345] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${active ? "bg-emerald-400 animate-pulse" : "bg-[#4B5675]"}`} />
                 <p className="text-xs font-bold text-[#F1F5F9]">AutoTrader</p>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${active ? "bg-emerald-500/15 text-emerald-400" : "bg-[#1C2333] text-[#4B5675]"}`}>{active ? "LIVE" : "OFF"}</span>
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg ${active ? "bg-emerald-500/15 text-emerald-400" : "bg-[#252345] text-[#4B5675]"}`}>{active ? "LIVE" : "OFF"}</span>
             </div>
             <div className="px-4 py-3 space-y-3">
               {active && (
@@ -576,7 +576,7 @@ export default function AutoTrader() {
                 </div>
               )}
               {dayTrades.length > 0 && (
-                <div className="bg-[#060A14] border border-[#1C2333] rounded-xl px-3 py-2 flex items-center justify-between">
+                <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 flex items-center justify-between">
                   <div>
                     <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">Today&apos;s P&L</p>
                     <p className={`text-sm font-black font-mono mt-0.5 ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{realizedPL >= 0 ? "+" : ""}${realizedPL.toFixed(2)}</p>
@@ -592,19 +592,19 @@ export default function AutoTrader() {
                   <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">Next Full Scan</p>
                   <p className="text-[9px] font-mono text-[#4B5675]">{countdownStr}</p>
                 </div>
-                <div className="h-1 bg-[#1C2333] rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-1000 ${active ? "bg-emerald-500" : "bg-[#1C2333]"} w-pct-${Math.round(progressPct / 5) * 5}`} />
+                <div className="h-1 bg-[#252345] rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-1000 ${active ? "bg-emerald-500" : "bg-[#252345]"} w-pct-${Math.round(progressPct / 5) * 5}`} />
                 </div>
               </div>
-              <p className="text-[9px] text-[#2D3A50] leading-relaxed pt-1 border-t border-[#1C2333]">Scans all 20 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>
+              <p className="text-[9px] text-[#333368] leading-relaxed pt-1 border-t border-[#252345]">Scans all 20 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>
             </div>
             <div className="px-4 pb-4 space-y-2">
-              <button type="button" onClick={() => { setShowSummary(true); refreshDayTrades(); }} className="w-full py-2 rounded-xl text-[11px] font-bold bg-[#111827] border border-[#1C2333] text-[#7B8DB4] hover:text-[#F1F5F9] hover:border-[#2D3A50] transition-all">📊 Day Recap</button>
+              <button type="button" onClick={() => { setShowSummary(true); refreshDayTrades(); }} className="w-full py-2 rounded-xl text-[11px] font-bold bg-[#1A1838] border border-[#252345] text-[#7B8DB4] hover:text-[#F1F5F9] hover:border-[#333368] transition-all">📊 Day Recap</button>
               <button type="button" onClick={() => setActive(a => !a)} className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${active ? "bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}>{active ? "Stop AutoTrader" : "Start AutoTrader"}</button>
             </div>
           </div>
         )}
-        <button type="button" onClick={() => setOpen(o => !o)} title="AutoTrader" className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${active ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/25" : "bg-[#0C1017]/90 border border-[#1C2333] hover:border-[#2D3A50] text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"}`}>
+        <button type="button" onClick={() => setOpen(o => !o)} title="AutoTrader" className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 ${active ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-500/25" : "bg-[#13112A]/90 border border-[#252345] hover:border-[#333368] text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"}`}>
           <span className={`w-1.5 h-1.5 rounded-full ${active ? "bg-white animate-pulse" : "bg-[#4B5675]"}`} />
           Auto
           {active && scanning && <svg className="animate-spin ml-0.5" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>}

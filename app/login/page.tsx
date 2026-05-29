@@ -17,8 +17,9 @@ function LoginContent() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const errorCode = searchParams.get("error");
-  const errorMsg = errorCode ? (AUTH_ERRORS[errorCode] ?? AUTH_ERRORS.Default) : null;
+  const errorCode   = searchParams.get("error");
+  const errorMsg    = errorCode ? (AUTH_ERRORS[errorCode] ?? AUTH_ERRORS.Default) : null;
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   useEffect(() => {
     if (session) router.push("/dashboard");
@@ -54,10 +55,10 @@ function LoginContent() {
         )}
 
         {/* Card */}
-        <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl p-6">
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6">
           <button
             type="button"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={() => signIn("google", { callbackUrl })}
             className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 transition-colors text-gray-900 font-semibold py-3 px-5 rounded-xl text-sm"
           >
             <svg width="18" height="18" viewBox="0 0 24 24">
@@ -71,16 +72,16 @@ function LoginContent() {
 
           <div className="relative my-5">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#1C2333]" />
+              <div className="w-full border-t border-[#252345]" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-[#0C1017] px-3 text-xs text-[#4B5675]">or</span>
+              <span className="bg-[#13112A] px-3 text-xs text-[#4B5675]">or</span>
             </div>
           </div>
 
           <button
             type="button"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={() => signIn("google", { callbackUrl })}
             className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors text-white font-semibold py-3 px-5 rounded-xl text-sm"
           >
             Sign in with Google →

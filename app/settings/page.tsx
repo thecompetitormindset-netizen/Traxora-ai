@@ -4,15 +4,15 @@ import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { resetPortfolio } from "../lib/trading";
-import { scopedKey } from "../lib/userState";
-import { getTheme, setTheme, type Theme } from "../lib/theme";
+import { scopedKey, setCurrentUser } from "../lib/userState";
+import { clearJournal } from "../components/AutoJournal";
+import { getTheme, setTheme, THEME_KEY, type Theme } from "../lib/theme";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">{title}</p>
-      <div className="bg-[#0C1017] border border-[#1C2333] rounded-2xl overflow-hidden">
+      <div className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
         {children}
       </div>
     </div>
@@ -39,11 +39,11 @@ function Row({
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
-      className={`w-full flex items-center gap-4 px-5 py-4 border-b border-[#1C2333] last:border-0 transition-colors text-left ${
+      className={`w-full flex items-center gap-4 px-5 py-4 border-b border-[#252345] last:border-0 transition-colors text-left ${
         onClick
           ? danger
             ? "hover:bg-rose-500/5 cursor-pointer"
-            : "hover:bg-[#111827] cursor-pointer"
+            : "hover:bg-[#1A1838] cursor-pointer"
           : ""
       }`}
     >
@@ -67,7 +67,7 @@ function Badge({ children, color = "default" }: { children: React.ReactNode; col
     green:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     emerald:  "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
     amber:   "bg-amber-500/10 text-amber-400 border-amber-500/20",
-    default: "bg-[#111827] text-[#7B8DB4] border-[#1C2333]",
+    default: "bg-[#1A1838] text-[#7B8DB4] border-[#252345]",
   };
   return (
     <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border ${styles[color]}`}>
@@ -80,9 +80,9 @@ export default function SettingsPage() {
   const { data: session } = useSession();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [resetInput, setResetInput] = useState("");
-  const [theme, setThemeState] = useState<Theme>("dark");
   const [resetDone, setResetDone] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [theme, setThemeState] = useState<Theme>("dark");
 
 
   // Email subscription state
@@ -91,6 +91,10 @@ export default function SettingsPage() {
   const [subscribing,  setSubscribing]  = useState(false);
   const [subMsg,       setSubMsg]       = useState<{ ok: boolean; text: string } | null>(null);
   const [testStatus,   setTestStatus]   = useState<"idle" | "sending" | "sent" | string>("idle");
+
+  useEffect(() => {
+    setCurrentUser(session?.user?.email ?? null);
+  }, [session]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -130,7 +134,9 @@ export default function SettingsPage() {
 
   function handleReset() {
     if (resetInput !== "RESET") return;
-    resetPortfolio();
+    localStorage.removeItem(scopedKey("paper_portfolio_v2"));
+    clearJournal();
+    window.dispatchEvent(new Event("storage"));
     setResetInput("");
     setResetDone(true);
     setTimeout(() => setResetDone(false), 3000);
@@ -201,7 +207,7 @@ export default function SettingsPage() {
             <Section title="Account">
               {session?.user ? (
                 <>
-                  <div className="flex items-center gap-4 px-5 py-5 border-b border-[#1C2333]">
+                  <div className="flex items-center gap-4 px-5 py-5 border-b border-[#252345]">
                     {session.user.image ? (
                       <img src={session.user.image} alt="Avatar" className="w-12 h-12 rounded-xl object-cover shrink-0" />
                     ) : (
@@ -226,7 +232,7 @@ export default function SettingsPage() {
                     label="Sign out"
                     sublabel="You'll need to sign in again to access your dashboard"
                     danger
-                    onClick={() => signOut({ callbackUrl: "/login" })}
+                    onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login" }); }}
                   />
                 </>
               ) : (
@@ -283,7 +289,7 @@ export default function SettingsPage() {
                 onClick={alertCount > 0 ? clearAlerts : undefined}
               />
               {notifPermission === "denied" && (
-                <div className="px-5 py-3 bg-amber-500/5 border-t border-[#1C2333]">
+                <div className="px-5 py-3 bg-amber-500/5 border-t border-[#252345]">
                   <p className="text-xs text-amber-400 leading-relaxed">
                     Notifications are blocked by your browser. Go to <strong>browser Settings → Site permissions → Notifications</strong> and allow this site.
                   </p>
@@ -293,7 +299,7 @@ export default function SettingsPage() {
 
             {/* Daily Morning Brief */}
             <Section title="Daily Morning Brief">
-              <div className="px-5 py-5 border-b border-[#1C2333]">
+              <div className="px-5 py-5 border-b border-[#252345]">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-base">
                     🌅
@@ -301,7 +307,7 @@ export default function SettingsPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#F1F5F9] text-sm">Daily email brief</p>
                     <p className="text-xs text-[#4B5675] mt-0.5">
-                      Top 10 ICT opportunities delivered to your Google account email every weekday at{" "}
+                      Top 10 market opportunities delivered to your Google account email every weekday at{" "}
                       <span className="text-emerald-400 font-medium">7:30 AM Mountain Time</span>
                     </p>
                   </div>
@@ -310,7 +316,7 @@ export default function SettingsPage() {
 
                 {/* Show the email that will be used */}
                 {subEmail && (
-                  <div className="flex items-center gap-2 bg-[#060A14]/60 border border-[#1C2333] rounded-xl px-3.5 py-2.5 mb-4">
+                  <div className="flex items-center gap-2 bg-[#0D0B1A]/60 border border-[#252345] rounded-xl px-3.5 py-2.5 mb-4">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                       <polyline points="22,6 12,13 2,6"/>
@@ -389,7 +395,7 @@ export default function SettingsPage() {
                 label="Theme"
                 sublabel={theme === "light" ? "Soft light — low contrast" : "Dark navy"}
                 value={
-                  <div className={`relative w-10 h-5 rounded-full transition-colors ${theme === "light" ? "bg-emerald-500" : "bg-[#1E2D4A]"}`} >
+                  <div className={`relative w-10 h-5 rounded-full transition-colors ${theme === "light" ? "bg-emerald-500" : "bg-[#252345]"}`}>
                     <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${theme === "light" ? "left-5" : "left-0.5"}`} />
                   </div>
                 }
@@ -415,7 +421,7 @@ export default function SettingsPage() {
                   </svg>
                 }
                 label="AI model"
-                sublabel="Signals powered by Claude Opus 4.7 with ICT Smart Money"
+                sublabel="Signals powered by Claude Opus 4.7 with Smart Money analysis"
                 value={<Badge color="emerald">Opus 4.7</Badge>}
               />
             </Section>
@@ -449,7 +455,7 @@ export default function SettingsPage() {
                   <div>
                     <p className="text-sm font-semibold text-rose-400">Reset paper portfolio</p>
                     <p className="text-xs text-[#4B5675] mt-0.5">
-                      Permanently wipes all trades and holdings. Restarts with ${(10000).toLocaleString()} virtual cash. This cannot be undone.
+                      Permanently wipes all paper trades and journal entries. Restarts with $10,000. This cannot be undone.
                     </p>
                   </div>
                 </div>
@@ -462,7 +468,7 @@ export default function SettingsPage() {
                     value={resetInput}
                     onChange={(e) => setResetInput(e.target.value.toUpperCase())}
                     placeholder="RESET"
-                    className="flex-1 bg-[#060A14]/80 border border-[#1C2333] focus:border-rose-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono tracking-widest"
+                    className="flex-1 bg-[#0D0B1A]/80 border border-[#252345] focus:border-rose-500/50 rounded-xl px-3.5 py-2.5 text-sm text-[#F1F5F9] outline-none placeholder:text-[#4B5675] transition-colors font-mono tracking-widest"
                   />
                   <button
                     type="button"

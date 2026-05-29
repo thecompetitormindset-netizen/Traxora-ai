@@ -76,7 +76,7 @@ export default function MarketStatus() {
   }, []);
 
   return (
-    <div className="flex items-center gap-3 bg-[#0C1017] border border-[#1C2333] rounded-xl px-4 py-2.5">
+    <div className="flex items-center gap-3 bg-[#13112A] border border-[#252345] rounded-xl px-4 py-2.5">
       <span className={`w-2 h-2 rounded-full shrink-0 ${info.dot}`} />
       <div>
         <p className={`text-xs font-bold ${info.color}`}>{info.label}</p>

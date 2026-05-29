@@ -5,7 +5,6 @@ import Providers from "./providers";
 import AIChatWidget from "./components/AIChatWidget";
 import ServiceWorkerRegistrar from "./components/ServiceWorkerRegistrar";
 import CosmicBackground from "./components/CosmicBackground";
-import AutoTrader from "./components/AutoTrader";
 import AutoJournal from "./components/AutoJournal";
 import MorningBriefing from "./components/MorningBriefing";
 import RiskGuard from "./components/RiskGuard";
@@ -13,6 +12,7 @@ import AutoScanner from "./components/AutoScanner";
 import AutoCoach from "./components/AutoCoach";
 import ThemeProvider from "./components/ThemeProvider";
 import SessionWatcher from "./components/SessionWatcher";
+import SignalToast from "./components/SignalToast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -21,11 +21,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Traxora AI — ICT Smart Money Signals Powered by Claude Opus 4.7",
+  title: "Traxora AI — Smart Money Signals Powered by Claude Opus 4.7",
   description:
-    "Free AI trading signal platform. Analyzes Order Blocks, Fair Value Gaps, Liquidity sweeps & Market Structure using ICT methodology. Paper trading simulator + Alpaca broker integration.",
+    "Free AI trading signal platform. Analyzes Order Blocks, Fair Value Gaps, Liquidity sweeps & Market Structure using institutional smart money methodology. Paper trading simulator + Alpaca broker integration.",
   keywords: [
-    "AI trading signals", "ICT smart money", "order blocks", "fair value gap",
+    "AI trading signals", "smart money signals", "order blocks", "fair value gap",
     "market structure shift", "trading AI", "stock signals", "futures signals",
     "paper trading", "Claude AI trading", "Traxora", "Traxora AI",
   ],
@@ -33,15 +33,15 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Traxora AI — Trade Like Smart Money",
     description:
-      "AI reads Order Blocks, FVGs, Liquidity & Market Structure in seconds. Free ICT signals for stocks & futures. Paper trade then go live.",
+      "AI reads Order Blocks, FVGs, Liquidity & Market Structure in seconds. Free smart money signals for stocks & futures. Paper trade then go live.",
     type: "website",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Traxora AI — Free ICT Signal Platform",
+    title: "Traxora AI — Free Smart Money Signal Platform",
     description:
-      "AI-powered BUY/SELL/HOLD signals using ICT Smart Money concepts. Free, no subscription. Paper trading + Alpaca broker.",
+      "AI-powered BUY/SELL/HOLD signals using institutional Smart Money concepts. Free, no subscription. Paper trading + Alpaca broker.",
   },
   appleWebApp: {
     capable: true,
@@ -79,12 +79,12 @@ export default function RootLayout({
             <SessionWatcher />
             {children}
             <AIChatWidget />
-            <AutoTrader />
             <AutoScanner />
             <AutoJournal />
             <MorningBriefing />
             <RiskGuard />
             <AutoCoach />
+            <SignalToast />
           </Providers>
           <ServiceWorkerRegistrar />
         </div>

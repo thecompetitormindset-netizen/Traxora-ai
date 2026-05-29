@@ -2,6 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+
 export const runtime     = "nodejs";
 export const maxDuration = 55;
 
@@ -30,6 +32,7 @@ async function callAI(prompt: string): Promise<string> {
       const res = await client.messages.create({
         model:      "claude-sonnet-4-6",
         max_tokens: 6000,
+        system:     SYSTEM_FRAMEWORK,
         messages:   [{ role: "user", content: prompt }],
       });
       return res.content
@@ -374,7 +377,7 @@ When discussing opportunities, note which (if any) align with the user's existin
 `
     : "";
 
-  const prompt = `You are an institutional-level market analyst, quantitative researcher, ICT (Inner Circle Trader) concepts specialist, macroeconomic analyst, options strategist, futures trader, portfolio manager, and risk manager operating as the core intelligence engine of Traxora AI.
+  const prompt = `You are an institutional-level market analyst, quantitative researcher, smart money concepts specialist, macroeconomic analyst, options strategist, futures trader, portfolio manager, and risk manager operating as the core intelligence engine of Traxora AI.
 
 ═══════════════════════════════════════════════════════════
 ROLE & FULL CAPABILITY FRAMEWORK
@@ -393,7 +396,7 @@ Treat every recommendation as if it affects a real paper-trading account with re
 
 OPTIONS TRADING INTELLIGENCE (HIGHEST PRIORITY)
 Options are the primary trading vehicle. For every options opportunity analyze:
-• Directional bias (based on price action and ICT structure)
+• Directional bias (based on price action and market structure)
 • Implied volatility environment and VIX context
 • IV Rank and IV Percentile interpretation
 • Gamma exposure — near-term expiries vs far-dated
@@ -426,7 +429,7 @@ Monitor for FOMC, CPI, PPI, NFP, GDP, major earnings, geopolitical developments,
 ANALYTICAL METHODOLOGY
 ═══════════════════════════════════════════════════════════
 
-ICT SMART MONEY FRAMEWORK (apply to every instrument):
+SMART MONEY FRAMEWORK (apply to every instrument):
 • Market Structure: HH/HL (bullish) vs LH/LL (bearish) across timeframes
 • Liquidity Sweeps: Buy-side (BSL) above swing highs, Sell-side (SSL) below swing lows
 • Fair Value Gaps (FVG): Price imbalances that act as magnets
@@ -484,7 +487,7 @@ TODAY'S ANALYSIS TASK — DAILY MORNING BRIEFING
 Using the live data above, produce the full institutional morning briefing covering:
 1. Market regime and macro outlook (bullish/bearish factors, key risks)
 2. Major news developments and their potential market impact
-3. ICT Smart Money analysis (bias, kill zones, liquidity targets, FVG, OB, SMT, MM phase)
+3. Smart Money analysis (bias, kill zones, liquidity targets, FVG, OB, SMT, MM phase)
 4. Cross-asset scan — identify the 10 highest-probability opportunities across ALL asset classes (equities, options, futures, ETFs, commodities, crypto, forex, fixed income)
 5. Critical price levels for SPY, QQQ, and Gold (support, resistance, FVG, OB)
 6. Economic calendar — real upcoming events this week
@@ -494,7 +497,7 @@ Using the live data above, produce the full institutional morning briefing cover
 10. Position sizing guidance based on current VIX
 
 OPPORTUNITY RANKING CRITERIA (rank strictly by this order):
-• Setup quality and ICT alignment
+• Setup quality and technical alignment
 • Risk/reward ratio (minimum 2:1 preferred)
 • Confidence level (based on data evidence)
 • Time sensitivity
@@ -539,11 +542,11 @@ OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation 
       "sector": "string",
       "trend": "Bullish | Bearish | Ranging",
       "timeHorizon": "Intraday | 1-3 days | 1-2 weeks | 1+ month",
-      "thesis": "string — clear 1-2 sentence thesis with ICT rationale",
+      "thesis": "string — clear 1-2 sentence thesis with market structure rationale",
       "bullCase": "string — specific bull scenario with price target",
       "bearCase": "string — specific bear scenario with invalidation level",
       "catalyst": "string — primary catalyst driving this setup",
-      "ictSetup": "string — specific ICT concept (e.g. 'Bullish FVG fill at OB in Discount zone during NY Kill Zone')",
+      "ictSetup": "string — specific setup (e.g. 'Bullish FVG fill at Order Block in Discount zone during NY session')",
       "entryZone": "string — specific price range for entry",
       "stopLoss": "string — price level + structural reason (e.g. 'Below $XXX OB low')",
       "target1": "string — first liquidity target with price",
@@ -555,7 +558,7 @@ OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation 
       "expectedVolatility": "string — expected price range or ATR context",
       "keyRisk": "string — the single biggest risk that could invalidate this trade",
       "facts": ["string — FACT from live data"],
-      "probabilities": ["string — PROBABILITY based on ICT structure"],
+      "probabilities": ["string — PROBABILITY based on market structure"],
       "speculative": "string or null — any SPECULATION clearly labeled"
     }
   ],
@@ -586,7 +589,7 @@ FINAL CHECKS before responding:
 • Options plays must include direction, structure type, DTE concept, and IV warning if VIX is elevated.
 • Futures plays must include session timing and leverage risk warning.
 • Economic calendar reflects real events this week (use your training knowledge of typical scheduled releases).
-• facts[] arrays contain only verified data from the feed. probabilities[] contain ICT-based inferences. speculative field is null unless truly needed.
+• facts[] arrays contain only verified data from the feed. probabilities[] contain structure-based inferences. speculative field is null unless truly needed.
 • The JSON must be complete and valid — do not truncate.`;
 
   try {

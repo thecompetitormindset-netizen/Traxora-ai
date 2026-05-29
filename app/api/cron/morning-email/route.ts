@@ -220,7 +220,7 @@ function buildPerfSection(hist: BriefHistory, currentPrices: Map<string, number>
   <!-- Yesterday's Performance -->
   <tr>
     <td style="padding-bottom:20px">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0c1017;border:1px solid #1c2333;border-radius:12px">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:12px">
         <tr>
           <td style="padding:14px 18px">
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px">
@@ -267,11 +267,11 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
     <!-- Card ${i + 1}: ${s.symbol} -->
     <tr>
       <td style="padding-bottom:16px">
-        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0c1017;border:1px solid #1c2333;border-radius:16px;overflow:hidden">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:16px;overflow:hidden">
 
           <!-- Card header -->
           <tr>
-            <td style="padding:16px 20px;border-bottom:1px solid #1c2333">
+            <td style="padding:16px 20px;border-bottom:1px solid #252345">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <td style="vertical-align:top">
@@ -306,13 +306,13 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
           ${showEntry ? `
           <!-- Trade setup — 3 bordered cards, perfectly equal width -->
           <tr>
-            <td style="padding:14px 20px;border-bottom:1px solid #1c2333;background:#0a0e18">
+            <td style="padding:14px 20px;border-bottom:1px solid #252345;background:#0a0e18">
               <p style="margin:0 0 10px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">Trade Setup &mdash; 2:1 Risk/Reward &mdash; Risk per share: $${s.riskDist.toFixed(2)}</p>
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
                   <!-- Entry Zone card -->
                   <td style="width:33%;padding-right:6px;vertical-align:top">
-                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#111827;border:1px solid ${sigBorder};border-radius:10px">
+                    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#1A1838;border:1px solid ${sigBorder};border-radius:10px">
                       <tr>
                         <td style="padding:10px 12px;text-align:center">
                           <p style="margin:0;font-size:9px;font-weight:700;color:${sigColor};text-transform:uppercase;letter-spacing:1px">${s.signal === "BUY" ? "&#9650; Enter Long" : "&#9660; Enter Short"}</p>
@@ -354,8 +354,8 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
 
           <!-- ICT analysis -->
           <tr>
-            <td style="padding:14px 20px;border-bottom:1px solid #1c2333">
-              <p style="margin:0 0 10px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">ICT Smart Money Analysis</p>
+            <td style="padding:14px 20px;border-bottom:1px solid #252345">
+              <p style="margin:0 0 10px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">Smart Money Analysis</p>
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:10px">
                 <tr>
                   <td style="padding:4px 0;vertical-align:top;width:50%">
@@ -420,16 +420,16 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Traxora AI &mdash; Morning Brief ${date}</title>
 </head>
-<body style="margin:0;padding:0;background:#060a14;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif">
+<body style="margin:0;padding:0;background:#0D0B1A;font-family:ui-sans-serif,system-ui,-apple-system,sans-serif">
 
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#060a14;min-height:100vh">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0D0B1A;min-height:100vh">
 <tr><td align="center" style="padding:24px 16px">
 <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%">
 
   <!-- Masthead -->
   <tr>
     <td style="padding-bottom:16px">
-      <table cellpadding="0" cellspacing="0" border="0" style="background:#0c1017;border:1px solid #1c2333;border-radius:12px">
+      <table cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:12px">
         <tr>
           <td style="padding:10px 18px">
             <table cellpadding="0" cellspacing="0" border="0">
@@ -437,7 +437,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
                 <td style="font-size:22px;vertical-align:middle;padding-right:12px">&#127749;</td>
                 <td style="vertical-align:middle">
                   <p style="margin:0;font-size:15px;font-weight:900;color:#f1f5f9;letter-spacing:-0.3px">Traxora AI &middot; Morning Brief</p>
-                  <p style="margin:0;font-size:10px;color:#4b5675;font-family:monospace">${date} &middot; 7:30 AM MT &middot; ICT Smart Money</p>
+                  <p style="margin:0;font-size:10px;color:#4b5675;font-family:monospace">${date} &middot; 7:30 AM MT &middot; Smart Money Analysis</p>
                 </td>
               </tr>
             </table>
@@ -451,7 +451,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
   <tr>
     <td style="padding-bottom:20px">
       <h1 style="margin:0 0 6px;font-size:24px;font-weight:900;color:#f1f5f9;letter-spacing:-0.5px">Today&rsquo;s Top ${stocks.length} Opportunities</h1>
-      <p style="margin:0;font-size:12px;color:#4b5675">Live market data &middot; Full ICT analysis &middot; Entry, stop &amp; target for every signal</p>
+      <p style="margin:0;font-size:12px;color:#4b5675">Live market data &middot; Full institutional analysis &middot; Entry, stop &amp; target for every signal</p>
     </td>
   </tr>
 
@@ -513,7 +513,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
             </table>
           </td>
           <td style="width:25%">
-            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#111827;border:1px solid #1c2333;border-radius:10px">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#1A1838;border:1px solid #252345;border-radius:10px">
               <tr><td style="padding:12px 8px;text-align:center">
                 <p style="margin:0;font-size:22px;font-weight:900;color:#f1f5f9">${stocks.length}</p>
                 <p style="margin:3px 0 0;font-size:9px;color:#4b5675;text-transform:uppercase;letter-spacing:1px">TOTAL</p>
@@ -528,20 +528,20 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
   <!-- ICT legend -->
   <tr>
     <td style="padding-bottom:24px">
-      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0c1017;border:1px solid #1c2333;border-radius:10px">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:10px">
         <tr>
           <td style="padding:12px 16px">
-            <p style="margin:0 0 8px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">ICT Key Levels Legend</p>
+            <p style="margin:0 0 8px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">Key Levels Legend</p>
             <table cellpadding="0" cellspacing="0" border="0">
               <tr>
                 <td style="padding-right:10px;font-size:10px;white-space:nowrap"><span style="color:#a78bfa;font-weight:800">OB</span> <span style="color:#4b5675">Order Block</span></td>
-                <td style="padding-right:10px;color:#2d3a50;font-size:10px">&middot;</td>
+                <td style="padding-right:10px;color:#333368;font-size:10px">&middot;</td>
                 <td style="padding-right:10px;font-size:10px;white-space:nowrap"><span style="color:#60a5fa;font-weight:800">FVG</span> <span style="color:#4b5675">Fair Value Gap</span></td>
-                <td style="padding-right:10px;color:#2d3a50;font-size:10px">&middot;</td>
+                <td style="padding-right:10px;color:#333368;font-size:10px">&middot;</td>
                 <td style="padding-right:10px;font-size:10px;white-space:nowrap"><span style="color:#fbbf24;font-weight:800">BSL</span> <span style="color:#4b5675">Buy-Side Liq.</span></td>
-                <td style="padding-right:10px;color:#2d3a50;font-size:10px">&middot;</td>
+                <td style="padding-right:10px;color:#333368;font-size:10px">&middot;</td>
                 <td style="padding-right:10px;font-size:10px;white-space:nowrap"><span style="color:#f87171;font-weight:800">SSL</span> <span style="color:#4b5675">Sell-Side Liq.</span></td>
-                <td style="padding-right:10px;color:#2d3a50;font-size:10px">&middot;</td>
+                <td style="padding-right:10px;color:#333368;font-size:10px">&middot;</td>
                 <td style="font-size:10px;white-space:nowrap"><span style="color:#34d399;font-weight:800">OTE</span> <span style="color:#4b5675">62&ndash;79% Entry</span></td>
               </tr>
             </table>
@@ -570,9 +570,9 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
 
   <!-- Footer -->
   <tr>
-    <td style="padding-top:18px;border-top:1px solid #1c2333;text-align:center">
-      <p style="margin:0;font-size:10px;color:#2d3a50">For educational purposes only &middot; Not financial advice &middot; Past signals do not guarantee future results</p>
-      <p style="margin:6px 0 0;font-size:10px;color:#1c2333">Traxora AI &middot; You subscribed via Settings &middot; Sent weekdays at 7:30 AM MT</p>
+    <td style="padding-top:18px;border-top:1px solid #252345;text-align:center">
+      <p style="margin:0;font-size:10px;color:#333368">For educational purposes only &middot; Not financial advice &middot; Past signals do not guarantee future results</p>
+      <p style="margin:6px 0 0;font-size:10px;color:#252345">Traxora AI &middot; You subscribed via Settings &middot; Sent weekdays at 7:30 AM MT</p>
     </td>
   </tr>
 
