@@ -5,7 +5,55 @@ import type { JournalEntry } from "../../../components/AutoJournal";
 
 export const maxDuration = 60;
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+
+async function callOpenAICompat(url: string, key: string, model: string, system: string, user: string, maxTokens: number): Promise<string> {
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [
+      { role: "system", content: system },
+      { role: "user",   content: user   },
+    ]}),
+  });
+  if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!text) throw new Error("Empty response");
+  return text;
+}
+
+async function callAI(prompt: string): Promise<string> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const groqKey      = process.env.GROQ_API_KEY;
+  const deepseekKey  = process.env.DEEPSEEK_API_KEY;
+
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const res = await client.messages.create({
+        model: "claude-sonnet-4-6", max_tokens: 1500,
+        system: SYSTEM_FRAMEWORK,
+        messages: [{ role: "user", content: prompt }],
+      });
+      return res.content.filter(b => b.type === "text").map(b => (b as { type: "text"; text: string }).text).join("").trim();
+    } catch (err) { console.error("Anthropic journal-review error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (groqKey) {
+    try {
+      return await callOpenAICompat("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", SYSTEM_FRAMEWORK, prompt, 1500);
+    } catch (err) { console.error("Groq journal-review error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (deepseekKey) {
+    try {
+      return await callOpenAICompat("https://api.deepseek.com/v1/chat/completions", deepseekKey, "deepseek-chat", SYSTEM_FRAMEWORK, prompt, 1500);
+    } catch (err) { console.error("DeepSeek journal-review error:", err instanceof Error ? err.message : err); }
+  }
+
+  throw new Error("No AI provider available");
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -57,7 +105,7 @@ export async function POST(req: Request) {
   const winCount = sells.filter(e => (e.pl ?? 0) > 0).length;
   const winRate  = sells.length > 0 ? Math.round((winCount / sells.length) * 100) : 0;
 
-  const prompt = `You are an elite ICT trading coach. Evaluate this trader's closed trades against the exact ICT system they are supposed to be following.
+  const prompt = `You are an elite trading coach. Evaluate this trader's closed trades against the exact system they are supposed to be following.
 
 SYSTEM RULES:
 - Universe: 30-stock watchlist. Max 1% risk/trade. Max 3 concurrent positions. Max 3 trades/day. Daily loss limit 2.5%. Hard close by 3:45 PM ET.
@@ -88,7 +136,7 @@ ${tradeSummaries}
 
 Stats: Win rate ${winRate}% (${winCount}/${sells.length}), Total P&L $${totalPL.toFixed(2)}, Grades A:${gradeCount.A} B:${gradeCount.B} C:${gradeCount.C} D:${gradeCount.D} F:${gradeCount.F}
 
-Evaluate each trade against the 7-item checklist and 3 models above. Identify which specific checklist items and rules were violated. Be direct and reference ICT terminology precisely.
+Evaluate each trade against the 7-item checklist and 3 models above. Identify which specific checklist items and rules were violated. Be direct and reference market structure terminology precisely.
 
 Respond in raw JSON only (no markdown):
 {
@@ -98,23 +146,13 @@ Respond in raw JSON only (no markdown):
   "strengths": ["specific strength tied to a checklist item or model they execute well"],
   "priorityFixes": [
     { "issue": "most violated checklist item or rule", "howToFix": "1-2 sentence action plan referencing the exact model step to fix it" },
-    { "issue": "second most critical issue", "howToFix": "1-2 sentence action plan with specific ICT mechanics" }
+    { "issue": "second most critical issue", "howToFix": "1-2 sentence action plan with specific trade mechanics" }
   ],
   "nextFocusArea": "one sentence — which model (A, B, or C) or which checklist item to drill this week and why"
 }`;
 
   try {
-    const response = await client.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 1500,
-      messages:   [{ role: "user", content: prompt }],
-    });
-
-    const raw = response.content
-      .filter(b => b.type === "text")
-      .map(b => (b as { type: "text"; text: string }).text)
-      .join("")
-      .trim();
+    const raw = await callAI(prompt);
 
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {

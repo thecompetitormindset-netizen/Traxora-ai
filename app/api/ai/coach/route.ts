@@ -2,7 +2,55 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+
+async function callOpenAICompat(url: string, key: string, model: string, system: string, user: string, maxTokens: number): Promise<string> {
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [
+      { role: "system", content: system },
+      { role: "user",   content: user   },
+    ]}),
+  });
+  if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!text) throw new Error("Empty response");
+  return text;
+}
+
+async function callAI(prompt: string): Promise<string> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const groqKey      = process.env.GROQ_API_KEY;
+  const deepseekKey  = process.env.DEEPSEEK_API_KEY;
+
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const res = await client.messages.create({
+        model: "claude-sonnet-4-6", max_tokens: 600,
+        system: SYSTEM_FRAMEWORK,
+        messages: [{ role: "user", content: prompt }],
+      });
+      return res.content.filter(b => b.type === "text").map(b => (b as { type: "text"; text: string }).text).join("").trim();
+    } catch (err) { console.error("Anthropic coach error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (groqKey) {
+    try {
+      return await callOpenAICompat("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", SYSTEM_FRAMEWORK, prompt, 600);
+    } catch (err) { console.error("Groq coach error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (deepseekKey) {
+    try {
+      return await callOpenAICompat("https://api.deepseek.com/v1/chat/completions", deepseekKey, "deepseek-chat", SYSTEM_FRAMEWORK, prompt, 600);
+    } catch (err) { console.error("DeepSeek coach error:", err instanceof Error ? err.message : err); }
+  }
+
+  throw new Error("No AI provider available");
+}
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -20,7 +68,7 @@ export async function POST(req: Request) {
     .map((t) => `${t.side} ${t.quantity}x ${t.symbol.replace(".US", "").replace(".COMM", "")} @$${Number(t.price).toFixed(2)}`)
     .join(" | ");
 
-  const prompt = `You are an elite ICT trading coach operating under this exact trading system:
+  const prompt = `You are an elite trading coach operating under this exact trading system:
 
 SYSTEM RULES:
 - Universe: 30-stock watchlist only. Max 1% account risk per trade. Max 3 concurrent positions. Max 3 trades/day. Daily loss limit 2.5%. Hard close all positions by 3:45 PM ET.
@@ -62,18 +110,7 @@ TIPS:
 Reference actual symbols from their log. No generic advice.`;
 
   try {
-    const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 600,
-      messages: [{ role: "user", content: prompt }],
-    });
-
-    const report = response.content
-      .filter((b) => b.type === "text")
-      .map((b) => (b as { type: "text"; text: string }).text)
-      .join("")
-      .trim();
-
+    const report = await callAI(prompt);
     return Response.json({ report });
   } catch (err) {
     const status = (err as { status?: unknown }).status;

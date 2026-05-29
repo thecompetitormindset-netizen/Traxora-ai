@@ -2,7 +2,55 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+
+async function callOpenAICompat(url: string, key: string, model: string, system: string, user: string, maxTokens: number): Promise<string> {
+  const res = await fetch(url, {
+    method:  "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model, max_tokens: maxTokens, messages: [
+      { role: "system", content: system },
+      { role: "user",   content: user   },
+    ]}),
+  });
+  if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
+  const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+  if (!text) throw new Error("Empty response");
+  return text;
+}
+
+async function callAI(prompt: string): Promise<string> {
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const groqKey      = process.env.GROQ_API_KEY;
+  const deepseekKey  = process.env.DEEPSEEK_API_KEY;
+
+  if (anthropicKey) {
+    try {
+      const client = new Anthropic({ apiKey: anthropicKey });
+      const res = await client.messages.create({
+        model: "claude-haiku-4-5-20251001", max_tokens: 800,
+        system: SYSTEM_FRAMEWORK,
+        messages: [{ role: "user", content: prompt }],
+      });
+      return res.content.filter(b => b.type === "text").map(b => (b as { type: "text"; text: string }).text).join("").trim();
+    } catch (err) { console.error("Anthropic journal error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (groqKey) {
+    try {
+      return await callOpenAICompat("https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", SYSTEM_FRAMEWORK, prompt, 800);
+    } catch (err) { console.error("Groq journal error:", err instanceof Error ? err.message : err); }
+  }
+
+  if (deepseekKey) {
+    try {
+      return await callOpenAICompat("https://api.deepseek.com/v1/chat/completions", deepseekKey, "deepseek-chat", SYSTEM_FRAMEWORK, prompt, 800);
+    } catch (err) { console.error("DeepSeek journal error:", err instanceof Error ? err.message : err); }
+  }
+
+  throw new Error("No AI provider available");
+}
 
 function gradeFromPL(plPct?: number, closeReason?: string): string {
   if (closeReason === "tp") return "A";
@@ -46,60 +94,50 @@ export async function POST(req: Request) {
     takeProfit ? `Take profit was set at $${Number(takeProfit).toFixed(2)}` : null,
   ].filter(Boolean).join(". ");
 
-  // Valid ICT concept tags for the AI to choose from
-  const ICT_TAGS = ["OB","FVG","LIQ","MSS","OTE","PD","BRK","PO3","KZ","NDOG","BPR","CE","JS","MB","SSL","BSL"];
+  // Valid market structure concept tags for the AI to choose from
+  const CONCEPT_TAGS = ["OB","FVG","LIQ","MSS","OTE","PD","BRK","PO3","KZ","NDOG","BPR","CE","JS","MB","SSL","BSL"];
 
   const prompt = isSell
-    ? `You are a professional ICT trading coach reviewing a completed paper trade.
+    ? `You are a professional trading coach reviewing a completed paper trade.
 
 Trade: ${tradeContext}
 
 Respond in this exact JSON format (no markdown, raw JSON only):
 {
-  "entry": "<2 sentences: sentence 1 states precisely what ICT setup triggered the entry and what price level was the catalyst. sentence 2 states the outcome and what it reveals about execution quality.>",
+  "entry": "<2 sentences: sentence 1 states precisely what setup triggered the entry and what price level was the catalyst. sentence 2 states the outcome and what it reveals about execution quality.>",
   "grade": "${grade}",
   "verdict": "<1 sentence summary of how this trade went>",
-  "concepts": ["<pick 1–3 exact tags from: ${ICT_TAGS.join(", ")} that were most relevant to this trade>"],
+  "concepts": ["<pick 1–3 exact tags from: ${CONCEPT_TAGS.join(", ")} that were most relevant to this trade>"],
   "mistakes": ${closeReason === "stop" || (plPct != null && plPct < 0)
-    ? `["<specific mistake 1 using exact ICT terminology>", "<specific mistake 2>"]`
+    ? `["<specific mistake 1 using precise market structure terminology>", "<specific mistake 2>"]`
     : `[]`},
   "wins": ${closeReason === "tp" || (plPct != null && plPct > 0)
-    ? `["<specific thing done right 1 — name the exact ICT concept executed correctly>", "<specific thing done right 2>"]`
+    ? `["<specific thing done right 1 — name the exact concept executed correctly>", "<specific thing done right 2>"]`
     : `[]`},
-  "lesson": "<1 concrete actionable lesson from this trade — name the exact ICT concept to apply next time>"
+  "lesson": "<1 concrete actionable lesson from this trade — name the exact concept to apply next time>"
 }
 
 Rules:
-- Be specific and technical. Only reference ICT concepts from this list: ${ICT_TAGS.join(", ")}.
+- Be specific and technical. Only reference concepts from this list: ${CONCEPT_TAGS.join(", ")}.
 - For "concepts": pick ONLY concepts you can genuinely identify from the trade context given. If unsure, pick PD (Premium/Discount) which is always determinable.
 - Be direct about mistakes — do not soften errors. Grade is already determined, do not change it.`
-    : `You are a professional ICT trading journal assistant.
+    : `You are a professional trading journal assistant.
 
 Trade: ${tradeContext}
 
 Respond in this exact JSON format (no markdown, raw JSON only):
 {
-  "entry": "<2 sentences: sentence 1 names the exact ICT setup present at entry (e.g. price tapping a bullish FVG at discount, or breaking above a bearish OB). sentence 2 states the specific price level to watch for confirmation or invalidation.>",
-  "concepts": ["<pick 1–3 exact tags from: ${ICT_TAGS.join(", ")} most relevant to this entry>"]
+  "entry": "<2 sentences: sentence 1 names the exact setup present at entry (e.g. price tapping a bullish FVG at discount, or breaking above a bearish OB). sentence 2 states the specific price level to watch for confirmation or invalidation.>",
+  "concepts": ["<pick 1–3 exact tags from: ${CONCEPT_TAGS.join(", ")} most relevant to this entry>"]
 }
 
 Rules:
-- Only reference ICT concepts from this list: ${ICT_TAGS.join(", ")}.
+- Only reference concepts from this list: ${CONCEPT_TAGS.join(", ")}.
 - For "concepts": pick ONLY what can reasonably be identified from the context (price, session time, P/D positioning). If uncertain, use PD.
 - No fluff. Exactly 2 sentences in "entry".`;
 
   try {
-    const response = await client.messages.create({
-      model:      "claude-haiku-4-5-20251001",
-      max_tokens: 800,
-      messages:   [{ role: "user", content: prompt }],
-    });
-
-    const raw = response.content
-      .filter(b => b.type === "text")
-      .map(b => (b as { type: "text"; text: string }).text)
-      .join("")
-      .trim();
+    const raw = await callAI(prompt);
 
     // Parse JSON response
     const jsonMatch = raw.match(/\{[\s\S]*\}/);
