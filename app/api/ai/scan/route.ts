@@ -128,8 +128,8 @@ function ictAnalyze(s: StockInput) {
     stopLoss    = `$${stopVal.toFixed(2)}`;
     takeProfit  = `$${tpVal.toFixed(2)}`;
     entryReason = signal === "BUY"
-      ? `ICT discount — lower 30% of day range (${priceZone})`
-      : `ICT premium — upper 30% of day range (${priceZone})`;
+      ? `Discount zone — lower 30% of day range (${priceZone})`
+      : `Premium zone — upper 30% of day range (${priceZone})`;
     stopReason  = signal === "BUY"
       ? "5% below entry zone — structural stop below day low"
       : "5% above entry zone — structural stop above day high";

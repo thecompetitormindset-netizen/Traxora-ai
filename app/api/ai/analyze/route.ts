@@ -62,8 +62,8 @@ export async function POST(req: Request) {
         stopLoss:    `$${stopVal.toFixed(2)}`,
         takeProfit:  `$${tpVal.toFixed(2)}`,
         entryReason: signal === "BUY"
-          ? `ICT discount — lower 30% of day range${orderBlock ? " near Order Block" : ""}`
-          : `ICT premium — upper 30% of day range${orderBlock ? " near Order Block" : ""}`,
+          ? `Discount zone — enter in lower 30% of day range${orderBlock ? " near Order Block" : ""}`
+          : `Premium zone — enter in upper 30% of day range${orderBlock ? " near Order Block" : ""}`,
         stopReason:  signal === "BUY"
           ? `5% below entry zone — structural stop below ${orderBlock ? "OB low" : "day low"}`
           : `5% above entry zone — structural stop above ${orderBlock ? "OB high" : "day high"}`,
