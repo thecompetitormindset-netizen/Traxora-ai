@@ -98,6 +98,16 @@ export type DeepICT = {
   noTradeNote: string | null;
 };
 
+export type TradePlan = {
+  entryZone:   string;
+  stopLoss:    string;
+  takeProfit:  string;
+  entryReason: string;
+  stopReason:  string;
+  tpReason:    string;
+  rrRatio:     string;
+};
+
 export type AIAnalysis = {
   signal: "BUY" | "HOLD" | "SELL";
   confidence: "High" | "Medium" | "Low";
@@ -105,6 +115,7 @@ export type AIAnalysis = {
   keyPoints: string[];
   risk: "Low" | "Medium" | "High";
   ict?: ICTAnalysis;
+  trade?: TradePlan | null;
 };
 
 export function signalStyle(signal: string) {

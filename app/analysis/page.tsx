@@ -10,7 +10,7 @@ const StockChart = dynamic(() => import("@/app/components/StockChart"), {
 });
 import MarketStatus from "@/app/components/MarketStatus";
 import { getPortfolio } from "@/app/lib/trading";
-import type { AIAnalysis, DeepICT } from "@/app/components/analysis/types";
+import type { AIAnalysis, DeepICT, TradePlan } from "@/app/components/analysis/types";
 import { signalStyle, riskStyle, confidenceStyle } from "@/app/components/analysis/types";
 import DeepMarketPanel from "@/app/components/analysis/DeepMarketPanel";
 import MarketDepth from "@/app/components/analysis/MarketDepth";
@@ -296,6 +296,52 @@ function AnalysisContent() {
                 </a>
               )}
             </div>
+
+            {/* Trade Plan */}
+            {!loadingAnalysis && analysis?.trade && analysis.signal !== "HOLD" && (() => {
+              const t = analysis.trade as TradePlan;
+              const isBuy = analysis.signal === "BUY";
+              return (
+                <div className={`bg-[#13112A] rounded-2xl p-5 border ${isBuy ? "border-emerald-500/25" : "border-rose-500/25"}`}>
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Trade Plan</p>
+
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
+                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Entry Zone</p>
+                      <p className="text-[11px] font-mono font-black text-amber-400 leading-tight">{t.entryZone}</p>
+                    </div>
+                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
+                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Stop Loss</p>
+                      <p className="text-sm font-mono font-black text-rose-400">{t.stopLoss}</p>
+                    </div>
+                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
+                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Take Profit</p>
+                      <p className="text-sm font-mono font-black text-emerald-400">{t.takeProfit}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 text-[10px] text-[#7B8DB4]">
+                    <div className="flex items-start gap-2">
+                      <span className="text-amber-400 font-bold shrink-0 mt-px">↳</span>
+                      <span><span className="text-[#4B5675] font-semibold">Entry: </span>{t.entryReason}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-rose-400 font-bold shrink-0 mt-px">↳</span>
+                      <span><span className="text-[#4B5675] font-semibold">Stop: </span>{t.stopReason}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-emerald-400 font-bold shrink-0 mt-px">↳</span>
+                      <span><span className="text-[#4B5675] font-semibold">Target: </span>{t.tpReason}</span>
+                    </div>
+                  </div>
+
+                  <div className={`mt-3 pt-3 border-t border-white/5 flex items-center justify-between`}>
+                    <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">Risk/Reward</span>
+                    <span className={`text-sm font-black font-mono ${isBuy ? "text-emerald-400" : "text-rose-400"}`}>{t.rrRatio}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Price Snapshot */}
             <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
