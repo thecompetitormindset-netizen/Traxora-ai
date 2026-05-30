@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { promises as fs } from "fs";
+import path from "path";
 
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 
@@ -199,16 +201,38 @@ function parseJSON(raw: string): Record<string, unknown> {
   throw new Error(`JSON parse failed after repair attempt`);
 }
 
-function etHour(): number {
-  const now = new Date();
-  const etOff = now.getTimezoneOffset() < new Date(now.getFullYear(), 6, 1).getTimezoneOffset() ? -4 : -5;
-  const et = new Date(now.getTime() + (now.getTimezoneOffset() + etOff * 60) * 60_000);
-  return et.getHours();
+// MDT = UTC-6 (Mar–Oct), MST = UTC-7 (Nov–Feb)
+function mdtOffset(): number {
+  const m = new Date().getUTCMonth(); // 0-indexed
+  return (m >= 2 && m < 11) ? -6 : -7;
+}
+function mdtDate(): string {
+  return new Date(Date.now() + mdtOffset() * 3_600_000).toISOString().slice(0, 10);
+}
+function mdtHour(): number {
+  return new Date(Date.now() + mdtOffset() * 3_600_000).getUTCHours();
+}
+function inBriefingWindow(): boolean {
+  const h = mdtHour();
+  return h >= 6 && h < 7;
 }
 
-function inBriefingWindow(): boolean {
-  const h = etHour();
-  return h >= 6 && h < 7;
+// ── Daily cache: in-memory (same Lambda) + /tmp file (same instance, faster cold start) ──
+let memCache: { date: string; payload: Record<string, unknown> } | null = null;
+
+async function readCache(date: string): Promise<Record<string, unknown> | null> {
+  if (memCache?.date === date) return memCache.payload;
+  try {
+    const raw = await fs.readFile(path.join("/tmp", `briefing-${date}.json`), "utf-8");
+    const payload = JSON.parse(raw) as Record<string, unknown>;
+    memCache = { date, payload };
+    return payload;
+  } catch { return null; }
+}
+
+async function writeCache(date: string, payload: Record<string, unknown>): Promise<void> {
+  memCache = { date, payload };
+  try { await fs.writeFile(path.join("/tmp", `briefing-${date}.json`), JSON.stringify(payload)); } catch { /* ignore */ }
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────────
@@ -221,37 +245,46 @@ type PortfolioSnapshot = {
   recentTradeCount: number;
 };
 
+async function handleBriefing(portfolio: PortfolioSnapshot | null): Promise<Response> {
+  const today = mdtDate();
+
+  // Always serve the cached briefing if it exists — no regeneration needed
+  const cached = await readCache(today);
+  if (cached) return Response.json({ ...cached, _cached: true });
+
+  // No cache — only generate inside the 6–7 AM MDT window
+  if (!inBriefingWindow()) {
+    return Response.json(
+      { ok: false, reason: "OUTSIDE_WINDOW", message: "Today's briefing isn't ready yet — it generates at 6 AM MDT and is then available all day." },
+      { status: 403 },
+    );
+  }
+
+  // Generate once, store, return
+  return runBriefing(portfolio, today);
+}
+
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
-  }
-  if (!inBriefingWindow()) {
-    return Response.json({ ok: false, reason: "OUTSIDE_WINDOW", message: "Morning briefing is only available 6–7 AM ET." }, { status: 403 });
-  }
+  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
   }
   let portfolio: PortfolioSnapshot | null = null;
   try { const body = await req.json(); portfolio = body.portfolio ?? null; } catch { /* no body */ }
-  return runBriefing(portfolio);
+  return handleBriefing(portfolio);
 }
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session?.user) {
-    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
-  }
-  if (!inBriefingWindow()) {
-    return Response.json({ ok: false, reason: "OUTSIDE_WINDOW", message: "Morning briefing is only available 6–7 AM ET." }, { status: 403 });
-  }
+  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
   }
-  return runBriefing(null);
+  return handleBriefing(null);
 }
 
-async function runBriefing(portfolio: PortfolioSnapshot | null) {
+async function runBriefing(portfolio: PortfolioSnapshot | null, cacheDate?: string) {
   const tickers = {
     // Broad US
     SPY: "SPY", QQQ: "QQQ", IWM: "IWM", DIA: "DIA",
@@ -600,7 +633,7 @@ FINAL CHECKS before responding:
 
     const parsed = parseJSON(match[0]);
 
-    return Response.json({
+    const payload: Record<string, unknown> = {
       ...parsed,
       _raw: {
         session: etSession(),
@@ -624,7 +657,12 @@ FINAL CHECKS before responding:
           xlv:       data.XLV?.changePct ?? null,
         },
       },
-    });
+    };
+
+    // Store once for the whole day
+    if (cacheDate) await writeCache(cacheDate, payload);
+
+    return Response.json(payload);
   } catch (err) {
     const httpStatus = (err as { status?: unknown }).status;
     if (httpStatus === 401 || httpStatus === 403) {
