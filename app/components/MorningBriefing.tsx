@@ -405,7 +405,7 @@ export default function MorningBriefing() {
         return;
       }
       if (data.reason === "OUTSIDE_WINDOW") {
-        setError("Today's briefing isn't ready yet — it generates at 6 AM MDT and is then available all day.");
+        setError("Briefing unavailable — please try again in a moment.");
       } else if (data.reason === "AI_UNAVAILABLE") {
         setError("AI unavailable — no AI provider configured.");
       } else if (data.error) {

@@ -212,11 +212,6 @@ function mdtDate(): string {
 function mdtHour(): number {
   return new Date(Date.now() + mdtOffset() * 3_600_000).getUTCHours();
 }
-function inBriefingWindow(): boolean {
-  const h = mdtHour();
-  return h >= 6 && h < 7;
-}
-
 // ── Daily cache: in-memory (same Lambda) + /tmp file (same instance, faster cold start) ──
 let memCache: { date: string; payload: Record<string, unknown> } | null = null;
 
@@ -248,19 +243,11 @@ type PortfolioSnapshot = {
 async function handleBriefing(portfolio: PortfolioSnapshot | null): Promise<Response> {
   const today = mdtDate();
 
-  // Always serve the cached briefing if it exists — no regeneration needed
+  // Return cached briefing instantly — no re-generation
   const cached = await readCache(today);
   if (cached) return Response.json({ ...cached, _cached: true });
 
-  // No cache — only generate inside the 6–7 AM MDT window
-  if (!inBriefingWindow()) {
-    return Response.json(
-      { ok: false, reason: "OUTSIDE_WINDOW", message: "Today's briefing isn't ready yet — it generates at 6 AM MDT and is then available all day." },
-      { status: 403 },
-    );
-  }
-
-  // Generate once, store, return
+  // First request of the day — generate, cache, return
   return runBriefing(portfolio, today);
 }
 
