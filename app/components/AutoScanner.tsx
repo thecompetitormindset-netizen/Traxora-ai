@@ -39,6 +39,12 @@ type ScanResult = {
   target: string;
   power3Phase: string;
   newsImpact: string;
+  entryZone:   string | null;
+  stopLoss:    string | null;
+  takeProfit:  string | null;
+  entryReason: string | null;
+  stopReason:  string | null;
+  tpReason:    string | null;
   // merged from raw
   name?: string;
   price?: number;
@@ -353,6 +359,30 @@ export default function AutoScanner() {
                         {isExp && (
                           <div className="border-t border-[#252345] px-3 py-3 space-y-2.5 bg-[#0D0B1A]">
 
+                            {/* Trade plan */}
+                            {r.entryZone && r.stopLoss && r.takeProfit && r.signal !== "HOLD" && (
+                              <div className={`rounded-xl p-3 border space-y-2 ${r.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
+                                <p className={`text-[8px] font-black uppercase tracking-widest mb-1 ${r.signal === "BUY" ? "text-emerald-400" : "text-rose-400"}`}>Trade Plan · {r.signal}</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <div className="bg-[#0D0B1A] rounded-lg p-2 text-center">
+                                    <p className="text-[7px] text-[#4B5675] uppercase tracking-widest mb-0.5">Entry Zone</p>
+                                    <p className="text-[9px] font-mono font-bold text-amber-400 leading-tight">{r.entryZone}</p>
+                                  </div>
+                                  <div className="bg-[#0D0B1A] rounded-lg p-2 text-center">
+                                    <p className="text-[7px] text-[#4B5675] uppercase tracking-widest mb-0.5">Stop Loss</p>
+                                    <p className="text-[10px] font-mono font-bold text-rose-400">{r.stopLoss}</p>
+                                  </div>
+                                  <div className="bg-[#0D0B1A] rounded-lg p-2 text-center">
+                                    <p className="text-[7px] text-[#4B5675] uppercase tracking-widest mb-0.5">Take Profit</p>
+                                    <p className="text-[10px] font-mono font-bold text-emerald-400">{r.takeProfit}</p>
+                                  </div>
+                                </div>
+                                {r.entryReason && <p className="text-[8px] text-[#7B8DB4] leading-snug">Entry: {r.entryReason}</p>}
+                                {r.stopReason  && <p className="text-[8px] text-[#7B8DB4] leading-snug">Stop: {r.stopReason}</p>}
+                                {r.tpReason    && <p className="text-[8px] text-[#7B8DB4] leading-snug">Target: {r.tpReason}</p>}
+                              </div>
+                            )}
+
                             {[
                               { label: "Smart Money Setup", value: r.ictSetup },
                               { label: "Catalyst",     value: r.catalyst },
@@ -362,7 +392,6 @@ export default function AutoScanner() {
                               { label: "Year Zone",    value: r.yearZone },
                               { label: "PO3 Phase",   value: r.power3Phase },
                               { label: "Key Level",    value: r.keyLevel },
-                              { label: "Target",       value: r.target },
                               { label: "News Impact",  value: r.newsImpact },
                             ].map((row) => row.value ? (
                               <div key={row.label}>

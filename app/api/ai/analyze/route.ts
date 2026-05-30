@@ -44,7 +44,35 @@ export async function POST(req: Request) {
 
     const { signal, confidence, priceZone, pctPos, marketStructure, dailyBias,
             volRatio, highVol, lowVol, yearPct,
-            orderBlock, fairValueGap, liquidity, ote } = ict;
+            orderBlock, fairValueGap, liquidity, ote,
+            dayH, dayL, daySpan } = ict;
+
+    // ICT trade levels: BUY enters discount (5–30% above day low), SELL enters premium (5–30% below day high)
+    let trade: { entryZone: string; stopLoss: string; takeProfit: string; entryReason: string; stopReason: string; tpReason: string; rrRatio: string } | null = null;
+    if (signal !== "HOLD" && dayH && dayL) {
+      const span      = (daySpan && daySpan > 0.01) ? daySpan : price * 0.01;
+      const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
+      const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
+      const entryMid  = (entryLow + entryHigh) / 2;
+      const stopVal   = signal === "BUY" ? entryLow  * 0.95 : entryHigh * 1.05;
+      const riskDist  = Math.abs(entryMid - stopVal);
+      const tpVal     = signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2;
+      trade = {
+        entryZone:   `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`,
+        stopLoss:    `$${stopVal.toFixed(2)}`,
+        takeProfit:  `$${tpVal.toFixed(2)}`,
+        entryReason: signal === "BUY"
+          ? `ICT discount — lower 30% of day range${orderBlock ? " near Order Block" : ""}`
+          : `ICT premium — upper 30% of day range${orderBlock ? " near Order Block" : ""}`,
+        stopReason:  signal === "BUY"
+          ? `5% below entry zone — structural stop below ${orderBlock ? "OB low" : "day low"}`
+          : `5% above entry zone — structural stop above ${orderBlock ? "OB high" : "day high"}`,
+        tpReason:    signal === "BUY"
+          ? "2:1 R:R — targeting buy-side liquidity (BSL) above"
+          : "2:1 R:R — targeting sell-side liquidity (SSL) below",
+        rrRatio:     "2:1",
+      };
+    }
 
     const risk: "Low" | "Medium" | "High" =
       confidence === "High" ? "Low" : confidence === "Medium" ? "Medium" : "High";
@@ -78,6 +106,7 @@ export async function POST(req: Request) {
     return Response.json({
       signal, confidence, summary, keyPoints, risk,
       ict: { marketStructure, dailyBias, priceZone, orderBlock, fairValueGap, liquidity, ote, setup },
+      trade,
     });
   } catch (err) {
     return Response.json(

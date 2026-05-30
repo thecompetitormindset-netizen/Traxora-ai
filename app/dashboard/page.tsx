@@ -8,6 +8,16 @@ import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
 import { scopedKey } from "../lib/userState";
 
+type TradeLevels = {
+  entryZone:   string;
+  stopLoss:    string;
+  takeProfit:  string;
+  entryReason: string;
+  stopReason:  string;
+  tpReason:    string;
+  rrRatio:     string;
+};
+
 type StockCard = {
   symbol: string;
   name: string;
@@ -15,6 +25,7 @@ type StockCard = {
   change: number | null;
   signal: "BUY" | "HOLD" | "SELL" | null;
   confidence: "High" | "Medium" | "Low" | null;
+  trade: TradeLevels | null;
   loading: boolean;
   isNew?: boolean;
 };
@@ -163,7 +174,7 @@ export default function DashboardPage() {
   }, []);
 
   const [stocks, setStocks] = useState<StockCard[]>(
-    WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, loading: true }))
+    WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, loading: true }))
   );
   const [trendingStocks, setTrendingStocks] = useState<StockCard[]>([]);
   const [poppedSymbols, setPoppedSymbols]   = useState<Set<string>>(new Set());
@@ -216,7 +227,8 @@ export default function DashboardPage() {
           const analysis = await analyzeRes.json();
           const signal: "BUY" | "HOLD" | "SELL" | null = analysis?.signal ?? null;
           const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
-          setStocks((s) => s.map((c, idx) => idx === i ? { ...c, signal, confidence } : c));
+          const trade: TradeLevels | null = analysis?.trade ?? null;
+          setStocks((s) => s.map((c, idx) => idx === i ? { ...c, signal, confidence, trade } : c));
           // pop the card when a decisive signal arrives
           if (signal && signal !== "HOLD") {
             setPoppedSymbols((prev) => new Set([...prev, symbol]));
@@ -276,6 +288,7 @@ export default function DashboardPage() {
             change:     t.changePct,
             signal:     null,
             confidence: null,
+            trade:      null,
             loading:    false,
             isNew:      true,
           }));
@@ -295,10 +308,11 @@ export default function DashboardPage() {
               }),
             });
             const analysis = await ar.json();
-            const signal: "BUY" | "HOLD" | "SELL" | null     = analysis?.signal     ?? null;
-            const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
+            const signal: "BUY" | "HOLD" | "SELL" | null      = analysis?.signal     ?? null;
+            const confidence: "High" | "Medium" | "Low" | null  = analysis?.confidence ?? null;
+            const trade: TradeLevels | null                      = analysis?.trade      ?? null;
             setTrendingStocks((prev) =>
-              prev.map((t) => t.symbol === s.symbol ? { ...t, signal, confidence } : t),
+              prev.map((t) => t.symbol === s.symbol ? { ...t, signal, confidence, trade } : t),
             );
             if (signal && signal !== "HOLD") {
               setPoppedSymbols((prev) => new Set([...prev, s.symbol]));
@@ -551,7 +565,28 @@ export default function DashboardPage() {
                       <p className={`text-xs mt-1 font-medium font-mono ${changeColor(stock.change)}`}>
                         {stock.change !== null ? `${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today` : "—"}
                       </p>
-                      <p className="text-[11px] text-emerald-400 mt-4 group-hover:text-emerald-300 transition-colors font-medium">View analysis →</p>
+
+                      {stock.trade && stock.signal !== "HOLD" ? (
+                        <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Entry</span>
+                            <span className="text-[10px] font-mono font-bold text-amber-400 text-right">{stock.trade.entryZone}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
+                            <span className="text-[10px] font-mono font-bold text-rose-400">{stock.trade.stopLoss}</span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Target</span>
+                            <span className="text-[10px] font-mono font-bold text-emerald-400">{stock.trade.takeProfit}</span>
+                          </div>
+                          <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">{stock.trade.rrRatio} R:R · {stock.trade.entryReason}</p>
+                        </div>
+                      ) : stock.signal === "HOLD" ? (
+                        <p className="text-[10px] text-[#4B5675] mt-3">No clear setup — wait for direction</p>
+                      ) : null}
+
+                      <p className="text-[11px] text-emerald-400 mt-3 group-hover:text-emerald-300 transition-colors font-medium">View analysis →</p>
                     </Link>
                   );
                 })}

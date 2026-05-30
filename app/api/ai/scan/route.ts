@@ -54,7 +54,7 @@ function ictAnalyze(s: StockInput) {
   );
 
   const { signal, confidence, score, priceZone, marketStructure,
-          yearPct, dayH, dayL, dayMid } = ict;
+          yearPct, dayH, dayL, dayMid, daySpan } = ict;
 
   // Fall back to the pre-computed ratio when ictScore returns null (avgVolume === 0 from data source)
   const volRatio = ict.volRatio ?? s.volumeRatio;
@@ -108,10 +108,41 @@ function ictAnalyze(s: StockInput) {
       ? s.news[0].title.slice(0, 80)
       : `${s.changePercent >= 0 ? "Technical" : "Bearish"} price action — no major catalyst`;
 
+  // ICT trade levels
+  let entryZone: string | null = null;
+  let stopLoss:  string | null = null;
+  let takeProfit: string | null = null;
+  let entryReason: string | null = null;
+  let stopReason:  string | null = null;
+  let tpReason:    string | null = null;
+
+  if (signal !== "HOLD" && dayH && dayL) {
+    const span      = (daySpan && daySpan > 0.01) ? daySpan : s.price * 0.01;
+    const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
+    const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
+    const entryMid  = (entryLow + entryHigh) / 2;
+    const stopVal   = signal === "BUY" ? entryLow  * 0.95 : entryHigh * 1.05;
+    const riskDist  = Math.abs(entryMid - stopVal);
+    const tpVal     = signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2;
+    entryZone   = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
+    stopLoss    = `$${stopVal.toFixed(2)}`;
+    takeProfit  = `$${tpVal.toFixed(2)}`;
+    entryReason = signal === "BUY"
+      ? `ICT discount — lower 30% of day range (${priceZone})`
+      : `ICT premium — upper 30% of day range (${priceZone})`;
+    stopReason  = signal === "BUY"
+      ? "5% below entry zone — structural stop below day low"
+      : "5% above entry zone — structural stop above day high";
+    tpReason    = signal === "BUY"
+      ? "2:1 R:R — targeting BSL / buy-side liquidity above"
+      : "2:1 R:R — targeting SSL / sell-side liquidity below";
+  }
+
   return {
     symbol: s.symbol, signal, confidence, ictSetup, catalyst,
     marketStructure, priceZone, yearZone, volumeVerdict: volVerdict,
     keyLevel, target, power3Phase, newsImpact, _score: score, news: s.news,
+    entryZone, stopLoss, takeProfit, entryReason, stopReason, tpReason,
   };
 }
 
