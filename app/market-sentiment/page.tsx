@@ -345,11 +345,25 @@ export default function MarketSentimentPage() {
   const toggleCard = (id: string) => setExpandedCard(v => v === id ? null : id);
 
   // ── Derived stats ──────────────────────────────────────────────────
-  const bullishPct = classified && classified.length > 0
-    ? Math.round((classified.filter(c => c.sentiment === "Bullish").length / classified.length) * 100)
+  // Haiku classification is used per-headline; for the aggregate distribution we prefer AV
+  // pre-scored labels (already on topHeadlines) because Haiku silently returns all-Neutral
+  // when it times out. Only upgrade to Haiku results when at least one item has confidence > 30
+  // (the fallback value used in the catch block).
+  const avHeadlines = md?.topHeadlines ?? [];
+  const haikuSucceeded = !!classified?.some(c => c.confidence > 30);
+
+  const distSentiments: string[] = haikuSucceeded
+    ? classified!.map(c => c.sentiment)
+    : avHeadlines.map(h =>
+        h.sentiment === "Bullish" || h.sentiment === "Somewhat-Bullish" ? "Bullish" :
+        h.sentiment === "Bearish" || h.sentiment === "Somewhat-Bearish" ? "Bearish" : "Neutral"
+      );
+
+  const bullishPct = distSentiments.length > 0
+    ? Math.round((distSentiments.filter(s => s === "Bullish").length / distSentiments.length) * 100)
     : null;
-  const bearishPct = classified && classified.length > 0
-    ? Math.round((classified.filter(c => c.sentiment === "Bearish").length / classified.length) * 100)
+  const bearishPct = distSentiments.length > 0
+    ? Math.round((distSentiments.filter(s => s === "Bearish").length / distSentiments.length) * 100)
     : null;
 
   const biasColor = (report?.overallBias ?? md?.regime ?? "Neutral") === "Bullish" || (report?.overallBias ?? "") === "Risk-On"
@@ -669,7 +683,7 @@ export default function MarketSentimentPage() {
           )}
 
           {/* News headline distribution */}
-          {classified && classified.length > 0 && (
+          {distSentiments.length > 0 && (
             <div className="mt-4 grid grid-cols-3 gap-3">
               {[
                 { label: "Bullish", pct: bullishPct, color: "emerald" },

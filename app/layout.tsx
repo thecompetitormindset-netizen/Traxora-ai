@@ -13,6 +13,7 @@ import AutoCoach from "./components/AutoCoach";
 import ThemeProvider from "./components/ThemeProvider";
 import SessionWatcher from "./components/SessionWatcher";
 import SignalToast from "./components/SignalToast";
+import PortfolioSync from "./components/PortfolioSync";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -85,6 +86,7 @@ export default function RootLayout({
             <RiskGuard />
             <AutoCoach />
             <SignalToast />
+            <PortfolioSync />
           </Providers>
           <ServiceWorkerRegistrar />
         </div>

@@ -1,5 +1,5 @@
-// Kairos TradePilot AI — Service Worker
-const CACHE = "kairos-v1";
+// Traxora AI — Service Worker
+const CACHE = "traxora-v1";
 
 self.addEventListener("install", (e) => {
   self.skipWaiting();
@@ -18,7 +18,7 @@ self.addEventListener("push", (e) => {
       body: data.body,
       icon: "/icon-192.png",
       badge: "/icon-192.png",
-      tag: data.tag || "kairos-signal",
+      tag: data.tag || "traxora-signal",
       data: { url: data.url || "/dashboard" },
       vibrate: [200, 100, 200],
       requireInteraction: true,

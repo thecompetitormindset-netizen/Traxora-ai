@@ -77,6 +77,14 @@ function SentimentIcon() {
   );
 }
 
+function IPOIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z" />
+    </svg>
+  );
+}
+
 function BriefingIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -95,6 +103,7 @@ const NAV_LINKS = [
   { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
 
   { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
+  { name: "IPO",       href: "/ipo",               icon: <IPOIcon /> },
   { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },
   { name: "Settings",  href: "/settings",          icon: <SettingsIcon /> },
 ] as const;

@@ -572,7 +572,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
   <tr>
     <td style="padding-top:18px;border-top:1px solid #252345;text-align:center">
       <p style="margin:0;font-size:10px;color:#333368">For educational purposes only &middot; Not financial advice &middot; Past signals do not guarantee future results</p>
-      <p style="margin:6px 0 0;font-size:10px;color:#252345">Traxora AI &middot; You subscribed via Settings &middot; Sent weekdays at 6:30 AM MDT</p>
+      <p style="margin:6px 0 0;font-size:10px;color:#252345">Traxora AI &middot; Sent weekdays at 6:30 AM MDT</p>
     </td>
   </tr>
 

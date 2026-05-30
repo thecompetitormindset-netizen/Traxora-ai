@@ -94,6 +94,26 @@ async function fetchAVNews(): Promise<Array<{ title: string; source: string; sen
   } catch { return []; }
 }
 
+// Finnhub general market news — used when Alpha Vantage key is not configured
+async function fetchFinnhubNews(): Promise<Array<{ title: string; source: string; sentiment: string; score: number }>> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) return [];
+  try {
+    const url = `https://finnhub.io/api/v1/news?category=general&token=${key}`;
+    const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
+    const d = await r.json() as Array<{ headline?: string; source?: string }>;
+    if (!Array.isArray(d)) return [];
+    return d.slice(0, 20)
+      .filter(item => item.headline)
+      .map(item => ({
+        title:     item.headline!,
+        source:    item.source ?? "Finnhub",
+        sentiment: "Neutral", // Finnhub doesn't pre-score sentiment; Haiku will classify
+        score:     0,
+      }));
+  } catch { return []; }
+}
+
 // ── Main handler ───────────────────────────────────────────────────────────
 
 export async function GET() {
@@ -101,13 +121,14 @@ export async function GET() {
   if (cached) return Response.json(cached);
 
   try {
-    const [vixData, spyData, qqqData, iwmData, newsItems] = await Promise.all([
+    const [vixData, spyData, qqqData, iwmData, avItems] = await Promise.all([
       yq("^VIX"),
       yq("SPY"),
       yq("QQQ"),
       yq("IWM"),
       fetchAVNews(),
     ]);
+    const newsItems = avItems.length > 0 ? avItems : await fetchFinnhubNews();
 
     const vix      = vixData.meta?.regularMarketPrice as number | undefined;
     const prevVix  = (vixData.meta?.chartPreviousClose ?? vixData.meta?.previousClose) as number | undefined;
