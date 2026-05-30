@@ -1,11 +1,11 @@
 {
-  "name": "Kairos TradePilot AI",
-  "short_name": "Kairos AI",
-  "description": "AI-powered investment signals — stocks, futures & commodities",
-  "start_url": "/dashboard",
+  "name": "Traxora AI",
+  "short_name": "Traxora",
+  "description": "Smart money signals, IPO tracker & paper trading powered by AI",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#0B0F19",
-  "theme_color": "#0B0F19",
+  "background_color": "#0D0B1A",
+  "theme_color": "#0D0B1A",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -21,6 +21,5 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["finance", "business"],
-  "screenshots": []
+  "categories": ["finance", "business"]
 }

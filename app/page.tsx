@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSession, signIn } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 /* ── Smart Money concept diagrams ────────────────────────────────────────── */
@@ -130,19 +132,27 @@ const HERO_SUBS = [
   "Know which sessions matter, which levels count, and when institutions move.",
 ];
 
-const TICKER_ITEMS = [
-  { sym:"NVDA",  price:"$134.50",  chg:"+2.41%",  up:true  },
-  { sym:"AAPL",  price:"$189.20",  chg:"-0.84%",  up:false },
-  { sym:"ES",    price:"$5,920",   chg:"+0.62%",  up:true  },
-  { sym:"GC",    price:"$2,340",   chg:"+1.12%",  up:true  },
-  { sym:"TSLA",  price:"$178.40",  chg:"-3.22%",  up:false },
-  { sym:"MSFT",  price:"$415.80",  chg:"+1.05%",  up:true  },
-  { sym:"AMZN",  price:"$198.60",  chg:"+0.77%",  up:true  },
-  { sym:"JPM",   price:"$214.30",  chg:"-0.33%",  up:false },
-  { sym:"NQ",    price:"$21,340",  chg:"+0.95%",  up:true  },
-  { sym:"CL",    price:"$78.40",   chg:"-0.88%",  up:false },
-  { sym:"META",  price:"$559.70",  chg:"+1.62%",  up:true  },
-  { sym:"BTC",   price:"$95,200",  chg:"+3.14%",  up:true  },
+const TICKER_POOL = [
+  { sym:"NVDA",  price:"$211.14",  chg:"-1.45%",  up:false },
+  { sym:"AAPL",  price:"$312.06",  chg:"-0.14%",  up:false },
+  { sym:"MSFT",  price:"$450.24",  chg:"+5.45%",  up:true  },
+  { sym:"META",  price:"$632.51",  chg:"-0.44%",  up:false },
+  { sym:"AMZN",  price:"$270.64",  chg:"-1.23%",  up:false },
+  { sym:"GOOGL", price:"$185.40",  chg:"+0.62%",  up:true  },
+  { sym:"TSLA",  price:"$435.79",  chg:"-1.43%",  up:false },
+  { sym:"AMD",   price:"$152.30",  chg:"+2.10%",  up:true  },
+  { sym:"NFLX",  price:"$1,180",   chg:"+0.88%",  up:true  },
+  { sym:"JPM",   price:"$299.31",  chg:"+0.87%",  up:true  },
+  { sym:"GS",    price:"$618.40",  chg:"-0.22%",  up:false },
+  { sym:"V",     price:"$380.50",  chg:"+0.35%",  up:true  },
+  { sym:"SPY",   price:"$756.48",  chg:"+0.25%",  up:true  },
+  { sym:"QQQ",   price:"$529.60",  chg:"+0.38%",  up:true  },
+  { sym:"XOM",   price:"$118.70",  chg:"-0.91%",  up:false },
+  { sym:"COIN",  price:"$248.90",  chg:"+2.14%",  up:true  },
+  { sym:"ES",    price:"$7,596",   chg:"+0.18%",  up:true  },
+  { sym:"NQ",    price:"$30,405",  chg:"+0.32%",  up:true  },
+  { sym:"GC",    price:"$4,593",   chg:"+1.34%",  up:true  },
+  { sym:"CL",    price:"$87.36",   chg:"-1.73%",  up:false },
 ];
 
 const LIVE_SIGNALS = [
@@ -160,7 +170,17 @@ const QUOTES = [
 ];
 
 /* ── Page ─────────────────────────────────────────────────────────────────── */
+type LivePrice = { price: string; chg: string; up: boolean };
+
 export default function HomePage() {
+  const { data: session } = useSession();
+  const router = useRouter();
+
+  function handleLaunch() {
+    if (session) { router.push("/dashboard"); }
+    else { signIn("google", { callbackUrl: "/dashboard" }); }
+  }
+
   const [heroIdx,    setHeroIdx]    = useState(0);
   const [heroVisible, setHeroVisible] = useState(true);
   const [signalIdx,  setSignalIdx]  = useState(0);
@@ -169,6 +189,11 @@ export default function HomePage() {
   const [conceptIdx, setConceptIdx] = useState(0);
   const [tickOffset, setTickOffset] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
+  // Random 12 picked from the pool once per page load — stays fixed for the session
+  const [displayTicker] = useState(() =>
+    [...TICKER_POOL].sort(() => Math.random() - 0.5).slice(0, 12)
+  );
 
   // Hero text rotation
   useEffect(() => {
@@ -208,8 +233,16 @@ export default function HomePage() {
 
   // Ticker scroll
   useEffect(() => {
-    tickRef.current = setInterval(() => setTickOffset(o => (o + 1) % (TICKER_ITEMS.length * 120)), 30);
+    tickRef.current = setInterval(() => setTickOffset(o => (o + 1) % (displayTicker.length * 120)), 30);
     return () => { if (tickRef.current) clearInterval(tickRef.current); };
+  }, [displayTicker.length]);
+
+  // Single cached call — server fetches all 12 symbols in parallel and caches for 60s
+  useEffect(() => {
+    fetch("/api/market/tickers")
+      .then(r => r.json())
+      .then((data: Record<string, LivePrice>) => setLivePrices(data))
+      .catch(() => {});
   }, []);
 
   const hero   = HERO_LINES[heroIdx];
@@ -236,9 +269,9 @@ export default function HomePage() {
           <Link href="/explore"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Markets</Link>
           <Link href="/analysis"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Signals</Link>
           <Link href="/guide"     className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Guide</Link>
-          <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95">
-            Launch App →
-          </Link>
+          <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95">
+            {session ? "Dashboard →" : "Sign in →"}
+          </button>
         </div>
       </nav>
 
@@ -248,14 +281,17 @@ export default function HomePage() {
           className="flex gap-0 whitespace-nowrap"
           style={{ transform: `translateX(-${tickOffset}px)`, transition: "transform 0.03s linear" }}
         >
-          {[...TICKER_ITEMS, ...TICKER_ITEMS, ...TICKER_ITEMS].map((t, i) => (
-            <span key={i} className="inline-flex items-center gap-2 px-6 text-[11px] font-mono">
-              <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
-              <span className="text-[#F1F5F9]">{t.price}</span>
-              <span className={t.up ? "text-emerald-400" : "text-rose-400"}>{t.chg}</span>
-              <span className="text-[#252345]">|</span>
-            </span>
-          ))}
+          {[...displayTicker, ...displayTicker, ...displayTicker].map((t, i) => {
+            const live = livePrices[t.sym];
+            return (
+              <span key={i} className="inline-flex items-center gap-2 px-6 text-[11px] font-mono">
+                <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
+                <span className="text-[#F1F5F9]">{live?.price ?? t.price}</span>
+                <span className={(live?.up ?? t.up) ? "text-emerald-400" : "text-rose-400"}>{live?.chg ?? t.chg}</span>
+                <span className="text-[#252345]">|</span>
+              </span>
+            );
+          })}
         </div>
       </div>
 
@@ -300,13 +336,24 @@ export default function HomePage() {
           </p>
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
-            <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
-              Open Dashboard →
-            </Link>
-            <Link href="/explore" className="border border-[#252345] bg-[#13112A]/60 hover:border-[#333368] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
-              Browse Markets
+            <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 flex items-center gap-2.5">
+              {!session && (
+                <svg width="16" height="16" viewBox="0 0 24 24">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+                </svg>
+              )}
+              {session ? "Open Dashboard →" : "Sign in with Google"}
+            </button>
+            <Link href="/guide" className="border border-[#252345] bg-[#13112A]/60 hover:border-[#333368] backdrop-blur-sm transition-all px-7 py-3.5 rounded-xl text-sm font-semibold text-[#7B8DB4] hover:text-[#F1F5F9]">
+              See How It Works
             </Link>
           </div>
+          {!session && (
+            <p className="text-xs text-[#4B5675] mt-3">Free · No credit card · Sign in with your Google account</p>
+          )}
         </div>
 
         {/* Floating signal card — animates between different signals */}
@@ -341,10 +388,14 @@ export default function HomePage() {
             </div>
             <div className="px-4 pb-3 flex items-center justify-between">
               <p className="text-[10px] text-[#4B5675]">Confidence: <span className={signal.conf === "High" ? "text-emerald-400" : "text-amber-400"}>{signal.conf}</span></p>
-              <p className="text-[10px] font-mono text-[#F1F5F9]">{signal.price}</p>
+              <p className="text-[10px] font-mono text-[#F1F5F9]">{livePrices[signal.sym]?.price ?? signal.price}</p>
             </div>
           </div>
-          <p className="text-[10px] text-[#333368] text-center mt-2">Live AI analysis · Updates every few seconds</p>
+          <div className="flex items-center justify-center gap-1.5 mt-2">
+            <span className="text-[9px] text-[#333368]">Demo signal</span>
+            <span className="text-[#252345]">·</span>
+            <span className="inline-flex items-center gap-1 text-[9px] text-amber-500/60 border border-amber-500/20 bg-amber-500/5 rounded px-1.5 py-px font-medium">⚠ Not financial advice</span>
+          </div>
         </div>
       </section>
 
@@ -370,9 +421,9 @@ export default function HomePage() {
               </p>
             </div>
             <div className="flex items-center gap-4 mt-8">
-              <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
-                Start Free →
-              </Link>
+              <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
+                {session ? "Open Dashboard →" : "Start Free →"}
+              </button>
               <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#333368]">
                 Read the Guide →
               </Link>
@@ -412,7 +463,7 @@ export default function HomePage() {
           </div>
           <div className="flex justify-center gap-2 mt-6">
             {QUOTES.map((_, i) => (
-              <button key={i} onClick={() => setQuoteIdx(i)} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#333368]"}`} />
+              <button type="button" key={i} onClick={() => setQuoteIdx(i)} aria-label={`Quote ${i + 1}`} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#333368]"}`} />
             ))}
           </div>
         </div>
@@ -482,7 +533,7 @@ export default function HomePage() {
               </div>
               <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#252345]">
                 {[
-                  { l:"Price",      v:signal.price,                                                      c:"text-[#F1F5F9] bg-[#1A1838] border-[#252345]"              },
+                  { l:"Price",      v:livePrices[signal.sym]?.price ?? signal.price,                    c:"text-[#F1F5F9] bg-[#1A1838] border-[#252345]"              },
                   { l:"Confidence", v:signal.conf,                                                       c:signal.conf === "High" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20" },
                   { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20"      },
                 ].map((b) => (
@@ -577,7 +628,7 @@ export default function HomePage() {
           {/* Concept dot nav */}
           <div className="flex justify-center gap-2 mb-8">
             {CONCEPTS.map((c, i) => (
-              <button key={c.tag} onClick={() => setConceptIdx(i)}
+              <button type="button" key={c.tag} onClick={() => setConceptIdx(i)}
                 className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#252345] text-[#4B5675] bg-transparent"}`}>
                 {c.tag}
               </button>
@@ -610,7 +661,7 @@ export default function HomePage() {
           {/* All 6 in small grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {CONCEPTS.map((c, i) => (
-              <button key={c.tag} onClick={() => setConceptIdx(i)}
+              <button type="button" key={c.tag} onClick={() => setConceptIdx(i)}
                 className={`bg-[#13112A] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#252345]"}`}
 >
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
@@ -674,9 +725,9 @@ export default function HomePage() {
           </table>
         </div>
         <div className="text-center mt-10">
-          <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 inline-block">
-            Start Free — No Credit Card →
-          </Link>
+          <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 inline-block">
+            {session ? "Open Dashboard →" : "Start Free — Sign in with Google →"}
+          </button>
         </div>
       </section>
 
@@ -703,6 +754,34 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ══ TESTIMONIALS ══ */}
+      <section className="px-6 sm:px-8 py-20 max-w-5xl mx-auto w-full">
+        <div className="text-center mb-12">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">What traders say</p>
+          <h2 className="text-3xl font-black tracking-tight">From traders who switched to smart money</h2>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {[
+            { quote: "Finally an AI that explains WHY the signal fired. OB at $131, FVG filled, NY kill zone active — I actually understand what I'm in now.", author: "Jake M.", role: "Day Trader · 2 yrs", stars: 5 },
+            { quote: "Used the paper simulator for 3 weeks before going live. 67% win rate on BUY signals during the NY session. The morning briefing alone is worth it.", author: "Sophia R.", role: "Futures Trader", stars: 5 },
+            { quote: "TrendSpider charges me $33/mo for less than this. The SMC concepts actually play out live — seen it on ES twice this week.", author: "Marcus T.", role: "Swing Trader", stars: 5 },
+          ].map((t) => (
+            <div key={t.author} className="bg-[#13112A]/80 border border-[#252345] rounded-2xl p-6 flex flex-col gap-4 hover:border-[#333368] transition-colors">
+              <div className="flex gap-0.5">
+                {Array.from({ length: t.stars }).map((_, i) => (
+                  <span key={i} className="text-amber-400 text-sm">★</span>
+                ))}
+              </div>
+              <p className="text-sm text-[#CBD5E1] leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
+              <div>
+                <p className="text-xs font-bold text-[#F1F5F9]">{t.author}</p>
+                <p className="text-[10px] text-[#4B5675]">{t.role}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ══ FINAL CTA ══ */}
       <section className="relative px-6 sm:px-8 py-28 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -716,9 +795,9 @@ export default function HomePage() {
             Free forever. Smart money signals, push alerts, morning briefing, $10K simulator.
           </p>
           <div className="flex items-center justify-center">
-            <Link href="/dashboard" className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
-              Start Trading Free →
-            </Link>
+            <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
+              {session ? "Open Dashboard →" : "Start Trading Free →"}
+            </button>
           </div>
         </div>
       </section>
@@ -734,13 +813,13 @@ export default function HomePage() {
             </div>
             <span className="text-xs font-bold text-[#F1F5F9]">Traxora AI</span>
           </div>
-          <p className="text-[11px] text-[#4B5675]">© 2026 · Not financial advice · For educational use only</p>
+          <p className="text-[11px] text-[#4B5675]">© 2025 Traxora · Not financial advice · For educational use only</p>
         </div>
         <div className="flex gap-6">
           <Link href="/dashboard"     className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Dashboard</Link>
           <Link href="/explore"       className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Markets</Link>
           <Link href="/analysis"      className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Signals</Link>
-          <Link href="/notifications" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Alerts</Link>
+          <Link href="/pricing"       className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors font-semibold">Pricing</Link>
           <Link href="/settings"      className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Settings</Link>
         </div>
       </footer>

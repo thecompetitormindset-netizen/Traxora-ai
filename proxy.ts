@@ -42,17 +42,19 @@ function applySecurityHeaders(res: NextResponse, req: NextRequest) {
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
-  // Landing page, login, next-auth callbacks, and cron jobs are public
+  // Landing page, login, informational pages, next-auth callbacks, cron jobs, and public market data are public
   const isPublic =
     pathname === "/" ||
     pathname === "/login" ||
+    pathname === "/guide" ||
+    pathname === "/pricing" ||
     pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/api/cron/");
+    pathname.startsWith("/api/cron/") ||
+    pathname === "/api/market/tickers";
 
   if (!req.auth && !isPublic) {
-    const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    // Show the landing page (with its built-in sign-in button) instead of the bare /login screen
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // Logged-in user hitting /login → send to dashboard
