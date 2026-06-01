@@ -22,8 +22,9 @@ function LoginContent() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   useEffect(() => {
-    if (session) router.push("/dashboard");
-  }, [session, router]);
+    const justSignedOut = searchParams.get("signedOut");
+    if (session && !justSignedOut) router.push("/dashboard");
+  }, [session, router, searchParams]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-[#F1F5F9]">
@@ -70,22 +71,6 @@ function LoginContent() {
             Continue with Google
           </button>
 
-          <div className="relative my-5">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[#252345]" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-[#13112A] px-3 text-xs text-[#4B5675]">or</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => signIn("google", { callbackUrl })}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 transition-colors text-white font-semibold py-3 px-5 rounded-xl text-sm"
-          >
-            Sign in with Google →
-          </button>
         </div>
 
         <p className="text-center text-xs text-[#4B5675] mt-5 leading-relaxed">

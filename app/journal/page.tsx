@@ -46,6 +46,12 @@ export default function JournalPage() {
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
+      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     setEntries(getJournal());
     const refresh = () => setEntries(getJournal());
     window.addEventListener("journal-updated", refresh);

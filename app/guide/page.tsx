@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { useState } from "react";
 
@@ -25,7 +24,7 @@ const SECTIONS: Section[] = [
     id: "dashboard",
     icon: "📊",
     title: "Dashboard",
-    subtitle: "Live prices, AI signals, and your paper portfolio — all in one view.",
+    subtitle: "Live prices, AI signals, and your portfolio — all in one view.",
     color: "text-emerald-400",
     border: "border-emerald-500/20",
     bg: "bg-emerald-500/5",
@@ -45,11 +44,11 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Click any card for the full breakdown",
-        detail: "Tapping a stock card takes you to the Analysis page for that ticker. There you can see the live chart, run a Deep ICT analysis, and place a paper trade — all from the same screen.",
+        detail: "Tapping a stock card takes you to the Analysis page for that ticker. There you can see the live chart, run a Deep Analysis, and log a trade — all from the same screen.",
       },
       {
-        step: "Check your paper portfolio summary",
-        detail: "The paper portfolio widget below the signal stats shows your Account Value, Realized P&L, open positions, and win rate at a glance. Click it to open the full Paper Trading page.",
+        step: "Check your portfolio summary",
+        detail: "The portfolio widget below the signal stats shows your Account Value, Realized P&L, open positions, and win rate at a glance. Click it to open the full Portfolio page.",
       },
       {
         step: "Scroll down for the Futures section",
@@ -69,7 +68,7 @@ const SECTIONS: Section[] = [
     id: "signals",
     icon: "📡",
     title: "Signals (Analysis)",
-    subtitle: "Deep ICT analysis, live chart, and a full trade plan in one screen.",
+    subtitle: "Deep AI analysis, live chart, and a full trade plan in one screen.",
     color: "text-teal-400",
     border: "border-teal-500/20",
     bg: "bg-teal-500/5",
@@ -88,61 +87,21 @@ const SECTIONS: Section[] = [
         detail: "The TradingView-style candlestick chart loads 30 days of OHLCV data. Use it to spot the higher-timeframe structure — where the recent swing high and low are, where price has been ranging, and whether today's price is in Premium or Discount territory.",
       },
       {
-        step: "Run Deep ICT Analysis",
-        detail: "Click the 'Deep ICT Analysis' button for the full breakdown. Claude Opus 4.7 runs a multi-framework analysis covering: overall bias (BULLISH / BEARISH / NEUTRAL), identified Order Blocks, Fair Value Gaps, Liquidity sweeps, OTE zones, Kill Zone alignment, and a confidence rating. This takes 20–40 seconds.",
+        step: "Run Deep Analysis",
+        detail: "Click the 'Deep Analysis' button for the full breakdown. Claude Opus 4.7 runs a multi-framework analysis covering: overall bias (BULLISH / BEARISH / NEUTRAL), identified Order Blocks, Fair Value Gaps, Liquidity sweeps, OTE zones, Kill Zone alignment, and a confidence rating. This takes 20–40 seconds.",
       },
       {
         step: "Read the Trade Plan card",
         detail: "Below the deep analysis you'll find the Trade Plan — the most actionable part. It shows the exact Entry Zone (price range to enter), Stop Loss level (where you're wrong), Take Profit target (your exit), and the R:R Ratio. A 2:1 R:R or better is worth taking. Below 1:1 — skip it.",
       },
       {
-        step: "Log a paper trade",
-        detail: "Once you've read the signal and trade plan, use the paper trade form on the same page to log your entry. Set your direction (LONG/SHORT), entry price, stop loss, target, and share size. The AI scores your setup before you confirm.",
+        step: "Log a trade",
+        detail: "Once you've read the signal and trade plan, use the trade form on the same page to log your entry. Set your direction (LONG/SHORT), entry price, stop loss, target, and share size. The AI scores your setup before you confirm.",
       },
     ],
     tips: [
       "Only act on High confidence signals that fire during NY Kill Zone (9:30–10:30 AM ET) or London Kill Zone (2:00–5:00 AM ET). Low confidence signals outside these windows rarely have clean follow-through.",
-      "The quick signal and the Deep ICT Analysis will sometimes contradict each other — trust the Deep analysis. It runs more context and gives the final verdict. The quick signal is just a directional first look.",
-    ],
-  },
-  {
-    id: "paper",
-    icon: "🎯",
-    title: "Paper Trading",
-    subtitle: "Simulate real trades with $10,000 virtual cash — zero risk, real lessons.",
-    color: "text-emerald-400",
-    border: "border-emerald-500/20",
-    bg: "bg-emerald-500/5",
-    href: "/paper",
-    steps: [
-      {
-        step: "Open a new trade",
-        detail: "Click the 'New Trade' button. A modal appears where you set: ticker, LONG or SHORT direction, entry price (auto-filled with live price if available), stop loss, take profit target, and number of shares or contracts.",
-      },
-      {
-        step: "AI scores your setup before you commit",
-        detail: "Before the trade is saved, Claude reviews your entry vs. your stop and target. It checks if the Risk:Reward ratio makes sense, whether your stop is too tight or too wide, and gives a 1-line verdict. If it says 'poor setup' — reconsider before confirming.",
-      },
-      {
-        step: "Track open positions",
-        detail: "The Open Positions tab shows every live trade: entry price, current price, unrealised P&L in dollars and %, and how many days the position has been open. Positions update to live market prices automatically.",
-      },
-      {
-        step: "Close a position",
-        detail: "Click 'Close' on any open position. Enter the exit price (or accept the current market price). The trade closes, your cash balance updates, and the P&L is recorded as realised. Winning trades add to your balance; losing trades subtract.",
-      },
-      {
-        step: "Get AI trade review",
-        detail: "After closing a position, Traxora runs an automatic AI review. Claude evaluates the trade across 4 frameworks: ICT (did you follow Smart Money rules?), Wyckoff (supply/demand context), R-Multiple (did you hit your target?), and Risk management. It surfaces your key mistake and biggest strength from that trade.",
-      },
-      {
-        step: "Review your portfolio stats",
-        detail: "The top of the page shows your full account snapshot: Cash Balance (uninvested cash), Account Value (cash + open positions at avg price), Net P&L vs. the $10,000 starting capital, and Win Rate % across all closed trades. Track these weekly.",
-      },
-    ],
-    tips: [
-      "Paper trade every signal for at least 2 weeks before using real money. If your win rate is consistently above 50% and your average winner is larger than your average loser, you're ready to consider going live.",
-      "Your portfolio is saved in your browser's localStorage. It persists between sessions but is device-specific — if you clear your browser data or switch devices, the portfolio resets. Screenshots are your backup.",
+      "The quick signal and the Deep Analysis will sometimes contradict each other — trust the Deep analysis. It runs more context and gives the final verdict. The quick signal is just a directional first look.",
     ],
   },
   {
@@ -172,7 +131,7 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Tap a result to act on it",
-        detail: "Tap any scanner result to go directly to the full Analysis page for that ticker. The symbol is pre-filled and the Deep ICT analysis re-runs so you can see the complete breakdown and log a paper trade.",
+        detail: "Tap any scanner result to go directly to the full Analysis page for that ticker. The symbol is pre-filled and the Deep Analysis re-runs so you can see the complete breakdown and log a trade.",
       },
     ],
     tips: [
@@ -192,7 +151,7 @@ const SECTIONS: Section[] = [
     steps: [
       {
         step: "Nothing to set up",
-        detail: "The journal runs entirely in the background. Every time you close a paper trade, Traxora automatically sends the trade details to Claude — symbol, direction, entry price, exit price, P&L — and generates a structured journal entry within seconds.",
+        detail: "The journal runs entirely in the background. Every time you close a trade, Traxora automatically sends the trade details to Claude — symbol, direction, entry price, exit price, P&L — and generates a structured journal entry within seconds.",
       },
       {
         step: "What the AI writes",
@@ -227,7 +186,7 @@ const SECTIONS: Section[] = [
     steps: [
       {
         step: "It runs automatically — no setup needed",
-        detail: "Risk Guard activates on every page load and silently checks your paper portfolio every 5 minutes. You don't configure it or turn it on. It's always watching.",
+        detail: "Risk Guard activates on every page load and silently checks your portfolio every 5 minutes. You don't configure it or turn it on. It's always watching.",
       },
       {
         step: "Auto stop-loss at 8%",
@@ -329,15 +288,15 @@ const SECTIONS: Section[] = [
     id: "portfolio",
     icon: "💼",
     title: "Portfolio & History",
-    subtitle: "Full account snapshot, trade log, and P&L breakdown — all inside Paper Trading.",
+    subtitle: "Full account snapshot, trade log, and P&L breakdown — all in one place.",
     color: "text-cyan-400",
     border: "border-cyan-500/20",
     bg: "bg-cyan-500/5",
     href: "/paper",
     steps: [
       {
-        step: "Portfolio stats at the top of Paper Trading",
-        detail: "Open the Paper Trading page. The header shows 4 key numbers: Cash Balance (uninvested cash), Account Value (cash + open positions at average entry price), Net P&L vs. the $10,000 starting capital (green if up, red if down), and total shares held across all open positions.",
+        step: "Portfolio stats at a glance",
+        detail: "Open the Trade page. The header shows 6 key numbers: Account Value, Total P&L, Open Positions count, Win Rate, Closed Trades, and Realized P&L — all updated live from your logged trades.",
       },
       {
         step: "Win Rate tracker",
@@ -345,20 +304,29 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Open positions table",
-        detail: "The Open tab lists every live position: symbol, direction (LONG/SHORT), entry date, shares, average entry price, and current unrealised P&L. Positions use live market prices fetched when the page loads — click the refresh icon to update manually.",
+        detail: "The Open tab lists every live position: symbol, direction (LONG/SHORT), entry date, shares, average entry price, and current unrealised P&L. Prices refresh automatically every 30 seconds while the page is open.",
       },
       {
         step: "Trade history",
-        detail: "Switch to the History tab to see every closed trade: date opened, date closed, symbol, direction, entry price, exit price, shares, and final P&L. Sort by date or P&L to identify your best and worst trades. Use this table alongside the journal for self-review.",
+        detail: "Switch to the Closed tab to see every closed trade: date, symbol, direction, entry price, exit price, shares, and final P&L. Each closed trade has an ✦ AI Review button that runs a multi-framework breakdown — Smart Money, Wyckoff, R-Multiple, Mark Douglas psychology.",
+      },
+      {
+        step: "Real Positions tab — your actual Robinhood holdings",
+        detail: "The third tab 'Real Positions' lets you log stocks and options you actually hold on Robinhood. Enter your symbol, shares or contracts, average entry price, and optionally a stop loss. Hit 'Get AI Insight' and Claude fetches the live price, calculates your unrealised P&L, and gives you a structured AI analysis: VERDICT (HOLD / CUT / ADD / WAIT), market structure, stop loss recommendation, and two specific price levels to watch over the next 5 days.",
+      },
+      {
+        step: "AI Insight for positions without a stop loss",
+        detail: "If you log a position without a stop loss, it gets a ⚠ NO STOP badge and a warning banner appears at the top. When you run AI Insight, Claude specifically identifies the exact structural stop price — the level at which your trade thesis is invalid — based on Smart Money methodology. This is the most actionable output of the feature.",
       },
       {
         step: "Reset the portfolio",
-        detail: "To start fresh with a clean $10,000 balance, go to Settings → Danger Zone. Type RESET into the confirmation field and confirm. This wipes all open positions, closed history, and journal entries. There is no undo.",
+        detail: "To start fresh with a clean $10,000 balance, go to Settings → Danger Zone. Type RESET into the confirmation field and confirm. This wipes all open positions, closed history, and journal entries. There is no undo. Real Positions are stored separately and are not affected by a portfolio reset.",
       },
     ],
     tips: [
       "Account Value uses your average entry prices, not current market prices. The number on screen may differ from what the market is pricing your shares at today — check the unrealised P&L column in the Open tab for the real-time view.",
       "Win Rate is calculated per-trade, not per-share. Closing 50 shares of AAPL at a profit counts as 1 win, same as closing 1 share. Focus on both win rate and average winner size — a 45% win rate with a 3:1 R:R is more profitable than 60% at 1:1.",
+      "Real Positions are for research and situational awareness only — not a signal to buy or sell. The AI Insight is a Smart Money read of current market structure, not financial advice. Always manage risk with your own stop levels.",
     ],
   },
 ];
@@ -440,10 +408,9 @@ function SectionCard({ s }: { s: Section }) {
 
 export default function GuidePage() {
   return (
-    <div className="flex min-h-screen text-[#F1F5F9]">
-      <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
-        <Topbar />
+    <div className="min-h-screen text-[#F1F5F9]">
+      <Topbar />
+      <main className="p-4 sm:p-6 xl:p-8 pb-16">
         <div className="max-w-3xl mx-auto w-full">
 
           {/* Header */}
@@ -465,17 +432,17 @@ export default function GuidePage() {
                 {
                   n: "1",
                   title: "Read a signal",
-                  desc: "Go to Signals → type NVDA → wait for the quick analysis to load. Then press 'Deep ICT Analysis' for the full breakdown with trade plan.",
+                  desc: "Go to Signals → type NVDA → wait for the quick analysis to load. Then press 'Deep Analysis' for the full breakdown with trade plan.",
                 },
                 {
                   n: "2",
-                  title: "Log a paper trade",
-                  desc: "Still on the Signals page — use the paper trade form to log the entry from the trade plan. Set your stop and target exactly as shown.",
+                  title: "Log a trade",
+                  desc: "Still on the Signals page — use the trade form to log the entry from the trade plan. Set your stop and target exactly as shown.",
                 },
                 {
                   n: "3",
                   title: "Check back at close",
-                  desc: "After market close, open the Dashboard, close your paper position, and read the AI trade review. That's one full learning loop.",
+                  desc: "After market close, open the Dashboard, close your position, and read the AI trade review. That's one full learning loop.",
                 },
               ].map(s => (
                 <div key={s.n} className="flex gap-3">
@@ -524,9 +491,9 @@ export default function GuidePage() {
           {/* Disclaimer */}
           <div className="mt-8 text-center">
             <p className="text-[11px] text-[#333368] leading-relaxed max-w-md mx-auto">
-              Traxora AI is a paper trading simulator and signal research tool for educational purposes only.
+              Traxora AI is a signal research and trading tool for educational purposes only.
               Nothing on this platform constitutes financial advice.
-              Always practice with paper money before trading real capital.
+              Always manage risk carefully before trading real capital.
             </p>
           </div>
 

@@ -21,6 +21,12 @@ function AnalysisContent() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get("symbol") || "AAPL.US";
 
+  useEffect(() => {
+    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
+      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+    }).catch(() => {});
+  }, []);
+
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 

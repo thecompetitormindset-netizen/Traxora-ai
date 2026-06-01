@@ -36,6 +36,12 @@ export default function HistoryPage() {
   const [expanded,    setExpanded]    = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
+      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+    }).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     function load() {
       const p = getPortfolio();
       setTrades(p.trades);

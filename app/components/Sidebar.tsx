@@ -94,6 +94,17 @@ function BriefingIcon() {
   );
 }
 
+function PortfolioIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
+      <line x1="12" y1="12" x2="12" y2="16" />
+      <line x1="10" y1="14" x2="14" y2="14" />
+    </svg>
+  );
+}
+
 // ── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
@@ -101,7 +112,6 @@ const NAV_LINKS = [
   { name: "Trade",     href: "/paper",             icon: <TradeIcon /> },
   { name: "Signals",   href: "/analysis",          icon: <SignalsIcon /> },
   { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
-
   { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
   { name: "IPO",       href: "/ipo",               icon: <IPOIcon /> },
   { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },

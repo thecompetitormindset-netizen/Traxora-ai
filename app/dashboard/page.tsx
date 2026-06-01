@@ -165,6 +165,16 @@ export default function DashboardPage() {
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
 
+  // Gate: redirect unpaid users to pricing
+  useEffect(() => {
+    fetch("/api/user/plan")
+      .then(r => r.json())
+      .then(({ plan }) => {
+        if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const key     = scopedKey(PAPER_KEY);
     const refresh = () => setPaperStats(loadPaperStats(key));

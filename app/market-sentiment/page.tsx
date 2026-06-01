@@ -218,6 +218,12 @@ export default function MarketSentimentPage() {
   const [mdLoading,   setMdLoading]   = useState(true);
   const [mdError,     setMdError]     = useState<string | null>(null);
 
+  useEffect(() => {
+    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
+      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+    }).catch(() => {});
+  }, []);
+
   const [classified,   setClassified]   = useState<ClassifiedItem[] | null>(null);
   const [classLoading, setClassLoading] = useState(false);
 

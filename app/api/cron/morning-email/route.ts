@@ -34,25 +34,40 @@ async function saveHistory(h: BriefHistory): Promise<void> {
   try { await fs.writeFile(HISTORY_FILE, JSON.stringify(h, null, 2)); } catch { /* ignore */ }
 }
 
+const OWNER_EMAIL = "thecompetitormindset@gmail.com";
+
 async function getEmails(): Promise<string[]> {
-  const list: string[] = [];
+  const list: string[] = [OWNER_EMAIL];
 
   // Dynamic subscriptions stored on disk (works locally; resets on Vercel cold start)
   try {
     const raw = await fs.readFile(FILE, "utf-8");
     const stored = (JSON.parse(raw) as { email?: string }).email?.trim();
-    if (stored) list.push(stored);
+    if (stored && !list.includes(stored)) list.push(stored);
   } catch { /* no file */ }
 
-  // Persistent subscribers from env var — comma-separated, e.g. "a@b.com,c@d.com"
-  // Set CRON_EMAIL in Vercel env vars so the cron always has someone to send to.
+  // Additional subscribers from env var — comma-separated, e.g. "a@b.com,c@d.com"
   const envList = (process.env.CRON_EMAIL ?? "")
     .split(",").map(e => e.trim()).filter(Boolean);
   for (const e of envList) {
     if (!list.includes(e)) list.push(e);
   }
 
-  return list;
+  // Filter to only pro subscribers (owner always passes)
+  try {
+    const { supabaseAdmin } = await import("@/app/lib/supabase");
+    const db = supabaseAdmin();
+    const filtered = await Promise.all(
+      list.map(async email => {
+        if (email === OWNER_EMAIL) return email;
+        const { data } = await db.from("subscriptions").select("plan").eq("user_email", email).single();
+        return data?.plan === "pro" ? email : null;
+      })
+    );
+    return filtered.filter(Boolean) as string[];
+  } catch {
+    return list;
+  }
 }
 
 // ── 50-stock watchlist ────────────────────────────────────────────────────────
@@ -352,7 +367,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
           </tr>
           ` : ""}
 
-          <!-- ICT analysis -->
+          <!-- Smart Money analysis -->
           <tr>
             <td style="padding:14px 20px;border-bottom:1px solid #252345">
               <p style="margin:0 0 10px;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">Smart Money Analysis</p>
@@ -525,7 +540,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
     </td>
   </tr>
 
-  <!-- ICT legend -->
+  <!-- Key levels legend -->
   <tr>
     <td style="padding-bottom:24px">
       <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:10px">

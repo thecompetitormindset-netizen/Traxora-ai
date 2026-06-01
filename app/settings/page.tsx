@@ -232,7 +232,7 @@ export default function SettingsPage() {
                     label="Sign out"
                     sublabel="You'll need to sign in again to access your dashboard"
                     danger
-                    onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login" }); }}
+                    onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login?signedOut=1" }); }}
                   />
                 </>
               ) : (
@@ -366,6 +366,32 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+            </Section>
+
+            {/* Subscription */}
+            <Section title="Subscription">
+              <Row
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                    <line x1="1" y1="10" x2="23" y2="10" />
+                  </svg>
+                }
+                label="Manage subscription"
+                sublabel="View billing, update payment method, or cancel — handled by Ko-fi"
+                onClick={() => window.open("https://ko-fi.com/manage/memberships", "_blank")}
+              />
+              <Row
+                icon={
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="1" x2="12" y2="23" />
+                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                  </svg>
+                }
+                label="Upgrade to Pro"
+                sublabel="$5/month · full AI access · cancel anytime"
+                onClick={() => { window.location.href = "/pricing"; }}
+              />
             </Section>
 
             {/* PWA */}

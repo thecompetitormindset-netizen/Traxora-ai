@@ -127,7 +127,7 @@ const HERO_LINES = [
 const HERO_SUBS = [
   "AI that reads price action like institutions — one clear signal per setup.",
   "Smart Money concepts automated. Plain English, every trade.",
-  "Order Blocks, FVGs, Liquidity sweeps — the framework that moves billions, now free.",
+  "Order Blocks, FVGs, Liquidity sweeps — the framework that moves billions, now automated.",
   "6 key market concepts checked in seconds. One clear BUY, HOLD, or SELL.",
   "Know which sessions matter, which levels count, and when institutions move.",
 ];
@@ -190,10 +190,11 @@ export default function HomePage() {
   const [tickOffset, setTickOffset] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
-  // Random 12 picked from the pool once per page load — stays fixed for the session
-  const [displayTicker] = useState(() =>
-    [...TICKER_POOL].sort(() => Math.random() - 0.5).slice(0, 12)
-  );
+  // Start with first 12 (server-safe), randomize after mount to avoid hydration mismatch
+  const [displayTicker, setDisplayTicker] = useState(TICKER_POOL.slice(0, 12));
+  useEffect(() => {
+    setDisplayTicker([...TICKER_POOL].sort(() => Math.random() - 0.5).slice(0, 12));
+  }, []);
 
   // Hero text rotation
   useEffect(() => {
@@ -352,7 +353,7 @@ export default function HomePage() {
             </Link>
           </div>
           {!session && (
-            <p className="text-xs text-[#4B5675] mt-3">Free · No credit card · Sign in with your Google account</p>
+            <p className="text-xs text-[#4B5675] mt-3">$5/mo · Cancel anytime · Sign in with your Google account</p>
           )}
         </div>
 
@@ -422,7 +423,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-4 mt-8">
               <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
-                {session ? "Open Dashboard →" : "Start Free →"}
+                {session ? "Open Dashboard →" : "Get Started →"}
               </button>
               <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#333368]">
                 Read the Guide →
@@ -436,8 +437,8 @@ export default function HomePage() {
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
               { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",  glow:"shadow-teal-500/20" },
               { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
-              { value:"$10K",     label:"Paper trading simulator — practice risk-free",              color:"text-amber-400",   glow:"shadow-amber-500/20"  },
-              { value:"Free",     label:"No subscription, no hidden fees",                          color:"text-rose-400",    glow:"shadow-rose-500/20"   },
+              { value:"$10K",     label:"Trade simulator — practice risk-free before going live",    color:"text-amber-400",   glow:"shadow-amber-500/20"  },
+              { value:"$5/mo",    label:"Full access · cancel anytime · no hidden fees",            color:"text-rose-400",    glow:"shadow-rose-500/20"   },
             ].map((s) => (
               <div key={s.label} className={`bg-[#13112A]/80 border border-[#252345] rounded-2xl p-4 hover:border-[#333368] transition-all hover:shadow-lg ${s.glow}`}>
                 <p className={`text-2xl font-black mb-1 ${s.color}`}>{s.value}</p>
@@ -563,6 +564,102 @@ export default function HomePage() {
 
       </section>
 
+      {/* ══ DASHBOARD PREVIEW ══ */}
+      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
+        <div className="text-center mb-10">
+          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Inside the app</p>
+          <h2 className="text-3xl font-black tracking-tight">This is what you see after signing in</h2>
+          <p className="text-sm text-[#7B8DB4] mt-2 max-w-md mx-auto">Live signals load automatically. Every card has a full trade plan — entry, stop, and target.</p>
+        </div>
+
+        {/* Browser chrome mockup */}
+        <div className="rounded-2xl border border-[#252345] overflow-hidden shadow-2xl shadow-black/40">
+          {/* Browser bar */}
+          <div className="bg-[#0D0B1A] border-b border-[#252345] px-4 py-3 flex items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-[#252345]" />
+              <div className="w-3 h-3 rounded-full bg-[#252345]" />
+              <div className="w-3 h-3 rounded-full bg-[#252345]" />
+            </div>
+            <div className="flex-1 bg-[#13112A] border border-[#252345] rounded-lg px-3 py-1.5 flex items-center gap-2 max-w-xs mx-auto">
+              <div className="w-3 h-3 rounded-full bg-emerald-500/40 flex items-center justify-center shrink-0">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              </div>
+              <span className="text-[10px] text-[#4B5675] font-mono">traxora-ai.vercel.app/dashboard</span>
+            </div>
+          </div>
+
+          {/* App layout */}
+          <div className="flex bg-[#0D0B1A] min-h-[420px]">
+            {/* Sidebar */}
+            <div className="w-14 border-r border-[#252345] flex flex-col items-center py-4 gap-5 shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+              </div>
+              <div className="w-px flex-1 bg-[#252345]" />
+              {[
+                <svg key="dash" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
+                <svg key="sig" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+                <svg key="jnl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
+              ].map((icon, i) => (
+                <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center ${i === 0 ? "bg-[#13112A] border border-[#252345]" : ""}`}>{icon}</div>
+              ))}
+            </div>
+
+            {/* Main content */}
+            <div className="flex-1 p-5 overflow-hidden">
+              {/* Header row */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-black text-[#F1F5F9]">Dashboard</p>
+                  <p className="text-[10px] text-[#4B5675]">Live signals · 9 stocks + futures</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">● MARKET OPEN</span>
+                  <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">NY KILL ZONE</span>
+                </div>
+              </div>
+
+              {/* Signal cards */}
+              <div className="space-y-2">
+                {[
+                  { sym:"NVDA", name:"NVIDIA Corp.", price:"$211.16", chg:"-1.44%", up:false, sig:"BUY",  conf:"High",   entry:"$208.40 – $209.80", sl:"$198.00", tp:"$226.60", rr:"2.1:1", border:"border-l-emerald-500/50", badge:"bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+                  { sym:"AAPL", name:"Apple Inc.",   price:"$312.08", chg:"-0.14%", up:false, sig:"HOLD", conf:"Medium", entry:"—",                 sl:"—",       tp:"—",       rr:"—",    border:"border-l-amber-500/30",  badge:"bg-amber-500/10 text-amber-400 border-amber-500/20"   },
+                  { sym:"TSLA", name:"Tesla Inc.",   price:"$435.79", chg:"-1.43%", up:false, sig:"SELL", conf:"High",   entry:"$438.20 – $440.50", sl:"$462.00", tp:"$415.00", rr:"2.2:1", border:"border-l-rose-500/50",    badge:"bg-rose-500/10 text-rose-400 border-rose-500/20"      },
+                ].map((c) => (
+                  <div key={c.sym} className={`bg-[#13112A] border border-[#252345] border-l-4 ${c.border} rounded-xl px-4 py-3 flex items-center gap-4`}>
+                    <div className="min-w-[80px]">
+                      <p className="text-xs font-black text-[#F1F5F9]">{c.sym}</p>
+                      <p className="text-[9px] text-[#4B5675]">{c.name}</p>
+                    </div>
+                    <div className="min-w-[70px]">
+                      <p className="text-xs font-mono font-bold text-[#F1F5F9]">{c.price}</p>
+                      <p className={`text-[9px] font-mono ${c.up ? "text-emerald-400" : "text-rose-400"}`}>{c.chg}</p>
+                    </div>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border shrink-0 ${c.badge}`}>{c.sig}</span>
+                    <span className="text-[9px] text-[#4B5675] shrink-0">{c.conf} confidence</span>
+                    {c.sig !== "HOLD" && (
+                      <div className="flex items-center gap-3 ml-auto text-[9px]">
+                        <div className="text-center"><p className="text-[#4B5675]">Entry</p><p className="text-[#CBD5E1] font-mono">{c.entry}</p></div>
+                        <div className="text-center"><p className="text-rose-400/60">Stop</p><p className="text-rose-400 font-mono font-bold">{c.sl}</p></div>
+                        <div className="text-center"><p className="text-emerald-400/60">Target</p><p className="text-emerald-400 font-mono font-bold">{c.tp}</p></div>
+                        <div className="text-center"><p className="text-[#4B5675]">R:R</p><p className="text-[#F1F5F9] font-bold">{c.rr}</p></div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Loading card */}
+                <div className="bg-[#13112A] border border-[#252345] rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                  <p className="text-[10px] text-[#4B5675]">Analyzing AMZN · fetching live quote…</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p className="text-center text-[10px] text-[#333368] mt-3">Signals load automatically on page open · Trade plans update with live prices</p>
+      </section>
+
       {/* ══ DAILY ROUTINE ══ */}
       <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
         <div className="flex flex-col lg:flex-row-reverse gap-16 items-start">
@@ -574,7 +671,7 @@ export default function HomePage() {
                 { time:"Before 9:30 AM ET", icon:"🌅", title:"Check overnight futures", desc:"Look at ES, NQ, GC on the Dashboard. Up or down from yesterday's close tells you institutional bias for the day." },
                 { time:"9:30 – 10:30 AM ET", icon:"🎯", title:"NY Kill Zone — your prime window", desc:"The majority of institutional moves happen here. High confidence BUY + active Kill Zone = best setup." },
                 { time:"During the day", icon:"📡", title:"Let push alerts do the work", desc:"Enable notifications. When Traxora fires a signal during a Kill Zone, your phone buzzes. You decide." },
-                { time:"After market close", icon:"📊", title:"Review your paper portfolio", desc:"Which signals worked? Study the market structure behind each trade. This builds intuition before real money." },
+                { time:"After market close", icon:"📊", title:"Review your portfolio", desc:"Which signals worked? Study the market structure behind each trade. This builds intuition before real money." },
               ].map((r) => (
                 <div key={r.title} className="flex gap-4">
                   <div className="flex flex-col items-center gap-1 shrink-0">
@@ -599,7 +696,7 @@ export default function HomePage() {
                   { n:"02", rule:"Always set a stop-loss the moment your order fills." },
                   { n:"03", rule:"Only trade BUY signals during NY or London Kill Zones." },
                   { n:"04", rule:"If confidence is Low — skip the trade. Wait for High." },
-                  { n:"05", rule:"Paper trade every strategy for 2 weeks before going live." },
+                  { n:"05", rule:"Simulate every strategy for 2 weeks before going live." },
                   { n:"06", rule:"This tool is for research only — not financial advice." },
                 ].map((r) => (
                   <div key={r.n} className="flex gap-3">
@@ -676,8 +773,8 @@ export default function HomePage() {
       <section className="px-6 sm:px-8 py-24 max-w-5xl mx-auto w-full">
         <div className="text-center mb-12">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-400 mb-3">Why Traxora?</p>
-          <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is free.</h2>
-          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use institutional Smart Money methodology or Claude Opus 4.7.</p>
+          <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is $5.</h2>
+          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use Smart Money methodology or Claude Opus 4.7.</p>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-[#252345]">
           <table className="w-full text-sm">
@@ -685,7 +782,7 @@ export default function HomePage() {
               <tr className="border-b border-[#252345]">
                 <th className="text-left py-4 pl-5 pr-6 text-[#4B5675] text-xs uppercase tracking-widest font-semibold">Feature</th>
                 {[
-                  { name:"Traxora",     price:"Free",    highlight:true  },
+                  { name:"Traxora",     price:"$5/mo",   highlight:true  },
                   { name:"Trade Ideas", price:"$118/mo", highlight:false },
                   { name:"Signal Stack",price:"$49/mo",  highlight:false },
                   { name:"TrendSpider",price:"$33/mo",  highlight:false },
@@ -702,10 +799,10 @@ export default function HomePage() {
                 { feature:"Smart Money signals", traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Claude Opus 4.7 AI",      traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Live BUY/SELL signals",   traxora:true,  ti:true,  ss:true,  ts:true  },
-                { feature:"Paper trading simulator", traxora:true,  ti:false, ss:false, ts:true  },
+                { feature:"Trade simulator",          traxora:true,  ti:false, ss:false, ts:true  },
                 { feature:"Push notifications",      traxora:true,  ti:false, ss:true,  ts:false },
                 { feature:"Morning briefing AI",     traxora:true,  ti:false, ss:false, ts:false },
-                { feature:"Free to use",             traxora:true,  ti:false, ss:false, ts:false },
+                { feature:"Fraction of the price",   traxora:true,  ti:false, ss:false, ts:false },
               ].map((row, i) => (
                 <tr key={row.feature} className={`border-b border-[#252345] last:border-0 ${i % 2 === 0 ? "" : "bg-[#13112A]/40"}`}>
                   <td className="py-3.5 pl-5 pr-6 text-[#CBD5E1] text-xs">{row.feature}</td>
@@ -726,7 +823,7 @@ export default function HomePage() {
         </div>
         <div className="text-center mt-10">
           <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-xl shadow-emerald-500/20 hover:scale-105 active:scale-95 inline-block">
-            {session ? "Open Dashboard →" : "Start Free — Sign in with Google →"}
+            {session ? "Open Dashboard →" : "Get Started — Sign in with Google →"}
           </button>
         </div>
       </section>
@@ -736,13 +833,13 @@ export default function HomePage() {
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Built different</p>
-            <h2 className="text-3xl font-black tracking-tight">The only free Smart Money signal platform powered by Claude Opus 4.7</h2>
+            <h2 className="text-3xl font-black tracking-tight">The only Smart Money signal platform powered by Claude Opus 4.7</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[
-              { icon:"🧠", title:"Institutional-grade analysis", desc:"Order Blocks, FVGs, Liquidity sweeps — what hedge funds use. Now free.", color:"border-emerald-500/20" },
+              { icon:"🧠", title:"Institutional-grade analysis", desc:"Order Blocks, FVGs, Liquidity sweeps — what hedge funds use. Now automated.", color:"border-emerald-500/20" },
               { icon:"⚡", title:"AI that explains itself", desc:"Every signal shows which Order Block was tapped, which FVG is in play, and whether you're in a Kill Zone.", color:"border-teal-500/20" },
-              { icon:"🔒", title:"Practice before you risk money", desc:"$10K paper simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
+              { icon:"🔒", title:"Practice before you risk money", desc:"$10K trade simulator — test every strategy risk-free before putting real money on the line.", color:"border-emerald-500/20" },
             ].map((c) => (
               <div key={c.title} className={`bg-[#13112A]/80 border ${c.color} rounded-2xl p-6 hover:scale-[1.02] transition-transform`}>
                 <span className="text-3xl block mb-4">{c.icon}</span>
@@ -754,33 +851,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ TESTIMONIALS ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">What traders say</p>
-          <h2 className="text-3xl font-black tracking-tight">From traders who switched to smart money</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {[
-            { quote: "Finally an AI that explains WHY the signal fired. OB at $131, FVG filled, NY kill zone active — I actually understand what I'm in now.", author: "Jake M.", role: "Day Trader · 2 yrs", stars: 5 },
-            { quote: "Used the paper simulator for 3 weeks before going live. 67% win rate on BUY signals during the NY session. The morning briefing alone is worth it.", author: "Sophia R.", role: "Futures Trader", stars: 5 },
-            { quote: "TrendSpider charges me $33/mo for less than this. The SMC concepts actually play out live — seen it on ES twice this week.", author: "Marcus T.", role: "Swing Trader", stars: 5 },
-          ].map((t) => (
-            <div key={t.author} className="bg-[#13112A]/80 border border-[#252345] rounded-2xl p-6 flex flex-col gap-4 hover:border-[#333368] transition-colors">
-              <div className="flex gap-0.5">
-                {Array.from({ length: t.stars }).map((_, i) => (
-                  <span key={i} className="text-amber-400 text-sm">★</span>
-                ))}
-              </div>
-              <p className="text-sm text-[#CBD5E1] leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
-              <div>
-                <p className="text-xs font-bold text-[#F1F5F9]">{t.author}</p>
-                <p className="text-[10px] text-[#4B5675]">{t.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ══ FINAL CTA ══ */}
       <section className="relative px-6 sm:px-8 py-28 overflow-hidden">
@@ -792,11 +862,11 @@ export default function HomePage() {
             Ready to read the market<br />like smart money?
           </h2>
           <p className="text-[#7B8DB4] text-base leading-relaxed mb-10">
-            Free forever. Smart money signals, push alerts, morning briefing, $10K simulator.
+            Smart money signals, morning briefing, options analysis, real position insights — all for $5/mo.
           </p>
           <div className="flex items-center justify-center">
             <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
-              {session ? "Open Dashboard →" : "Start Trading Free →"}
+              {session ? "Open Dashboard →" : "Start Trading — $5/mo →"}
             </button>
           </div>
         </div>
@@ -813,7 +883,7 @@ export default function HomePage() {
             </div>
             <span className="text-xs font-bold text-[#F1F5F9]">Traxora AI</span>
           </div>
-          <p className="text-[11px] text-[#4B5675]">© 2025 Traxora · Not financial advice · For educational use only</p>
+          <p className="text-[11px] text-[#4B5675]">© 2026 Traxora · Not financial advice · For educational use only</p>
         </div>
         <div className="flex gap-6">
           <Link href="/dashboard"     className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Dashboard</Link>

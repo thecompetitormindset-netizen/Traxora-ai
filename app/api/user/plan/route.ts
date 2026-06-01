@@ -6,7 +6,7 @@ import { getUserPlan } from "@/app/lib/subscription";
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.email) return Response.json({ plan: "free" });
+  if (!session?.user?.email) return Response.json({ plan: "unauthenticated" });
   const plan = await getUserPlan(session.user.email);
   return Response.json({ plan });
 }

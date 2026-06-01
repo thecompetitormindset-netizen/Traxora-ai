@@ -2,11 +2,15 @@
   "crons": [
     {
       "path": "/api/cron/morning-email",
-      "schedule": "30 12 * * 1-5"
+      "schedule": "30 13 * * 1-5"
     },
     {
       "path": "/api/cron/sentiment-collect",
       "schedule": "0 14 * * 1-5"
+    },
+    {
+      "path": "/api/cron/check-subscriptions",
+      "schedule": "0 6 * * *"
     }
   ]
 }

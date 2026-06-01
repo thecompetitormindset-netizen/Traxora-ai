@@ -126,7 +126,7 @@ export default function OptionsTab() {
           <p className="text-4xl mb-3">📊</p>
           <p className="text-sm font-semibold text-[#F1F5F9] mb-2">Options Analysis</p>
           <p className="text-xs text-[#4B5675] max-w-sm mx-auto leading-relaxed">
-            Enter any optionable ticker. You'll get today's expected move range (from live IV), directional bias, a specific call or put recommendation with strike + expiry, and ICT price levels.
+            Enter any optionable ticker. You'll get today's expected move range (from live IV), directional bias, a specific call or put recommendation with strike + expiry, and Smart Money price levels.
           </p>
           <div className="flex items-center justify-center gap-4 mt-5 flex-wrap">
             {["AAPL", "NVDA", "TSLA", "SPY", "QQQ"].map(t => (

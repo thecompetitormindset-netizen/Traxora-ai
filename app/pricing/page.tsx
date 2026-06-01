@@ -14,7 +14,7 @@ const FREE_FEATURES = [
 
 const PRO_FEATURES = [
   "Everything in Free",
-  "Deep ICT analysis (unlimited)",
+  "Deep AI analysis (unlimited)",
   "Morning briefing email at market open",
   "Market scanner — top 3 live setups",
   "Real Positions tracker + AI insights",
@@ -34,7 +34,7 @@ export default function PricingPage() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch("/api/lemon/checkout", { method: "POST" });
+      const res  = await fetch("/api/kofi/checkout", { method: "POST" });
       const data = await res.json() as { url?: string; error?: string };
       if (data.url) { window.location.href = data.url; return; }
       setError(data.error ?? "Something went wrong. Try again.");
@@ -113,7 +113,7 @@ export default function PricingPage() {
             >
               {loading ? "Redirecting to checkout…" : session ? "Subscribe for $5/mo →" : "Sign in to subscribe →"}
             </button>
-            <p className="text-[10px] text-[#4B5675] text-center mt-3">Secure checkout via Lemon Squeezy · cancel anytime from Settings</p>
+            <p className="text-[10px] text-[#4B5675] text-center mt-3">Secure checkout via Ko-fi · cancel anytime from Settings</p>
           </div>
         </div>
 
@@ -123,7 +123,7 @@ export default function PricingPage() {
           {[
             {
               q: "What do I get with Pro?",
-              a: "Full access to all AI features: deep ICT analysis, morning briefing emails, market scanner, options analysis, real position tracker with AI insights, auto trade journal, coaching, and Risk Guard.",
+              a: "Full access to all AI features: deep market analysis, morning briefing emails, market scanner, options analysis, real position tracker with AI insights, auto trade journal, coaching, and Risk Guard.",
             },
             {
               q: "Can I cancel anytime?",
@@ -131,7 +131,7 @@ export default function PricingPage() {
             },
             {
               q: "Is my payment secure?",
-              a: "All payments are processed by Lemon Squeezy, a trusted merchant of record. Traxora never sees or stores your card details.",
+              a: "All payments are processed by Ko-fi. Traxora never sees or stores your card details.",
             },
             {
               q: "Is this real trading?",
