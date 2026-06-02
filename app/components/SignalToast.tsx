@@ -29,7 +29,7 @@ export default function SignalToast() {
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-24 left-4 z-50 flex flex-col gap-2 pointer-events-none">
+    <div className="fixed bottom-32 left-4 z-50 flex flex-col gap-2 pointer-events-none">
       {toasts.map(t => {
         const isBuy   = t.signal === "BUY";
         const cleanSym = t.symbol.replace(".US", "").replace(".COMM", "");

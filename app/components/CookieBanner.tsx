@@ -24,7 +24,7 @@ export default function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 max-w-lg mx-auto">
+    <div className="fixed bottom-28 left-4 right-4 z-50 max-w-lg mx-auto sm:bottom-6">
       <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 shadow-2xl shadow-black/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
           <p className="text-xs font-bold text-[#F1F5F9] mb-1">🍪 We use cookies</p>

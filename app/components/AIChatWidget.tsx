@@ -102,7 +102,7 @@ export default function AIChatWidget() {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Open AI assistant"
-        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+        className="fixed bottom-28 right-4 sm:bottom-28 md:bottom-8 md:right-6 z-50 w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/25 flex items-center justify-center transition-all hover:scale-105 active:scale-95"
       >
         {open ? (
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -118,7 +118,7 @@ export default function AIChatWidget() {
 
       {/* Chat panel — anchors from the left on mobile (matching button), right on desktop */}
       {open && (
-        <div className="fixed bottom-[100px] right-2 left-2 sm:left-auto sm:right-6 sm:bottom-[76px] sm:w-[360px] h-[60vh] sm:h-[500px] max-h-[500px] bg-[#13112A] border border-[#252345] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden z-50">
+        <div className="fixed bottom-44 right-2 left-2 sm:left-auto sm:right-4 sm:bottom-44 md:right-6 md:bottom-24 md:w-[360px] h-[60vh] sm:h-[500px] max-h-[500px] bg-[#13112A] border border-[#252345] rounded-2xl shadow-2xl shadow-black/50 flex flex-col overflow-hidden z-50">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[#252345] bg-[#0D0B1A] shrink-0">
             <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
