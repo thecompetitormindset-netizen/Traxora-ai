@@ -195,6 +195,7 @@ function MarketContent() {
 
             <div className="flex gap-2 mb-5">
               <button
+                type="button"
                 onClick={() => setSide("BUY")}
                 className={`flex-1 rounded-xl py-3 font-semibold ${
                   side === "BUY"
@@ -206,6 +207,7 @@ function MarketContent() {
               </button>
 
               <button
+                type="button"
                 onClick={() => setSide("SELL")}
                 className={`flex-1 rounded-xl py-3 font-semibold ${
                   side === "SELL"
@@ -259,6 +261,7 @@ function MarketContent() {
               </div>
 
               <button
+                type="button"
                 onClick={handleTrade}
                 className={`w-full rounded-xl py-3 font-semibold ${
                   side === "BUY" ? "bg-green-500" : "bg-red-500"

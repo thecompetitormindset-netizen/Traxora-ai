@@ -110,6 +110,7 @@ export default function JournalPage() {
             </div>
             {entries.length > 0 && (
               <button
+                type="button"
                 onClick={() => { clearJournal(); setReview(null); }}
                 className="text-xs text-[#4B5675] hover:text-rose-400 transition-colors"
               >
@@ -157,6 +158,7 @@ export default function JournalPage() {
           {/* AI Coaching button */}
           {sells.length >= 2 && !review && (
             <button
+              type="button"
               onClick={getCoaching}
               disabled={reviewing}
               className="w-full mt-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-60 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
@@ -239,6 +241,7 @@ export default function JournalPage() {
               )}
 
               <button
+                type="button"
                 onClick={getCoaching}
                 className="text-xs text-[#4B5675] hover:text-emerald-400 transition-colors"
               >
@@ -275,6 +278,7 @@ export default function JournalPage() {
                   >
                     {/* Card header — always visible */}
                     <button
+                      type="button"
                       className="w-full p-5 text-left"
                       onClick={() => hasAI && toggleExpand(e.id)}
                     >

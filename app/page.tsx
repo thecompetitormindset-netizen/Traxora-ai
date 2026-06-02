@@ -285,7 +285,7 @@ export default function HomePage() {
           {[...displayTicker, ...displayTicker, ...displayTicker].map((t, i) => {
             const live = livePrices[t.sym];
             return (
-              <span key={i} className="inline-flex items-center gap-2 px-6 text-[11px] font-mono">
+              <span key={`${t.sym}-${i}`} className="inline-flex items-center gap-2 px-6 text-[11px] font-mono">
                 <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
                 <span className="text-[#F1F5F9]">{live?.price ?? t.price}</span>
                 <span className={(live?.up ?? t.up) ? "text-emerald-400" : "text-rose-400"}>{live?.chg ?? t.chg}</span>

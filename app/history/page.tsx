@@ -176,16 +176,16 @@ export default function HistoryPage() {
                     {/* Summary row */}
                     <button type="button" className="w-full p-5 text-left" onClick={() => toggleExpand(key)}>
                       <div className="flex items-center justify-between gap-3 flex-wrap">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
                           {/* Outcome badge */}
-                          <span className={`text-xs font-black px-2.5 py-1 rounded-lg border ${
+                          <span className={`text-xs font-black px-2.5 py-1 rounded-lg border shrink-0 ${
                             pos
                               ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
                               : "text-rose-400 bg-rose-500/10 border-rose-500/20"
                           }`}>
                             {pos ? "WIN" : "LOSS"}
                           </span>
-                          <div>
+                          <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-[#F1F5F9]">{clean}</p>
                               {grade && (

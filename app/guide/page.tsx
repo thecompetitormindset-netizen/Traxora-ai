@@ -410,7 +410,7 @@ export default function GuidePage() {
   return (
     <div className="min-h-screen text-[#F1F5F9]">
       <Topbar />
-      <main className="p-4 sm:p-6 xl:p-8 pb-16">
+      <main className="p-4 sm:p-6 xl:p-8 pb-28">
         <div className="max-w-3xl mx-auto w-full">
 
           {/* Header */}
