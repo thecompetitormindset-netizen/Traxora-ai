@@ -454,7 +454,7 @@ function PaperPortfolio() {
   const [showAdd, setShowAdd]             = useState(false);
   const [addInitial, setAddInitial]       = useState<AddTradeInitial | undefined>();
   const [closing, setClosing]             = useState<PaperTrade | null>(null);
-  const [tab, setTab]                     = useState<"open" | "closed" | "options" | "positions">("open");
+  const [tab, setTab]                     = useState<"open" | "closed" | "options" | "positions">("open"); // "options" only reachable via dashboard deep-link
   const [reviews, setReviews]             = useState<Record<string, TradeReview | "loading" | "error">>({});
 
   // Real positions state
@@ -774,7 +774,6 @@ function PaperPortfolio() {
             {([
               ["open",      `Open (${open.length})`],
               ["closed",    `Closed (${closed.length})`],
-              ["options",   "Options"],
               ["positions", `Real Positions${positions.length > 0 ? ` (${positions.length})` : ""}`],
             ] as const).map(([t, l]) => (
               <button key={t} type="button" onClick={() => setTab(t)}
