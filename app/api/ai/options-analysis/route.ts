@@ -150,7 +150,10 @@ Top puts by open interest:
 ${topPuts.map(p => `  $${p.strike} strike | IV ${(p.impliedVolatility * 100).toFixed(0)}% | OI ${(p.openInterest ?? 0).toLocaleString()} | last $${p.lastPrice.toFixed(2)}`).join("\n") || "  None available"}`
     : "Options chain unavailable — analysis based on price structure only.";
 
-  const prompt = `You are an options analyst using Smart Money methodology plus live options flow data. Be direct and specific. Real money is on the line.
+  const prompt = `You are an options analyst using Smart Money methodology plus live options flow data. Be direct and specific.
+
+DATA SOURCE DIRECTIVE — READ FIRST:
+All data below was fetched live from Yahoo Finance at the moment of this request. It is the authoritative source of truth for this analysis. Do NOT question the validity of the price, range, or IV figures — they reflect current market conditions including any earnings gaps, news events, or unusual sessions. Large single-day moves (10–20%) are real market events. Proceed with analysis using the data as given. If a field shows N/A, work around it — do not refuse.
 
 ${priceCtx}
 
