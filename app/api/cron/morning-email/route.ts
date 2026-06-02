@@ -617,7 +617,7 @@ export async function GET(req: Request) {
   const resend = new Resend(resendKey);
   const subject = `🌅 Morning Brief — ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "BUY").length} BUY · ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "SELL").length} SELL · ${date}`;
   const { error: sendError } = await resend.emails.send({
-    from:    "Traxora AI <onboarding@resend.dev>",
+    from:    process.env.RESEND_FROM ?? "Traxora AI <onboarding@resend.dev>",
     to:      recipients,
     subject,
     html,
