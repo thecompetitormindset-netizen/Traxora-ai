@@ -161,6 +161,158 @@ function loadPaperStats(storageKey: string): PaperStats {
   } catch { return empty; }
 }
 
+// ── Top Options Plays ────────────────────────────────────────────────────────
+
+type OptionsPlay = {
+  symbol: string; price: number; changePct: number;
+  signal: "BUY" | "SELL"; confidence: "High" | "Medium" | "Low";
+  play: "CALLS" | "PUTS"; iv: number; expiry: string;
+  callWall: number; putWall: number; expectedMove: number; score: number;
+};
+
+function OptionsPlaysSection() {
+  const [plays,   setPlays]   = useState<OptionsPlay[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded,  setLoaded]  = useState(false);
+  const [scanned, setScanned] = useState(0);
+
+  async function scan() {
+    setLoading(true);
+    try {
+      const res  = await fetch("/api/market/options-scan");
+      const data = await res.json();
+      setPlays(data.plays ?? []);
+      setScanned(data.scanned ?? 0);
+      setLoaded(true);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Top Options Plays</h2>
+          <p className="text-sm text-[#7B8DB4] mt-1">
+            {loaded ? `Scanned ${scanned} stocks — ${plays.length} setups ranked by signal + IV` : "Ranked by signal strength + IV quality"}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={scan}
+          disabled={loading}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2 rounded-xl text-sm font-bold"
+        >
+          {loading ? (
+            <>
+              <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+              </svg>
+              Scanning…
+            </>
+          ) : (
+            <>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              {loaded ? "Rescan" : "Scan Now"}
+            </>
+          )}
+        </button>
+      </div>
+
+      {!loaded && !loading && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
+          <p className="text-[#4B5675] text-sm">Click <span className="text-emerald-400 font-semibold">Scan Now</span> to find the top 20 options setups across 30 liquid stocks.</p>
+          <p className="text-[11px] text-[#333368] mt-2">Ranked by ICT signal strength, IV quality, and momentum. Takes ~10 seconds.</p>
+        </div>
+      )}
+
+      {loading && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 animate-pulse">
+              <div className="h-4 bg-[#252345] rounded w-16 mb-2" />
+              <div className="h-3 bg-[#252345] rounded w-24 mb-3" />
+              <div className="h-6 bg-[#252345] rounded w-20 mb-2" />
+              <div className="h-3 bg-[#252345] rounded w-28" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {loaded && plays.length === 0 && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
+          <p className="text-[#4B5675] text-sm">No clear setups found right now. Try again during market hours.</p>
+        </div>
+      )}
+
+      {loaded && plays.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {plays.map((p, i) => (
+            <Link
+              key={p.symbol}
+              href={`/paper?symbol=${encodeURIComponent(p.symbol)}&tab=options`}
+              className={`group bg-[#13112A] rounded-2xl p-4 border border-l-2 hover:bg-[#1A1838] transition-colors ${
+                p.play === "CALLS" ? "border-[#252345] border-l-emerald-500/50" : "border-[#252345] border-l-rose-500/50"
+              }`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[#4B5675] font-mono">#{i + 1}</span>
+                    <p className="font-bold tracking-tight">{p.symbol}</p>
+                  </div>
+                  <p className={`text-xs font-mono mt-0.5 ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
+                  </p>
+                </div>
+                <span className={`text-[11px] font-black px-2 py-0.5 rounded-lg border ${
+                  p.play === "CALLS"
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                    : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                }`}>
+                  {p.play}
+                </span>
+              </div>
+
+              <p className="text-lg font-bold font-mono">${p.price.toFixed(2)}</p>
+
+              <div className="mt-2 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">IV</span>
+                  <span className="text-[11px] font-mono font-semibold text-amber-400">{p.iv}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">Exp. Move</span>
+                  <span className="text-[11px] font-mono font-semibold text-[#F1F5F9]">±{p.expectedMove}%</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">Expiry</span>
+                  <span className="text-[11px] font-mono font-semibold text-[#7B8DB4]">{p.expiry}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">{p.play === "CALLS" ? "Call Wall" : "Put Wall"}</span>
+                  <span className="text-[11px] font-mono font-semibold text-[#F1F5F9]">${p.play === "CALLS" ? p.callWall : p.putWall}</span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between">
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                  p.confidence === "High"   ? "bg-emerald-500/10 text-emerald-400" :
+                  p.confidence === "Medium" ? "bg-amber-500/10 text-amber-400"    :
+                                              "bg-[#1A1838] text-[#4B5675]"
+                }`}>{p.confidence}</span>
+                <span className="text-[11px] text-emerald-400 group-hover:text-emerald-300 transition-colors">Trade →</span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function DashboardContent() {
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
@@ -636,7 +788,10 @@ function DashboardContent() {
             </div>
           </section>
 
-          {/* ── PAGE 3: RISK RULES + BROKER CTA ── */}
+          {/* ── PAGE 3: TOP OPTIONS PLAYS ── */}
+          <OptionsPlaysSection />
+
+          {/* ── PAGE 4: RISK RULES + BROKER CTA ── */}
           <section>
             {/* Risk rules */}
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
