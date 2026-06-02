@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
 import Link from "next/link";
+import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
@@ -161,10 +161,7 @@ function loadPaperStats(storageKey: string): PaperStats {
   } catch { return empty; }
 }
 
-export default function DashboardPage() {
-  const { status } = useSession();
-  const [planChecked, setPlanChecked] = useState(false);
-
+function DashboardContent() {
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
@@ -180,19 +177,6 @@ export default function DashboardPage() {
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [alertsPaused, setAlertsPaused] = useState(false);
-
-  // Gate: wait for session to load before checking plan
-  useEffect(() => {
-    if (status === "loading") return;
-    if (status === "unauthenticated") { window.location.href = "/login?signedOut=1"; return; }
-    fetch("/api/user/plan")
-      .then(r => r.json())
-      .then(({ plan }) => {
-        if (plan === "free") { window.location.href = "/pricing"; return; }
-        setPlanChecked(true);
-      })
-      .catch(() => setPlanChecked(true));
-  }, [status]);
 
   useEffect(() => {
     const key     = scopedKey(PAPER_KEY);
@@ -326,19 +310,6 @@ export default function DashboardPage() {
     loadTrending();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks]);
-
-  if (!planChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          <p className="text-[#4B5675] text-sm">Loading…</p>
-        </div>
-      </div>
-    );
-  }
 
   function toggleAlertPause() {
     setAlertsPaused(prev => {
@@ -706,5 +677,13 @@ export default function DashboardPage() {
         </main>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <PaywallGuard>
+      <DashboardContent />
+    </PaywallGuard>
   );
 }
