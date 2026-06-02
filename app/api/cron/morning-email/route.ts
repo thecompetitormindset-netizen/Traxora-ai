@@ -27,15 +27,15 @@ const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 async function getEmails(): Promise<string[]> {
   const list = new Set<string>([OWNER_EMAIL]);
 
-  // Subscribers stored in Supabase briefing_subscribers table
+  // All pro subscribers are automatically enrolled
   try {
     const { supabaseAdmin } = await import("@/app/lib/supabase");
     const db = supabaseAdmin();
-    const { data } = await db.from("briefing_subscribers").select("email");
-    (data ?? []).forEach(row => { if (row.email) list.add(row.email); });
+    const { data } = await db.from("subscriptions").select("user_email").eq("plan", "pro");
+    (data ?? []).forEach((row: { user_email?: string }) => { if (row.user_email) list.add(row.user_email); });
   } catch { /* supabase not configured — owner still gets email */ }
 
-  // Additional subscribers from env var (fallback / override)
+  // Additional recipients from env var (manual override)
   const envList = (process.env.CRON_EMAIL ?? "")
     .split(",").map((e: string) => e.trim()).filter(Boolean);
   envList.forEach((e: string) => list.add(e));

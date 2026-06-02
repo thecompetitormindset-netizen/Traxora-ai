@@ -338,39 +338,22 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                {subMsg && (
-                  <p className={`text-xs mb-3 ${subMsg.ok ? "text-emerald-400" : "text-rose-400"}`}>{subMsg.text}</p>
+                {subscribed && (
+                  <p className="text-xs text-emerald-400 mb-3">✓ Automatically enrolled — included with your Pro plan</p>
                 )}
 
                 <div className="flex items-center gap-3 flex-wrap">
-                  {!subscribed ? (
+                  {subscribed ? (
                     <button
                       type="button"
-                      onClick={subscribe}
-                      disabled={subscribing}
+                      onClick={sendTestEmail}
+                      disabled={testStatus === "sending"}
                       className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
                     >
-                      {subscribing ? "Subscribing…" : "Subscribe"}
+                      {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "✓ Email sent!" : "Send Test Email"}
                     </button>
                   ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={sendTestEmail}
-                        disabled={testStatus === "sending"}
-                        className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors px-4 py-2.5 rounded-xl text-sm font-bold"
-                      >
-                        {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "✓ Email sent!" : "Send Daily Email"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={unsubscribe}
-                        disabled={subscribing}
-                        className="text-sm text-[#4B5675] hover:text-rose-400 transition-colors"
-                      >
-                        Unsubscribe
-                      </button>
-                    </>
+                    <p className="text-xs text-[#4B5675]">Upgrade to Pro to receive the daily briefing.</p>
                   )}
                   {testStatus !== "idle" && testStatus !== "sending" && testStatus !== "sent" && (
                     <p className="text-xs text-rose-400">{testStatus}</p>
