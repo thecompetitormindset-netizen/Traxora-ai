@@ -211,33 +211,6 @@ export default function DashboardPage() {
     setAlertsPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
   }, []);
 
-  if (!planChecked) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
-          <p className="text-[#4B5675] text-sm">Loading…</p>
-        </div>
-      </div>
-    );
-  }
-
-  function toggleAlertPause() {
-    setAlertsPaused(prev => {
-      const next = !prev;
-      localStorage.setItem(scopedKey("traxora_alerts_paused"), String(next));
-      return next;
-    });
-  }
-
-  async function requestNotifications() {
-    if (!("Notification" in window)) return;
-    const result = await Notification.requestPermission();
-    setNotifPermission(result);
-  }
-
   // Fetch stocks + signals
   useEffect(() => {
     WATCHLIST.forEach(async ({ symbol, name }, i) => {
@@ -259,7 +232,6 @@ export default function DashboardPage() {
           const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
           const trade: TradeLevels | null = analysis?.trade ?? null;
           setStocks((s) => s.map((c, idx) => idx === i ? { ...c, signal, confidence, trade } : c));
-          // pop the card when a decisive signal arrives
           if (signal && signal !== "HOLD") {
             setPoppedSymbols((prev) => new Set([...prev, symbol]));
           }
@@ -326,7 +298,6 @@ export default function DashboardPage() {
         if (fresh.length === 0) return;
         setTrendingStocks(fresh);
 
-        // AI-analyze each trending stock
         for (const s of fresh) {
           try {
             const ar = await fetch("/api/ai/analyze", {
@@ -355,6 +326,33 @@ export default function DashboardPage() {
     loadTrending();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stocks]);
+
+  if (!planChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <p className="text-[#4B5675] text-sm">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
+  function toggleAlertPause() {
+    setAlertsPaused(prev => {
+      const next = !prev;
+      localStorage.setItem(scopedKey("traxora_alerts_paused"), String(next));
+      return next;
+    });
+  }
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotifPermission(result);
+  }
 
   function signalRank(s: StockCard): number {
     if (s.signal === "BUY"  && s.confidence === "High")   return 0;
