@@ -25,12 +25,6 @@ function MarketContent() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get("symbol") || "AAPL.US";
 
-  useEffect(() => {
-    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "free") window.location.href = "/pricing";
-    }).catch(() => {});
-  }, []);
-
   const [quantity, setQuantity] = useState(1);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [quote, setQuote] = useState<QuoteData | null>(null);

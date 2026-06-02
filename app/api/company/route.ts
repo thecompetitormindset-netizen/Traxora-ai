@@ -11,16 +11,14 @@ export async function GET(req: Request) {
     `https://eodhd.com/api/fundamentals/${encodeURIComponent(symbol)}` +
     `?api_token=${apiKey}&fmt=json`;
 
-  const res = await fetch(url, { cache: "no-store" });
-
-  if (!res.ok) {
-    return Response.json(
-      { error: "Failed to fetch company details" },
-      { status: 500 },
-    );
+  let data: any;
+  try {
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return Response.json({ error: "Failed to fetch company details" }, { status: 502 });
+    data = await res.json();
+  } catch {
+    return Response.json({ error: "Could not reach data provider" }, { status: 502 });
   }
-
-  const data = await res.json();
 
   return Response.json({
     symbol,

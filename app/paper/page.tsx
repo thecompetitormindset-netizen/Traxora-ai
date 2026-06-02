@@ -448,11 +448,6 @@ function PaperPortfolio() {
   const searchParams                      = useSearchParams();
   const router                            = useRouter();
 
-  useEffect(() => {
-    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "free") window.location.href = "/pricing";
-    }).catch(() => {});
-  }, []);
   const [trades, setTrades]               = useState<PaperTrade[]>([]);
   const [prices, setPrices]               = useState<Record<string, number>>({});
   const [loadingPrices, setLoadingPrices] = useState(false);
