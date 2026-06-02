@@ -270,7 +270,7 @@ function OptionsPlaysSection() {
           {plays.map((p, i) => (
             <Link
               key={p.symbol}
-              href={`/paper?symbol=${encodeURIComponent(p.symbol)}&tab=options`}
+              href={`/paper?tab=options&sym=${encodeURIComponent(p.symbol)}`}
               className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
                 p.play === "CALLS" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
               }`}

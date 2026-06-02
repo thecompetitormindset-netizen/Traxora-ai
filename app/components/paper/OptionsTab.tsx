@@ -18,14 +18,22 @@ function renderMd(text: string) {
     .replace(/\n/g, "<br/>");
 }
 
-export default function OptionsTab() {
-  const [symbol,   setSymbol]   = useState("");
+import { useEffect } from "react";
+
+export default function OptionsTab({ initialSymbol }: { initialSymbol?: string }) {
+  const [symbol,   setSymbol]   = useState(initialSymbol ?? "");
   const [loading,  setLoading]  = useState(false);
   const [meta,     setMeta]     = useState<Meta | null>(null);
   const [text,     setText]     = useState("");
   const [error,    setError]    = useState("");
   const [analyzed, setAnalyzed] = useState("");
   const abortRef = useRef<AbortController | null>(null);
+
+  // Auto-run when navigated from dashboard options plays
+  useEffect(() => {
+    if (initialSymbol) analyze();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const biasMatch = text.match(/\*\*BIAS:\s*(BULLISH|BEARISH|NEUTRAL)\*\*/i);
   const bias      = biasMatch?.[1]?.toUpperCase();

@@ -461,11 +461,23 @@ function PaperPortfolio() {
   const [positions, setPositions]         = useState<Position[]>([]);
   const [showAddPosition, setShowAddPosition] = useState(false);
 
-  // Pre-fill from signal toast URL params
+  const [optionsInitialSym, setOptionsInitialSym] = useState<string | undefined>();
+
+  // Pre-fill from signal toast URL params OR options plays deep-link
   useEffect(() => {
     const symbol    = searchParams.get("symbol");
     const direction = searchParams.get("direction") as Direction | null;
     const price     = searchParams.get("price");
+    const tabParam  = searchParams.get("tab");
+    const symParam  = searchParams.get("sym");
+
+    if (tabParam === "options" && symParam) {
+      setTab("options");
+      setOptionsInitialSym(symParam.replace(/\.(US|COMM)$/, ""));
+      router.replace("/paper");
+      return;
+    }
+
     if (symbol && direction) {
       setAddInitial({ symbol, direction, entryPrice: price ?? "" });
       setShowAdd(true);
@@ -1052,7 +1064,7 @@ function PaperPortfolio() {
           )}
 
           {/* ── OPTIONS ANALYSIS ─────────────────────────────────────────── */}
-          {tab === "options" && <OptionsTab />}
+          {tab === "options" && <OptionsTab initialSymbol={optionsInitialSym} />}
 
           {/* ── REAL POSITIONS ────────────────────────────────────────────── */}
           {tab === "positions" && (
