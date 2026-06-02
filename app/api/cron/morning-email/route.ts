@@ -1,13 +1,8 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { Resend } from "resend";
 import { ictScore } from "@/app/lib/ict";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
-
-const FILE         = path.join(process.cwd(), "data", "alert-settings.json");
-const HISTORY_FILE = path.join(process.cwd(), "data", "brief-history.json");
 
 type PredictionRecord = {
   symbol:   string;
@@ -23,51 +18,29 @@ type BriefHistory = {
   predictions: PredictionRecord[];
 };
 
-async function loadHistory(): Promise<BriefHistory | null> {
-  try {
-    const raw = await fs.readFile(HISTORY_FILE, "utf-8");
-    return JSON.parse(raw) as BriefHistory;
-  } catch { return null; }
-}
-
-async function saveHistory(h: BriefHistory): Promise<void> {
-  try { await fs.writeFile(HISTORY_FILE, JSON.stringify(h, null, 2)); } catch { /* ignore */ }
-}
+// Vercel filesystem is read-only — history not persisted between cron runs
+async function loadHistory(): Promise<BriefHistory | null> { return null; }
+async function saveHistory(_h: BriefHistory): Promise<void> { /* no-op on Vercel */ }
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
 async function getEmails(): Promise<string[]> {
-  const list: string[] = [OWNER_EMAIL];
+  const list = new Set<string>([OWNER_EMAIL]);
 
-  // Dynamic subscriptions stored on disk (works locally; resets on Vercel cold start)
-  try {
-    const raw = await fs.readFile(FILE, "utf-8");
-    const stored = (JSON.parse(raw) as { email?: string }).email?.trim();
-    if (stored && !list.includes(stored)) list.push(stored);
-  } catch { /* no file */ }
-
-  // Additional subscribers from env var — comma-separated, e.g. "a@b.com,c@d.com"
-  const envList = (process.env.CRON_EMAIL ?? "")
-    .split(",").map(e => e.trim()).filter(Boolean);
-  for (const e of envList) {
-    if (!list.includes(e)) list.push(e);
-  }
-
-  // Filter to only pro subscribers (owner always passes)
+  // Subscribers stored in Supabase briefing_subscribers table
   try {
     const { supabaseAdmin } = await import("@/app/lib/supabase");
     const db = supabaseAdmin();
-    const filtered = await Promise.all(
-      list.map(async email => {
-        if (email === OWNER_EMAIL) return email;
-        const { data } = await db.from("subscriptions").select("plan").eq("user_email", email).single();
-        return data?.plan === "pro" ? email : null;
-      })
-    );
-    return filtered.filter(Boolean) as string[];
-  } catch {
-    return list;
-  }
+    const { data } = await db.from("briefing_subscribers").select("email");
+    (data ?? []).forEach(row => { if (row.email) list.add(row.email); });
+  } catch { /* supabase not configured — owner still gets email */ }
+
+  // Additional subscribers from env var (fallback / override)
+  const envList = (process.env.CRON_EMAIL ?? "")
+    .split(",").map((e: string) => e.trim()).filter(Boolean);
+  envList.forEach((e: string) => list.add(e));
+
+  return [...list];
 }
 
 // ── 50-stock watchlist ────────────────────────────────────────────────────────
