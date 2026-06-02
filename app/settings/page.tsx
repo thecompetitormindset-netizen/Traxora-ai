@@ -320,7 +320,7 @@ export default function SettingsPage() {
                     <p className="font-semibold text-[#F1F5F9] text-sm">Daily email brief</p>
                     <p className="text-xs text-[#4B5675] mt-0.5">
                       Top 10 market opportunities delivered to your Google account email every weekday at{" "}
-                      <span className="text-emerald-400 font-medium">7:30 AM Mountain Time</span>
+                      <span className="text-emerald-400 font-medium">8:30 AM ET</span>
                     </p>
                   </div>
                   {subscribed && <Badge color="green">Active</Badge>}
