@@ -132,7 +132,7 @@ ${stopLoss ? "One sentence on max risk if stop is hit." : "One sentence on the r
 Keep total response under 350 words. Use concrete price levels throughout.`;
 
   const stream = await client.messages.stream({
-    model:      "claude-opus-4-7",
+    model:      "claude-sonnet-4-6",
     max_tokens: 900,
     system:     SYSTEM_FRAMEWORK,
     messages:   [{ role: "user", content: prompt }],

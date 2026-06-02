@@ -8,7 +8,7 @@ import Anthropic from "@anthropic-ai/sdk";
 export const MODEL_MAP = {
   classify:   "claude-haiku-4-5-20251001",
   synthesize: "claude-sonnet-4-6",
-  master:     "claude-opus-4-7",
+  master:     "claude-sonnet-4-6",
 } as const;
 
 type TaskKey = keyof typeof MODEL_MAP;
@@ -16,7 +16,6 @@ type TaskKey = keyof typeof MODEL_MAP;
 const COST_PER_M: Record<string, { in: number; out: number }> = {
   "claude-haiku-4-5-20251001": { in: 1.00,  out: 5.00  },
   "claude-sonnet-4-6":         { in: 3.00,  out: 15.00 },
-  "claude-opus-4-7":           { in: 5.00,  out: 25.00 },
 };
 
 // ── In-process usage log (resets on cold start) ───────────────────────────

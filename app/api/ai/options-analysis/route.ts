@@ -183,7 +183,7 @@ Name two specific price levels that determine whether this play works or fails t
 Under 380 words total. Concrete price levels throughout. No padding.`;
 
   const stream = await client.messages.stream({
-    model:      "claude-opus-4-7",
+    model:      "claude-sonnet-4-6",
     max_tokens: 1000,
     system:     SYSTEM_FRAMEWORK,
     messages:   [{ role: "user", content: prompt }],

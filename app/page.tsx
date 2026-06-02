@@ -309,7 +309,7 @@ export default function HomePage() {
           {/* Live badge */}
           <div className="inline-flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-4 py-1.5 text-xs text-emerald-400 font-medium mb-10">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Powered by Claude Opus 4.7 · Smart Money Methodology
+            Powered by Claude Sonnet 4.6 · Smart Money Methodology
           </div>
 
           {/* Rotating headline */}
@@ -414,7 +414,7 @@ export default function HomePage() {
                 <strong className="text-[#F1F5F9]">Smart Money methodology</strong> — the framework institutional traders use.
               </p>
               <p>
-                Enter any ticker. Claude Opus 4.7 checks 6 Smart Money concepts and returns a clear{" "}
+                Enter any ticker. Claude Sonnet 4.6 checks 6 Smart Money concepts and returns a clear{" "}
                 <span className="text-emerald-400 font-semibold">BUY</span>,{" "}
                 <span className="text-amber-400 font-semibold">HOLD</span>, or{" "}
                 <span className="text-rose-400 font-semibold">SELL</span>{" "}
@@ -435,7 +435,7 @@ export default function HomePage() {
             {[
               { value:"6",        label:"Smart Money concepts analyzed on every ticker",              color:"text-emerald-400",  glow:"shadow-emerald-500/20" },
               { value:"20+",      label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20"   },
-              { value:"Opus 4.7", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",  glow:"shadow-teal-500/20" },
+              { value:"Sonnet 4.6", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",  glow:"shadow-teal-500/20" },
               { value:"Real-time",label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20"},
               { value:"$10K",     label:"Trade simulator — practice risk-free before going live",    color:"text-amber-400",   glow:"shadow-amber-500/20"  },
               { value:"$5/mo",    label:"Full access · cancel anytime · no hidden fees",            color:"text-rose-400",    glow:"shadow-rose-500/20"   },
@@ -774,7 +774,7 @@ export default function HomePage() {
         <div className="text-center mb-12">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-400 mb-3">Why Traxora?</p>
           <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is $5.</h2>
-          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use Smart Money methodology or Claude Opus 4.7.</p>
+          <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use Smart Money methodology or Claude Sonnet 4.6.</p>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-[#252345]">
           <table className="w-full text-sm">
@@ -797,7 +797,7 @@ export default function HomePage() {
             <tbody>
               {[
                 { feature:"Smart Money signals", traxora:true,  ti:false, ss:false, ts:false },
-                { feature:"Claude Opus 4.7 AI",      traxora:true,  ti:false, ss:false, ts:false },
+                { feature:"Claude Sonnet 4.6 AI",      traxora:true,  ti:false, ss:false, ts:false },
                 { feature:"Live BUY/SELL signals",   traxora:true,  ti:true,  ss:true,  ts:true  },
                 { feature:"Trade simulator",          traxora:true,  ti:false, ss:false, ts:true  },
                 { feature:"Push notifications",      traxora:true,  ti:false, ss:true,  ts:false },
@@ -833,7 +833,7 @@ export default function HomePage() {
         <div className="relative z-10 max-w-5xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Built different</p>
-            <h2 className="text-3xl font-black tracking-tight">The only Smart Money signal platform powered by Claude Opus 4.7</h2>
+            <h2 className="text-3xl font-black tracking-tight">The only Smart Money signal platform powered by Claude Sonnet 4.6</h2>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             {[

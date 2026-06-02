@@ -115,7 +115,7 @@ Generate a comprehensive institutional sentiment report.`;
       positionGuidance:      parsed.positionGuidance      ?? "No specific guidance for current positions.",
       overallBias:           parsed.overallBias           ?? "Neutral",
       confidence:            typeof parsed.confidence === "number" ? parsed.confidence : 60,
-      model:                 "claude-opus-4-7",
+      model:                 "claude-sonnet-4-6",
       generatedAt:           Date.now(),
     };
 

@@ -78,25 +78,16 @@ function Badge({ children, color = "default" }: { children: React.ReactNode; col
 }
 
 export default function SettingsPage() {
-  useEffect(() => {
-  }, []);
   const { data: session } = useSession();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [resetInput, setResetInput] = useState("");
   const [resetDone, setResetDone] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
   const [theme, setThemeState] = useState<Theme>("dark");
-
-
-  // Plan status
   const [plan, setPlan] = useState<"pro" | "free" | null>(null);
-
-  // Email subscription state
-  const [subscribed,   setSubscribed]   = useState(false);
-  const [subEmail,     setSubEmail]     = useState<string | null>(null);
-  const [subscribing,  setSubscribing]  = useState(false);
-  const [subMsg,       setSubMsg]       = useState<{ ok: boolean; text: string } | null>(null);
-  const [testStatus,   setTestStatus]   = useState<"idle" | "sending" | "sent" | string>("idle");
+  const [subscribed, setSubscribed] = useState(false);
+  const [subEmail, setSubEmail]     = useState<string | null>(null);
+  const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | string>("idle");
 
   useEffect(() => {
     setCurrentUser(session?.user?.email ?? null);
@@ -153,37 +144,6 @@ export default function SettingsPage() {
     setTimeout(() => setResetDone(false), 3000);
   }
 
-
-  async function subscribe() {
-    setSubscribing(true);
-    setSubMsg(null);
-    try {
-      const res = await fetch("/api/settings/email", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) { setSubMsg({ ok: false, text: data.error || "Failed" }); return; }
-      setSubscribed(true);
-      setSubEmail(data.email);
-      setSubMsg({ ok: true, text: "Subscribed! You'll get the morning brief weekdays at 7:30 AM MT." });
-    } catch {
-      setSubMsg({ ok: false, text: "Network error — try again" });
-    } finally {
-      setSubscribing(false);
-    }
-  }
-
-  async function unsubscribe() {
-    setSubscribing(true);
-    setSubMsg(null);
-    try {
-      await fetch("/api/settings/email", { method: "DELETE" });
-      setSubscribed(false);
-      setSubMsg({ ok: true, text: "Unsubscribed." });
-    } catch {
-      setSubMsg({ ok: false, text: "Network error — try again" });
-    } finally {
-      setSubscribing(false);
-    }
-  }
 
   async function sendTestEmail() {
     setTestStatus("sending");
@@ -462,8 +422,8 @@ export default function SettingsPage() {
                   </svg>
                 }
                 label="AI model"
-                sublabel="Signals powered by Claude Opus 4.7 with Smart Money analysis"
-                value={<Badge color="emerald">Opus 4.7</Badge>}
+                sublabel="Signals powered by Claude Sonnet 4.6 with Smart Money analysis"
+                value={<Badge color="emerald">Sonnet 4.6</Badge>}
               />
             </Section>
 

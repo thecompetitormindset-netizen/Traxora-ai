@@ -88,7 +88,7 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Run Deep Analysis",
-        detail: "Click the 'Deep Analysis' button for the full breakdown. Claude Opus 4.7 runs a multi-framework analysis covering: overall bias (BULLISH / BEARISH / NEUTRAL), identified Order Blocks, Fair Value Gaps, Liquidity sweeps, OTE zones, Kill Zone alignment, and a confidence rating. This takes 20–40 seconds.",
+        detail: "Click the 'Deep Analysis' button for the full breakdown. Claude Sonnet 4.6 runs a multi-framework analysis covering: overall bias (BULLISH / BEARISH / NEUTRAL), identified Order Blocks, Fair Value Gaps, Liquidity sweeps, OTE zones, Kill Zone alignment, and a confidence rating. This takes 20–40 seconds.",
       },
       {
         step: "Read the Trade Plan card",
@@ -123,7 +123,7 @@ const SECTIONS: Section[] = [
       },
       {
         step: "AI analyzes the top 6",
-        detail: "The 6 highest-momentum stocks are sent to Claude Opus 4.7 for full Smart Money analysis. Each runs the same framework as the Signals page — Order Blocks, FVGs, Liquidity, Kill Zone timing, and confidence. This takes 30–60 seconds.",
+        detail: "The 6 highest-momentum stocks are sent to Claude Sonnet 4.6 for full Smart Money analysis. Each runs the same framework as the Signals page — Order Blocks, FVGs, Liquidity, Kill Zone timing, and confidence. This takes 30–60 seconds.",
       },
       {
         step: "Read the top 3 results",
@@ -233,7 +233,7 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Read Claude's 4-sentence brief",
-        detail: "Claude Opus 4.7 writes 4 numbered sentences using the live data: (1) VIX reading and what it means for today's risk appetite. (2) SPY/ES overnight bias — are institutions positioned bullish or bearish? (3) Which Kill Zone to focus on and a specific entry tip. (4) One thing to watch or avoid today.",
+        detail: "Claude Sonnet 4.6 writes 4 numbered sentences using the live data: (1) VIX reading and what it means for today's risk appetite. (2) SPY/ES overnight bias — are institutions positioned bullish or bearish? (3) Which Kill Zone to focus on and a specific entry tip. (4) One thing to watch or avoid today.",
       },
       {
         step: "Set your daily bias and start trading",

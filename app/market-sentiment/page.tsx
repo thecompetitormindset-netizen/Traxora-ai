@@ -772,7 +772,7 @@ export default function MarketSentimentPage() {
                       {report.overallBias} · {report.confidence}% confidence
                     </span>
                     <span className="text-[10px] text-[#4B5675] px-2 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                      claude-opus-4-7
+                      claude-sonnet-4-6
                     </span>
                   </div>
                 </div>
@@ -844,7 +844,7 @@ export default function MarketSentimentPage() {
               )}
 
               <p className="text-[10px] text-[#333368] text-right">
-                Generated {new Date(report.generatedAt).toLocaleTimeString()} · Cached 4h · claude-opus-4-7
+                Generated {new Date(report.generatedAt).toLocaleTimeString()} · Cached 4h · claude-sonnet-4-6
               </p>
             </div>
           )}
