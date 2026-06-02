@@ -166,8 +166,9 @@ function loadPaperStats(storageKey: string): PaperStats {
 type OptionsPlay = {
   symbol: string; price: number; changePct: number;
   signal: "BUY" | "SELL"; confidence: "High" | "Medium" | "Low";
-  play: "CALLS" | "PUTS"; iv: number; expiry: string;
-  callWall: number; putWall: number; expectedMove: number; score: number;
+  play: "CALLS" | "PUTS"; iv: number | null; expiry: string | null;
+  callWall: number | null; putWall: number | null;
+  expectedMove: number | null; score: number; hasOptions: boolean;
 };
 
 function OptionsPlaysSection() {
@@ -175,17 +176,23 @@ function OptionsPlaysSection() {
   const [loading, setLoading] = useState(false);
   const [loaded,  setLoaded]  = useState(false);
   const [scanned, setScanned] = useState(0);
+  const [withIV,  setWithIV]  = useState(0);
+  const [err,     setErr]     = useState<string | null>(null);
 
   async function scan() {
     setLoading(true);
+    setErr(null);
     try {
       const res  = await fetch("/api/market/options-scan");
+      if (!res.ok) { setErr(`Server error ${res.status}`); return; }
       const data = await res.json();
       setPlays(data.plays ?? []);
       setScanned(data.scanned ?? 0);
+      setWithIV(data.withIV ?? 0);
       setLoaded(true);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Network error — try again");
+    } finally { setLoading(false); }
   }
 
   return (
@@ -194,7 +201,7 @@ function OptionsPlaysSection() {
         <div className="flex items-center gap-2">
           <h2 className="text-base font-semibold">Top Options Plays</h2>
           <span className="text-[10px] font-mono text-[#4B5675]">
-            {loaded ? `${plays.length} setups · ${scanned} scanned` : "30 stocks scanned"}
+            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : "30 stocks"}
           </span>
         </div>
         <button
@@ -213,6 +220,12 @@ function OptionsPlaysSection() {
           ) : loaded ? "Rescan →" : "Scan now →"}
         </button>
       </div>
+
+      {err && (
+        <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 mb-3">
+          <p className="text-sm text-rose-400">{err}</p>
+        </div>
+      )}
 
       {!loaded && !loading && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
@@ -296,20 +309,28 @@ function OptionsPlaysSection() {
               }`}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">IV</span>
-                  <span className="text-[10px] font-mono font-bold text-amber-400">{p.iv}%</span>
+                  <span className="text-[10px] font-mono font-bold text-amber-400">
+                    {p.iv != null ? `${p.iv}%` : <span className="text-[#4B5675]">N/A</span>}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Exp. Move</span>
-                  <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">±{p.expectedMove}%</span>
+                  <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">
+                    {p.expectedMove != null ? `±${p.expectedMove}%` : <span className="text-[#4B5675]">—</span>}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">{p.play === "CALLS" ? "Call Wall" : "Put Wall"}</span>
+                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">
+                    {p.play === "CALLS" ? "Call Wall" : "Put Wall"}
+                  </span>
                   <span className={`text-[10px] font-mono font-bold ${p.play === "CALLS" ? "text-emerald-400" : "text-rose-400"}`}>
-                    ${p.play === "CALLS" ? p.callWall : p.putWall}
+                    {(p.play === "CALLS" ? p.callWall : p.putWall) != null
+                      ? `$${p.play === "CALLS" ? p.callWall : p.putWall}`
+                      : <span className="text-[#4B5675]">—</span>}
                   </span>
                 </div>
                 <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">
-                  Expiry {p.expiry} · {p.signal === "BUY" ? "Bullish" : "Bearish"} setup
+                  {p.expiry ? `Expiry ${p.expiry} · ` : ""}{p.signal === "BUY" ? "Bullish" : "Bearish"} setup
                 </p>
               </div>
 
