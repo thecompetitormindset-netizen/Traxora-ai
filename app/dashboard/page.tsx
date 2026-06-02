@@ -168,7 +168,9 @@ type OptionsPlay = {
   signal: "BUY" | "SELL"; confidence: "High" | "Medium" | "Low";
   play: "CALLS" | "PUTS"; iv: number | null; expiry: string | null;
   callWall: number | null; putWall: number | null;
-  expectedMove: number | null; score: number; hasOptions: boolean;
+  expectedMove: number | null; strike: string;
+  entryZone: string; target: string; stop: string; rrRatio: string;
+  score: number; hasOptions: boolean;
 };
 
 function OptionsPlaysSection() {
@@ -303,34 +305,28 @@ function OptionsPlaysSection() {
                 {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
               </p>
 
-              {/* Options data box — same style as trade levels box */}
+              {/* Trade details box — identical layout to watchlist */}
               <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${
                 p.play === "CALLS" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
               }`}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">IV</span>
-                  <span className="text-[10px] font-mono font-bold text-amber-400">
-                    {p.iv != null ? `${p.iv}%` : <span className="text-[#4B5675]">N/A</span>}
-                  </span>
+                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Strike</span>
+                  <span className="text-[10px] font-mono font-bold text-amber-400">{p.strike}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Exp. Move</span>
-                  <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">
-                    {p.expectedMove != null ? `±${p.expectedMove}%` : <span className="text-[#4B5675]">—</span>}
-                  </span>
+                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Entry</span>
+                  <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">{p.entryZone}</span>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">
-                    {p.play === "CALLS" ? "Call Wall" : "Put Wall"}
-                  </span>
-                  <span className={`text-[10px] font-mono font-bold ${p.play === "CALLS" ? "text-emerald-400" : "text-rose-400"}`}>
-                    {(p.play === "CALLS" ? p.callWall : p.putWall) != null
-                      ? `$${p.play === "CALLS" ? p.callWall : p.putWall}`
-                      : <span className="text-[#4B5675]">—</span>}
-                  </span>
+                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Target</span>
+                  <span className="text-[10px] font-mono font-bold text-emerald-400">{p.target}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
+                  <span className="text-[10px] font-mono font-bold text-rose-400">{p.stop}</span>
                 </div>
                 <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">
-                  {p.expiry ? `Expiry ${p.expiry} · ` : ""}{p.signal === "BUY" ? "Bullish" : "Bearish"} setup
+                  {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}
                 </p>
               </div>
 

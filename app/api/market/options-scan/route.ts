@@ -101,6 +101,11 @@ export async function GET(req: Request) {
     callWall:     number | null;
     putWall:      number | null;
     expectedMove: number | null;
+    strike:       string;
+    entryZone:    string;
+    target:       string;
+    stop:         string;
+    rrRatio:      string;
     score:        number;
     hasOptions:   boolean;
   }[] = [];
@@ -128,8 +133,37 @@ export async function GET(req: Request) {
     if (ict.signal === "HOLD") continue;
 
     const ivPct        = opt?.iv ? opt.iv * 100 : null;
-    const dailyMove    = ivPct ? (q.price * (ivPct / 100) * Math.sqrt(1 / 252)) : null;
-    const expectedMove = dailyMove ? parseFloat(((dailyMove / q.price) * 100).toFixed(2)) : null;
+    const dailyMove    = ivPct
+      ? q.price * (ivPct / 100) * Math.sqrt(1 / 252)
+      : q.price * 0.015; // fallback: 1.5% daily move estimate
+    const weeklyMove   = dailyMove * Math.sqrt(5);
+    const expectedMove = parseFloat(((dailyMove / q.price) * 100).toFixed(2));
+
+    // ── Trade levels ────────────────────────────────────────
+    const isBull = ict.signal === "BUY";
+
+    // Entry zone: 0.3% band around current price
+    const entryLow  = q.price * (isBull ? 0.997 : 1.001);
+    const entryHigh = q.price * (isBull ? 1.003 : 0.999);
+    const entryZone = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
+
+    // Target: 2× weekly move in signal direction
+    const targetPrice = isBull ? q.price + weeklyMove * 2 : q.price - weeklyMove * 2;
+    const target      = `$${targetPrice.toFixed(2)}`;
+
+    // Stop: 1× weekly move against signal direction
+    const stopPrice = isBull ? q.price - weeklyMove : q.price + weeklyMove;
+    const stop      = `$${stopPrice.toFixed(2)}`;
+
+    // R:R ratio
+    const reward = Math.abs(targetPrice - q.price);
+    const risk   = Math.abs(stopPrice   - q.price);
+    const rrRatio = `${(reward / risk).toFixed(1)}:1 R:R`;
+
+    // Strike: nearest round number to current price
+    const strikeIncrement = q.price > 500 ? 5 : q.price > 100 ? 5 : q.price > 20 ? 2.5 : 1;
+    const strikeRaw  = Math.round(q.price / strikeIncrement) * strikeIncrement;
+    const strike     = `$${strikeRaw % 1 === 0 ? strikeRaw.toFixed(0) : strikeRaw.toFixed(1)} ATM`;
 
     // Score: ICT signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((ict.score + 20) / 40) * 50;
@@ -144,12 +178,17 @@ export async function GET(req: Request) {
       changePct,
       signal:       ict.signal as "BUY" | "SELL",
       confidence:   ict.confidence,
-      play:         ict.signal === "BUY" ? "CALLS" : "PUTS",
+      play:         isBull ? "CALLS" : "PUTS",
       iv:           ivPct ? parseFloat(ivPct.toFixed(1)) : null,
       expiry:       opt?.expiry ?? null,
       callWall:     opt?.callWall ?? null,
       putWall:      opt?.putWall ?? null,
       expectedMove,
+      strike,
+      entryZone,
+      target,
+      stop,
+      rrRatio,
       score,
       hasOptions:   !!opt?.iv,
     });
