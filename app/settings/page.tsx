@@ -88,6 +88,9 @@ export default function SettingsPage() {
   const [theme, setThemeState] = useState<Theme>("dark");
 
 
+  // Plan status
+  const [plan, setPlan] = useState<"pro" | "free" | null>(null);
+
   // Email subscription state
   const [subscribed,   setSubscribed]   = useState(false);
   const [subEmail,     setSubEmail]     = useState<string | null>(null);
@@ -110,7 +113,12 @@ export default function SettingsPage() {
     const raw = localStorage.getItem(scopedKey("traxora_alerts"));
     try { setAlertCount(raw ? JSON.parse(raw).length : 0); } catch { /* ignore */ }
 
-    // Load email subscription status
+    // Load plan + email subscription status in parallel
+    fetch("/api/user/plan")
+      .then(r => r.json())
+      .then(({ plan: p }) => setPlan(p === "pro" ? "pro" : "free"))
+      .catch(() => setPlan("free"));
+
     fetch("/api/settings/email")
       .then(r => r.json())
       .then(d => { setSubscribed(!!d.subscribed); setSubEmail(d.subscribedEmail ?? null); })
@@ -377,25 +385,45 @@ export default function SettingsPage() {
               <Row
                 icon={
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                    <line x1="1" y1="10" x2="23" y2="10" />
-                  </svg>
-                }
-                label="Manage subscription"
-                sublabel="View billing, update payment method, or cancel — handled by Ko-fi"
-                onClick={() => window.open("https://ko-fi.com/manage/memberships", "_blank")}
-              />
-              <Row
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="1" x2="12" y2="23" />
                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                   </svg>
                 }
-                label="Upgrade to Pro"
-                sublabel="$5/month · full AI access · cancel anytime"
-                onClick={() => { window.location.href = "/pricing"; }}
+                label="Current plan"
+                sublabel={plan === "pro" ? "Pro · full AI access" : "Free · limited access"}
+                value={
+                  plan === "pro"
+                    ? <Badge color="green">Pro</Badge>
+                    : plan === "free"
+                    ? <Badge color="amber">Free</Badge>
+                    : <Badge>—</Badge>
+                }
               />
+              {plan === "pro" ? (
+                <Row
+                  icon={
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                  }
+                  label="Manage subscription"
+                  sublabel="View billing or cancel — opens your Ko-fi account"
+                  onClick={() => window.open("https://ko-fi.com/account", "_blank")}
+                />
+              ) : (
+                <Row
+                  icon={
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+                      <line x1="1" y1="10" x2="23" y2="10" />
+                    </svg>
+                  }
+                  label="Upgrade to Pro"
+                  sublabel="$5/month · full AI access · cancel anytime"
+                  onClick={() => { window.location.href = "/pricing"; }}
+                />
+              )}
             </Section>
 
             {/* PWA */}
