@@ -123,8 +123,6 @@ export async function GET(req: Request) {
     }
   }
 
-  return Response.json(
-    { error: "Could not fetch quote from available providers", symbol },
-    { status: 500 },
-  );
+  // All providers failed — return empty data rather than a 500
+  return Response.json({ symbol, price: null, previousClose: null, open: null, high: null, low: null });
 }
