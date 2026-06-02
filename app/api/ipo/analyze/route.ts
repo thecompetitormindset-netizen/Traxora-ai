@@ -4,6 +4,8 @@ export const maxDuration = 30;
 
 import Anthropic from "@anthropic-ai/sdk";
 import { cacheGet, cacheSet } from "@/app/lib/sentiment";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export interface IPOAnalysis {
   sector:        string;
@@ -108,6 +110,12 @@ function parseAnalysis(text: string): IPOAnalysis | null {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!checkRateLimit(`ipo-analyze:${session.user.email}`, 10, 60_000)) {
+    return Response.json({ error: "Rate limited. Try again shortly." }, { status: 429 });
+  }
+
   try {
     const body = await req.json() as {
       name: string; symbol?: string; exchange?: string | null;

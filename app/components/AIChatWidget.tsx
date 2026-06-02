@@ -1,6 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
+
+const GUEST_LIMIT = 3;
+
+const GREETING: Message = {
+  role: "assistant",
+  content: "Hey! 👋 I'm Traxora AI. Ask me anything about stocks, markets, or trading — I'll give you a real answer. What's on your mind?",
+};
 
 type Message = {
   role: "user" | "assistant";
@@ -8,11 +17,24 @@ type Message = {
 };
 
 export default function AIChatWidget() {
+  const { data: session, status } = useSession();
+  const isGuest = status !== "loading" && !session?.user;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [guestCount, setGuestCount] = useState(0);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Auto-open for guests after 3 seconds on landing page
+  useEffect(() => {
+    if (!isGuest) return;
+    const timer = setTimeout(() => {
+      setOpen(true);
+      setMessages([GREETING]);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [isGuest]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -37,14 +59,28 @@ export default function AIChatWidget() {
         body: JSON.stringify({ messages: next.map((m) => ({ role: m.role, content: m.content })) }),
       });
 
-      const data = await res.json() as { ok: boolean; text?: string; error?: string };
+      const raw = await res.text();
+      let data: { ok: boolean; text?: string; error?: string };
+      try { data = JSON.parse(raw); }
+      catch { throw new Error("Invalid response"); }
 
       if (!data.ok) {
         setMessages([...next, { role: "assistant", content: data.error ?? "Something went wrong. Please try again." }]);
         return;
       }
 
-      setMessages([...next, { role: "assistant", content: data.text ?? "" }]);
+      const newCount = guestCount + 1;
+      setGuestCount(newCount);
+
+      const reply = data.text ?? "";
+      if (isGuest && newCount >= GUEST_LIMIT) {
+        setMessages([...next, { role: "assistant", content: reply }, {
+          role: "assistant",
+          content: "SIGNUP_PROMPT",
+        }]);
+      } else {
+        setMessages([...next, { role: "assistant", content: reply }]);
+      }
     } catch {
       setMessages([...next, { role: "assistant", content: "Sorry, something went wrong. Please try again." }]);
     } finally {
@@ -132,25 +168,38 @@ export default function AIChatWidget() {
                 </div>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-emerald-600 text-white rounded-br-sm"
-                      : "bg-[#1A1838] border border-[#252345] text-[#CBD5E1] rounded-bl-sm"
-                  }`}
-                >
-                  {msg.role === "assistant" && msg.content === "" && loading
-                    ? <span className="flex gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:0ms]"/>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:150ms]"/>
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:300ms]"/>
-                      </span>
-                    : msg.content}
+            {messages.map((msg, i) => {
+              if (msg.content === "SIGNUP_PROMPT") {
+                return (
+                  <div key={i} className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 text-center">
+                    <p className="text-sm font-bold text-[#F1F5F9] mb-1">Want more? Sign in free 🚀</p>
+                    <p className="text-xs text-[#7B8DB4] mb-3">Get 20 messages per minute + full platform access.</p>
+                    <Link href="/login" className="block w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-colors">
+                      Sign in with Google →
+                    </Link>
+                  </div>
+                );
+              }
+              return (
+                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap ${
+                      msg.role === "user"
+                        ? "bg-emerald-600 text-white rounded-br-sm"
+                        : "bg-[#1A1838] border border-[#252345] text-[#CBD5E1] rounded-bl-sm"
+                    }`}
+                  >
+                    {msg.role === "assistant" && msg.content === "" && loading
+                      ? <span className="flex gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:0ms]"/>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:150ms]"/>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-bounce [animation-delay:300ms]"/>
+                        </span>
+                      : msg.content}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             <div ref={bottomRef} />
           </div>
 
@@ -159,16 +208,16 @@ export default function AIChatWidget() {
             <textarea
               rows={1}
               className="flex-1 bg-[#0D0B1A] border border-[#252345] focus:border-emerald-500/50 text-[#F1F5F9] text-sm rounded-xl px-3.5 py-2.5 resize-none outline-none placeholder:text-[#4B5675] transition-colors"
-              placeholder="Ask about a stock or market…"
+              placeholder={isGuest && guestCount >= GUEST_LIMIT ? "Sign in to keep chatting…" : "Ask about a stock or market…"}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKey}
-              disabled={loading}
+              disabled={loading || (isGuest && guestCount >= GUEST_LIMIT)}
             />
             <button
               type="button"
               onClick={send}
-              disabled={loading || !input.trim()}
+              disabled={loading || !input.trim() || (isGuest && guestCount >= GUEST_LIMIT)}
               aria-label="Send message"
               className="px-3 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl text-sm font-medium transition-colors flex items-center justify-center"
             >

@@ -26,8 +26,9 @@ const PRO_FEATURES = [
 
 export default function PricingPage() {
   const { data: session } = useSession();
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState<string | null>(null);
+  const [loading,  setLoading]  = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error,    setError]    = useState<string | null>(null);
 
   async function handleUpgrade() {
     if (!session) { window.location.href = "/login?callbackUrl=/pricing"; return; }
@@ -40,6 +41,21 @@ export default function PricingPage() {
       setError(data.error ?? "Something went wrong. Try again.");
     } catch { setError("Failed to start checkout. Try again."); }
     finally { setLoading(false); }
+  }
+
+  async function handleCheckAccess() {
+    setChecking(true);
+    setError(null);
+    try {
+      const res  = await fetch("/api/user/plan");
+      const data = await res.json() as { plan: string };
+      if (data.plan === "pro") {
+        window.location.href = "/dashboard";
+      } else {
+        setError("No active subscription found yet. It can take a minute after payment — try again shortly.");
+      }
+    } catch { setError("Could not check subscription. Try again."); }
+    finally { setChecking(false); }
   }
 
   return (
@@ -109,10 +125,22 @@ export default function PricingPage() {
               type="button"
               onClick={handleUpgrade}
               disabled={loading}
-              className="py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm font-bold text-white shadow-lg shadow-emerald-500/20"
+              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm font-bold text-white shadow-lg shadow-emerald-500/20"
             >
               {loading ? "Redirecting to checkout…" : session ? "Subscribe for $5/mo →" : "Sign in to subscribe →"}
             </button>
+
+            {session && (
+              <button
+                type="button"
+                onClick={handleCheckAccess}
+                disabled={checking}
+                className="w-full py-2.5 px-4 rounded-xl border border-[#252345] hover:border-emerald-500/40 disabled:opacity-50 transition-colors text-xs font-semibold text-[#7B8DB4] hover:text-emerald-400 mt-2"
+              >
+                {checking ? "Checking…" : "Already subscribed? Click here →"}
+              </button>
+            )}
+
             <p className="text-[10px] text-[#4B5675] text-center mt-3">Secure checkout via Ko-fi · cancel anytime from Settings</p>
           </div>
         </div>

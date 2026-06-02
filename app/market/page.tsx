@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "../components/Sidebar";
+import PaywallGuard from "@/app/components/PaywallGuard";
 import Topbar from "../components/Topbar";
 import dynamic from "next/dynamic";
 const StockChart = dynamic(() => import("../components/StockChart"), { ssr: false });
@@ -23,6 +24,12 @@ type QuoteData = {
 function MarketContent() {
   const searchParams = useSearchParams();
   const symbol = searchParams.get("symbol") || "AAPL.US";
+
+  useEffect(() => {
+    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
+      if (plan === "free") window.location.href = "/pricing";
+    }).catch(() => {});
+  }, []);
 
   const [quantity, setQuantity] = useState(1);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
@@ -313,12 +320,14 @@ function MarketContent() {
 
 export default function MarketPage() {
   return (
-    <Suspense fallback={
-      <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
-        <div className="text-[#4B5675] text-sm">Loading…</div>
-      </div>
-    }>
-      <MarketContent />
-    </Suspense>
+    <PaywallGuard>
+      <Suspense fallback={
+        <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
+          <div className="text-[#4B5675] text-sm">Loading…</div>
+        </div>
+      }>
+        <MarketContent />
+      </Suspense>
+    </PaywallGuard>
   );
 }

@@ -100,7 +100,6 @@ export default function RiskGuard() {
     _riskGuardStarted = true;
     runCheck();
     const id = setInterval(runCheck, CHECK_INTERVAL);
-    console.log("[RiskGuard] check interval id:", id);
     return () => {
       _riskGuardStarted = false;
       clearInterval(id);

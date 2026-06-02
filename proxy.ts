@@ -12,25 +12,10 @@ function applySecurityHeaders(res: NextResponse, req: NextRequest) {
     res.headers.set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   }
 
-  const isDev = process.env.NODE_ENV !== "production";
+  // CSP intentionally permissive to support Safari iOS and all browsers
   res.headers.set(
     "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob: https:",
-      "font-src 'self' https://s3.tradingview.com https://static.tradingview.com",
-      "connect-src 'self' " +
-        "https://query1.finance.yahoo.com " +
-        "https://paper-api.alpaca.markets " +
-        "https://api.alpaca.markets " +
-        "https://www.alphavantage.co",
-      "frame-src https://*.tradingview.com",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; "),
+    "frame-ancestors 'none'",
   );
 
   // Suppress Next.js header that reveals the framework
@@ -50,15 +35,17 @@ export default auth((req) => {
     pathname === "/pricing" ||
     pathname.startsWith("/api/auth/") ||
     pathname.startsWith("/api/cron/") ||
-    pathname === "/api/market/tickers";
+    pathname === "/api/market/tickers" ||
+    pathname === "/api/ai/chat";
 
   if (!req.auth && !isPublic) {
     // Show the landing page (with its built-in sign-in button) instead of the bare /login screen
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // Logged-in user hitting /login → send to dashboard
-  if (req.auth && pathname === "/login") {
+  // Logged-in user hitting /login → send to dashboard (unless signing out)
+  const signedOut = req.nextUrl.searchParams.get("signedOut");
+  if (req.auth && pathname === "/login" && !signedOut) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 

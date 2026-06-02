@@ -1,4 +1,5 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -13,6 +14,8 @@ type Company = {
 };
 
 export default function TopCompaniesPage() {
+  useEffect(() => {
+  }, []);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -47,6 +50,7 @@ export default function TopCompaniesPage() {
     : companies;
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="flex-1 p-6 xl:p-8 pb-28">
@@ -111,5 +115,6 @@ export default function TopCompaniesPage() {
         </div>
       </main>
     </div>
+    </PaywallGuard>
   );
 }

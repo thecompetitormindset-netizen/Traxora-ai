@@ -1,6 +1,8 @@
 import { ictScore } from "@/app/lib/ict";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { getVolumeProfile } from "@/app/lib/volumeProfile";
+import type { VolumeProfile } from "@/app/lib/volumeProfile";
 
 export const runtime = "nodejs";
 
@@ -29,6 +31,8 @@ export async function POST(req: Request) {
 
     const { symbol, price, previousClose, open, high, low,
             volume, avgVolume, high52w, low52w, dayChangePercent } = body;
+
+    const vp = await getVolumeProfile(symbol);
 
     const ict = ictScore({
       price, previousClose,
@@ -81,18 +85,43 @@ export async function POST(req: Request) {
       ? ` Volume ${volRatio.toFixed(1)}x avg${highVol ? " — confirms move" : lowVol ? " — low conviction" : ""}.` : "";
     const yearStr = yearPct != null ? ` At ${yearPct.toFixed(0)}% of 52-week range.` : "";
 
+    // Volume profile context
+    let vpZone = "";
+    let vpStr  = "";
+    let vpSignalAdjust = "";
+    if (vp) {
+      if (price > vp.vah) {
+        vpZone = "above value area";
+        vpStr  = ` Price is ${((price - vp.vah) / vp.vah * 100).toFixed(1)}% above VAH ($${vp.vah.toFixed(2)}) — premium territory. POC at $${vp.poc.toFixed(2)}.`;
+        vpSignalAdjust = signal === "BUY" ? " Volume profile warns: buying in premium zone increases risk." : " Volume profile confirms: selling pressure likely near VAH.";
+      } else if (price < vp.val) {
+        vpZone = "below value area";
+        vpStr  = ` Price is ${((vp.val - price) / vp.val * 100).toFixed(1)}% below VAL ($${vp.val.toFixed(2)}) — discount territory. POC at $${vp.poc.toFixed(2)}.`;
+        vpSignalAdjust = signal === "SELL" ? " Volume profile warns: selling in discount zone increases risk." : " Volume profile confirms: buyers historically active at this level.";
+      } else if (Math.abs(price - vp.poc) / vp.poc < 0.005) {
+        vpZone = "at POC";
+        vpStr  = ` Price is at POC ($${vp.poc.toFixed(2)}) — highest volume node. Expect resistance/support and potential reversal.`;
+        vpSignalAdjust = " High volume node — watch for rejection.";
+      } else {
+        vpZone = "inside value area";
+        vpStr  = ` Price inside value area (VAL $${vp.val.toFixed(2)} – VAH $${vp.vah.toFixed(2)}), POC at $${vp.poc.toFixed(2)}.`;
+        vpSignalAdjust = "";
+      }
+    }
+
     const clean = symbol.replace(/\.(US|COMM|F)$/i, "");
     const summary =
       `${clean} is trading at $${price.toFixed(2)}, ` +
       `${dayChangePercent >= 0 ? "up" : "down"} ${Math.abs(dayChangePercent).toFixed(2)}% in a ` +
-      `${priceZone.toLowerCase()} zone (${pctPos.toFixed(0)}% of today's range).${volStr}${yearStr} ` +
+      `${priceZone.toLowerCase()} zone (${pctPos.toFixed(0)}% of today's range).${volStr}${yearStr}${vpStr} ` +
       `${dailyBias} bias with ${marketStructure.toLowerCase()} structure — ` +
       (signal === "HOLD"
         ? "no clear directional edge yet."
-        : `favoring ${signal === "BUY" ? "long entries near discount" : "caution / exits near premium"}.`);
+        : `favoring ${signal === "BUY" ? "long entries near discount" : "caution / exits near premium"}.`) +
+      vpSignalAdjust;
 
     const setup = signal !== "HOLD"
-      ? `${signal === "BUY" ? "Bullish" : "Bearish"} setup: price in ${priceZone} zone with ${dailyBias.toLowerCase()} bias (${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}%)${highVol ? `, ${volRatio?.toFixed(1)}x volume surge` : ""}.`
+      ? `${signal === "BUY" ? "Bullish" : "Bearish"} setup: price in ${priceZone} zone with ${dailyBias.toLowerCase()} bias (${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}%)${highVol ? `, ${volRatio?.toFixed(1)}x volume surge` : ""}${vpZone ? `, ${vpZone}` : ""}.`
       : null;
 
     const keyPoints = [
@@ -101,12 +130,14 @@ export async function POST(req: Request) {
       volRatio != null
         ? `Volume: ${volRatio.toFixed(1)}x average — ${highVol ? "smart money participation" : lowVol ? "thin — wait for volume" : "normal"}`
         : `Prev close $${previousClose.toFixed(2)} — gap ${dayChangePercent >= 0 ? "up" : "down"} at open`,
-    ];
+      vp ? `Volume Profile: POC $${vp.poc.toFixed(2)} | VAH $${vp.vah.toFixed(2)} | VAL $${vp.val.toFixed(2)} — ${vpZone}` : null,
+    ].filter(Boolean) as string[];
 
     return Response.json({
       signal, confidence, summary, keyPoints, risk,
       ict: { marketStructure, dailyBias, priceZone, orderBlock, fairValueGap, liquidity, ote, setup },
       trade,
+      volumeProfile: vp ?? null,
     });
   } catch (err) {
     return Response.json(

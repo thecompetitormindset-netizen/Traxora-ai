@@ -1,4 +1,5 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -26,6 +27,8 @@ function timeAgo(ms: number) {
 }
 
 export default function NotificationsPage() {
+  useEffect(() => {
+  }, []);
   const { data: session } = useSession();
   const [alerts,     setAlerts]     = useState<Alert[]>([]);
   const [paused,     setPaused]     = useState(false);
@@ -84,6 +87,7 @@ export default function NotificationsPage() {
   }
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
@@ -252,5 +256,6 @@ export default function NotificationsPage() {
         </div>
       </main>
     </div>
+    </PaywallGuard>
   );
 }

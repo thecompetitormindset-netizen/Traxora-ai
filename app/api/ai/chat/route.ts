@@ -1,10 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
-import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime     = "nodejs";
+export const dynamic     = "force-dynamic";
+export const maxDuration = 30;
 
 const SYSTEM_PROMPT = `You are Traxora AI, a trading assistant embedded in a paper trading platform called Traxora.
 
@@ -35,7 +34,7 @@ Rules:
 - Never guarantee returns or give exact buy/sell signals.
 - Always note this is a paper trading platform — not real financial advice.
 
-${SYSTEM_FRAMEWORK}`;
+`;
 
 
 const MAX_MESSAGES   = 20;
@@ -131,23 +130,11 @@ async function getAIReply(messages: Msg[]): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    let rateLimitKey: string;
-    let rateLimitMax: number;
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+      ?? req.headers.get("x-real-ip")
+      ?? "anonymous";
 
-    if (session?.user?.email) {
-      rateLimitKey = `chat:${session.user.email}`;
-      rateLimitMax = 20;
-    } else {
-      const ip =
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-        req.headers.get("x-real-ip") ??
-        "anonymous";
-      rateLimitKey = `chat-guest:${ip}`;
-      rateLimitMax = 5;
-    }
-
-    if (!checkRateLimit(rateLimitKey, rateLimitMax, 60_000)) {
+    if (!checkRateLimit(`chat:${ip}`, 10, 60_000)) {
       return Response.json({ ok: false, error: "Rate limited. Please wait a moment." }, { status: 429 });
     }
 

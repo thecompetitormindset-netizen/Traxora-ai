@@ -34,7 +34,7 @@ async function saveHistory(h: BriefHistory): Promise<void> {
   try { await fs.writeFile(HISTORY_FILE, JSON.stringify(h, null, 2)); } catch { /* ignore */ }
 }
 
-const OWNER_EMAIL = "thecompetitormindset@gmail.com";
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
 async function getEmails(): Promise<string[]> {
   const list: string[] = [OWNER_EMAIL];

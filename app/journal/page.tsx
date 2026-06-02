@@ -1,4 +1,5 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
@@ -46,9 +47,6 @@ export default function JournalPage() {
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -95,6 +93,7 @@ export default function JournalPage() {
     : "0.0";
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
@@ -422,5 +421,6 @@ export default function JournalPage() {
         </div>
       </main>
     </div>
+    </PaywallGuard>
   );
 }

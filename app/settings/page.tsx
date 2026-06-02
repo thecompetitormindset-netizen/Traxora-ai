@@ -1,4 +1,5 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
@@ -77,6 +78,8 @@ function Badge({ children, color = "default" }: { children: React.ReactNode; col
 }
 
 export default function SettingsPage() {
+  useEffect(() => {
+  }, []);
   const { data: session } = useSession();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [resetInput, setResetInput] = useState("");
@@ -188,6 +191,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
@@ -516,5 +520,6 @@ export default function SettingsPage() {
         </main>
       </div>
     </div>
+    </PaywallGuard>
   );
 }

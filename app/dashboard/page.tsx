@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -161,27 +162,12 @@ function loadPaperStats(storageKey: string): PaperStats {
 }
 
 export default function DashboardPage() {
+  const { status } = useSession();
+  const [planChecked, setPlanChecked] = useState(false);
+
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
-
-  // Gate: redirect unpaid users to pricing
-  useEffect(() => {
-    fetch("/api/user/plan")
-      .then(r => r.json())
-      .then(({ plan }) => {
-        if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const key     = scopedKey(PAPER_KEY);
-    const refresh = () => setPaperStats(loadPaperStats(key));
-    refresh();
-    window.addEventListener("storage", refresh);
-    return () => window.removeEventListener("storage", refresh);
-  }, []);
 
   const [stocks, setStocks] = useState<StockCard[]>(
     WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, loading: true }))
@@ -195,6 +181,27 @@ export default function DashboardPage() {
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [alertsPaused, setAlertsPaused] = useState(false);
 
+  // Gate: wait for session to load before checking plan
+  useEffect(() => {
+    if (status === "loading") return;
+    if (status === "unauthenticated") { window.location.href = "/login?signedOut=1"; return; }
+    fetch("/api/user/plan")
+      .then(r => r.json())
+      .then(({ plan }) => {
+        if (plan === "free") { window.location.href = "/pricing"; return; }
+        setPlanChecked(true);
+      })
+      .catch(() => setPlanChecked(true));
+  }, [status]);
+
+  useEffect(() => {
+    const key     = scopedKey(PAPER_KEY);
+    const refresh = () => setPaperStats(loadPaperStats(key));
+    refresh();
+    window.addEventListener("storage", refresh);
+    return () => window.removeEventListener("storage", refresh);
+  }, []);
+
   useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
       setNotifPermission("unsupported");
@@ -203,6 +210,19 @@ export default function DashboardPage() {
     }
     setAlertsPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
   }, []);
+
+  if (!planChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
+          <p className="text-[#4B5675] text-sm">Loading…</p>
+        </div>
+      </div>
+    );
+  }
 
   function toggleAlertPause() {
     setAlertsPaused(prev => {
@@ -504,11 +524,13 @@ export default function DashboardPage() {
                     <span>Account Value ${paperStats.accountValue.toFixed(2)}</span>
                     <span>Start $10,000</span>
                   </div>
-                  <div className="h-1.5 bg-[#1A1838] rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${paperStats.realizedPL >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                      style={{ width: `${Math.min(100, Math.max(2, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100))}%` }}
-                    />
+                  <div className="flex gap-0.5 h-1.5">
+                    {Array.from({ length: 20 }).map((_, i) => {
+                      const pct = Math.min(100, Math.max(2, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100));
+                      return (
+                        <div key={i} className={`flex-1 rounded-sm ${(i / 20) * 100 < pct ? paperStats.realizedPL >= 0 ? "bg-emerald-500" : "bg-rose-500" : "bg-[#1A1838]"}`} />
+                      );
+                    })}
                   </div>
                 </div>
               </div>

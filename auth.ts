@@ -46,7 +46,7 @@ function loginEmailHtml(params: {
                 </td>
                 <td style="padding-left:12px;vertical-align:middle">
                   <p style="margin:0;font-size:15px;font-weight:900;color:#f1f5f9;letter-spacing:-0.3px">Traxora AI</p>
-                  <p style="margin:2px 0 0;font-size:10px;color:#4b5675;font-family:monospace">ICT Smart Money Platform</p>
+                  <p style="margin:2px 0 0;font-size:10px;color:#4b5675;font-family:monospace">Smart Money Platform</p>
                 </td>
               </tr>
             </table>
@@ -197,7 +197,7 @@ function loginEmailHtml(params: {
   <tr>
     <td align="center" style="padding-top:24px">
       <p style="margin:0;font-size:10px;color:#2d3a50">You are receiving this because sign-in alerts are enabled for your Traxora AI account.</p>
-      <p style="margin:6px 0 0;font-size:10px;color:#1c2333">Traxora AI &middot; ICT Smart Money Platform</p>
+      <p style="margin:6px 0 0;font-size:10px;color:#1c2333">Traxora AI &middot; Smart Money Platform</p>
     </td>
   </tr>
 
@@ -213,8 +213,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
   session: {
     strategy:  "jwt",
-    maxAge:    8 * 60 * 60,   // 8 hours — expires end of trading day
-    updateAge: 60 * 60,       // refresh token if still active after 1 hour
+    maxAge:    30 * 24 * 60 * 60, // 30 days
+    updateAge: 24 * 60 * 60,      // refresh once per day
   },
   callbacks: {
     async signIn({ user }) {

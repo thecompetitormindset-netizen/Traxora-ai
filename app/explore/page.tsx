@@ -1,6 +1,7 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -225,6 +226,8 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
 };
 
 export default function ExplorePage() {
+  useEffect(() => {
+  }, []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -253,6 +256,7 @@ export default function ExplorePage() {
     : null;
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
@@ -493,5 +497,6 @@ export default function ExplorePage() {
         </div>
       </main>
     </div>
+    </PaywallGuard>
   );
 }

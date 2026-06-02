@@ -1,4 +1,5 @@
 "use client";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
@@ -361,9 +362,6 @@ export default function IPOPage() {
   const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
-    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -385,6 +383,7 @@ export default function IPOPage() {
   const recentLosers   = data?.recent.filter(i => (i.perfPct ?? 0) < 0).length   ?? 0;
 
   return (
+    <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
@@ -501,5 +500,6 @@ export default function IPOPage() {
         </div>
       </main>
     </div>
+    </PaywallGuard>
   );
 }

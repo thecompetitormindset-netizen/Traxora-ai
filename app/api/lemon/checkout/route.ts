@@ -45,11 +45,10 @@ export async function POST() {
   });
 
   const data = await res.json();
-  console.log("[lemon checkout]", JSON.stringify(data, null, 2));
   const url  = data?.data?.attributes?.url as string | undefined;
 
   if (!url) {
-    return Response.json({ error: "Failed to create checkout. Try again.", debug: data }, { status: 502 });
+    return Response.json({ error: "Failed to create checkout. Try again." }, { status: 502 });
   }
 
   return Response.json({ url });

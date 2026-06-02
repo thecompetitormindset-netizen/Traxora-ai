@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
+import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export type TradeScore = {
   overall: number;
@@ -66,6 +68,12 @@ Respond ONLY with valid JSON, no markdown:
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!checkRateLimit(`trade-score:${session.user.email}`, 20, 60 * 60 * 1000)) {
+    return Response.json({ error: "Too many requests. Try again in an hour." }, { status: 429 });
+  }
+
   const body = await req.json();
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 

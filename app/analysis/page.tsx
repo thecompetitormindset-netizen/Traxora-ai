@@ -14,6 +14,8 @@ import type { AIAnalysis, DeepICT, TradePlan } from "@/app/components/analysis/t
 import { signalStyle, riskStyle, confidenceStyle } from "@/app/components/analysis/types";
 import DeepMarketPanel from "@/app/components/analysis/DeepMarketPanel";
 import MarketDepth from "@/app/components/analysis/MarketDepth";
+import type { VolumeProfile } from "@/app/api/volume-profile/route";
+import PaywallGuard from "@/app/components/PaywallGuard";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ function AnalysisContent() {
 
   useEffect(() => {
     fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+      if (plan === "free") window.location.href = "/pricing";
     }).catch(() => {});
   }, []);
 
@@ -33,6 +35,8 @@ function AnalysisContent() {
   const [deepICT, setDeepICT] = useState<DeepICT | null>(null);
   const [loadingDeep, setLoadingDeep] = useState(false);
   const [deepError, setDeepError] = useState<string | null>(null);
+
+  const [volumeProfile, setVolumeProfile] = useState<VolumeProfile | null>(null);
 
   // Current portfolio holding for this symbol
   const [holding, setHolding] = useState<{ quantity: number; avgPrice: number } | null>(null);
@@ -101,6 +105,7 @@ function AnalysisContent() {
 
   useEffect(() => {
     setAnalysis(null);
+    setVolumeProfile(null);
     setQuoteData({
       price: null,
       previousClose: null,
@@ -108,6 +113,12 @@ function AnalysisContent() {
       high: null,
       low: null,
     });
+
+    // Fetch volume profile in background
+    fetch(`/api/volume-profile?symbol=${encodeURIComponent(symbol)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.error) setVolumeProfile(d as VolumeProfile); })
+      .catch(() => {});
 
     async function fetchAndAnalyze() {
       setLoadingAnalysis(true);
@@ -431,6 +442,75 @@ function AnalysisContent() {
               <MarketDepth price={quoteData.price} high={quoteData.high} low={quoteData.low} symbol={symbol} />
             )}
 
+            {/* Volume Profile */}
+            {volumeProfile && (
+              <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Volume Profile (60-day)</p>
+
+                {/* Key levels */}
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  {[
+                    { label: "POC", value: `$${volumeProfile.poc.toFixed(2)}`, color: "text-yellow-400", desc: "Highest volume" },
+                    { label: "VAH", value: `$${volumeProfile.vah.toFixed(2)}`, color: "text-emerald-400", desc: "Value area top" },
+                    { label: "VAL", value: `$${volumeProfile.val.toFixed(2)}`, color: "text-rose-400",   desc: "Value area bottom" },
+                  ].map(({ label, value, color, desc }) => (
+                    <div key={label} className="bg-[#0D0B1A] rounded-xl p-2.5 text-center">
+                      <p className={`text-xs font-black ${color}`}>{label}</p>
+                      <p className="text-sm font-bold text-[#F1F5F9] mt-0.5">{value}</p>
+                      <p className="text-[9px] text-[#4B5675] mt-0.5">{desc}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Price position relative to value area */}
+                {quoteData.price && (
+                  <div className="mb-4 p-3 rounded-xl bg-[#0D0B1A] border border-[#252345]">
+                    <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">Current Price Position</p>
+                    <p className={`text-xs font-bold ${
+                      quoteData.price > volumeProfile.vah ? "text-rose-400" :
+                      quoteData.price < volumeProfile.val ? "text-emerald-400" : "text-amber-400"
+                    }`}>
+                      {quoteData.price > volumeProfile.vah
+                        ? `▲ Trading ABOVE value area — premium zone (${((quoteData.price - volumeProfile.vah) / volumeProfile.vah * 100).toFixed(1)}% above VAH)`
+                        : quoteData.price < volumeProfile.val
+                        ? `▼ Trading BELOW value area — discount zone (${((volumeProfile.val - quoteData.price) / volumeProfile.val * 100).toFixed(1)}% below VAL)`
+                        : "◆ Trading INSIDE value area — balanced market"}
+                    </p>
+                  </div>
+                )}
+
+                {/* HVN / LVN nodes */}
+                <div className="space-y-1.5">
+                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-2">Key Volume Nodes</p>
+                  {volumeProfile.nodes
+                    .filter(n => n.type !== "normal")
+                    .sort((a, b) => b.price - a.price)
+                    .slice(0, 6)
+                    .map(node => (
+                      <div key={node.price} className="flex items-center gap-2">
+                        <span className={`text-[9px] font-black w-8 shrink-0 ${node.type === "HVN" ? "text-emerald-400" : "text-rose-400"}`}>
+                          {node.type}
+                        </span>
+                        <span className="text-[11px] text-[#F1F5F9] font-mono w-16 shrink-0">${node.price.toFixed(2)}</span>
+                        <div className="flex-1 flex gap-0.5">
+                          {Array.from({ length: 8 }).map((_, i) => {
+                            const maxVol = volumeProfile.nodes.reduce((m, n) => Math.max(m, n.volume), 1);
+                            const pct = node.volume / maxVol;
+                            const filled = Math.round(pct * 8) > i;
+                            return (
+                              <div key={i} className={`flex-1 h-1.5 rounded-sm ${filled ? node.type === "HVN" ? "bg-emerald-500/60" : "bg-rose-500/40" : "bg-[#0D0B1A]"}`} />
+                            );
+                          })}
+                        </div>
+                        <span className="text-[9px] text-[#4B5675] shrink-0">
+                          {node.type === "HVN" ? "Support/Resistance" : "Fast move zone"}
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+
             {/* Deep ICT Analysis trigger */}
             <div className="bg-[#13112A] rounded-2xl p-5 border border-emerald-500/20">
               <div className="flex items-center gap-2 mb-2">
@@ -469,14 +549,16 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
-          <div className="text-[#4B5675] text-sm">Loading analysis…</div>
-        </div>
-      }
-    >
-      <AnalysisContent />
-    </Suspense>
+    <PaywallGuard>
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
+            <div className="text-[#4B5675] text-sm">Loading analysis…</div>
+          </div>
+        }
+      >
+        <AnalysisContent />
+      </Suspense>
+    </PaywallGuard>
   );
 }

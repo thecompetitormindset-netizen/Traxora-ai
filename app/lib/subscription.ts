@@ -6,7 +6,7 @@ export interface Subscription {
   currentPeriodEnd: string | null;
 }
 
-const OWNER_EMAIL = "thecompetitormindset@gmail.com";
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
 export async function getUserPlan(email: string): Promise<Plan> {
   if (email === OWNER_EMAIL) return "pro";

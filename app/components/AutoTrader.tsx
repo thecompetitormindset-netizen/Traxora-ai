@@ -405,7 +405,6 @@ export default function AutoTrader() {
         return;
       }
       _autoTraderStarted = true;
-      console.log("[AutoTrader] starting scan loop, interval id pending…");
 
       nextScanRef.current = Date.now() + SCAN_INTERVAL;
       push("signal", "AutoTrader started", "All 20 stocks scanned every 5 min · Signals trade instantly");
@@ -416,7 +415,6 @@ export default function AutoTrader() {
         nextScanRef.current = Date.now() + SCAN_INTERVAL;
         runFullScan();
       }, SCAN_INTERVAL);
-      console.log("[AutoTrader] scan loop interval id:", loopRef.current);
       tickRef.current = setInterval(() => setCountdown(Math.max(0, nextScanRef.current - Date.now())), 1000);
       const bots: [string, BotStyle, number][] = [["apex","aggressive",20_000],["delta","balanced",80_000],["vera","conservative",140_000]];
       bots.forEach(([id, style, delay]) => {

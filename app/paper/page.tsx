@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { generateAndSavePaperEntry } from "../components/AutoJournal";
+import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import type { PaperTrade, Direction, ExitReason, TradeStatus, AddTradeInitial } from "../lib/paperTrades";
 import {
@@ -449,7 +450,7 @@ function PaperPortfolio() {
 
   useEffect(() => {
     fetch("/api/user/plan").then(r => r.json()).then(({ plan }) => {
-      if (plan === "unauthenticated") window.location.href = "/login"; else if (plan === "free") window.location.href = "/pricing";
+      if (plan === "free") window.location.href = "/pricing";
     }).catch(() => {});
   }, []);
   const [trades, setTrades]               = useState<PaperTrade[]>([]);
@@ -1142,8 +1143,10 @@ function PaperPortfolio() {
 
 export default function PaperPage() {
   return (
-    <Suspense>
-      <PaperPortfolio />
-    </Suspense>
+    <PaywallGuard>
+      <Suspense>
+        <PaperPortfolio />
+      </Suspense>
+    </PaywallGuard>
   );
 }
