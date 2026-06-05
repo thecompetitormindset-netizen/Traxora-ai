@@ -190,7 +190,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             </Link>
             <button
               type="button"
-              onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login" }); }}
+              onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login" }); }}
               className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
               Sign out

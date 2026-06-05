@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 // ── Model routing table ────────────────────────────────────────────────────
 // Haiku  → volume work  (classify, filter, tag)
 // Sonnet → synthesis    (aggregate, summarize, compare)
-// Opus   → deep report  (ICT analysis, trade-impacting conclusions)
+// Opus   → deep report  (smart money analysis, trade-impacting conclusions)
 
 export const MODEL_MAP = {
   classify:   "claude-haiku-4-5-20251001",

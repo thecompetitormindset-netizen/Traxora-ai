@@ -350,8 +350,8 @@ export default function AutoTrader() {
           actionTaken = "held";
         }
 
-        // Fire notification for BUY/SELL
-        if ((signal === "BUY" || signal === "SELL") && Notification.permission === "granted") {
+        // Fire notification only for High confidence signals to avoid alert fatigue
+        if ((signal === "BUY" || signal === "SELL") && confidence === "High" && Notification.permission === "granted") {
           window.dispatchEvent(new CustomEvent("traxora-signal", { detail: { symbol: s.symbol, name: s.name, signal, price: q.price, confidence } }));
         }
 

@@ -19,8 +19,8 @@ export default function SignalToast() {
       const d = (e as CustomEvent).detail as Omit<SignalEvent, "id">;
       if (d.signal !== "BUY" && d.signal !== "SELL") return;
       const id = crypto.randomUUID();
-      setToasts(prev => [{ ...d, id }, ...prev].slice(0, 4));
-      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 12_000);
+      setToasts(prev => [{ ...d, id }, ...prev].slice(0, 2));
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 7_000);
     };
     window.addEventListener("traxora-signal", handler);
     return () => window.removeEventListener("traxora-signal", handler);

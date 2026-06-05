@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Providers from "./providers";
@@ -18,9 +18,17 @@ import SessionWatcher from "./components/SessionWatcher";
 import SignalToast from "./components/SignalToast";
 import PortfolioSync from "./components/PortfolioSync";
 
-const inter = Inter({
+const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono-custom",
   display: "swap",
 });
 
@@ -63,17 +71,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      {/* Inject theme before first paint to prevent flash */}
-      <head>
+    <html lang="en" className={`${jakarta.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <body>
+        {/* Theme script runs before paint to prevent flash — suppressHydrationWarning because localStorage isn't available on server */}
         <script
+          suppressHydrationWarning
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='midnight')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
-      </head>
-      <body>
         <ThemeProvider />
         {/* Fixed universe background — behind all content */}
         <CosmicBackground />

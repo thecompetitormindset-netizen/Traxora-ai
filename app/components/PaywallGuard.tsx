@@ -7,10 +7,8 @@ const PLAN_CACHE_KEY = "traxora_plan_cache";
 
 export default function PaywallGuard({ children }: { children: React.ReactNode }) {
   const { status } = useSession();
-  // Start allowed=true if we already cached "pro" this session to skip the spinner
-  const [allowed, setAllowed] = useState(() => {
-    try { return sessionStorage.getItem(PLAN_CACHE_KEY) === "pro"; } catch { return false; }
-  });
+  // Always false on first render so server and client agree — sessionStorage checked in effect
+  const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
     if (status === "loading") return;

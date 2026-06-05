@@ -1,5 +1,6 @@
 import { Resend } from "resend";
-import { ictScore } from "@/app/lib/ict";
+import { smartMoneyScore } from "@/app/lib/smartMoney";
+import { postToDiscord, buildBriefingEmbed } from "@/app/lib/discord";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
@@ -86,9 +87,9 @@ async function fetchQuote(symbol: string) {
   } catch { return null; }
 }
 
-// ── Email-specific analysis wrapper (uses shared ictScore) ────────────────────
+// ── Email-specific analysis wrapper ──────────────────────────────────────────
 function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
-  const ict = ictScore({
+  const sm = smartMoneyScore({
     price:         q.price,
     previousClose: q.prev,
     open:          q.open,
@@ -104,9 +105,9 @@ function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
   const { signal, confidence, score, priceZone: zone, pctPos,
           volRatio: volR, highVol, lowVol, yearPct,
           dayH, dayL, daySpan,
-          orderBlock, fairValueGap, liquidity, ote } = ict;
+          orderBlock, fairValueGap, liquidity, ote } = sm;
 
-  // Entry zone — ICT discount (BUY) or premium (SELL)
+  // Entry zone — discount (BUY) or premium (SELL)
   // Use a minimum span so prices don't collapse to a point
   const span = daySpan > 0.01 ? daySpan : q.price * 0.01;
 
@@ -124,10 +125,10 @@ function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
   const entryMid = (entryLow + entryHigh) / 2;
   const entryZone = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
 
-  // Stop is always BEYOND the entry zone — 5% below entryLow for BUY, 5% above entryHigh for SELL
-  const stopVal = signal === "BUY"
-    ? entryLow  * 0.95    // 5% below entry zone start  → stop < entry < target ✓
-    : entryHigh * 1.05;   // 5% above entry zone end    → stop > entry > target ✓
+  // Structural stop: just beyond the session extreme.
+  // Buffer = larger of 3% of day span or 0.1% of price — avoids wick stop-outs.
+  const buf = Math.max(span * 0.03, q.price * 0.001);
+  const stopVal = signal === "BUY" ? dayL - buf : dayH + buf;
   const riskDist = Math.abs(entryMid - stopVal);
   const tpVal    = signal === "BUY"
     ? entryMid + riskDist * 2     // 2R above entry midpoint
@@ -140,7 +141,8 @@ function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
   const refL = Math.min(dayL, q.prev);
   const bsl  = `$${refH.toFixed(2)}`;
   const ssl  = `$${refL.toFixed(2)}`;
-  const oteZone = ote ? ote.replace("OTE zone: ", "").split(" (")[0] : null;
+  // Extract "$X.XX–$Y.YY" from "Long OTE: $X.XX–$Y.YY (...)" or "Short OTE: $X.XX–$Y.YY (...)"
+  const oteZone = ote ? (ote.match(/\$[\d.]+–\$[\d.]+/)?.[0] ?? null) : null;
 
   const yearZone = yearPct == null ? "N/A"
     : yearPct <= 15 ? `Near 52-week LOW (${yearPct.toFixed(0)}%) — deep value`
@@ -229,8 +231,135 @@ function buildPerfSection(hist: BriefHistory, currentPrices: Map<string, number>
   </tr>`;
 }
 
+// ── Personalized watchlist section ────────────────────────────────────────────
+
+async function getUserWatchlists(): Promise<Map<string, string[]>> {
+  const result = new Map<string, string[]>();
+  try {
+    const { supabaseAdmin } = await import("@/app/lib/supabase");
+    const { data } = await supabaseAdmin()
+      .from("watchlists")
+      .select("user_email, items");
+    (data ?? []).forEach((row: { user_email: string; items: Array<{ symbol: string }> | null }) => {
+      if (row.items && Array.isArray(row.items)) {
+        result.set(row.user_email, row.items.map((i) => i.symbol.replace(/\.(US|COMM)$/, "")));
+      }
+    });
+  } catch { /* fall back to global watchlist */ }
+  return result;
+}
+
+function buildWatchlistSection(userSyms: string[], analysisMap: Map<string, ReturnType<typeof analyze>>): string {
+  const stocks = userSyms.map((s) => analysisMap.get(s)).filter(Boolean) as ReturnType<typeof analyze>[];
+  if (stocks.length === 0) return "";
+  const sc = (sig: string) => sig === "BUY" ? "#10b981" : sig === "SELL" ? "#f87171" : "#fbbf24";
+  const rows = stocks.map((s) => `
+    <tr>
+      <td style="padding:6px 8px 6px 0;font-family:monospace;font-size:12px;font-weight:700;color:#f1f5f9;white-space:nowrap">${s.symbol}</td>
+      <td style="padding:6px 6px">
+        <span style="background:${s.signal === "BUY" ? "#0a1f17" : s.signal === "SELL" ? "#200f0f" : "#1f1b09"};color:${sc(s.signal)};border:1px solid ${sc(s.signal)}40;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800;font-family:monospace">${s.signal}</span>
+      </td>
+      <td style="padding:6px 6px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${s.price.toFixed(2)}</td>
+      <td style="padding:6px 0;font-size:11px;color:${s.chg >= 0 ? "#10b981" : "#f87171"};font-family:monospace;white-space:nowrap">${s.chg >= 0 ? "+" : ""}${s.chg.toFixed(2)}%</td>
+      <td style="padding:6px 0 6px 8px;font-size:10px;color:${sc(s.signal)}">${s.confidence} conf · ${s.zone}</td>
+    </tr>`).join("");
+  return `
+  <tr>
+    <td style="padding-bottom:24px">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:14px">
+        <tr><td style="padding:16px 20px;border-bottom:1px solid #252345">
+          <p style="margin:0;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">Your Watchlist Today</p>
+        </td></tr>
+        <tr><td style="padding:12px 20px">
+          <table cellpadding="0" cellspacing="0" border="0">${rows}</table>
+        </td></tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
+// ── Options plays section ──────────────────────────────────────────────────────
+
+import { runOptionsScan } from "@/app/api/market/options-scan/route";
+
+async function fetchOptionsPlays() {
+  try {
+    const result = await runOptionsScan();
+    return (result.plays ?? []).slice(0, 5);
+  } catch { return []; }
+}
+
+function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>>): string {
+  if (plays.length === 0) return "";
+  const dc = (p: string) => p === "CALLS" ? "#10b981" : "#f87171";
+  const rows = plays.map((p, i) => `
+    <tr style="border-bottom:1px solid #1a1838">
+      <td style="padding:10px 8px 10px 0;font-family:monospace;font-size:12px;font-weight:700;color:#f1f5f9;white-space:nowrap">${i + 1}. ${p.symbol}</td>
+      <td style="padding:10px 8px">
+        <span style="background:${p.play === "CALLS" ? "#0a1f17" : "#200f0f"};color:${dc(p.play)};border:1px solid ${dc(p.play)}40;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800;font-family:monospace">${p.play}</span>
+      </td>
+      <td style="padding:10px 8px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${p.price.toFixed(2)}</td>
+      <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.strike}</td>
+      <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.expiry ?? "—"}</td>
+      <td style="padding:10px 0;font-size:10px;color:${dc(p.play)};white-space:nowrap">${p.rrRatio} R:R${p.premiumEst ? ` · ${p.premiumEst}` : ""}</td>
+    </tr>`).join("");
+  return `
+  <tr>
+    <td style="padding-bottom:24px">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:14px">
+        <tr><td style="padding:16px 20px;border-bottom:1px solid #252345">
+          <p style="margin:0;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">📊 Top 5 Options Plays Today</p>
+        </td></tr>
+        <tr><td style="padding:12px 20px">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table>
+        </td></tr>
+        <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, and targets on each card at traxora-ai.vercel.app/dashboard</p></td></tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
+// ── Futures plays section ──────────────────────────────────────────────────────
+
+function buildFuturesSection(stocks: ReturnType<typeof analyze>[]): string {
+  const FUTURES_SYMS = ["ES", "NQ", "GC", "CL", "SI", "YM"];
+  const futures = stocks.filter(s => FUTURES_SYMS.includes(s.symbol) && s.signal !== "HOLD").slice(0, 5);
+  if (futures.length === 0) return "";
+  const sc = (sig: string) => sig === "BUY" ? "#10b981" : "#f87171";
+  const POINT_VAL: Record<string, string> = { ES: "$50/pt", NQ: "$20/pt", GC: "$100/pt", CL: "$1000/pt", SI: "$5000/pt", YM: "$5/pt" };
+  const MICRO: Record<string, string>     = { ES: "MES", NQ: "MNQ", GC: "MGC", CL: "MCL", YM: "MYM" };
+  const rows = futures.map((f, i) => `
+    <tr style="border-bottom:1px solid #1a1838">
+      <td style="padding:10px 8px 10px 0;font-family:monospace;font-size:12px;font-weight:700;color:#f1f5f9;white-space:nowrap">${i + 1}. ${f.symbol}</td>
+      <td style="padding:10px 8px">
+        <span style="background:${f.signal === "BUY" ? "#0a1f17" : "#200f0f"};color:${sc(f.signal)};border:1px solid ${sc(f.signal)}40;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800;font-family:monospace">${f.signal === "BUY" ? "LONG" : "SHORT"}</span>
+      </td>
+      <td style="padding:10px 8px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${f.price.toFixed(2)}</td>
+      <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${POINT_VAL[f.symbol] ?? "—"}</td>
+      <td style="padding:10px 0;font-size:10px;color:#4b5675;white-space:nowrap">Micro: ${MICRO[f.symbol] ?? "N/A"}</td>
+    </tr>`).join("");
+  return `
+  <tr>
+    <td style="padding-bottom:24px">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#13112A;border:1px solid #252345;border-radius:14px">
+        <tr><td style="padding:16px 20px;border-bottom:1px solid #252345">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td><p style="margin:0;font-size:9px;font-weight:700;color:#4b5675;text-transform:uppercase;letter-spacing:1.5px">⚡ Top Futures Plays Today</p></td>
+              <td style="text-align:right"><p style="margin:0;font-size:9px;color:#333368">Always use stops · Consider micro contracts</p></td>
+            </tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:12px 20px">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table>
+        </td></tr>
+      </table>
+    </td>
+  </tr>`;
+}
+
 // ── Email builder (fully table-based — no flexbox, works in Gmail/Outlook/Apple Mail) ──
-function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSection = ""): string {
+function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSection = "", watchlistSection = "", optionsSection = "", futuresSection = ""): string {
   const sc = (sig: string) => sig === "BUY" ? "#10b981" : sig === "SELL" ? "#f87171" : "#fbbf24";
   const cc = (n: number)   => n >= 0 ? "#10b981" : "#f87171";
 
@@ -539,6 +668,15 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
     </td>
   </tr>
 
+  <!-- Personalized watchlist -->
+  ${watchlistSection}
+
+  <!-- Options plays -->
+  ${optionsSection}
+
+  <!-- Futures plays -->
+  ${futuresSection}
+
   <!-- Stock cards -->
   ${cards}
 
@@ -592,45 +730,82 @@ export async function GET(req: Request) {
     return Response.json({ error: "No subscribers — add CRON_EMAIL to Vercel env vars or subscribe in Settings" }, { status: 400 });
   }
 
-  const [quotes, prevHistory] = await Promise.all([
+  const [quotes, prevHistory, userWatchlists, optionsPlays] = await Promise.all([
     Promise.all(WATCHLIST.map(fetchQuote)).then(r => r.filter(Boolean) as NonNullable<Awaited<ReturnType<typeof fetchQuote>>>[]),
     loadHistory(),
+    getUserWatchlists(),
+    fetchOptionsPlays(),
   ]);
 
-  const ranked = quotes.map(analyze).sort((a, b) => Math.abs(b._s) - Math.abs(a._s));
+  // Collect extra symbols needed by user watchlists that aren't in the global set
+  const globalSet = new Set(WATCHLIST);
+  const extraSyms = [...new Set(
+    [...userWatchlists.values()].flat().filter((s) => !globalSet.has(s))
+  )].slice(0, 30);
+  const extraQuotes = extraSyms.length > 0
+    ? (await Promise.all(extraSyms.map(fetchQuote))).filter(Boolean) as NonNullable<Awaited<ReturnType<typeof fetchQuote>>>[]
+    : [];
+
+  const allQuotes  = [...quotes, ...extraQuotes];
+  const analysisMap = new Map(allQuotes.map(q => [q.symbol, analyze(q)]));
+
+  const ranked = [...analysisMap.values()].filter(s => WATCHLIST.includes(s.symbol)).sort((a, b) => Math.abs(b._s) - Math.abs(a._s));
   const top20  = ranked.slice(0, 20);
 
-  // Build performance section from yesterday's predictions
-  const priceMap = new Map(quotes.map(q => [q.symbol, q.price]));
+  const priceMap = new Map(allQuotes.map(q => [q.symbol, q.price]));
   const perfSection = prevHistory ? buildPerfSection(prevHistory, priceMap) : "";
 
-  const today = new Date();
-  const date  = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const today   = new Date();
+  const date    = today.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   const dateKey = today.toISOString().slice(0, 10);
-  const html  = buildEmail(top20, date, perfSection);
+  const subject = `🌅 Morning Brief — ${top20.filter(s => s.signal === "BUY").length} BUY · ${top20.filter(s => s.signal === "SELL").length} SELL · ${date}`;
+
+  const optionsSection = buildOptionsSection(optionsPlays);
+  const futuresSection = buildFuturesSection(top20);
 
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) {
+    const html = buildEmail(top20, date, perfSection, "", optionsSection, futuresSection);
     return Response.json({ error: "RESEND_API_KEY is not set — add it to .env.local", preview: html }, { status: 500 });
   }
 
   const resend = new Resend(resendKey);
-  const subject = `🌅 Morning Brief — ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "BUY").length} BUY · ${top20.filter((s: ReturnType<typeof analyze>) => s.signal === "SELL").length} SELL · ${date}`;
-  const { error: sendError } = await resend.emails.send({
-    from:    process.env.RESEND_FROM ?? "Traxora AI <onboarding@resend.dev>",
-    to:      recipients,
-    subject,
-    html,
-  });
+  const errors: string[] = [];
 
-  if (sendError) {
-    return Response.json({ error: sendError.message }, { status: 500 });
+  // Send individual personalized email to each recipient
+  for (const email of recipients) {
+    const userSyms         = userWatchlists.get(email) ?? [];
+    const watchlistSection = buildWatchlistSection(userSyms, analysisMap);
+    const html             = buildEmail(top20, date, perfSection, watchlistSection, optionsSection, futuresSection);
+    const { error: sendError } = await resend.emails.send({
+      from:    process.env.RESEND_FROM ?? "Traxora AI <onboarding@resend.dev>",
+      to:      [email],
+      subject,
+      html,
+    });
+    if (sendError) errors.push(`${email}: ${sendError.message}`);
+  }
+
+  if (errors.length > 0 && errors.length >= recipients.length) {
+    return Response.json({ error: errors[0] }, { status: 500 });
+  }
+
+  // Auto-post to Discord if webhook is configured
+  const discordUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (discordUrl) {
+    const topPlay = optionsPlays[0] ?? null;
+    const embeds = buildBriefingEmbed(
+      top20 as Parameters<typeof buildBriefingEmbed>[0],
+      date,
+      topPlay ? { symbol: topPlay.symbol, play: topPlay.play, expiry: topPlay.expiry ?? null } : null,
+    );
+    await postToDiscord(discordUrl, embeds);
   }
 
   // Save today's predictions for tomorrow's performance review
   await saveHistory({
     date: dateKey,
-    predictions: top20.map((s: ReturnType<typeof analyze>) => ({
+    predictions: top20.map(s => ({
       symbol:   s.symbol,
       signal:   s.signal,
       entryMid: s._entryMid,
@@ -640,5 +815,9 @@ export async function GET(req: Request) {
     })),
   });
 
-  return Response.json({ ok: true, to: recipients, date, analyzed: quotes.length, top20: top20.map((s: ReturnType<typeof analyze>) => `${s.symbol} ${s.signal}`) });
+  const partialFail = errors.length > 0;
+  return Response.json(
+    { ok: !partialFail, to: recipients, date, analyzed: allQuotes.length, top20: top20.map(s => `${s.symbol} ${s.signal}`), errors },
+    { status: partialFail ? 207 : 200 },
+  );
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import type { DeepICT, ICTSetup } from "./types";
+import type { DeepAnalysis, TradeScenario } from "./types";
 
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
-export function ICTRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
+export function DataRow({ label, value, accent }: { label: string; value: string; accent?: string }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 border-b border-[#252345] last:border-0">
       <span className="text-[10px] text-[#4B5675] uppercase tracking-widest shrink-0 mt-0.5 w-28">{label}</span>
@@ -25,7 +25,7 @@ export function SectionHead({ icon, label }: { icon: string; label: string }) {
 
 // ── SetupCard ─────────────────────────────────────────────────────────────────
 
-function SetupCard({ setup, label, color }: { setup: ICTSetup; label: string; color: "emerald" | "rose" }) {
+function SetupCard({ setup, label, color }: { setup: TradeScenario; label: string; color: "emerald" | "rose" }) {
   const c = color === "emerald"
     ? { border: "border-emerald-500/20", bg: "bg-emerald-500/5", txt: "text-emerald-400", badge: "bg-emerald-500/15 border-emerald-500/25 text-emerald-400" }
     : { border: "border-rose-500/20",    bg: "bg-rose-500/5",    txt: "text-rose-400",    badge: "bg-rose-500/15 border-rose-500/25 text-rose-400" };
@@ -71,7 +71,7 @@ function SetupCard({ setup, label, color }: { setup: ICTSetup; label: string; co
 
 // ── DeepMarketPanel ───────────────────────────────────────────────────────────
 
-export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbol: string }) {
+export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; symbol: string }) {
   const clean = symbol.replace(".US", "").replace(".COMM", "");
   const biasColor =
     data.overallBias === "BULLISH" ? "text-emerald-400" :
@@ -91,7 +91,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
           <span className="text-2xl">🎯</span>
           <div>
             <p className="font-bold text-[#F1F5F9]">Deep Market Analysis — {clean}</p>
-            <p className="text-[10px] text-[#4B5675] mt-0.5">Institutional Smart Money Framework · Multi-timeframe structure</p>
+            <p className="text-[10px] text-[#4B5675] mt-0.5">Multi-timeframe price structure · Full market breakdown</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -131,7 +131,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
                 { label: "4H (inferred)", value: data.marketStructure.h4 },
                 { label: "Recent BOS",   value: data.marketStructure.recentBOS },
                 { label: "ChoCH/MSS",    value: data.marketStructure.recentChoCH },
-              ].map(r => <ICTRow key={r.label} label={r.label} value={r.value} />)}
+              ].map(r => <DataRow key={r.label} label={r.label} value={r.value} />)}
             </div>
             <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
               <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-0.5">Draw on Liquidity</p>
@@ -159,28 +159,35 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
                   accent: Number(data.keyLevels.rsi14) > 70 ? "text-rose-400" :
                           Number(data.keyLevels.rsi14) < 30 ? "text-emerald-400" : "text-amber-400",
                 },
-              ].map(r => <ICTRow key={r.label} label={r.label} value={r.value} accent={r.accent} />)}
+              ].map(r => <DataRow key={r.label} label={r.label} value={r.value} accent={r.accent} />)}
             </div>
           </div>
         </div>
 
         {/* Liquidity + OB + FVG */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          {/* Liquidity */}
+          {/* Liquidity — framed as TAKE PROFIT TARGETS */}
           <div>
-            <SectionHead icon="💧" label="Liquidity Pools" />
+            <SectionHead icon="🎯" label="Target Levels (Liquidity)" />
             <div className="space-y-2">
               <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
-                <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1.5">Buy-Side (BSL)</p>
-                {data.liquidity.bsl.map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▲ {l}</p>)}
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">BSL — Long TP</p>
+                  <span className="text-[7px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-px rounded font-bold">TARGET</span>
+                </div>
+                {(data.liquidity?.bsl ?? []).map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▲ {l}</p>)}
               </div>
               <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3">
-                <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest mb-1.5">Sell-Side (SSL)</p>
-                {data.liquidity.ssl.map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▼ {l}</p>)}
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest">SSL — Short TP</p>
+                  <span className="text-[7px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-px rounded font-bold">TARGET</span>
+                </div>
+                {(data.liquidity?.ssl ?? []).map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▼ {l}</p>)}
               </div>
-              <div className="bg-[#0D0B1A] border border-emerald-500/15 rounded-xl p-3">
-                <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1">Likely Target</p>
-                <p className="text-[10px] text-[#CBD5E1]">{data.liquidity.likelyTarget}</p>
+              <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl p-3">
+                <p className="text-[8px] text-amber-400 font-black uppercase tracking-widest mb-1">Price Drawing To</p>
+                <p className="text-[10px] text-[#CBD5E1] font-semibold">{data.liquidity.likelyTarget}</p>
+                <p className="text-[9px] text-[#4B5675] mt-1 leading-relaxed">Set your TP here — not at a fixed R:R. Price is engineered to sweep this liquidity.</p>
               </div>
             </div>
           </div>
@@ -216,18 +223,18 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
           <div>
             <SectionHead icon="⬜" label="Fair Value Gaps" />
             <div className="space-y-2">
-              {data.fvgs.above.length > 0 && (
+              {(data.fvgs?.above ?? []).length > 0 && (
                 <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
                   <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1.5">Above (draw up)</p>
-                  {data.fvgs.above.map((f, i) => (
+                  {(data.fvgs?.above ?? []).map((f, i) => (
                     <p key={i} className="text-[10px] text-[#CBD5E1] font-mono">▲ {f.zone} <span className="text-[#4B5675]">({f.timeframe})</span></p>
                   ))}
                 </div>
               )}
-              {data.fvgs.below.length > 0 && (
+              {(data.fvgs?.below ?? []).length > 0 && (
                 <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3">
                   <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest mb-1.5">Below (draw down)</p>
-                  {data.fvgs.below.map((f, i) => (
+                  {(data.fvgs?.below ?? []).map((f, i) => (
                     <p key={i} className="text-[10px] text-[#CBD5E1] font-mono">▼ {f.zone} <span className="text-[#4B5675]">({f.timeframe})</span></p>
                   ))}
                 </div>
@@ -280,6 +287,30 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
           </div>
         </div>
 
+        {/* Immediate Rebalance */}
+        {data.immediateRebalance && (data.immediateRebalance.zones ?? []).length > 0 && (
+          <div>
+            <SectionHead icon="⚖️" label="Immediate Rebalance Zones" />
+            <div className="space-y-2 mb-3">
+              {(data.immediateRebalance.zones ?? []).map((z, i) => (
+                <div key={i} className={`rounded-xl p-3 border ${z.direction === "Bullish" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className={`text-[8px] font-black uppercase tracking-widest ${z.direction === "Bullish" ? "text-emerald-400" : "text-rose-400"}`}>
+                      {z.direction} IR · {z.timeframe}
+                    </p>
+                    <span className="text-[7px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
+                  </div>
+                  <p className="text-xs font-mono font-bold text-[#F1F5F9]">{z.zone}</p>
+                  <p className="text-[9px] text-[#7B8DB4] mt-1 leading-relaxed">{z.note}</p>
+                </div>
+              ))}
+            </div>
+            <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
+              <p className="text-[9px] text-[#4B5675] leading-relaxed">{data.immediateRebalance.summary}</p>
+            </div>
+          </div>
+        )}
+
         {/* Trade Scenarios */}
         {!data.noTrade && (
           <div className="space-y-4">
@@ -296,7 +327,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
           <div>
             <SectionHead icon="👁" label="What to Watch" />
             <ul className="space-y-2">
-              {data.watchList.map((w, i) => (
+              {(data.watchList ?? []).map((w, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <span className="text-emerald-400 shrink-0 mt-0.5 text-xs">›</span>
                   <p className="text-xs text-[#7B8DB4] leading-relaxed">{w}</p>
@@ -324,7 +355,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepICT; symbo
         </div>
 
         <p className="text-[10px] text-[#333368] text-center border-t border-[#252345] pt-4">
-          Institutional Smart Money analysis · Educational purposes only · Not financial advice
+          Multi-timeframe market analysis · Educational purposes only · Not financial advice
         </p>
       </div>
     </div>

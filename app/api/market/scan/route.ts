@@ -171,7 +171,7 @@ export async function GET() {
     valid.forEach((s) => {
       const volSurge = Math.min(s.volumeRatio, 10); // cap at 10x for scoring
       const momentum = Math.abs(s.changePercent);
-      // near 52-week extremes are high-probability ICT zones
+      // near 52-week extremes are high-probability smart money zones
       const extremeBonus =
         s.yearRangePct != null
           ? s.yearRangePct <= 15 || s.yearRangePct >= 85

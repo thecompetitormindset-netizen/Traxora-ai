@@ -4,7 +4,7 @@ import PaywallGuard from "@/app/components/PaywallGuard";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { getJournal, clearJournal, type JournalEntry } from "../components/AutoJournal";
+import { getJournal, clearJournal, saveJournalEntry, type JournalEntry } from "../components/AutoJournal";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -47,14 +47,59 @@ export default function JournalPage() {
   const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
 
   useEffect(() => {
-  }, []);
+    const local = getJournal();
+    setEntries(local);
 
-  useEffect(() => {
-    setEntries(getJournal());
+    // Hydrate from Supabase — saveJournalEntry handles dedup + scoped key
+    fetch("/api/user/journal")
+      .then((r) => r.json())
+      .then((data: { entries?: JournalEntry[] | null }) => {
+        if (!Array.isArray(data.entries) || data.entries.length === 0) return;
+        // saveJournalEntry skips duplicates (composite key: symbol|side|timestamp)
+        // Process oldest-first so newest end up at top after prepend
+        [...data.entries].reverse().forEach((e) => saveJournalEntry(e));
+        setEntries(getJournal());
+      })
+      .catch(() => { /* best-effort */ });
+
     const refresh = () => setEntries(getJournal());
     window.addEventListener("journal-updated", refresh);
     return () => window.removeEventListener("journal-updated", refresh);
   }, []);
+
+  // Push journal to Supabase whenever entries change (debounced, reads localStorage for authoritative state)
+  useEffect(() => {
+    if (entries.length === 0) return;
+    const id = setTimeout(() => {
+      fetch("/api/user/journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entries: getJournal() }),
+      }).catch(() => { /* best-effort */ });
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [entries]);
+
+  function exportCSV() {
+    const q = (s: string) => '"' + s.replace(/"/g, '""') + '"';
+    const header = ["Date","Symbol","Side","Qty","Price","P&L ($)","P&L (%)","Grade","Entry Reasoning"].join(",");
+    const rows = entries.map((e) => [
+      new Date(e.timestamp).toLocaleDateString(),
+      e.symbol, e.side, e.quantity, e.price,
+      e.pl?.toFixed(2) ?? "",
+      e.plPct?.toFixed(2) ?? "",
+      e.analysis?.grade ?? "",
+      q(e.entry ?? ""),
+    ].join(","));
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement("a"), {
+      href: url,
+      download: "traxora-journal-" + new Date().toISOString().slice(0, 10) + ".csv",
+    });
+    a.click();
+    URL.revokeObjectURL(url);
+  }
 
   function toggleExpand(id: string) {
     setExpanded(prev => {
@@ -109,13 +154,25 @@ export default function JournalPage() {
               </p>
             </div>
             {entries.length > 0 && (
-              <button
-                type="button"
-                onClick={() => { clearJournal(); setReview(null); }}
-                className="text-xs text-[#4B5675] hover:text-rose-400 transition-colors"
-              >
-                Clear all
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={exportCSV}
+                  className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { clearJournal(); setReview(null); }}
+                  className="text-xs text-[#4B5675] hover:text-rose-400 transition-colors"
+                >
+                  Clear all
+                </button>
+              </div>
             )}
           </div>
 

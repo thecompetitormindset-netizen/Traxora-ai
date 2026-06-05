@@ -1,15 +1,18 @@
-export type ICTAnalysis = {
+export type SignalAnalysis = {
   marketStructure: "Bullish" | "Bearish" | "Ranging";
   dailyBias: "Bullish" | "Bearish" | "Neutral";
   priceZone: "Premium" | "Discount" | "Equilibrium";
   orderBlock: string | null;
   fairValueGap: string | null;
   liquidity: string;
+  bslPrice?: number;
+  sslPrice?: number;
   ote: string | null;
+  immediateRebalance?: string | null;
   setup: string | null;
 };
 
-export type ICTSetup = {
+export type TradeScenario = {
   direction: "LONG" | "SHORT";
   entryFrom: string;
   entryTo: string;
@@ -27,7 +30,7 @@ export type ICTSetup = {
   bestEntryTime: string;
 };
 
-export type DeepICT = {
+export type DeepAnalysis = {
   overallBias: "BULLISH" | "BEARISH" | "NEUTRAL";
   confidence: "High" | "Medium" | "Low";
   biasReasoning: string;
@@ -83,8 +86,8 @@ export type DeepICT = {
     eq50: string;
   };
   killZones: { nextKillZone: string; setupNote: string };
-  scenarioA: ICTSetup;
-  scenarioB: ICTSetup | null;
+  scenarioA: TradeScenario;
+  scenarioB: TradeScenario | null;
   watchList: string[];
   risk: {
     earningsWithin5Days: boolean;
@@ -94,6 +97,10 @@ export type DeepICT = {
     ivElevated: boolean;
     lowLiquidity: boolean;
   };
+  immediateRebalance: {
+    zones: Array<{ zone: string; timeframe: string; direction: "Bullish" | "Bearish"; note: string }>;
+    summary: string;
+  } | null;
   noTrade: boolean;
   noTradeNote: string | null;
 };
@@ -114,7 +121,7 @@ export type AIAnalysis = {
   summary: string;
   keyPoints: string[];
   risk: "Low" | "Medium" | "High";
-  ict?: ICTAnalysis;
+  signals?: SignalAnalysis;
   trade?: TradePlan | null;
 };
 

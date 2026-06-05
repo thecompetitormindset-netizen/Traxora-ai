@@ -22,7 +22,8 @@ export type PaperTrade = {
 
 export type AddTradeInitial = { symbol?: string; direction?: Direction; entryPrice?: string };
 
-export const STORAGE_KEY    = "paper_portfolio_v2";
+export const STORAGE_KEY      = "paper_portfolio_v2";
+export const TRADES_TS_KEY    = "paper_portfolio_v2_ts";
 export const STARTING_CAPITAL = 10_000;
 
 export function loadTrades(): PaperTrade[] {
@@ -35,6 +36,15 @@ export function loadTrades(): PaperTrade[] {
 
 export function saveTrades(trades: PaperTrade[]) {
   localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(trades));
+}
+
+export function loadTradesTimestamp(): string {
+  if (typeof window === "undefined") return "0";
+  return localStorage.getItem(scopedKey(TRADES_TS_KEY)) ?? "0";
+}
+
+export function saveTradesTimestamp(ts: string) {
+  localStorage.setItem(scopedKey(TRADES_TS_KEY), ts);
 }
 
 export function calcPL(trade: PaperTrade, currentPrice: number): number {

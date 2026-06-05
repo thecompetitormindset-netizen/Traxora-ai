@@ -12,10 +12,64 @@ type Meta = {
   nextExpiry: string;
 };
 
-function renderMd(text: string) {
-  return text
-    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-[#F1F5F9]">$1</strong>')
-    .replace(/\n/g, "<br/>");
+function inline(s: string): string {
+  return s
+    .replace(/\*\*([^*]+)\*\*/g, '<strong class="text-[#F1F5F9] font-semibold">$1</strong>')
+    .replace(/\*([^*]+)\*/g,     '<em class="text-[#CBD5E1] not-italic">$1</em>');
+}
+
+function renderMd(raw: string): string {
+  const lines = raw.split("\n");
+  let html = "", inList = false;
+
+  const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+
+  for (const line of lines) {
+    const t = line.trim();
+
+    if (t.startsWith("# ")) {
+      closeList();
+      const c = t.slice(2);
+      const isRisk = /high risk|alert/i.test(c);
+      html += `<p class="text-sm font-black mt-3 mb-1 ${isRisk ? "text-rose-400" : "text-[#F1F5F9]"}">${inline(c)}</p>`;
+      continue;
+    }
+
+    if (t.startsWith("## ")) {
+      closeList();
+      const c = t.slice(3);
+      const isNo = /no trade/i.test(c);
+      html += `<p class="text-xs font-black mt-3 mb-1 ${isNo ? "text-rose-400" : "text-emerald-400"}">${inline(c)}</p>`;
+      continue;
+    }
+
+    if (t === "---") {
+      closeList();
+      html += '<div class="border-t border-[#252345] my-3"></div>';
+      continue;
+    }
+
+    if (t.startsWith("- ") || t.startsWith("* ")) {
+      if (!inList) { html += '<ul class="space-y-1 mt-1.5 mb-1">'; inList = true; }
+      html += `<li class="flex gap-2 text-[12px]"><span class="text-emerald-400/60 shrink-0">›</span><span>${inline(t.slice(2))}</span></li>`;
+      continue;
+    }
+
+    const num = t.match(/^(\d+)\.\s+(.*)/);
+    if (num) {
+      if (!inList) { html += '<ul class="space-y-1 mt-1.5 mb-1">'; inList = true; }
+      html += `<li class="flex gap-2 text-[12px]"><span class="text-[#4B5675] font-mono shrink-0">${num[1]}.</span><span>${inline(num[2])}</span></li>`;
+      continue;
+    }
+
+    if (!t) { closeList(); html += '<div class="h-1.5"></div>'; continue; }
+
+    closeList();
+    html += `<p class="text-[12.5px] leading-relaxed">${inline(t)}</p>`;
+  }
+
+  closeList();
+  return html;
 }
 
 import { useEffect } from "react";
@@ -102,7 +156,7 @@ export default function OptionsTab({ initialSymbol }: { initialSymbol?: string }
   }
 
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4 max-w-3xl mx-auto">
 
       {/* Search */}
       <div className="flex gap-2">
@@ -215,13 +269,29 @@ export default function OptionsTab({ initialSymbol }: { initialSymbol?: string }
 
           {/* AI analysis */}
           {text && (
-            <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-emerald-400">✦</span>
-                <p className="text-xs font-bold text-emerald-400 uppercase tracking-widest">AI Options Analysis</p>
+            <div className={`rounded-2xl border overflow-hidden ${
+              /high risk/i.test(text)  ? "border-rose-500/25 bg-rose-500/[0.03]" :
+              /no trade/i.test(text)   ? "border-amber-500/25 bg-amber-500/[0.03]" :
+                                         "border-[#252345] bg-[#13112A]"
+            }`}>
+              <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className={/high risk/i.test(text) ? "text-rose-400" : "text-emerald-400"}>✦</span>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#7B8DB4]">AI Options Analysis</p>
+                </div>
+                {/high risk/i.test(text) && (
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded-lg border bg-rose-500/10 text-rose-400 border-rose-500/25">
+                    HIGH RISK
+                  </span>
+                )}
+                {/no trade/i.test(text) && !/high risk/i.test(text) && (
+                  <span className="text-[9px] font-black px-2 py-0.5 rounded-lg border bg-amber-500/10 text-amber-400 border-amber-500/25">
+                    NO TRADE
+                  </span>
+                )}
               </div>
               <div
-                className="text-[12.5px] text-[#94A3B8] leading-relaxed [&_strong]:font-semibold [&_strong]:text-[#F1F5F9]"
+                className="px-5 py-4 text-[#94A3B8] [&_strong]:font-semibold [&_strong]:text-[#F1F5F9]"
                 dangerouslySetInnerHTML={{ __html: renderMd(text) }}
               />
             </div>

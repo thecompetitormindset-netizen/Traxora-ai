@@ -1,10 +1,12 @@
+import { toYahooSymbol } from "@/app/lib/yahooSymbol";
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") || "AAPL.US";
 
   const apiKey = process.env.EODHD_API_KEY;
 
-  // 1) Try EODHD
+  // 1) Try EODHD (native symbol format — handles both .US and .COMM)
   if (apiKey) {
     try {
       const url =
@@ -41,9 +43,9 @@ export async function GET(req: Request) {
     }
   }
 
-  // 2) Fallback: Yahoo Finance OHLCV (no API key required)
+  // 2) Fallback: Yahoo Finance OHLCV — use =F suffix for futures
   try {
-    const yahooSymbol = symbol.replace(/\.(US|COMM)$/, "");
+    const yahooSymbol = toYahooSymbol(symbol);
     const url =
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}` +
       `?interval=1d&range=1y`;

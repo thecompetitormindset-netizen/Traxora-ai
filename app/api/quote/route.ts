@@ -1,3 +1,5 @@
+import { toYahooSymbol, toFinnhubSymbol } from "@/app/lib/yahooSymbol";
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") || "AAPL.US";
@@ -9,7 +11,7 @@ export async function GET(req: Request) {
   // Finnhub — real-time, licensed, reliable
   if (finnhubKey) {
     try {
-      const fhSymbol = symbol.replace(/\.(US|COMM)$/, "");
+      const fhSymbol = toFinnhubSymbol(symbol);
       const res = await fetch(
         `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(fhSymbol)}&token=${finnhubKey}`,
         { cache: "no-store" },
@@ -33,12 +35,12 @@ export async function GET(req: Request) {
     }
   }
 
-  // Yahoo Finance fallback — real-time when it works
+  // Yahoo Finance — primary free source; uses =F suffix for futures
   try {
-    const yahooSymbol = symbol.replace(/\.(US|COMM)$/, "");
+    const yahooSymbol = toYahooSymbol(symbol);
     const res = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1m&range=1d`,
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" } },
+      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) },
     );
     const data = await res.json();
     const result = data?.chart?.result?.[0];

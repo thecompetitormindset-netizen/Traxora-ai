@@ -29,7 +29,7 @@ type ScanResult = {
   symbol: string;
   signal: "BUY" | "SELL" | "HOLD";
   confidence: "High" | "Medium" | "Low";
-  ictSetup: string;
+  setupNote: string;
   catalyst: string;
   marketStructure: string;
   priceZone: string;
@@ -152,7 +152,7 @@ export default function AutoScanner() {
       setProgress(50);
 
       // Phase 2: AI analysis
-      setStep(`AI analyzing top ${top.length} opportunities with Smart Money framework…`);
+      setStep(`AI running full market analysis on top ${top.length} opportunities…`);
       setProgress(60);
 
       const aiRes = await fetch("/api/ai/scan", {
@@ -230,7 +230,7 @@ export default function AutoScanner() {
               {!scanning && !done && (
                 <div className="py-4 text-center space-y-3">
                   <p className="text-[11px] text-[#7B8DB4] leading-relaxed">
-                    Pulls live quotes, volume surge data, 52-week positioning, and breaking news for 55 stocks — then Claude identifies the top smart money setups right now.
+                    Pulls live quotes, volume surge data, 52-week positioning, and breaking news for 55 stocks — then Claude identifies the top high-probability setups right now.
                   </p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     {[
@@ -335,8 +335,8 @@ export default function AutoScanner() {
                             )}
                           </div>
 
-                          {/* ICT setup preview */}
-                          <p className="text-[9px] text-[#4B5675] mt-2 leading-snug line-clamp-2">{r.ictSetup}</p>
+                          {/* Setup preview */}
+                          <p className="text-[9px] text-[#4B5675] mt-2 leading-snug line-clamp-2">{r.setupNote}</p>
 
                           <div className="flex items-center justify-between mt-1.5">
                             <div className="flex items-center gap-2">
@@ -384,7 +384,7 @@ export default function AutoScanner() {
                             )}
 
                             {[
-                              { label: "Smart Money Setup", value: r.ictSetup },
+                              { label: "Smart Money Setup", value: r.setupNote },
                               { label: "Catalyst",     value: r.catalyst },
                               { label: "Volume",       value: r.volumeVerdict },
                               { label: "Structure",    value: r.marketStructure },

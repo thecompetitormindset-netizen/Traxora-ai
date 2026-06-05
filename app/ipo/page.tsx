@@ -245,6 +245,34 @@ function AIPanel({ ipo }: { ipo: IPOItem }) {
         </div>
       </div>
 
+      {/* Post to Discord */}
+      <button
+        type="button"
+        onClick={() => {
+          const emoji = analysis.verdict === "Strong Buy" ? "🟢" : analysis.verdict === "Buy" ? "🟢" : analysis.verdict === "Watch" ? "🟡" : "🔴";
+          const lines: string[] = [];
+          lines.push(`🚀 **IPO Alert: ${ipo.name}${ipo.symbol ? ` (${ipo.symbol})` : ""}**${ipoPrice ? ` @ $${ipoPrice}` : ""}`);
+          lines.push(`${emoji} **${analysis.verdict}** — ${analysis.verdictReason}`);
+          lines.push(`Sector: ${analysis.sector} · Similar to ${analysis.similarTo}`);
+          lines.push("");
+          lines.push(`**12-Month Targets:** 🐻 $${analysis.priceTargets.bear} · 📊 $${analysis.priceTargets.base} · 🐂 $${analysis.priceTargets.bull}`);
+          if (analysis.catalysts.length > 0) { lines.push(""); lines.push("**Catalysts:** " + analysis.catalysts.slice(0, 3).map(c => `• ${c}`).join("  ")); }
+          if (analysis.risks.length > 0) { lines.push("**Risks:** " + analysis.risks.slice(0, 2).map(r => `• ${r}`).join("  ")); }
+          lines.push(""); lines.push("📈 **traxora.ai**");
+          const el = document.getElementById(`ipo-discord-${ipo.name}`);
+          navigator.clipboard.writeText(lines.join("\n")).then(() => {
+            if (el) { el.textContent = "Copied!"; setTimeout(() => { if (el) el.textContent = "Post to Discord"; }, 2000); }
+          });
+        }}
+        id={`ipo-discord-${ipo.name}`}
+        className="w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#5865F2]/25 text-[#7B8DB4] hover:text-white transition-all text-xs font-semibold"
+      >
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+        </svg>
+        Post to Discord
+      </button>
+
       <p className="text-[9px] text-[#333368]">AI-generated analysis · Not financial advice · For educational purposes only</p>
     </div>
   );

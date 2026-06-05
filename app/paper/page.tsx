@@ -9,8 +9,8 @@ import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import type { PaperTrade, Direction, ExitReason, TradeStatus, AddTradeInitial } from "../lib/paperTrades";
 import {
-  loadTrades, saveTrades, calcPL, calcPLPct,
-  fmtMoney, fmtPct, plColor, daysBetween,
+  loadTrades, saveTrades, loadTradesTimestamp, saveTradesTimestamp,
+  calcPL, calcPLPct, fmtMoney, fmtPct, plColor, daysBetween,
   STARTING_CAPITAL,
 } from "../lib/paperTrades";
 import AddTradeModal from "../components/paper/AddTradeModal";
@@ -22,7 +22,7 @@ import { scopedKey } from "../lib/userState";
 type TradeReview = {
   summary: string;
   frameworks?: {
-    ict?:       { verdict: string; points: string[] };
+    structure?: { verdict: string; points: string[] };
     wyckoff?:   { verdict: string; points: string[] };
     rMultiple?: { achieved: string; verdict: string };
     douglas?:   { verdict: string; point: string };
@@ -60,7 +60,8 @@ type InsightState = {
   error?:       string;
 };
 
-const POSITIONS_KEY = "traxora_real_positions";
+const POSITIONS_KEY    = "traxora_real_positions";
+const POSITIONS_TS_KEY = "traxora_real_positions_ts";
 
 function loadPositions(): Position[] {
   try {
@@ -72,9 +73,19 @@ function savePositions(p: Position[]) {
   localStorage.setItem(scopedKey(POSITIONS_KEY), JSON.stringify(p));
 }
 
+function loadPositionsTimestamp(): string {
+  if (typeof window === "undefined") return "0";
+  return localStorage.getItem(scopedKey(POSITIONS_TS_KEY)) ?? "0";
+}
+
+function savePositionsTimestamp(ts: string) {
+  localStorage.setItem(scopedKey(POSITIONS_TS_KEY), ts);
+}
+
 function daysSince(dateStr: string) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
+
 
 function fmtPrice(n: number) {
   return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -485,8 +496,69 @@ function PaperPortfolio() {
     }
   }, [searchParams, router]);
 
-  useEffect(() => { setTrades(loadTrades()); }, []);
-  useEffect(() => { setPositions(loadPositions()); }, []);
+  useEffect(() => {
+    const local = loadTrades();
+    setTrades(local);
+    // Hydrate from Supabase — prefer whichever side was written most recently
+    fetch("/api/user/trades")
+      .then(r => r.json())
+      .then((data: { trades?: PaperTrade[] | null; updatedAt?: string }) => {
+        if (!Array.isArray(data.trades) || !data.updatedAt) return;
+        const localTs = loadTradesTimestamp();
+        if (data.updatedAt > localTs) {
+          saveTrades(data.trades);
+          saveTradesTimestamp(data.updatedAt);
+          setTrades(data.trades);
+        }
+      })
+      .catch(() => { /* best-effort */ });
+  }, []);
+
+  // Sync trades to Supabase on every change (debounced 1s).
+  // No empty-array guard — deleting all trades must reach Supabase too.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const ts = new Date().toISOString();
+      saveTradesTimestamp(ts);
+      fetch("/api/user/trades", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trades }),
+      }).catch(() => { /* best-effort */ });
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [trades]);
+  useEffect(() => {
+    const local = loadPositions();
+    setPositions(local);
+    // Hydrate real positions from Supabase — timestamp-wins
+    fetch("/api/user/positions")
+      .then(r => r.json())
+      .then((data: { positions?: Position[] | null; updatedAt?: string }) => {
+        if (!Array.isArray(data.positions) || !data.updatedAt) return;
+        const localTs = loadPositionsTimestamp();
+        if (data.updatedAt > localTs) {
+          savePositions(data.positions);
+          savePositionsTimestamp(data.updatedAt);
+          setPositions(data.positions);
+        }
+      })
+      .catch(() => { /* best-effort */ });
+  }, []);
+
+  // Sync real positions to Supabase on every change (debounced 1s)
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const ts = new Date().toISOString();
+      savePositionsTimestamp(ts);
+      fetch("/api/user/positions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ positions }),
+      }).catch(() => { /* best-effort */ });
+    }, 1000);
+    return () => clearTimeout(id);
+  }, [positions]);
 
   const open   = trades.filter(t => t.status === "OPEN");
   const closed = trades.filter(t => t.status === "CLOSED").sort((a, b) =>
@@ -552,6 +624,30 @@ function PaperPortfolio() {
     }
   }
 
+  function exportTradesCSV() {
+    const header = ["Symbol","Direction","Shares","Entry Price","Exit Price","P&L ($)","P&L (%)","Entry Date","Exit Date","Exit Reason"].join(",");
+    const rows = trades.filter(t => t.status === "CLOSED" && t.exitPrice != null).map((t) => {
+      const pl    = calcPL(t, t.exitPrice!);
+      const plPct = calcPLPct(t, t.exitPrice!);
+      return [
+        t.symbol, t.direction, t.shares,
+        t.entryPrice.toFixed(2), t.exitPrice!.toFixed(2),
+        pl.toFixed(2), plPct.toFixed(2),
+        new Date(t.entryDate).toLocaleDateString(),
+        t.exitDate ? new Date(t.exitDate).toLocaleDateString() : "",
+        t.exitReason ?? "",
+      ].join(",");
+    });
+    const blob = new Blob([[header, ...rows].join("\n")], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = Object.assign(document.createElement("a"), {
+      href: url,
+      download: "traxora-trades-" + new Date().toISOString().slice(0, 10) + ".csv",
+    });
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function addTrade(t: PaperTrade) {
     const updated = [t, ...trades];
     setTrades(updated);
@@ -605,6 +701,7 @@ function PaperPortfolio() {
     setPositions(updated);
     savePositions(updated);
   }
+
 
   // ── Stats ──────────────────────────────────────────────────────────────────
   const totalUnrealized = open.reduce((s, t) => {
@@ -677,7 +774,7 @@ function PaperPortfolio() {
         <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28 space-y-6">
 
           {/* Header */}
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className={`flex gap-4 flex-wrap ${tab === "positions" ? "flex-col items-center text-center" : "items-start justify-between"}`}>
             <div>
               <h1 className="text-3xl font-black tracking-tight">
                 {tab === "positions" ? "Real Positions" : "Paper Portfolio"}
@@ -689,16 +786,30 @@ function PaperPortfolio() {
               </p>
             </div>
             {tab === "open" || tab === "closed" ? (
-              <button
-                type="button"
-                onClick={() => setShowAdd(true)}
-                className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Log Trade
-              </button>
+              <div className="flex items-center gap-3">
+                {tab === "closed" && closed.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={exportTradesCSV}
+                    className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Export CSV
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(true)}
+                  className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Log Trade
+                </button>
+              </div>
             ) : tab === "positions" ? (
               <button
                 type="button"
@@ -724,6 +835,44 @@ function PaperPortfolio() {
               ))}
             </div>
           )}
+
+          {/* Equity curve */}
+          {(tab === "open" || tab === "closed") && closed.length >= 2 && (() => {
+            const sorted = [...closed]
+              .filter(t => t.exitDate && t.exitPrice != null)
+              .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+            let equity = STARTING_CAPITAL;
+            const pts = [STARTING_CAPITAL];
+            for (const t of sorted) { equity += calcPL(t, t.exitPrice!); pts.push(equity); }
+            if (pts.length < 2) return null;
+            const min = Math.min(...pts), max = Math.max(...pts), range = max - min || 1;
+            const W = 560, H = 60;
+            const svgPts = pts.map((p, i) => `${(i / (pts.length - 1)) * W},${H - ((p - min) / range) * (H - 4)}`).join(" ");
+            const baseY = H - ((STARTING_CAPITAL - min) / range) * (H - 4);
+            const color = equity >= STARTING_CAPITAL ? "#34D399" : "#F87171";
+            return (
+              <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Equity Curve</p>
+                  <p className={`text-xs font-mono font-bold ${equity >= STARTING_CAPITAL ? "text-emerald-400" : "text-rose-400"}`}>
+                    ${equity.toFixed(2)} · {pts.length - 1} closed trades
+                  </p>
+                </div>
+                <svg width="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="h-[60px] block w-full overflow-visible">
+                  <defs>
+                    <filter id="baseline-glow" x="-10%" y="-300%" width="120%" height="700%">
+                      <feGaussianBlur stdDeviation="1.2" result="blur" />
+                      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </defs>
+                  {/* Sharp glowing baseline at $10,000 */}
+                  <line x1="0" y1={baseY} x2={String(W)} y2={baseY} stroke={color} strokeWidth="0.5" opacity="0.35" filter="url(#baseline-glow)" />
+                  <polyline points={svgPts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <circle cx={(pts.length - 1) / (pts.length - 1) * W} cy={H - ((pts[pts.length - 1] - min) / range) * (H - 4)} r="3" fill={color} />
+                </svg>
+              </div>
+            );
+          })()}
 
           {/* Advanced performance metrics */}
           {(tab === "open" || tab === "closed") && showAdvanced && (
@@ -770,7 +919,7 @@ function PaperPortfolio() {
           )}
 
           {/* Tabs */}
-          <div className="flex gap-1 bg-[#0D0B1A] border border-[#252345] rounded-xl p-1 w-fit flex-wrap">
+          <div className={`flex gap-1 bg-[#0D0B1A] border border-[#252345] rounded-xl p-1 w-fit flex-wrap ${tab === "positions" ? "mx-auto" : ""}`}>
             {([
               ["open",      `Open (${open.length})`],
               ["closed",    `Closed (${closed.length})`],
@@ -989,7 +1138,7 @@ function PaperPortfolio() {
                                   {review.frameworks && (
                                     <div className="space-y-2">
                                       {([
-                                        ["Market Structure", review.frameworks.ict,      review.frameworks.ict?.points],
+                                        ["Market Structure", review.frameworks.structure,      review.frameworks.structure?.points],
                                         ["Wyckoff",          review.frameworks.wyckoff,  review.frameworks.wyckoff?.points],
                                         ["Risk Mgmt",        review.frameworks.risk,     review.frameworks.risk?.points],
                                       ] as [string, { verdict: string; points?: string[] } | undefined, string[] | undefined][]).map(([name, fw, pts]) => fw && (
@@ -1067,7 +1216,7 @@ function PaperPortfolio() {
 
           {/* ── REAL POSITIONS ────────────────────────────────────────────── */}
           {tab === "positions" && (
-            <div className="space-y-4 max-w-3xl">
+            <div className="space-y-4 max-w-3xl mx-auto w-full">
               {/* No-stop warning */}
               {noStop > 0 && positions.length > 0 && (
                 <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl px-4 py-3 flex items-start gap-3">
@@ -1081,14 +1230,14 @@ function PaperPortfolio() {
 
               {/* Empty state */}
               {positions.length === 0 && (
-                <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-6 py-16 text-center">
-                  <div className="w-14 h-14 rounded-2xl bg-[#0D0B1A] border border-[#252345] flex items-center justify-center mx-auto mb-4">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-[#13112A] border border-[#252345] flex items-center justify-center mb-5">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
                   </div>
-                  <h2 className="text-base font-bold text-[#F1F5F9] mb-1">No positions yet</h2>
-                  <p className="text-sm text-[#4B5675] mb-5">Add your Robinhood positions to get AI insights on each one.</p>
+                  <h2 className="text-lg font-bold text-[#F1F5F9] mb-2">No positions yet</h2>
+                  <p className="text-sm text-[#4B5675] mb-6 max-w-xs">Add your Robinhood positions to get AI insights on each one.</p>
                   <button type="button" onClick={() => setShowAddPosition(true)}
-                    className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-6 py-2.5 rounded-xl text-sm font-bold">
+                    className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-7 py-2.5 rounded-xl text-sm font-bold">
                     Add First Position
                   </button>
                 </div>

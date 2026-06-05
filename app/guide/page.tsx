@@ -24,44 +24,53 @@ const SECTIONS: Section[] = [
     id: "dashboard",
     icon: "📊",
     title: "Dashboard",
-    subtitle: "Live prices, AI signals, and your portfolio — all in one view.",
+    subtitle: "Live prices, AI signals, custom watchlist, and price alerts — all in one view.",
     color: "text-emerald-400",
     border: "border-emerald-500/20",
     bg: "bg-emerald-500/5",
     href: "/dashboard",
     steps: [
       {
-        step: "Signals load automatically",
-        detail: "The moment you open the Dashboard, Traxora fetches live quotes for 9 core stocks (AAPL, MSFT, NVDA, TSLA, AMZN, GOOGL, META, JPM, ES) and fires AI analysis on each one. The cards show a spinner while loading — expect signals in 10–20 seconds per stock.",
+        step: "Signals load from your personal watchlist",
+        detail: "The Dashboard loads your saved watchlist — by default AAPL, MSFT, NVDA, TSLA, AMZN, GOOGL, META, JPM, and ES. Each card shows a spinner while the quote and AI signal load. Expect results in 10–20 seconds per stock. Your watchlist is saved to your account so it follows you across devices.",
+      },
+      {
+        step: "Customise your watchlist",
+        detail: "Click 'Edit' next to the Market Watchlist header. An input row appears — type any ticker (SPY, AMD, BTC-USD) and press Enter or 'Add'. Traxora validates the symbol, looks up the company name, and immediately fetches its quote and signal. To remove a stock, tap the red × badge that appears on each card in edit mode. Click 'Done' to return to normal.",
       },
       {
         step: "Read the signal cards",
-        detail: "Each card shows a BUY (green), HOLD (amber), or SELL (red) badge with a confidence level (High / Medium / Low). Below the badge you'll see the Trade Plan: Entry Zone, Stop Loss, Take Profit, and R:R ratio. High confidence + matching Kill Zone = strongest setup.",
+        detail: "Each card shows BUY (green), HOLD (amber), or SELL (red) with a confidence level. Below that: a 10-bar sparkline showing the recent price trend, the Trade Plan (Entry Zone, Stop, Target, R:R), and an 'Earns [date]' badge if earnings are within 90 days. High confidence + upcoming Kill Zone = strongest setup.",
+      },
+      {
+        step: "Paper trade directly from the card",
+        detail: "When a card shows a BUY or SELL signal, a 'Trade →' link appears in the card footer. Click it to open the paper trading modal pre-filled with the symbol, direction (LONG or SHORT), and current price. You can adjust shares and stop loss before confirming.",
+      },
+      {
+        step: "Set price alerts on any ticker",
+        detail: "Click the bell icon in the bottom-right corner of any watchlist card. A small form appears with two fields: 'Above $___' and 'Below $___'. Set either or both, click Save, and Traxora checks the thresholds every 60 seconds. When a price is hit, a push notification fires and the threshold clears automatically so it won't spam you.",
       },
       {
         step: "Trending stocks appear after the watchlist",
-        detail: "After all 9 core signals load, Traxora fetches up to 4 trending stocks from the market and runs AI on them too. These appear at the end of the watchlist with a 'TRENDING' badge. They reset each session.",
-      },
-      {
-        step: "Click any card for the full breakdown",
-        detail: "Tapping a stock card takes you to the Analysis page for that ticker. There you can see the live chart, run a Deep Analysis, and log a trade — all from the same screen.",
+        detail: "After all core signals load, Traxora fetches up to 4 trending stocks from the market and runs AI analysis on them too. These appear at the end of the watchlist with a 'TRENDING' badge. They reset each session and can't be manually removed (only your core watchlist entries have the × button in edit mode).",
       },
       {
         step: "Check your portfolio summary",
-        detail: "The portfolio widget below the signal stats shows your Account Value, Realized P&L, open positions, and win rate at a glance. Click it to open the full Portfolio page.",
+        detail: "The portfolio widget below the signal stats shows Account Value, Realized P&L, open positions, and win rate at a glance. Click it to open the full Portfolio page.",
       },
       {
-        step: "Scroll down for the Futures section",
-        detail: "Below the stock watchlist you'll find 8 futures contracts grouped by category — Indices (ES, NQ, YM, RTY), Metals (GC, SI), and Energy (CL, NG). These show live prices and % change. Click any to analyze.",
+        step: "Scroll down for Futures and Options Plays",
+        detail: "Below the watchlist: 8 futures contracts (Indices, Metals, Energy) with live prices. Below those: Top Options Plays — click 'Scan now' to surface the best options setups across 30 liquid stocks. Each card shows strike, entry zone, target, stop, premium estimate, and IV.",
       },
       {
         step: "Enable push alerts",
-        detail: "If you haven't enabled notifications, a banner appears at the top of the Dashboard. Click 'Enable Signal Alerts' and approve the browser prompt. After that, Traxora sends a push notification every time a BUY or SELL signal fires — even if you're on a different tab.",
+        detail: "Click 'Enable Signal Alerts' in the dashboard header. After approving the browser prompt, Traxora sends a push notification every time a BUY or SELL signal fires or a price alert is triggered — even if you're on a different tab.",
       },
     ],
     tips: [
-      "The Market Status badge (top right of the Dashboard header) tells you if the NYSE is Open, Pre-Market, After-Hours, or Closed. Signals during market hours carry more weight than overnight ones.",
-      "The Sentiment Widget above the Dashboard shows the Fear & Greed score (0–100). Below 30 = fear, possible accumulation zone. Above 70 = greed, institutions may be distributing. Use it to calibrate whether to favour BUY or SELL signals that session.",
+      "Prices refresh every 60 seconds automatically — no reload needed. The watchlist header shows 'Updated HH:MM' so you always know how fresh the data is.",
+      "The Market Status badge tells you if NYSE is Open, Pre-Market, After-Hours, or Closed. Signals during market hours carry more weight than overnight ones.",
+      "The Sentiment Widget shows the Fear & Greed score (0–100). Below 30 = fear, possible accumulation. Above 70 = greed, institutions may be distributing. Use it to calibrate BUY vs SELL bias for the session.",
     ],
   },
   {
@@ -80,7 +89,7 @@ const SECTIONS: Section[] = [
       },
       {
         step: "A quick signal loads automatically",
-        detail: "As soon as the symbol is set, Traxora fetches the live quote (price, open, high, low, previous close) and runs a fast Smart Money analysis. Within 5–10 seconds you'll see the BUY / HOLD / SELL badge, confidence, risk rating, a 2-sentence summary, and 3 key bullet points.",
+        detail: "As soon as the symbol is set, Traxora fetches the live quote (price, open, high, low, previous close) and runs a fast market analysis. Within 5–10 seconds you'll see the BUY / HOLD / SELL badge, confidence, risk rating, a 2-sentence summary, and 3 key bullet points.",
       },
       {
         step: "Read the live chart",
@@ -93,6 +102,10 @@ const SECTIONS: Section[] = [
       {
         step: "Read the Trade Plan card",
         detail: "Below the deep analysis you'll find the Trade Plan — the most actionable part. It shows the exact Entry Zone (price range to enter), Stop Loss level (where you're wrong), Take Profit target (your exit), and the R:R Ratio. A 2:1 R:R or better is worth taking. Below 1:1 — skip it.",
+      },
+      {
+        step: "Read recent news for the ticker",
+        detail: "Below the volume profile and above the Deep Analysis button, Traxora shows 6 recent headlines for the current symbol pulled from Google News. Each headline links to the full article in a new tab. Use this to quickly check if there's a fundamental catalyst (earnings surprise, product launch, macro event) behind today's price action before committing to a trade.",
       },
       {
         step: "Log a trade",
@@ -119,11 +132,11 @@ const SECTIONS: Section[] = [
       },
       {
         step: "Press 'Run Full Scan'",
-        detail: "The scanner simultaneously fetches live quotes for 20 major stocks and futures. It ranks them by today's momentum — biggest movers (up or down) generate the most technical confluence and are the most interesting for Smart Money setups.",
+        detail: "The scanner simultaneously fetches live quotes for 20 major stocks and futures. It ranks them by today's momentum — biggest movers (up or down) generate the most technical confluence and are the most interesting for high-probability setups.",
       },
       {
         step: "AI analyzes the top 6",
-        detail: "The 6 highest-momentum stocks are sent to Claude Sonnet 4.6 for full Smart Money analysis. Each runs the same framework as the Signals page — Order Blocks, FVGs, Liquidity, Kill Zone timing, and confidence. This takes 30–60 seconds.",
+        detail: "The 6 highest-momentum stocks are sent to Claude Sonnet 4.6 for full market analysis. Each runs the same framework as the Signals page — Order Blocks, FVGs, Liquidity, Kill Zone timing, and confidence. This takes 30–60 seconds.",
       },
       {
         step: "Read the top 3 results",
@@ -135,7 +148,7 @@ const SECTIONS: Section[] = [
       },
     ],
     tips: [
-      "Run the scanner right at 9:30 AM ET when the NY Kill Zone opens — this is when institutional volume is highest and smart money setups have the most follow-through.",
+      "Run the scanner right at 9:30 AM ET when the NY Kill Zone opens — this is when institutional volume is highest and high-probability setups have the most follow-through.",
       "Big movers in either direction are useful. A stock down 4% today may have swept liquidity below and be setting up a reversal BUY. The scanner catches these too, not just the green runners.",
     ],
   },
@@ -169,10 +182,14 @@ const SECTIONS: Section[] = [
         step: "Build your edge over time",
         detail: "After 30+ entries you'll see clear patterns in your own trading. Most traders discover they're overtrading one session, using stops that are too tight, or entering before the Kill Zone. The journal makes these invisible habits visible.",
       },
+      {
+        step: "Export your journal to CSV",
+        detail: "Click 'Export CSV' at the top of the Journal page. A file downloads instantly with columns for date, symbol, side, qty, price, P&L ($), P&L (%), grade, and entry reasoning. Use it for tax records, backtesting in Excel, or sharing your track record.",
+      },
     ],
     tips: [
       "Read your last 10 journal entries before the NY open each morning. It takes 3 minutes and keeps your recent mistakes fresh in your mind, reducing repeat errors.",
-      "Journal entries are stored in localStorage — device-specific and session-persistent. Export or screenshot important entries if you want a permanent record.",
+      "Journal entries sync automatically to your account via Supabase. They're preserved across devices and browser clears — no need to export for backup.",
     ],
   },
   {
@@ -307,8 +324,12 @@ const SECTIONS: Section[] = [
         detail: "The Open tab lists every live position: symbol, direction (LONG/SHORT), entry date, shares, average entry price, and current unrealised P&L. Prices refresh automatically every 30 seconds while the page is open.",
       },
       {
-        step: "Trade history",
-        detail: "Switch to the Closed tab to see every closed trade: date, symbol, direction, entry price, exit price, shares, and final P&L. Each closed trade has an ✦ AI Review button that runs a multi-framework breakdown — Smart Money, Wyckoff, R-Multiple, Mark Douglas psychology.",
+        step: "Equity curve",
+        detail: "Once you have 2 or more closed trades, an equity curve chart appears between the stats grid and the advanced metrics. It plots your account value over time across every closed trade, with a dashed $10,000 baseline. Green line = net positive. Red line = net negative. The end dot shows your current account value.",
+      },
+      {
+        step: "Trade history and CSV export",
+        detail: "Switch to the Closed tab to see every closed trade: date, symbol, direction, entry price, exit price, shares, and final P&L. An 'Export CSV' button appears in the header when you have closed trades — click it to download a spreadsheet with all your trade data for tax records or external analysis. Each closed trade also has an ✦ AI Review button for a multi-framework breakdown.",
       },
       {
         step: "Real Positions tab — your actual Robinhood holdings",
@@ -316,7 +337,11 @@ const SECTIONS: Section[] = [
       },
       {
         step: "AI Insight for positions without a stop loss",
-        detail: "If you log a position without a stop loss, it gets a ⚠ NO STOP badge and a warning banner appears at the top. When you run AI Insight, Claude specifically identifies the exact structural stop price — the level at which your trade thesis is invalid — based on Smart Money methodology. This is the most actionable output of the feature.",
+        detail: "If you log a position without a stop loss, it gets a ⚠ NO STOP badge and a warning banner appears at the top. When you run AI Insight, Claude specifically identifies the exact structural stop price — the level at which your trade thesis is invalid — based on market structure methodology. This is the most actionable output of the feature.",
+      },
+      {
+        step: "Track AI signal performance",
+        detail: "Open the History page from the nav bar and switch to the 'AI Signals' tab. Every BUY and SELL signal that fired on your account is listed here with the price at the time of the signal. Traxora fetches the current price in the background and shows the % move since the signal fired — colour-coded so you can see at a glance how the AI's calls have performed.",
       },
       {
         step: "Reset the portfolio",
@@ -324,9 +349,9 @@ const SECTIONS: Section[] = [
       },
     ],
     tips: [
-      "Account Value uses your average entry prices, not current market prices. The number on screen may differ from what the market is pricing your shares at today — check the unrealised P&L column in the Open tab for the real-time view.",
-      "Win Rate is calculated per-trade, not per-share. Closing 50 shares of AAPL at a profit counts as 1 win, same as closing 1 share. Focus on both win rate and average winner size — a 45% win rate with a 3:1 R:R is more profitable than 60% at 1:1.",
-      "Real Positions are for research and situational awareness only — not a signal to buy or sell. The AI Insight is a Smart Money read of current market structure, not financial advice. Always manage risk with your own stop levels.",
+      "Account Value uses your average entry prices, not current market prices. Check the unrealised P&L column in the Open tab for the real-time view.",
+      "Win Rate is calculated per-trade, not per-share. A 45% win rate with a 3:1 R:R is more profitable than 60% at 1:1 — focus on both metrics together.",
+      "Real Positions are for research and situational awareness only — not a signal to buy or sell. The AI Insight is a structural read of current market structure, not financial advice. Always manage risk with your own stop levels.",
     ],
   },
 ];
@@ -460,10 +485,10 @@ export default function GuidePage() {
 
           {/* SMC cheatsheet */}
           <div className="mt-4 bg-[#13112A] border border-[#252345] rounded-2xl p-5">
-            <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-3">Smart Money concept quick-reference</p>
+            <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-3">Market concept quick-reference</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[
-                { tag: "OB",  label: "Order Block",          desc: "Last opposing candle before a strong move — smart money's buy/sell zone" },
+                { tag: "OB",  label: "Order Block",          desc: "Last opposing candle before a strong move — key institutional buy/sell zone" },
                 { tag: "FVG", label: "Fair Value Gap",        desc: "Price imbalance from a fast move — institutions fill these gaps" },
                 { tag: "LIQ", label: "Liquidity Sweep",       desc: "Stops hunted above highs or below lows before the real move" },
                 { tag: "MSS", label: "Market Structure Shift",desc: "Trend changes: uptrend breaks below last HL, or downtrend above last LH" },

@@ -53,5 +53,9 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon-192.png|manifest.webmanifest).*)"],
+  // Exclude Next.js internals, all static files in /public (sw.js, icons, SVGs, manifest),
+  // and well-known paths that must never redirect (service worker scope requires a 200, not a 307).
+  matcher: [
+    "/((?!_next/static|_next/image|favicon\\.ico|sw\\.js|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|icon-192\\.png|icon-512\\.png|.*\\.svg$|.*\\.png$|.*\\.ico$|.*\\.webmanifest$).+)",
+  ],
 };

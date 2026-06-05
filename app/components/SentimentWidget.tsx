@@ -36,18 +36,16 @@ function ScoreBar({ score }: { score: number }) {
       </div>
 
       {/* Track: −100 ··· 0 ··· +100 */}
-      <div className="relative h-4 bg-[#080E1B] rounded-full overflow-hidden border border-[#252345]">
-        {/* Gradient backdrop */}
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.18 }}
-        />
+      <div className="relative h-4 flex items-center">
+        {/* Thin line */}
+        <div className="absolute inset-x-0 h-px rounded-full"
+          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.5 }} />
         {/* Zero tick */}
-        <div className="absolute top-0 bottom-0 w-px bg-[#232F46]" style={{ left: "50%" }} />
-        {/* Needle */}
+        <div className="absolute w-px h-2 bg-[#333368]" style={{ left: "50%", top: "50%", transform: "translateY(-50%)" }} />
+        {/* Dot marker */}
         <div
-          className="absolute top-1 bottom-1 w-2 rounded-full"
-          style={{ left: `calc(${pct * 100}% - 4px)`, background: color, boxShadow: `0 0 8px ${color}` }}
+          className="absolute w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${pct * 100}% - 5px)`, background: color, boxShadow: `0 0 6px ${color}` }}
         />
       </div>
 
@@ -62,18 +60,21 @@ function ScoreBar({ score }: { score: number }) {
 // ── Bar (breakdown) ────────────────────────────────────────────────────────────
 
 function Bar({ label, weight, value, accent }: { label: string; weight: number; value: number; accent: string }) {
-  const pct       = Math.max(0, Math.min(100, value));
-  const fillClass = pct >= 60 ? "bg-emerald-400" : pct >= 40 ? "bg-amber-400" : "bg-rose-400";
-  const numClass  = pct >= 60 ? "text-emerald-400" : pct >= 40 ? "text-amber-400" : "text-rose-400";
+  const pct   = Math.max(0, Math.min(100, value));
+  const color = pct >= 60 ? "#34D399" : pct >= 40 ? "#FBBF24" : "#F87171";
+  const numClass = pct >= 60 ? "text-emerald-400" : pct >= 40 ? "text-amber-400" : "text-rose-400";
   return (
     <div className="flex-1 min-w-0 bg-[#0D0B1A] rounded-xl p-2.5 border border-[#252345]">
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex items-center justify-between mb-2">
         <span className={`text-[9px] font-black uppercase tracking-widest ${accent}`}>{label}</span>
         <span className="text-[9px] text-[#4B5675] font-mono">{weight}%</span>
       </div>
-      <div className="h-1.5 bg-[#252345] rounded-full overflow-hidden mb-1">
-        <div className={`h-full rounded-full transition-all duration-700 ${fillClass}`}
-             style={{ width: `${pct}%` }} />
+      <div className="relative h-3 flex items-center mb-1.5">
+        <div className="absolute inset-x-0 h-px bg-[#252345] rounded-full" />
+        <div
+          className="absolute w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${pct}% - 5px)`, background: color, boxShadow: `0 0 6px ${color}` }}
+        />
       </div>
       <p className={`text-sm font-black font-mono tabular-nums ${numClass}`}>{pct}</p>
     </div>

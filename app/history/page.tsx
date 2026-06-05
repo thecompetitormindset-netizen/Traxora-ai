@@ -2,10 +2,22 @@
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { getPortfolio, type Trade } from "../lib/trading";
 import { getJournal, type JournalEntry } from "../components/AutoJournal";
+import { scopedKey, setCurrentUser } from "../lib/userState";
+
+type SignalRecord = {
+  symbol:     string;
+  name:       string;
+  signal:     "BUY" | "SELL";
+  price:      number;
+  confidence: string;
+  time:       number;
+};
 
 type RoundTrip = {
   symbol:     string;
@@ -31,13 +43,13 @@ function fmtDate(iso: string) {
 }
 
 export default function HistoryPage() {
+  const { data: session } = useSession();
   const [trades,      setTrades]      = useState<Trade[]>([]);
   const [journal,     setJournal]     = useState<JournalEntry[]>([]);
-  const [view,        setView]        = useState<"roundtrip" | "raw">("roundtrip");
+  const [view,        setView]        = useState<"roundtrip" | "raw" | "signals">("roundtrip");
   const [expanded,    setExpanded]    = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-  }, []);
+  const [signals,     setSignals]     = useState<SignalRecord[]>([]);
+  const [sigPrices,   setSigPrices]   = useState<Record<string, number>>({});
 
   useEffect(() => {
     function load() {
@@ -49,6 +61,29 @@ export default function HistoryPage() {
     window.addEventListener("journal-updated", load);
     return () => window.removeEventListener("journal-updated", load);
   }, []);
+
+  // Load AI signal history from localStorage once session resolves
+  useEffect(() => {
+    const email = session?.user?.email ?? null;
+    setCurrentUser(email);
+    try {
+      const raw = localStorage.getItem(scopedKey("traxora_alerts"));
+      setSignals(raw ? JSON.parse(raw) : []);
+    } catch { setSignals([]); }
+  }, [session]);
+
+  // Fetch current prices for every unique symbol in signal history
+  useEffect(() => {
+    if (signals.length === 0) return;
+    const syms = [...new Set(signals.map((r) => r.symbol))];
+    syms.forEach(async (sym) => {
+      try {
+        const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(sym)}`);
+        const data = await res.json();
+        if (data?.price) setSigPrices((p) => ({ ...p, [sym]: data.price }));
+      } catch { /* silent */ }
+    });
+  }, [signals]);
 
   function toggleExpand(key: string) {
     setExpanded(prev => {
@@ -117,7 +152,7 @@ export default function HistoryPage() {
             </div>
             {/* View toggle */}
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
-              {(["roundtrip", "raw"] as const).map(v => (
+              {([["roundtrip","Round Trips"],["raw","All Trades"],["signals","AI Signals"]] as const).map(([v, label]) => (
                 <button
                   key={v}
                   type="button"
@@ -126,14 +161,14 @@ export default function HistoryPage() {
                     view === v ? "bg-emerald-600 text-white" : "text-[#4B5675] hover:text-[#7B8DB4]"
                   }`}
                 >
-                  {v === "roundtrip" ? "Round Trips" : "All Trades"}
+                  {label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Stats strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+          {/* Stats strip — hidden on signals tab */}
+          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 ${view === "signals" ? "hidden" : ""}`}>
             {[
               { label: "Total Trades",     value: trades.length.toString(),                       color: "text-emerald-400" },
               { label: "Completed Pairs",  value: roundTrips.length.toString(),                    color: "text-emerald-400" },
@@ -398,10 +433,144 @@ export default function HistoryPage() {
             </div>
           )}
 
-          {trades.length > 0 && (
+          {trades.length > 0 && view !== "signals" && (
             <p className="text-center text-[10px] text-[#333368] mt-6">
               {buyCount} buys · {sellCount} sells · {roundTrips.length} completed round trips
             </p>
+          )}
+
+          {/* ─── AI Signal History ─── */}
+          {view === "signals" && (
+            <div className="mt-6 space-y-2">
+              {signals.length === 0 ? (
+                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
+                  <p className="text-[#4B5675] text-sm">No AI signals fired yet.</p>
+                  <p className="text-[11px] text-[#333368] mt-1.5">BUY/SELL signals fire automatically on the dashboard.</p>
+                  <Link href="/dashboard" className="inline-block mt-4 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">Go to Dashboard →</Link>
+                </div>
+              ) : (
+                (() => {
+                  // Require ≥72h (3 days) so short-term noise doesn't dominate.
+                  // 24h is too noisy — a valid BUY can dip 1% on day 1 then run 8% by day 3.
+                  const measured = signals.filter(r => {
+                    const hoursOld = (Date.now() - r.time) / 3_600_000;
+                    return hoursOld >= 72 && sigPrices[r.symbol] != null;
+                  });
+                  // A signal is "correct" if price moved in the signal direction
+                  // by at least 0.3% (filters out flat/noise outcomes)
+                  const isCorrect = (r: typeof signals[0]) => {
+                    const cur  = sigPrices[r.symbol];
+                    const pct  = r.signal === "BUY" ? (cur - r.price) / r.price * 100 : (r.price - cur) / r.price * 100;
+                    return pct > 0.3;
+                  };
+                  const correct  = measured.filter(isCorrect);
+                  const accuracy = measured.length >= 3 ? Math.round((correct.length / measured.length) * 100) : null;
+                  const buysM    = measured.filter(r => r.signal === "BUY");
+                  const sellsM   = measured.filter(r => r.signal === "SELL");
+                  const buyAcc   = buysM.length  >= 3 ? Math.round(buysM.filter(isCorrect).length  / buysM.length  * 100) : null;
+                  const sellAcc  = sellsM.length >= 3 ? Math.round(sellsM.filter(isCorrect).length / sellsM.length * 100) : null;
+                  const avgReturn = measured.length > 0
+                    ? measured.reduce((s, r) => {
+                        const cur = sigPrices[r.symbol];
+                        return s + (r.signal === "BUY" ? (cur - r.price) / r.price : (r.price - cur) / r.price) * 100;
+                      }, 0) / measured.length
+                    : null;
+                  const highConfM   = measured.filter(r => r.confidence === "High");
+                  const highConfAcc = highConfM.length >= 3
+                    ? Math.round(highConfM.filter(isCorrect).length / highConfM.length * 100)
+                    : null;
+
+                  return (
+                <>
+                  {/* Accuracy stats — ≥72h window filters out 24h noise */}
+                  {accuracy != null ? (
+                    <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest">Signal Performance</p>
+                        <p className="text-[10px] text-[#333368]">{measured.length} signals ≥3 days old · current prices</p>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { label: "Overall accuracy", value: `${accuracy}%`, color: accuracy >= 60 ? "text-emerald-400" : accuracy >= 45 ? "text-amber-400" : "text-rose-400", sub: `${correct.length}/${measured.length} correct` },
+                          { label: "BUY accuracy",     value: buyAcc  != null ? `${buyAcc}%`  : "—", color: buyAcc  != null ? (buyAcc  >= 60 ? "text-emerald-400" : buyAcc  >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `${buysM.length} measured` },
+                          { label: "SELL accuracy",    value: sellAcc != null ? `${sellAcc}%` : "—", color: sellAcc != null ? (sellAcc >= 60 ? "text-emerald-400" : sellAcc >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `${sellsM.length} measured` },
+                          { label: "Avg return",       value: avgReturn != null ? `${avgReturn >= 0 ? "+" : ""}${avgReturn.toFixed(2)}%` : "—", color: avgReturn != null ? (avgReturn >= 0 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]", sub: highConfAcc != null ? `High conf: ${highConfAcc}%` : "3-day since signal" },
+                        ].map(s => (
+                          <div key={s.label} className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-4 py-3">
+                            <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
+                            <p className={`text-xl font-black font-mono ${s.color}`}>{s.value}</p>
+                            <p className="text-[9px] text-[#333368] mt-0.5">{s.sub}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[9px] text-[#333368] mt-3">Correct = price moved in signal direction by ≥0.3% after 3+ days. Not financial advice.</p>
+                    </div>
+                  ) : (
+                    <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4 mb-4 text-center">
+                      <p className="text-[11px] text-[#4B5675]">Accuracy stats appear once 3+ signals are ≥3 days old and current prices load.</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                    {[
+                      { label: "Total signals", value: signals.length,                                color: "text-[#F1F5F9]"   },
+                      { label: "Buy signals",   value: signals.filter(s => s.signal === "BUY").length,  color: "text-emerald-400" },
+                      { label: "Sell signals",  value: signals.filter(s => s.signal === "SELL").length, color: "text-rose-400"    },
+                    ].map((s) => (
+                      <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+                        <p className="text-[10px] text-[#4B5675] uppercase tracking-widest">{s.label}</p>
+                        <p className={`text-2xl font-bold font-mono mt-1.5 ${s.color}`}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  {signals.map((r, i) => {
+                    const ticker  = r.symbol.replace(/\.(US|COMM)$/, "");
+                    const current = sigPrices[r.symbol];
+                    const pctRaw  = current ? ((current - r.price) / r.price) * 100 : null;
+                    const pct     = pctRaw != null
+                      ? r.signal === "BUY" ? pctRaw : -pctRaw
+                      : null;
+                    const pctPos  = pct != null && pct >= 0;
+                    const diff    = Date.now() - r.time;
+                    const mins    = Math.floor(diff / 60_000);
+                    const timeStr = mins < 60 ? `${mins}m ago` : mins < 1440 ? `${Math.floor(mins / 60)}h ago` : `${Math.floor(mins / 1440)}d ago`;
+                    return (
+                      <Link
+                        key={i}
+                        href={`/analysis?symbol=${encodeURIComponent(r.symbol)}`}
+                        className="group flex items-center gap-3 bg-[#13112A] border border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] rounded-2xl px-4 py-3.5 transition-all"
+                      >
+                        <span className={`text-[11px] font-black px-2 py-0.5 rounded-lg border shrink-0 ${r.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"}`}>{r.signal}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-sm tracking-tight">{ticker}</p>
+                          <p className="text-[11px] text-[#4B5675] truncate">{r.name}</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-mono font-bold">${r.price.toFixed(2)}</p>
+                          <p className="text-[10px] text-[#4B5675]">at signal</p>
+                        </div>
+                        {current != null ? (
+                          <div className="text-right shrink-0 min-w-[80px]">
+                            <p className="text-sm font-mono font-bold">${current.toFixed(2)}</p>
+                            {pct != null && (
+                              <span className={`text-[10px] font-mono font-bold ${pctPos ? "text-emerald-400" : "text-rose-400"}`}>
+                                {pctPos ? "+" : ""}{pct.toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                        ) : <div className="min-w-[80px]" />}
+                        <div className="text-right shrink-0 hidden sm:block">
+                          <p className={`text-[10px] font-semibold ${r.confidence === "High" ? "text-emerald-400" : r.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>{r.confidence ?? "—"}</p>
+                          <p className="text-[10px] text-[#4B5675]">{timeStr}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </>
+                  );
+                })()
+              )}
+            </div>
           )}
         </div>
       </main>

@@ -204,7 +204,7 @@ export default function SettingsPage() {
                     label="Sign out"
                     sublabel="You'll need to sign in again to access your dashboard"
                     danger
-                    onClick={() => { localStorage.removeItem(THEME_KEY); signOut({ callbackUrl: "/login?signedOut=1" }); }}
+                    onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login?signedOut=1" }); }}
                   />
                 </>
               ) : (

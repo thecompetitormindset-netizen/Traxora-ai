@@ -38,8 +38,11 @@ function LoginContent() {
 
   useEffect(() => {
     const justSignedOut = searchParams.get("signedOut");
-    if (session && !justSignedOut) router.push("/dashboard");
-  }, [session, router, searchParams]);
+    if (session && !justSignedOut) {
+      // Full reload so all components re-mount with the new session's scoped data
+      window.location.href = callbackUrl;
+    }
+  }, [session, searchParams, callbackUrl]);
 
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col lg:flex-row">

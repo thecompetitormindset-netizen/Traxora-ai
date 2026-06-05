@@ -128,17 +128,16 @@ function SentimentGauge({ score }: { score: number }) {
       </div>
 
       {/* Track: −100 ··· 0 ··· +100 */}
-      <div className="relative h-5 bg-[#080E1B] rounded-full overflow-hidden border border-[#252345]">
-        <div
-          className="absolute inset-0 rounded-full"
-          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.18 }}
-        />
+      <div className="relative h-5 flex items-center">
+        {/* Thin line */}
+        <div className="absolute inset-x-0 h-px rounded-full"
+          style={{ background: "linear-gradient(90deg,#EF4444 0%,#F97316 28%,#F59E0B 50%,#22C55E 72%,#10B981 100%)", opacity: 0.5 }} />
         {/* Zero tick */}
-        <div className="absolute top-0 bottom-0 w-px bg-[#333368]" style={{ left: "50%" }} />
-        {/* Needle */}
+        <div className="absolute w-px h-2.5 bg-[#333368]" style={{ left: "50%", top: "50%", transform: "translateY(-50%)" }} />
+        {/* Dot marker */}
         <div
-          className="absolute top-1.5 bottom-1.5 w-2.5 rounded-full"
-          style={{ left: `calc(${pct * 100}% - 5px)`, background: color, boxShadow: `0 0 10px ${color}` }}
+          className="absolute w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${pct * 100}% - 5px)`, background: color, boxShadow: `0 0 8px ${color}` }}
         />
       </div>
 
@@ -161,10 +160,11 @@ function FGGauge({ value }: { value: number }) {
         <span className="font-black font-mono text-sm" style={{ color }}>{clamp}</span>
         <span>Extreme Greed</span>
       </div>
-      <div className="h-2.5 bg-[#252345] rounded-full overflow-hidden">
+      <div className="relative h-4 flex items-center">
+        <div className="absolute inset-x-0 h-px bg-[#252345] rounded-full" />
         <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${clamp}%`, backgroundColor: color }}
+          className="absolute w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${clamp}% - 5px)`, background: color, boxShadow: `0 0 8px ${color}` }}
         />
       </div>
       <p className="text-[11px] font-semibold mt-1.5 text-center" style={{ color }}>{label}</p>
@@ -196,10 +196,11 @@ function ScoreBar({ score }: { score: number }) {
   const color = score >= 30 ? "#10B981" : score >= -30 ? "#F59E0B" : "#F43F5E";
   return (
     <div className="mt-2">
-      <div className="h-1.5 bg-[#252345] rounded-full overflow-hidden">
+      <div className="relative h-4 flex items-center">
+        <div className="absolute inset-x-0 h-px bg-[#252345] rounded-full" />
         <div
-          className="h-full rounded-full transition-all duration-700"
-          style={{ width: `${pct}%`, backgroundColor: color }}
+          className="absolute w-2.5 h-2.5 rounded-full"
+          style={{ left: `calc(${pct}% - 5px)`, background: color, boxShadow: `0 0 6px ${color}` }}
         />
       </div>
       <div className="flex justify-between mt-0.5">

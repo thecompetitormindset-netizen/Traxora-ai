@@ -133,26 +133,26 @@ const HERO_SUBS = [
 ];
 
 const TICKER_POOL = [
-  { sym:"NVDA",  price:"$211.14",  chg:"-1.45%",  up:false },
-  { sym:"AAPL",  price:"$312.06",  chg:"-0.14%",  up:false },
-  { sym:"MSFT",  price:"$450.24",  chg:"+5.45%",  up:true  },
-  { sym:"META",  price:"$632.51",  chg:"-0.44%",  up:false },
-  { sym:"AMZN",  price:"$270.64",  chg:"-1.23%",  up:false },
-  { sym:"GOOGL", price:"$185.40",  chg:"+0.62%",  up:true  },
-  { sym:"TSLA",  price:"$435.79",  chg:"-1.43%",  up:false },
-  { sym:"AMD",   price:"$152.30",  chg:"+2.10%",  up:true  },
-  { sym:"NFLX",  price:"$1,180",   chg:"+0.88%",  up:true  },
-  { sym:"JPM",   price:"$299.31",  chg:"+0.87%",  up:true  },
-  { sym:"GS",    price:"$618.40",  chg:"-0.22%",  up:false },
-  { sym:"V",     price:"$380.50",  chg:"+0.35%",  up:true  },
-  { sym:"SPY",   price:"$756.48",  chg:"+0.25%",  up:true  },
-  { sym:"QQQ",   price:"$529.60",  chg:"+0.38%",  up:true  },
-  { sym:"XOM",   price:"$118.70",  chg:"-0.91%",  up:false },
-  { sym:"COIN",  price:"$248.90",  chg:"+2.14%",  up:true  },
-  { sym:"ES",    price:"$7,596",   chg:"+0.18%",  up:true  },
-  { sym:"NQ",    price:"$30,405",  chg:"+0.32%",  up:true  },
-  { sym:"GC",    price:"$4,593",   chg:"+1.34%",  up:true  },
-  { sym:"CL",    price:"$87.36",   chg:"-1.73%",  up:false },
+  { sym:"NVDA",  price:"—",  chg:"—",  up:true  },
+  { sym:"AAPL",  price:"—",  chg:"—",  up:true  },
+  { sym:"MSFT",  price:"—",  chg:"—",  up:true  },
+  { sym:"META",  price:"—",  chg:"—",  up:true  },
+  { sym:"AMZN",  price:"—",  chg:"—",  up:true  },
+  { sym:"GOOGL", price:"—",  chg:"—",  up:true  },
+  { sym:"TSLA",  price:"—",  chg:"—",  up:true  },
+  { sym:"AMD",   price:"—",  chg:"—",  up:true  },
+  { sym:"NFLX",  price:"—",  chg:"—",  up:true  },
+  { sym:"JPM",   price:"—",  chg:"—",  up:true  },
+  { sym:"GS",    price:"—",  chg:"—",  up:true  },
+  { sym:"V",     price:"—",  chg:"—",  up:true  },
+  { sym:"SPY",   price:"—",  chg:"—",  up:true  },
+  { sym:"QQQ",   price:"—",  chg:"—",  up:true  },
+  { sym:"XOM",   price:"—",  chg:"—",  up:true  },
+  { sym:"COIN",  price:"—",  chg:"—",  up:true  },
+  { sym:"ES",    price:"—",  chg:"—",  up:true  },
+  { sym:"NQ",    price:"—",  chg:"—",  up:true  },
+  { sym:"GC",    price:"—",  chg:"—",  up:true  },
+  { sym:"CL",    price:"—",  chg:"—",  up:true  },
 ];
 
 const LIVE_SIGNALS = [
@@ -309,32 +309,34 @@ export default function HomePage() {
           {/* Live badge */}
           <div className="inline-flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-full px-4 py-1.5 text-xs text-emerald-400 font-medium mb-10">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Powered by Claude Sonnet 4.6 · Smart Money Methodology
+            Powered by Claude AI · Live market data
           </div>
 
-          {/* Rotating headline */}
-          <h1 className="text-6xl sm:text-7xl font-black tracking-tight leading-[1.05] mb-6 min-h-[160px] sm:min-h-[150px] flex flex-col items-center justify-center">
-            <span
-              className="block transition-all duration-400"
-              style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? "translateY(0)" : "translateY(8px)" }}
-            >
-              {hero.top}
-            </span>
-            <span
-              className="block bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent transition-all duration-400"
-              style={{ opacity: heroVisible ? 1 : 0, transform: heroVisible ? "translateY(0)" : "translateY(8px)" }}
-            >
-              {hero.bottom}
+          {/* Headline */}
+          <h1 className="text-6xl sm:text-7xl font-black tracking-tight leading-[1.05] mb-6 flex flex-col items-center justify-center">
+            <span className="block">Know exactly</span>
+            <span className="block bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+              when to trade.
             </span>
           </h1>
 
-          {/* Rotating sub */}
-          <p
-            className="text-[#7B8DB4] text-lg leading-relaxed mb-10 max-w-xl mx-auto transition-all duration-400 min-h-[56px]"
-            style={{ opacity: heroVisible ? 1 : 0 }}
-          >
-            {heroSub}
+          <p className="text-[#7B8DB4] text-lg leading-relaxed mb-4 max-w-xl mx-auto">
+            AI that scans the market, fires a clear BUY or SELL signal, and tells you exactly where to enter, where to stop, and where price is headed.
           </p>
+
+          {/* Social proof strip */}
+          <div className="flex items-center justify-center gap-4 mb-10 flex-wrap">
+            {[
+              { value: "55+", label: "stocks scanned" },
+              { value: "Live", label: "market signals" },
+              { value: "$5/mo", label: "all features" },
+            ].map(s => (
+              <div key={s.label} className="flex items-center gap-1.5 text-xs text-[#4B5675]">
+                <span className="font-black text-[#F1F5F9]">{s.value}</span>
+                <span>{s.label}</span>
+              </div>
+            ))}
+          </div>
 
           <div className="flex items-center justify-center gap-3 flex-wrap">
             <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-xl shadow-emerald-500/25 hover:scale-105 active:scale-95 flex items-center gap-2.5">
@@ -353,7 +355,7 @@ export default function HomePage() {
             </Link>
           </div>
           {!session && (
-            <p className="text-xs text-[#4B5675] mt-3">$5/mo · Cancel anytime · Sign in with your Google account</p>
+            <p className="text-xs text-[#4B5675] mt-3">No credit card to start · Cancel anytime</p>
           )}
         </div>
 

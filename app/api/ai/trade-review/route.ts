@@ -22,7 +22,7 @@ type ReviewRequest = {
 export type TradeReview = {
   summary: string;
   frameworks: {
-    ict:      { verdict: string; points: string[] };
+    structure: { verdict: string; points: string[] };
     wyckoff:  { verdict: string; points: string[] };
     rMultiple:{ achieved: string; verdict: string };
     douglas:  { verdict: string; point: string };
@@ -87,9 +87,9 @@ Respond ONLY with valid JSON — no markdown, no extra text:
 {
   "summary": "2 precise sentences: what happened and why it matters",
   "frameworks": {
-    "ict":       { "verdict": "one sentence market structure evaluation", "points": ["specific price action observation 1", "specific price action observation 2"] },
+    "structure":  { "verdict": "one sentence market structure evaluation", "points": ["specific price action observation 1", "specific price action observation 2"] },
     "wyckoff":   { "verdict": "one sentence Wyckoff evaluation", "points": ["Wyckoff observation 1", "Wyckoff observation 2"] },
-    "rMultiple": { "achieved": "${actualR ?? "N/A"}R", "verdict": "one sentence on expectancy impact" },
+    "rMultiple": { "achieved": "${actualR ? actualR + "R" : "N/A"}", "verdict": "one sentence on expectancy impact" },
     "douglas":   { "verdict": "one sentence on psychology/plan adherence", "point": "specific behavioral observation" },
     "risk":      { "verdict": "one sentence risk evaluation", "points": ["risk point 1", "risk point 2"] }
   },

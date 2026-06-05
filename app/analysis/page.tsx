@@ -5,16 +5,18 @@ import { useEffect, useState, Suspense } from "react";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import dynamic from "next/dynamic";
-const StockChart = dynamic(() => import("@/app/components/StockChart"), {
+const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), {
   ssr: false,
 });
 import MarketStatus from "@/app/components/MarketStatus";
 import { getPortfolio } from "@/app/lib/trading";
-import type { AIAnalysis, DeepICT, TradePlan } from "@/app/components/analysis/types";
+import type { AIAnalysis, DeepAnalysis, TradePlan } from "@/app/components/analysis/types";
 import { signalStyle, riskStyle, confidenceStyle } from "@/app/components/analysis/types";
 import DeepMarketPanel from "@/app/components/analysis/DeepMarketPanel";
+import ProAnalysisPanel from "@/app/components/analysis/ProAnalysisPanel";
 import MarketDepth from "@/app/components/analysis/MarketDepth";
 import type { VolumeProfile } from "@/app/api/volume-profile/route";
+import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
@@ -26,11 +28,19 @@ function AnalysisContent() {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
-  const [deepICT, setDeepICT] = useState<DeepICT | null>(null);
+  const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
   const [loadingDeep, setLoadingDeep] = useState(false);
   const [deepError, setDeepError] = useState<string | null>(null);
 
+  const [proAnalysis, setProAnalysis]     = useState<ProAnalysisResult | null>(null);
+  const [loadingPro, setLoadingPro]       = useState(false);
+  const [proError, setProError]           = useState<string | null>(null);
+
   const [volumeProfile, setVolumeProfile] = useState<VolumeProfile | null>(null);
+
+  type NewsItem = { title: string; link: string; pubDate: string; source: string };
+  const [news, setNews]           = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
   // Current portfolio holding for this symbol
   const [holding, setHolding] = useState<{ quantity: number; avgPrice: number } | null>(null);
@@ -47,25 +57,34 @@ function AnalysisContent() {
     return () => window.removeEventListener("portfolio-updated", loadHolding);
   }, [symbol]);
 
-  // Keep the quick-signal panel in sync with the deep ICT result so they never contradict
+  // Keep the quick-signal panel in sync with the deep analysis result so they never contradict
   useEffect(() => {
-    if (!deepICT) return;
+    if (!deepAnalysis) return;
     const mapped: "BUY" | "HOLD" | "SELL" =
-      deepICT.overallBias === "BULLISH" ? "BUY" :
-      deepICT.overallBias === "BEARISH" ? "SELL" : "HOLD";
+      deepAnalysis.overallBias === "BULLISH" ? "BUY" :
+      deepAnalysis.overallBias === "BEARISH" ? "SELL" : "HOLD";
     setAnalysis(prev =>
       prev
-        ? { ...prev, signal: mapped, confidence: deepICT.confidence }
-        : { signal: mapped, confidence: deepICT.confidence, summary: deepICT.biasReasoning, keyPoints: [], risk: "Medium" as const }
+        ? { ...prev, signal: mapped, confidence: deepAnalysis.confidence }
+        : { signal: mapped, confidence: deepAnalysis.confidence, summary: deepAnalysis.biasReasoning, keyPoints: [], risk: "Medium" as const }
     );
-  }, [deepICT]);
+  }, [deepAnalysis]);
 
-  async function runDeepICT() {
+  useEffect(() => {
+    setNewsLoading(true);
+    fetch(`/api/news?symbol=${encodeURIComponent(symbol)}`)
+      .then((r) => r.json())
+      .then((items) => { setNews(Array.isArray(items) ? items : []); })
+      .catch(() => setNews([]))
+      .finally(() => setNewsLoading(false));
+  }, [symbol]);
+
+  async function runDeepAnalysis() {
     setLoadingDeep(true);
     setDeepError(null);
-    setDeepICT(null);
+    setDeepAnalysis(null);
     try {
-      const res = await fetch("/api/ai/ict-analysis", {
+      const res = await fetch("/api/ai/deep-analysis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol }),
@@ -79,11 +98,35 @@ function AnalysisContent() {
         setDeepError(data.error ?? "Analysis failed");
         return;
       }
-      setDeepICT(data as DeepICT);
+      setDeepAnalysis(data as DeepAnalysis);
     } catch (e) {
       setDeepError(e instanceof Error ? e.message : "Network error");
     } finally {
       setLoadingDeep(false);
+    }
+  }
+
+  async function runProAnalysis() {
+    setLoadingPro(true);
+    setProError(null);
+    setProAnalysis(null);
+    try {
+      const res = await fetch("/api/ai/pro-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ symbol }),
+      });
+      // Read as text first so a non-JSON error page doesn't obscure the real error
+      const text = await res.text();
+      let data: Record<string, unknown>;
+      try { data = JSON.parse(text); }
+      catch { setProError(`Server error (${res.status}) — check Vercel logs`); return; }
+      if (!res.ok || data.error) { setProError(String(data.error ?? "Pro analysis failed")); return; }
+      setProAnalysis(data as unknown as ProAnalysisResult);
+    } catch (e) {
+      setProError(e instanceof Error ? e.message : "Network error");
+    } finally {
+      setLoadingPro(false);
     }
   }
 
@@ -189,54 +232,67 @@ function AnalysisContent() {
                 <button
                   type="button"
                   onClick={() => {
-                    const url = window.location.href;
-                    const text = `Traxora AI just fired a ${analysis.signal} signal on ${symbol.replace(".US", "").replace(".COMM", "")} with ${analysis.confidence} confidence.\n\nFree smart money signals → ${window.location.origin}`;
-                    navigator.clipboard
-                      .writeText(`${text}\n\n${url}`)
-                      .then(() => {
-                        const btn = document.getElementById("share-btn");
-                        if (btn) {
-                          btn.textContent = "Copied!";
-                          setTimeout(() => {
-                            btn.textContent = "Share Signal";
-                          }, 2000);
-                        }
-                      });
+                    const ticker = symbol.replace(".US", "").replace(".COMM", "");
+                    const signal = analysis.signal;
+                    const dir = signal === "BUY" ? "LONG" : signal === "SELL" ? "SHORT" : "HOLD";
+                    const emoji = signal === "BUY" ? "🟢" : signal === "SELL" ? "🔴" : "🟡";
+
+                    const lines: string[] = [];
+                    lines.push(`${emoji} **${ticker} — ${dir}** | Traxora AI`);
+                    lines.push(`Confidence: **${analysis.confidence}** | Risk: **${analysis.risk}**`);
+                    if (quoteData.price) lines.push(`Price: $${quoteData.price.toFixed(2)}`);
+                    lines.push("");
+
+                    if (analysis.trade && signal !== "HOLD") {
+                      const t = analysis.trade as TradePlan;
+                      lines.push("**Trade Setup**");
+                      lines.push(`Entry:  ${t.entryZone}`);
+                      lines.push(`Stop:   ${t.stopLoss}  (${t.stopReason})`);
+                      lines.push(`Target: ${t.takeProfit}  (${t.tpReason})`);
+                      lines.push(`R:R  →  ${t.rrRatio}`);
+                      lines.push("");
+                    }
+
+                    if (deepAnalysis && deepAnalysis.scenarioA) {
+                      const s = deepAnalysis.scenarioA;
+                      lines.push("**Smart Money Scenario**");
+                      lines.push(`Entry zone: ${s.entryFrom} – ${s.entryTo}`);
+                      lines.push(`Stop: ${s.stopLoss}  |  T1: ${s.target1}  |  T2: ${s.target2}`);
+                      if (s.target3) lines.push(`T3: ${s.target3}`);
+                      lines.push(`R:R: ${s.rrRatio}  |  Best time: ${s.bestEntryTime}`);
+                      lines.push("");
+                    }
+
+                    lines.push(analysis.summary);
+                    lines.push("");
+                    lines.push(`📈 traxora.ai`);
+
+                    const text = lines.join("\n");
+                    navigator.clipboard.writeText(text).then(() => {
+                      const btn = document.getElementById("share-btn");
+                      if (btn) {
+                        btn.textContent = "Copied!";
+                        setTimeout(() => { btn.textContent = "Post Play"; }, 2000);
+                      }
+                    });
                   }}
                   id="share-btn"
                   className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
                 >
-                  Share Signal
+                  Post Play
                 </button>
               )}
             </div>
           </div>
 
           {/* ── Chart — always full width ── */}
-          <div className="mt-6 relative">
-            <StockChart symbol={symbol} height={expandChart ? 680 : 460} defaultInterval="D" />
-            <button
-              type="button"
-              onClick={() => setExpandChart(e => !e)}
-              title={expandChart ? "Collapse chart" : "Expand chart"}
-              className="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-[#13112A]/90 border border-[#252345] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-emerald-400 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all backdrop-blur-sm"
-            >
-              {expandChart ? (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
-                  </svg>
-                  Collapse
-                </>
-              ) : (
-                <>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
-                  </svg>
-                  Expand
-                </>
-              )}
-            </button>
+          <div className="mt-6">
+            <TraxoraChart
+              symbol={symbol}
+              height={expandChart ? 680 : 460}
+              isExpanded={expandChart}
+              onExpandToggle={() => setExpandChart(e => !e)}
+            />
           </div>
 
           {/* ── Info panels — always below chart in a grid ── */}
@@ -393,15 +449,15 @@ function AnalysisContent() {
               </div>
             )}
 
-            {/* ICT Smart Money */}
-            {analysis?.ict && (
+            {/* Smart Money Structure */}
+            {analysis?.signals && (
               <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
-                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Smart Money Structure</p>
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Market Structure</p>
                 <div className="flex gap-2 mb-3">
                   {[
-                    { label: "Structure", val: analysis.ict.marketStructure },
-                    { label: "Bias",      val: analysis.ict.dailyBias       },
-                    { label: "Zone",      val: analysis.ict.priceZone       },
+                    { label: "Structure", val: analysis.signals.marketStructure },
+                    { label: "Bias",      val: analysis.signals.dailyBias       },
+                    { label: "Zone",      val: analysis.signals.priceZone       },
                   ].map(({ label, val }) => (
                     <div key={label} className="flex-1 bg-[#0D0B1A] rounded-xl p-2.5">
                       <p className="text-[9px] text-[#4B5675] mb-1">{label}</p>
@@ -411,20 +467,46 @@ function AnalysisContent() {
                 </div>
                 <div className="space-y-2">
                   {[
-                    { tag: "OB",  color: "text-teal-400", text: analysis.ict.orderBlock    },
-                    { tag: "FVG", color: "text-blue-400",   text: analysis.ict.fairValueGap  },
-                    { tag: "LIQ", color: "text-yellow-400", text: analysis.ict.liquidity     },
-                    { tag: "OTE", color: "text-cyan-400",   text: analysis.ict.ote           },
+                    { tag: "OB",  color: "text-teal-400",    text: analysis.signals.orderBlock   },
+                    { tag: "FVG", color: "text-blue-400",    text: analysis.signals.fairValueGap },
+                    { tag: "OTE", color: "text-cyan-400",    text: analysis.signals.ote          },
                   ].filter(r => r.text).map(({ tag, color, text }) => (
                     <div key={tag} className="flex gap-2">
                       <span className={`text-[10px] font-black w-7 shrink-0 mt-0.5 ${color}`}>{tag}</span>
                       <p className="text-[11px] text-[#CBD5E1] leading-snug">{text}</p>
                     </div>
                   ))}
-                  {analysis.ict.setup && (
-                    <div className="mt-2 pt-2 border-t border-[#252345]">
-                      <p className="text-[9px] text-[#4B5675] mb-1">Primary Setup</p>
-                      <p className="text-[11px] text-white leading-snug">{analysis.ict.setup}</p>
+
+                  {/* Liquidity levels — shown as take-profit targets, not entry signals */}
+                  <div className="mt-1 rounded-xl bg-amber-500/5 border border-amber-500/20 p-2.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Take-Profit Targets</span>
+                      <span className="text-[7px] text-[#4B5675]">price draws to these levels</span>
+                    </div>
+                    <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.liquidity}</p>
+                    {analysis.signals.bslPrice != null && analysis.signals.sslPrice != null && (
+                      <div className="flex gap-2 mt-1.5">
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">BSL ${analysis.signals.bslPrice.toFixed(2)}</span>
+                        <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">SSL ${analysis.signals.sslPrice.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Immediate Rebalance zone */}
+                  {analysis.signals.immediateRebalance && (
+                    <div className="rounded-xl bg-violet-500/5 border border-violet-500/20 p-2.5">
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">IR</span>
+                        <span className="text-[7px] text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
+                      </div>
+                      <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.immediateRebalance}</p>
+                    </div>
+                  )}
+
+                  {analysis.signals.setup && (
+                    <div className="mt-1 pt-2 border-t border-[#252345]">
+                      <p className="text-[9px] text-[#4B5675] mb-1">Confluence note</p>
+                      <p className="text-[11px] text-white leading-snug">{analysis.signals.setup}</p>
                     </div>
                   )}
                 </div>
@@ -505,18 +587,54 @@ function AnalysisContent() {
               </div>
             )}
 
-            {/* Deep ICT Analysis trigger */}
+            {/* News feed */}
+            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+              <p className="text-sm font-semibold mb-3">Latest News</p>
+              {newsLoading ? (
+                <div className="space-y-2">
+                  {[1,2,3].map((i) => (
+                    <div key={i} className="animate-pulse">
+                      <div className="h-3 bg-[#252345] rounded w-full mb-1" />
+                      <div className="h-2.5 bg-[#252345] rounded w-2/3" />
+                    </div>
+                  ))}
+                </div>
+              ) : news.length === 0 ? (
+                <p className="text-xs text-[#4B5675]">No recent news found.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {news.map((item, i) => (
+                    <li key={i}>
+                      <a
+                        href={item.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group block"
+                      >
+                        <p className="text-xs text-[#F1F5F9] leading-snug group-hover:text-emerald-400 transition-colors line-clamp-2">{item.title}</p>
+                        <p className="text-[10px] text-[#4B5675] mt-0.5">
+                          {item.source}
+                          {item.pubDate ? ` · ${new Date(item.pubDate).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}
+                        </p>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Deep Market Analysis trigger */}
             <div className="bg-[#13112A] rounded-2xl p-5 border border-emerald-500/20">
               <div className="flex items-center gap-2 mb-2">
                 <span>🎯</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">Deep Market Analysis</p>
               </div>
               <p className="text-xs text-[#4B5675] leading-relaxed mb-4">
-                Full institutional breakdown — OBs, FVGs, liquidity, OTE zones, and two trade setups with exact entry/SL/TP.
+                Full multi-timeframe breakdown — structure, OBs, FVGs, liquidity targets, IR zones, and two trade setups with exact entry/SL/TP.
               </p>
               <button
                 type="button"
-                onClick={runDeepICT}
+                onClick={runDeepAnalysis}
                 disabled={loadingDeep}
                 className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
               >
@@ -527,14 +645,41 @@ function AnalysisContent() {
                     </svg>
                     Analyzing…
                   </>
-                ) : deepICT ? "Re-run Deep Analysis" : "Run Deep Market Analysis"}
+                ) : deepAnalysis ? "Re-run Deep Analysis" : "Run Deep Market Analysis"}
               </button>
               {deepError && <p className="text-xs text-rose-400 mt-2 text-center">{deepError}</p>}
+
+              {/* Pro Analysis button */}
+              <div className="mt-3 pt-3 border-t border-[#252345]">
+                <p className="text-[10px] text-violet-400 font-bold uppercase tracking-widest mb-1.5">⚡ Pro Analysis</p>
+                <p className="text-[10px] text-[#4B5675] leading-relaxed mb-3">
+                  8-lens institutional framework — microstructure, auction theory, volatility edge, hard gates, and position sizing. Flags bad setups before you enter.
+                </p>
+                <button
+                  type="button"
+                  onClick={runProAnalysis}
+                  disabled={loadingPro}
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
+                >
+                  {loadingPro ? (
+                    <>
+                      <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                      </svg>
+                      Running 8-lens analysis…
+                    </>
+                  ) : proAnalysis ? "Re-run Pro Analysis" : "Run Pro Analysis"}
+                </button>
+                {proError && <p className="text-xs text-rose-400 mt-2 text-center">{proError}</p>}
+              </div>
             </div>
           </div>
 
-          {/* ── Deep ICT Analysis Results (full width) ── */}
-          {deepICT && <DeepMarketPanel data={deepICT} symbol={symbol} />}
+          {/* ── Deep Market Analysis Results (full width) ── */}
+          {deepAnalysis && <DeepMarketPanel data={deepAnalysis} symbol={symbol} />}
+
+          {/* ── Pro Analysis Results (full width) ── */}
+          {proAnalysis && <ProAnalysisPanel data={proAnalysis} symbol={symbol} />}
         </div>
       </main>
     </div>

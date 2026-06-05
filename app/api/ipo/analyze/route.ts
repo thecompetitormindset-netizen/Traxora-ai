@@ -6,6 +6,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { cacheGet, cacheSet } from "@/app/lib/sentiment";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { postToDiscord, buildIPOEmbed } from "@/app/lib/discord";
 
 export interface IPOAnalysis {
   sector:        string;
@@ -167,6 +168,14 @@ export async function POST(req: Request) {
 
     // Cache 4 hours — IPO fundamentals don't change fast
     cacheSet(cacheKey, analysis, 4 * 60 * 60 * 1_000);
+
+    // Auto-post to Discord if webhook is configured (skip for cached results)
+    const discordUrl = process.env.DISCORD_WEBHOOK_URL;
+    if (discordUrl && (analysis.verdict === "Strong Buy" || analysis.verdict === "Buy")) {
+      const embeds = buildIPOEmbed(body.name, body.symbol, body.price ?? null, analysis);
+      postToDiscord(discordUrl, embeds).catch(() => {}); // fire-and-forget
+    }
+
     return Response.json(analysis);
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : "Unknown error" }, { status: 500 });

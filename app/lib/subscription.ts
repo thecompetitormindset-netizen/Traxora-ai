@@ -8,8 +8,18 @@ export interface Subscription {
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
+// Comma-separated list of emails granted pro access for free (set in Vercel env vars).
+// e.g. GRANTED_PRO_EMAILS="friend@example.com,another@example.com"
+const GRANTED_EMAILS = new Set(
+  (process.env.GRANTED_PRO_EMAILS ?? "")
+    .split(",")
+    .map(e => e.trim().toLowerCase())
+    .filter(Boolean)
+);
+
 export async function getUserPlan(email: string): Promise<Plan> {
   if (email === OWNER_EMAIL) return "pro";
+  if (GRANTED_EMAILS.has(email.toLowerCase())) return "pro";
 
   try {
     const { supabaseAdmin } = await import("./supabase");

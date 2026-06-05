@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --font-inter: "Inter", system-ui, sans-serif;
+  --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
 
   --bg-canvas:   #0D0B1A;
   --bg-surface:  #13112A;
@@ -32,10 +32,11 @@ html {
 body {
   background: var(--bg-canvas);
   color: var(--text-primary);
-  font-family: var(--font-inter);
+  font-family: var(--font-jakarta);
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
 /* Scrollbar */
@@ -44,10 +45,11 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--border-hover); }
 
-/* Monospace for numbers */
+/* Monospace for numbers — JetBrains Mono for prices/data */
 .font-mono, [data-price] {
+  font-family: var(--font-mono-custom), "JetBrains Mono", "Fira Code", ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum";
+  font-feature-settings: "tnum", "zero";
 }
 
 /* Focus ring */

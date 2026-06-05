@@ -105,13 +105,43 @@ function PortfolioIcon() {
   );
 }
 
+function HistoryIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="12 8 12 12 14 14" />
+      <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5V15h5" />
+    </svg>
+  );
+}
+
+function IntelIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+      <path d="M2 17l10 5 10-5"/>
+      <path d="M2 12l10 5 10-5"/>
+    </svg>
+  );
+}
+
+function StrategyIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
+    </svg>
+  );
+}
+
 // ── Nav config ───────────────────────────────────────────────────────────────
 
 const NAV_LINKS = [
   { name: "Dash",      href: "/dashboard",        icon: <DashboardIcon /> },
   { name: "Trade",     href: "/paper",             icon: <TradeIcon /> },
   { name: "Signals",   href: "/analysis",          icon: <SignalsIcon /> },
+  { name: "Intel",     href: "/intelligence",       icon: <IntelIcon /> },
+  { name: "Strategy",  href: "/strategy",           icon: <StrategyIcon /> },
   { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
+  { name: "History",   href: "/history",           icon: <HistoryIcon /> },
   { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
   { name: "IPO",       href: "/ipo",               icon: <IPOIcon /> },
   { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },

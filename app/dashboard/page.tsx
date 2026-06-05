@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
@@ -28,20 +29,24 @@ type StockCard = {
   confidence: "High" | "Medium" | "Low" | null;
   trade: TradeLevels | null;
   loading: boolean;
+  sparkline: number[] | null;
+  earningsDate: string | null;
   isNew?: boolean;
 };
 
 type FuturesCard = {
   symbol: string;
   name: string;
-  category: string;
-  exchange: string;
   price: number | null;
   change: number | null;
+  signal: "BUY" | "HOLD" | "SELL" | null;
+  confidence: "High" | "Medium" | "Low" | null;
+  trade: TradeLevels | null;
+  sparkline: number[] | null;
   loading: boolean;
 };
 
-const WATCHLIST = [
+const DEFAULT_WATCHLIST = [
   { symbol: "AAPL.US",  name: "Apple Inc." },
   { symbol: "MSFT.US",  name: "Microsoft Corp." },
   { symbol: "NVDA.US",  name: "NVIDIA Corp." },
@@ -53,18 +58,92 @@ const WATCHLIST = [
   { symbol: "ES.COMM",  name: "E-mini S&P 500" },
 ];
 
-const FUTURES_LIST = [
-  { symbol: "ES.COMM",  name: "E-mini S&P 500",    category: "Index",  exchange: "CME"   },
-  { symbol: "NQ.COMM",  name: "E-mini NASDAQ-100",  category: "Index",  exchange: "CME"   },
-  { symbol: "YM.COMM",  name: "E-mini Dow Jones",   category: "Index",  exchange: "CBOT"  },
-  { symbol: "RTY.COMM", name: "E-mini Russell 2000", category: "Index",  exchange: "CME"   },
-  { symbol: "GC.COMM",  name: "Gold",               category: "Metals", exchange: "NYMEX" },
-  { symbol: "SI.COMM",  name: "Silver",             category: "Metals", exchange: "NYMEX" },
-  { symbol: "CL.COMM",  name: "Crude Oil (WTI)",    category: "Energy", exchange: "NYMEX" },
-  { symbol: "NG.COMM",  name: "Natural Gas",         category: "Energy", exchange: "NYMEX" },
+const WATCHLIST_KEY = "traxora_watchlist";
+
+function loadCustomWatchlist(): Array<{ symbol: string; name: string }> {
+  try {
+    const raw = localStorage.getItem(scopedKey(WATCHLIST_KEY));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_WATCHLIST;
+}
+
+function saveCustomWatchlist(list: Array<{ symbol: string; name: string }>) {
+  localStorage.setItem(scopedKey(WATCHLIST_KEY), JSON.stringify(list));
+}
+
+// ── Price alerts ─────────────────────────────────────────────────────────────
+
+const ALERTS_KEY = "traxora_price_alerts";
+
+type PriceAlert = { above: number | null; below: number | null };
+type AlertMap   = Record<string, PriceAlert>;
+
+function loadAlerts(): AlertMap {
+  try { return JSON.parse(localStorage.getItem(scopedKey(ALERTS_KEY)) ?? "{}"); } catch { return {}; }
+}
+function saveAlerts(m: AlertMap) {
+  localStorage.setItem(scopedKey(ALERTS_KEY), JSON.stringify(m));
+}
+function checkAlert(symbol: string, price: number, alerts: AlertMap): "above" | "below" | null {
+  const a = alerts[symbol];
+  if (!a) return null;
+  if (a.above != null && price >= a.above) return "above";
+  if (a.below != null && price <= a.below) return "below";
+  return null;
+}
+
+const DEFAULT_FUTURES_LIST = [
+  { symbol: "ES.COMM",  name: "E-mini S&P 500"    },
+  { symbol: "NQ.COMM",  name: "E-mini NASDAQ-100"  },
+  { symbol: "YM.COMM",  name: "E-mini Dow Jones"   },
+  { symbol: "RTY.COMM", name: "E-mini Russell 2000" },
+  { symbol: "GC.COMM",  name: "Gold"               },
+  { symbol: "SI.COMM",  name: "Silver"             },
+  { symbol: "CL.COMM",  name: "Crude Oil (WTI)"    },
+  { symbol: "NG.COMM",  name: "Natural Gas"         },
 ];
 
+const FUTURES_KEY = "traxora_futures";
 
+function loadFuturesList(): Array<{ symbol: string; name: string }> {
+  try {
+    const raw = localStorage.getItem(scopedKey(FUTURES_KEY));
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_FUTURES_LIST;
+}
+
+function saveFuturesList(list: Array<{ symbol: string; name: string }>) {
+  localStorage.setItem(scopedKey(FUTURES_KEY), JSON.stringify(list));
+}
+
+
+
+function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
+  if (closes.length < 2) return null;
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const range = max - min || 1;
+  const w = 56, h = 20;
+  const pts = closes.map((c, i) => {
+    const x = (i / (closes.length - 1)) * w;
+    const y = h - ((c - min) / range) * h;
+    return `${x},${y}`;
+  }).join(" ");
+  const color = positive ? "#34D399" : "#F87171";
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+    </svg>
+  );
+}
 
 function signalBadge(signal: string | null) {
   if (signal === "BUY")  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
@@ -170,69 +249,100 @@ type OptionsPlay = {
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
+  premiumEst: string | null;
   score: number; hasOptions: boolean;
 };
 
 function OptionsPlaysSection() {
-  const [plays,   setPlays]   = useState<OptionsPlay[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded,  setLoaded]  = useState(false);
-  const [scanned, setScanned] = useState(0);
-  const [withIV,  setWithIV]  = useState(0);
-  const [err,     setErr]     = useState<string | null>(null);
+  const [plays,     setPlays]     = useState<OptionsPlay[]>([]);
+  const [loading,   setLoading]   = useState(true);
+  const [loaded,    setLoaded]    = useState(false);
+  const [scanned,   setScanned]   = useState(0);
+  const [withIV,    setWithIV]    = useState(0);
+  const [err,       setErr]       = useState<string | null>(null);
+  const [lastScan,  setLastScan]  = useState<Date | null>(null);
 
   async function scan() {
     setLoading(true);
     setErr(null);
     try {
-      const res  = await fetch("/api/market/options-scan");
+      const res  = await fetch("/api/market/options-scan", { cache: "no-store" });
       if (!res.ok) { setErr(`Server error ${res.status}`); return; }
       const data = await res.json();
       setPlays(data.plays ?? []);
       setScanned(data.scanned ?? 0);
       setWithIV(data.withIV ?? 0);
       setLoaded(true);
+      setLastScan(new Date());
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Network error — try again");
     } finally { setLoading(false); }
   }
 
+  // Auto-load on mount + refresh every 5 minutes
+  useEffect(() => {
+    scan();
+    const id = setInterval(scan, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Detect if market is closed — uses proper ET time with DST
+  const marketClosed = (() => {
+    const now = new Date();
+    if (now.getUTCDay() === 0 || now.getUTCDay() === 6) return true; // weekend
+    // US DST: 2nd Sun March → 1st Sun November
+    const y = now.getUTCFullYear();
+    const m1 = new Date(Date.UTC(y, 2, 1));
+    const dstStart = new Date(Date.UTC(y, 2, 1 + ((7 - m1.getUTCDay()) % 7) + 7, 7));
+    const n1 = new Date(Date.UTC(y, 10, 1));
+    const dstEnd   = new Date(Date.UTC(y, 10, 1 + ((7 - n1.getUTCDay()) % 7), 6));
+    const etOff    = (now >= dstStart && now < dstEnd) ? -4 : -5;
+    const etMins   = (now.getUTCHours() + 24 + etOff) % 24 * 60 + now.getUTCMinutes();
+    // NYSE regular session 9:30–16:00 ET
+    return etMins < 570 || etMins >= 960;
+  })();
+
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <h2 className="text-base font-semibold">Top Options Plays</h2>
           <span className="text-[10px] font-mono text-[#4B5675]">
-            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : "30 stocks"}
+            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
           </span>
+          {lastScan && (
+            <span className="text-[9px] font-mono text-[#333368]">
+              · as of {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
+          {marketClosed && loaded && (
+            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">
+              Market closed · pre/after-hours prices
+            </span>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={scan}
-          disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50"
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-              </svg>
-              Scanning…
-            </>
-          ) : loaded ? "Rescan →" : "Scan now →"}
-        </button>
+        {loaded && (
+          <button
+            type="button"
+            onClick={scan}
+            disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50"
+          >
+            {loading ? (
+              <>
+                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                </svg>
+                Scanning…
+              </>
+            ) : "Rescan →"}
+          </button>
+        )}
       </div>
 
       {err && (
         <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 mb-3">
           <p className="text-sm text-rose-400">{err}</p>
-        </div>
-      )}
-
-      {!loaded && !loading && (
-        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
-          <p className="text-[#4B5675] text-sm">Click <span className="text-emerald-400 font-semibold">Scan now</span> to surface the top options setups across 30 liquid stocks.</p>
-          <p className="text-[11px] text-[#333368] mt-1.5">Ranked by ICT signal strength + IV quality. Takes ~10s.</p>
         </div>
       )}
 
@@ -325,6 +435,12 @@ function OptionsPlaysSection() {
                   <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
                   <span className="text-[10px] font-mono font-bold text-rose-400">{p.stop}</span>
                 </div>
+                {p.premiumEst && (
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Premium</span>
+                    <span className="text-[10px] font-mono font-bold text-violet-400">{p.premiumEst}</span>
+                  </div>
+                )}
                 <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">
                   {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}
                 </p>
@@ -340,18 +456,35 @@ function OptionsPlaysSection() {
 }
 
 function DashboardContent() {
+  const router = useRouter();
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
 
-  const [stocks, setStocks] = useState<StockCard[]>(
-    WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, loading: true }))
+  const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(DEFAULT_WATCHLIST);
+  const watchlistInitialized                = useRef(false);
+  const [editMode, setEditMode]             = useState(false);
+  const [addInput, setAddInput]             = useState("");
+  const [addLoading, setAddLoading]         = useState(false);
+  const [addError, setAddError]             = useState<string | null>(null);
+  const [stocks, setStocks]                 = useState<StockCard[]>(
+    DEFAULT_WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true }))
   );
   const [trendingStocks, setTrendingStocks] = useState<StockCard[]>([]);
   const [poppedSymbols, setPoppedSymbols]   = useState<Set<string>>(new Set());
-  const [futures, setFutures] = useState<FuturesCard[]>(
-    FUTURES_LIST.map((f) => ({ ...f, price: null, change: null, loading: true }))
+  const [lastFetched, setLastFetched]       = useState<number | null>(null);
+  const [priceAlerts, setPriceAlerts]       = useState<AlertMap>({});
+  const [alertForm, setAlertForm]           = useState<string | null>(null); // symbol whose form is open
+  const [alertAbove, setAlertAbove]         = useState("");
+  const [alertBelow, setAlertBelow]         = useState("");
+  const [futuresList, setFuturesList]         = useState<Array<{ symbol: string; name: string }>>(DEFAULT_FUTURES_LIST);
+  const [futures, setFutures]                 = useState<FuturesCard[]>(
+    DEFAULT_FUTURES_LIST.map((f) => ({ ...f, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, loading: true }))
   );
+  const [editFutures, setEditFutures]         = useState(false);
+  const [addFuturesInput, setAddFuturesInput] = useState("");
+  const [addFuturesLoading, setAddFuturesLoading] = useState(false);
+  const [addFuturesError, setAddFuturesError] = useState<string | null>(null);
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [alertsPaused, setAlertsPaused] = useState(false);
@@ -371,58 +504,193 @@ function DashboardContent() {
       setNotifPermission(Notification.permission);
     }
     setAlertsPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
+    setPriceAlerts(loadAlerts());
   }, []);
 
-  // Fetch stocks + signals
+  // Fetch stocks + signals — loads watchlist from localStorage on mount, then hydrates from Supabase
   useEffect(() => {
-    WATCHLIST.forEach(async ({ symbol, name }, i) => {
+    let active = true;
+    const wl = loadCustomWatchlist();
+    setWatchlist(wl);
+    setStocks(wl.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true })));
+
+    // Pull from Supabase in background — overrides localStorage if server has different data
+    fetch("/api/user/watchlist")
+      .then((r) => r.json())
+      .then((data: { items?: Array<{ symbol: string; name: string }> | null }) => {
+        if (!active || !Array.isArray(data.items) || data.items.length === 0) return;
+        // Only override if Supabase list differs from what we loaded
+        const localSym  = wl.map((w) => w.symbol).join(",");
+        const serverSym = data.items.map((w) => w.symbol).join(",");
+        if (localSym === serverSym) { watchlistInitialized.current = true; return; }
+        saveCustomWatchlist(data.items);
+        setWatchlist(data.items);
+        setStocks(data.items.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true })));
+        watchlistInitialized.current = true;
+      })
+      .catch(() => { watchlistInitialized.current = true; });
+
+    // Start fetching quotes regardless (use `wl` — Supabase override fetches separately via watchlist state change)
+    wl.forEach(async ({ symbol, name }) => {
       try {
-        const res = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
+        const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
         const data = await res.json();
-        const price = data?.price ?? null;
-        const prev  = data?.previousClose ?? null;
+        const price  = data?.price ?? null;
+        const prev   = data?.previousClose ?? null;
         const change = price && prev ? ((price - prev) / prev) * 100 : null;
-        setStocks((s) => s.map((c, idx) => idx === i ? { ...c, price, change, loading: false } : c));
+        setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, price, change, loading: false } : c));
+        setLastFetched(Date.now());
+        // Fetch sparkline in background (non-blocking — failure is silent)
+        fetch(`/api/eod-bars?symbol=${encodeURIComponent(symbol)}`)
+          .then((r) => r.json())
+          .then((bars: Array<{ close: number }>) => {
+            if (Array.isArray(bars) && bars.length >= 2) {
+              const closes = bars.slice(-10).map((b) => b.close);
+              setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, sparkline: closes } : c));
+            }
+          })
+          .catch(() => { /* best-effort */ });
         if (price && prev) {
           const analyzeRes = await fetch("/api/ai/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol, price, previousClose: prev, open: data?.open, high: data?.high, low: data?.low, dayChangePercent: change }),
+            body: JSON.stringify({ symbol, price, previousClose: prev, open: data?.open, high: data?.high, low: data?.low, dayChangePercent: change, quick: true }),
           });
           const analysis = await analyzeRes.json();
           const signal: "BUY" | "HOLD" | "SELL" | null = analysis?.signal ?? null;
           const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
           const trade: TradeLevels | null = analysis?.trade ?? null;
-          setStocks((s) => s.map((c, idx) => idx === i ? { ...c, signal, confidence, trade } : c));
+          setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, signal, confidence, trade } : c));
           if (signal && signal !== "HOLD") {
             setPoppedSymbols((prev) => new Set([...prev, symbol]));
           }
-          if (signal && signal !== "HOLD" && shouldFireAlert(symbol, signal) && price) {
-            fireNotification(symbol, name, signal, price, confidence ?? "Medium");
+          if (signal && signal !== "HOLD" && confidence === "High" && shouldFireAlert(symbol, signal) && price) {
+            fireNotification(symbol, name, signal, price, confidence);
             markAlertFired(symbol, signal);
           }
         }
       } catch {
-        setStocks((s) => s.map((c, idx) => idx === i ? { ...c, loading: false } : c));
+        setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, loading: false } : c));
       }
     });
+    return () => { active = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch futures prices (price only, no AI call)
+  // Sync watchlist to Supabase whenever it changes (skip initial load)
   useEffect(() => {
-    FUTURES_LIST.forEach(async ({ symbol }, i) => {
+    if (!watchlistInitialized.current) { watchlistInitialized.current = true; return; }
+    const id = setTimeout(() => {
+      fetch("/api/user/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ items: watchlist }),
+      }).catch(() => { /* best-effort */ });
+    }, 800);
+    return () => clearTimeout(id);
+  }, [watchlist]);
+
+  // Load futures list from localStorage on mount + fetch quotes + AI signals
+  useEffect(() => {
+    const fl = loadFuturesList();
+    setFuturesList(fl);
+    setFutures(fl.map((f) => ({ ...f, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, loading: true })));
+
+    fl.forEach(async ({ symbol, name }) => {
       try {
-        const res = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
+        const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
         const data = await res.json();
-        const price = data?.price ?? null;
-        const prev  = data?.previousClose ?? null;
+        const price  = data?.price ?? null;
+        const prev   = data?.previousClose ?? null;
         const change = price && prev ? ((price - prev) / prev) * 100 : null;
-        setFutures((f) => f.map((c, idx) => idx === i ? { ...c, price, change, loading: false } : c));
+        setFutures((f) => f.map((c) => c.symbol === symbol ? { ...c, price, change, loading: false } : c));
+
+        // Sparkline
+        fetch(`/api/eod-bars?symbol=${encodeURIComponent(symbol)}`)
+          .then((r) => r.json())
+          .then((bars: Array<{ close: number }>) => {
+            if (Array.isArray(bars) && bars.length >= 2) {
+              const closes = bars.slice(-10).map((b) => b.close);
+              setFutures((f) => f.map((c) => c.symbol === symbol ? { ...c, sparkline: closes } : c));
+            }
+          })
+          .catch(() => { /* best-effort */ });
+
+        // AI signal
+        if (price && prev) {
+          const ar = await fetch("/api/ai/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ symbol, price, previousClose: prev, open: data?.open, high: data?.high, low: data?.low, dayChangePercent: change, quick: true }),
+          });
+          const analysis = await ar.json();
+          const signal: "BUY" | "HOLD" | "SELL" | null      = analysis?.signal     ?? null;
+          const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
+          const trade: TradeLevels | null                     = analysis?.trade      ?? null;
+          setFutures((f) => f.map((c) => c.symbol === symbol ? { ...c, signal, confidence, trade } : c));
+          if (signal && signal !== "HOLD" && confidence === "High" && shouldFireAlert(symbol, signal) && price) {
+            fireNotification(symbol, name, signal, price, confidence);
+            markAlertFired(symbol, signal);
+          }
+        }
       } catch {
-        setFutures((f) => f.map((c, idx) => idx === i ? { ...c, loading: false } : c));
+        setFutures((f) => f.map((c) => c.symbol === symbol ? { ...c, loading: false } : c));
       }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 60-second quote refresh — prices only, no AI re-run
+  useEffect(() => {
+    if (watchlist.length === 0) return;
+    const id = setInterval(() => {
+      const currentAlerts = loadAlerts();
+      watchlist.forEach(async ({ symbol, name }) => {
+        try {
+          const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
+          const data = await res.json();
+          const price  = data?.price ?? null;
+          const prev   = data?.previousClose ?? null;
+          const change = price && prev ? ((price - prev) / prev) * 100 : null;
+          if (price) {
+            setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, price, change } : c));
+            const hit = checkAlert(symbol, price, currentAlerts);
+            if (hit) {
+              const dir   = hit === "above" ? "↑ Above" : "↓ Below";
+              const thresh = hit === "above" ? currentAlerts[symbol].above : currentAlerts[symbol].below;
+              fireNotification(symbol, name, "BUY", price, "High");
+              if (Notification.permission === "granted") {
+                new Notification(`${dir} $${thresh} — ${symbol.replace(/\.(US|COMM)$/, "")}`, {
+                  body: `${name} · now $${price.toFixed(2)}`,
+                  icon: "/icon-192.png",
+                  tag:  `price-alert-${symbol}`,
+                });
+              }
+              // Clear the triggered threshold so it doesn't fire every minute
+              const updated = { ...currentAlerts, [symbol]: { ...currentAlerts[symbol], [hit]: null } };
+              saveAlerts(updated);
+              setPriceAlerts(updated);
+            }
+          }
+        } catch { /* silent */ }
+      });
+      setLastFetched(Date.now());
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [watchlist]);
+
+  // Fetch earnings dates once the watchlist is set (background, non-blocking)
+  useEffect(() => {
+    if (watchlist.length === 0) return;
+    const stockSyms = watchlist.filter(w => w.symbol.endsWith(".US")).map(w => w.symbol);
+    if (stockSyms.length === 0) return;
+    fetch(`/api/earnings?symbols=${encodeURIComponent(stockSyms.join(","))}`)
+      .then((r) => r.json())
+      .then((data: Record<string, string | null>) => {
+        setStocks((s) => s.map((c) => data[c.symbol] !== undefined ? { ...c, earningsDate: data[c.symbol] } : c));
+      })
+      .catch(() => { /* best-effort */ });
+  }, [watchlist]);
 
   // After all watchlist signals load, fetch trending stocks and pop them in
   useEffect(() => {
@@ -432,7 +700,7 @@ function DashboardContent() {
     if (!allDone || trendingStocks.length > 0) return;
 
     const existingSyms = new Set(
-      WATCHLIST.map((w) => w.symbol.replace(/\.(US|COMM)$/, "")),
+      watchlist.map((w) => w.symbol.replace(/\.(US|COMM)$/, "")),
     );
 
     async function loadTrending() {
@@ -453,8 +721,10 @@ function DashboardContent() {
             signal:     null,
             confidence: null,
             trade:      null,
-            loading:    false,
-            isNew:      true,
+            sparkline:    null,
+            earningsDate: null,
+            loading:      false,
+            isNew:        true,
           }));
 
         if (fresh.length === 0) return;
@@ -467,7 +737,7 @@ function DashboardContent() {
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 symbol: s.symbol, price: s.price,
-                previousClose: s.price, dayChangePercent: s.change,
+                previousClose: s.price, dayChangePercent: s.change, quick: true,
               }),
             });
             const analysis = await ar.json();
@@ -495,6 +765,94 @@ function DashboardContent() {
       localStorage.setItem(scopedKey("traxora_alerts_paused"), String(next));
       return next;
     });
+  }
+
+  async function addTicker() {
+    const sym = addInput.trim().toUpperCase();
+    if (!sym) return;
+    const fullSym = sym.includes(".") ? sym : `${sym}.US`;
+    if (watchlist.some((w) => w.symbol === fullSym)) {
+      setAddError("Already in watchlist");
+      return;
+    }
+    setAddLoading(true);
+    setAddError(null);
+    try {
+      const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(fullSym)}`);
+      const data = await res.json();
+      if (!data?.price) { setAddError("Symbol not found — try AAPL, SPY, BTC-USD"); setAddLoading(false); return; }
+
+      let name = sym;
+      try {
+        const sr      = await fetch(`/api/search?q=${encodeURIComponent(sym)}`);
+        const results = await sr.json();
+        const match   = (results as Array<{ symbol: string; code?: string; name: string }>)
+          .find((r) => r.symbol === sym || r.code === sym);
+        if (match?.name) name = match.name;
+      } catch { /* use ticker as name */ }
+
+      const entry   = { symbol: fullSym, name };
+      const newWl   = [...watchlist, entry];
+      setWatchlist(newWl);
+      saveCustomWatchlist(newWl);
+      setAddInput("");
+
+      const price  = data.price as number;
+      const prev   = data.previousClose as number | null;
+      const change = price && prev ? ((price - prev) / prev) * 100 : null;
+      setStocks((s) => [...s, { ...entry, price, change, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: false }]);
+
+      if (price && prev) {
+        try {
+          const ar       = await fetch("/api/ai/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: fullSym, price, previousClose: prev, open: data.open, high: data.high, low: data.low, dayChangePercent: change, quick: true }) });
+          const analysis = await ar.json();
+          const signal: "BUY" | "HOLD" | "SELL" | null      = analysis?.signal     ?? null;
+          const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
+          const trade: TradeLevels | null                     = analysis?.trade      ?? null;
+          setStocks((s) => s.map((c) => c.symbol === fullSym ? { ...c, signal, confidence, trade } : c));
+          if (signal && signal !== "HOLD") setPoppedSymbols((p) => new Set([...p, fullSym]));
+          if (signal && signal !== "HOLD" && confidence === "High" && shouldFireAlert(fullSym, signal)) {
+            fireNotification(fullSym, name, signal, price, confidence);
+            markAlertFired(fullSym, signal);
+          }
+        } catch { /* signal fetch is best-effort */ }
+      }
+    } catch {
+      setAddError("Network error — try again");
+    } finally {
+      setAddLoading(false);
+    }
+  }
+
+  function removeTicker(symbol: string) {
+    const newWl = watchlist.filter((w) => w.symbol !== symbol);
+    setWatchlist(newWl);
+    saveCustomWatchlist(newWl);
+    setStocks((s) => s.filter((c) => c.symbol !== symbol));
+  }
+
+  function openAlertForm(symbol: string) {
+    const existing = priceAlerts[symbol];
+    setAlertAbove(existing?.above != null ? String(existing.above) : "");
+    setAlertBelow(existing?.below != null ? String(existing.below) : "");
+    setAlertForm((prev) => prev === symbol ? null : symbol);
+  }
+
+  function saveAlert(symbol: string) {
+    const above = alertAbove.trim() ? parseFloat(alertAbove) : null;
+    const below = alertBelow.trim() ? parseFloat(alertBelow) : null;
+    const updated = { ...priceAlerts, [symbol]: { above: isNaN(above as number) ? null : above, below: isNaN(below as number) ? null : below } };
+    setPriceAlerts(updated);
+    saveAlerts(updated);
+    setAlertForm(null);
+  }
+
+  function clearAlert(symbol: string) {
+    const updated = { ...priceAlerts };
+    delete updated[symbol];
+    setPriceAlerts(updated);
+    saveAlerts(updated);
+    setAlertForm(null);
   }
 
   async function requestNotifications() {
@@ -527,10 +885,50 @@ function DashboardContent() {
     ? stocks
     : [...stocks, ...trendingStocks].sort((a, b) => signalRank(a) - signalRank(b));
 
-  const futuresByCategory = ["Index", "Metals", "Energy"].map((cat) => ({
-    cat,
-    items: futures.filter((f) => f.category === cat),
-  }));
+  async function addFuture() {
+    const sym = addFuturesInput.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (!sym) return;
+    const fullSym = `${sym}.COMM`;
+    if (futuresList.some((f) => f.symbol === fullSym)) {
+      setAddFuturesError("Already in list"); return;
+    }
+    setAddFuturesLoading(true);
+    setAddFuturesError(null);
+    try {
+      const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(fullSym)}`);
+      const data = await res.json();
+      if (!data?.price) { setAddFuturesError("Symbol not found — try ES, GC, CL, ZN…"); setAddFuturesLoading(false); return; }
+      const entry  = { symbol: fullSym, name: sym };
+      const newList = [...futuresList, entry];
+      setFuturesList(newList);
+      saveFuturesList(newList);
+      setAddFuturesInput("");
+      const price  = data.price as number;
+      const prev   = data.previousClose as number | null;
+      const change = price && prev ? ((price - prev) / prev) * 100 : null;
+      setFutures((f) => [...f, { symbol: fullSym, name: sym, price, change, signal: null, confidence: null, trade: null, sparkline: null, loading: false }]);
+      // Kick off AI signal
+      if (price && prev) {
+        try {
+          const ar = await fetch("/api/ai/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: fullSym, price, previousClose: prev, open: data.open, high: data.high, low: data.low, dayChangePercent: change, quick: true }) });
+          const analysis = await ar.json();
+          const signal: "BUY" | "HOLD" | "SELL" | null      = analysis?.signal     ?? null;
+          const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
+          const trade: TradeLevels | null                     = analysis?.trade      ?? null;
+          setFutures((f) => f.map((c) => c.symbol === fullSym ? { ...c, signal, confidence, trade } : c));
+        } catch { /* best-effort */ }
+      }
+    } catch {
+      setAddFuturesError("Network error — try again");
+    } finally { setAddFuturesLoading(false); }
+  }
+
+  function removeFuture(symbol: string) {
+    const newList = futuresList.filter((f) => f.symbol !== symbol);
+    setFuturesList(newList);
+    saveFuturesList(newList);
+    setFutures((f) => f.filter((c) => c.symbol !== symbol));
+  }
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -667,17 +1065,21 @@ function DashboardContent() {
 
                 {/* Mini equity bar */}
                 <div className="mt-4">
-                  <div className="flex justify-between text-[9px] text-[#333368] mb-1">
+                  <div className="flex justify-between text-[9px] text-[#333368] mb-1.5">
                     <span>Account Value ${paperStats.accountValue.toFixed(2)}</span>
                     <span>Start $10,000</span>
                   </div>
-                  <div className="flex gap-0.5 h-1.5">
-                    {Array.from({ length: 20 }).map((_, i) => {
-                      const pct = Math.min(100, Math.max(2, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100));
-                      return (
-                        <div key={i} className={`flex-1 rounded-sm ${(i / 20) * 100 < pct ? paperStats.realizedPL >= 0 ? "bg-emerald-500" : "bg-rose-500" : "bg-[#1A1838]"}`} />
-                      );
-                    })}
+                  <div className="relative w-full rounded-full" style={{ height: "1px", background: "#1A1838" }}>
+                    <div
+                      className="absolute inset-y-0 left-0 rounded-full transition-all"
+                      style={{
+                        width: `${Math.min(100, Math.max(1, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100))}%`,
+                        background: paperStats.realizedPL >= 0 ? "#34d399" : "#f87171",
+                        boxShadow: paperStats.realizedPL >= 0
+                          ? "0 0 8px 2px rgba(52,211,153,0.6)"
+                          : "0 0 8px 2px rgba(248,113,113,0.6)",
+                      }}
+                    />
                   </div>
                 </div>
               </div>
@@ -694,10 +1096,53 @@ function DashboardContent() {
                     {trendingStocks.length > 0 && (
                       <span className="text-teal-400"> · {trendingStocks.length} trending</span>
                     )}
+                    {lastFetched && (
+                      <span className="text-[#333368]"> · {new Date(lastFetched).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    )}
                   </span>
                 </div>
-                <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">View all markets →</Link>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { setEditMode((v) => !v); setAddInput(""); setAddError(null); }}
+                    className={`text-xs font-medium transition-colors ${editMode ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
+                  >
+                    {editMode ? "Done" : "Edit"}
+                  </button>
+                  <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">View all →</Link>
+                </div>
               </div>
+
+              {editMode && (
+                <div className="mb-4">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={addInput}
+                      onChange={(e) => { setAddInput(e.target.value.toUpperCase()); setAddError(null); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") addTicker(); }}
+                      placeholder="Add ticker — AAPL, SPY, BTC-USD…"
+                      className="flex-1 bg-[#13112A] border border-[#252345] focus:border-[#333368] rounded-xl px-4 py-2.5 text-sm text-[#F1F5F9] placeholder:text-[#4B5675] outline-none transition-colors font-mono"
+                      disabled={addLoading}
+                    />
+                    <button
+                      type="button"
+                      onClick={addTicker}
+                      disabled={addLoading || !addInput.trim()}
+                      className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+                    >
+                      {addLoading ? (
+                        <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                      ) : (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                      )}
+                      Add
+                    </button>
+                  </div>
+                  {addError && <p className="text-[11px] text-rose-400 mt-1.5 ml-1">{addError}</p>}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
                 {displayStocks.map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
@@ -706,12 +1151,17 @@ function DashboardContent() {
                     : hasPopped
                     ? "animate-stock-pop"
                     : "";
-                  return (
-                    <Link
-                      key={stock.symbol}
-                      href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`}
-                      className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${signalBorder(stock.signal)} ${animClass}`}
-                    >
+                  const cardBody = (
+                    <>
+                      {editMode && !stock.isNew && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeTicker(stock.symbol); }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center transition-colors z-10 text-[11px] font-bold shadow-lg leading-none"
+                        >
+                          ×
+                        </button>
+                      )}
                       <div className="flex items-start justify-between mb-4">
                         <div>
                           <div className="flex items-center gap-1.5">
@@ -741,9 +1191,14 @@ function DashboardContent() {
                       <p className={`text-xl font-bold font-mono ${changeColor(stock.change)}`}>
                         {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                       </p>
-                      <p className={`text-xs mt-1 font-medium font-mono ${changeColor(stock.change)}`}>
-                        {stock.change !== null ? `${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today` : "—"}
-                      </p>
+                      <div className="flex items-end justify-between mt-1">
+                        <p className={`text-xs font-medium font-mono ${changeColor(stock.change)}`}>
+                          {stock.change !== null ? `${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today` : "—"}
+                        </p>
+                        {stock.sparkline && (
+                          <Sparkline closes={stock.sparkline} positive={(stock.change ?? 0) >= 0} />
+                        )}
+                      </div>
 
                       {stock.trade && stock.signal !== "HOLD" ? (
                         <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
@@ -765,8 +1220,95 @@ function DashboardContent() {
                         <p className="text-[10px] text-[#4B5675] mt-3">No clear setup — wait for direction</p>
                       ) : null}
 
-                      <p className="text-[11px] text-emerald-400 mt-3 group-hover:text-emerald-300 transition-colors font-medium">View analysis →</p>
-                    </Link>
+                      {stock.earningsDate && (
+                        <div className="mt-2 flex items-center gap-1.5">
+                          <span className={`text-[9px] font-bold px-1.5 py-px rounded-md border ${
+                            stock.earningsDate.includes("Tomorrow") || stock.earningsDate.includes("in 1d") || stock.earningsDate.includes("in 2d") || stock.earningsDate.includes("in 3d")
+                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              : stock.earningsDate.includes("in ")
+                              ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                              : "bg-[#1A1838] text-[#4B5675] border-[#252345]"
+                          }`}>
+                            {stock.earningsDate}
+                          </span>
+                        </div>
+                      )}
+                      {!editMode && (
+                        <div className="mt-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium">Analyse →</Link>
+                            {(stock.signal === "BUY" || stock.signal === "SELL") && stock.price && (
+                              <Link
+                                href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&direction=${stock.signal === "BUY" ? "LONG" : "SHORT"}&price=${stock.price.toFixed(2)}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-[11px] text-violet-400 hover:text-violet-300 font-medium transition-colors"
+                              >
+                                Trade →
+                              </Link>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openAlertForm(stock.symbol); }}
+                            title="Set price alert"
+                            className={`p-1 rounded-lg transition-colors ${priceAlerts[stock.symbol]?.above != null || priceAlerts[stock.symbol]?.below != null ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                            </svg>
+                          </button>
+                        </div>
+                      )}
+                      {!editMode && alertForm === stock.symbol && (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 bg-[#0D0B1A] border border-[#252345] rounded-xl p-3 space-y-2"
+                        >
+                          <p className="text-[9px] font-semibold uppercase tracking-widest text-[#4B5675]">Price Alert</p>
+                          <div className="flex gap-2">
+                            <div className="flex-1">
+                              <label className="text-[9px] text-[#4B5675] block mb-0.5">Above $</label>
+                              <input
+                                type="number"
+                                value={alertAbove}
+                                onChange={(e) => setAlertAbove(e.target.value)}
+                                placeholder="—"
+                                className="w-full bg-[#13112A] border border-[#252345] rounded-lg px-2 py-1 text-xs font-mono text-[#F1F5F9] outline-none focus:border-[#333368]"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <label className="text-[9px] text-[#4B5675] block mb-0.5">Below $</label>
+                              <input
+                                type="number"
+                                value={alertBelow}
+                                onChange={(e) => setAlertBelow(e.target.value)}
+                                placeholder="—"
+                                className="w-full bg-[#13112A] border border-[#252345] rounded-lg px-2 py-1 text-xs font-mono text-[#F1F5F9] outline-none focus:border-[#333368]"
+                              />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button type="button" onClick={() => saveAlert(stock.symbol)} className="flex-1 py-1 rounded-lg text-[10px] font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-colors">Save</button>
+                            {(priceAlerts[stock.symbol]?.above != null || priceAlerts[stock.symbol]?.below != null) && (
+                              <button type="button" onClick={() => clearAlert(stock.symbol)} className="flex-1 py-1 rounded-lg text-[10px] font-bold bg-rose-500/5 hover:bg-rose-500/15 text-rose-400 border border-rose-500/20 transition-colors">Clear</button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+
+                  const sharedClass = `relative group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${animClass}`;
+                  const analysisHref = `/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`;
+
+                  return (
+                    <div
+                      key={stock.symbol}
+                      className={`${sharedClass} ${!editMode ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
+                      onClick={!editMode ? () => router.push(analysisHref) : undefined}
+                    >
+                      {cardBody}
+                    </div>
                   );
                 })}
               </div>
@@ -775,42 +1317,138 @@ function DashboardContent() {
 
           {/* ── PAGE 2: FUTURES MARKETS ── */}
           <section>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2 className="text-xl font-bold tracking-tight">Futures Markets</h2>
-                <p className="text-sm text-[#7B8DB4] mt-1">Live prices across index, metals &amp; energy futures</p>
+                <h2 className="text-base font-semibold">Futures Markets</h2>
+                <p className="text-xs text-[#7B8DB4] mt-0.5">{futures.length} contracts · add any ticker (ES, GC, ZN, HG…)</p>
               </div>
-              <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">All exchanges →</Link>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setEditFutures((v) => !v); setAddFuturesInput(""); setAddFuturesError(null); }}
+                  className={`text-xs font-medium transition-colors ${editFutures ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
+                >
+                  {editFutures ? "Done" : "Edit"}
+                </button>
+                <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">All exchanges →</Link>
+              </div>
             </div>
 
-            <div className="space-y-6">
-              {futuresByCategory.map(({ cat, items }) => (
-                <div key={cat}>
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">{cat} Futures</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    {items.map((f) => (
-                      <Link key={f.symbol} href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-                        className="group bg-[#13112A] border border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] rounded-2xl p-4 transition-all">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <p className="font-bold text-sm tracking-tight">{f.symbol.replace(".COMM","")}</p>
-                            <p className="text-[11px] text-[#4B5675] mt-0.5 truncate max-w-[100px]">{f.name}</p>
-                          </div>
-                          <span className="text-[10px] font-bold text-[#4B5675] bg-[#1A1838] border border-[#252345] px-1.5 py-0.5 rounded-md shrink-0">{f.exchange}</span>
-                        </div>
-                        <p className="text-lg font-bold font-mono">
-                          {f.loading ? <span className="text-[#4B5675] animate-pulse text-sm">Loading…</span>
-                            : f.price !== null ? `$${f.price.toFixed(2)}` : <span className="text-[#4B5675]">N/A</span>}
-                        </p>
-                        <p className={`text-xs font-mono mt-1 ${changeColor(f.change)}`}>
-                          {f.change !== null ? `${f.change >= 0 ? "+" : ""}${f.change.toFixed(2)}% today` : "—"}
-                        </p>
-                        <p className="text-[11px] text-emerald-400 mt-3 group-hover:text-emerald-300 transition-colors">Analyze →</p>
-                      </Link>
-                    ))}
-                  </div>
+            {editFutures && (
+              <div className="mb-4">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={addFuturesInput}
+                    onChange={(e) => { setAddFuturesInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")); setAddFuturesError(null); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") addFuture(); }}
+                    placeholder="Add futures root — ES, GC, CL, ZN, HG, PL…"
+                    className="flex-1 bg-[#13112A] border border-[#252345] focus:border-[#333368] rounded-xl px-4 py-2.5 text-sm text-[#F1F5F9] placeholder:text-[#4B5675] outline-none transition-colors font-mono"
+                    disabled={addFuturesLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={addFuture}
+                    disabled={addFuturesLoading || !addFuturesInput.trim()}
+                    className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
+                  >
+                    {addFuturesLoading
+                      ? <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+                      : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    }
+                    Add
+                  </button>
                 </div>
-              ))}
+                {addFuturesError && <p className="text-[11px] text-rose-400 mt-1.5 ml-1">{addFuturesError}</p>}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+              {futures.map((f) => {
+                const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
+                return (
+                  <div
+                    key={f.symbol}
+                    className={`relative group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
+                    onClick={!editFutures ? () => router.push(analysisHref) : undefined}
+                  >
+                    {editFutures && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); removeFuture(f.symbol); }}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center transition-colors z-10 text-[11px] font-bold shadow-lg leading-none"
+                      >
+                        ×
+                      </button>
+                    )}
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold tracking-tight">{f.symbol.replace(".COMM", "")}</p>
+                          <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">FUT</span>
+                        </div>
+                        <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[130px]">{f.name}</p>
+                      </div>
+                      {f.loading
+                        ? <span className="text-xs text-[#4B5675] animate-pulse">…</span>
+                        : f.signal
+                        ? (
+                          <div className="flex flex-col items-end gap-1">
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadge(f.signal)}`}>{f.signal}</span>
+                            {f.confidence && (
+                              <span className={`text-[9px] font-semibold ${f.confidence === "High" ? "text-emerald-400" : f.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
+                                {f.confidence}
+                              </span>
+                            )}
+                          </div>
+                        )
+                        : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
+                      }
+                    </div>
+                    {/* Price */}
+                    <p className={`text-xl font-bold font-mono ${changeColor(f.change)}`}>
+                      {f.price !== null ? `$${f.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
+                    </p>
+                    <div className="flex items-end justify-between mt-1">
+                      <p className={`text-xs font-medium font-mono ${changeColor(f.change)}`}>
+                        {f.change !== null ? `${f.change >= 0 ? "+" : ""}${f.change.toFixed(2)}% today` : "—"}
+                      </p>
+                      {f.sparkline && <Sparkline closes={f.sparkline} positive={(f.change ?? 0) >= 0} />}
+                    </div>
+                    {/* Trade plan */}
+                    {f.trade && f.signal !== "HOLD" ? (
+                      <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
+                        {[
+                          { label: "Entry", value: f.trade.entryZone, color: "text-amber-400" },
+                          { label: "Stop",  value: f.trade.stopLoss,  color: "text-rose-400"  },
+                          { label: "Target",value: f.trade.takeProfit,color: "text-emerald-400"},
+                        ].map(({ label, value, color }) => (
+                          <div key={label} className="flex items-center justify-between gap-2">
+                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">{label}</span>
+                            <span className={`text-[10px] font-mono font-bold ${color} text-right`}>{value}</span>
+                          </div>
+                        ))}
+                        <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">{f.trade.rrRatio} R:R · {f.trade.entryReason}</p>
+                      </div>
+                    ) : f.signal === "HOLD" ? (
+                      <p className="text-[10px] text-[#4B5675] mt-3">No clear setup — wait for direction</p>
+                    ) : null}
+                    {/* Footer link */}
+                    {!editFutures && (
+                      <div className="mt-3">
+                        <Link
+                          href={analysisHref}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
+                        >
+                          Analyse →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </section>
 

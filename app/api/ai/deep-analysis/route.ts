@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { toFinnhubSymbol, toYahooSymbol } from "@/app/lib/yahooSymbol";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -13,7 +14,7 @@ const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 type Bar = { o: number; h: number; l: number; c: number; v: number; t: number };
 
-export type ICTSetup = {
+export type TradeScenario = {
   direction:    "LONG" | "SHORT";
   entryFrom:    string;
   entryTo:      string;
@@ -28,7 +29,7 @@ export type ICTSetup = {
   bestEntryTime:string;
 };
 
-export type DeepICTAnalysis = {
+export type DeepMarketAnalysis = {
   overallBias:   "BULLISH" | "BEARISH" | "NEUTRAL";
   confidence:    "High" | "Medium" | "Low";
   biasReasoning: string;
@@ -94,8 +95,8 @@ export type DeepICTAnalysis = {
     setupNote:    string;
   };
 
-  scenarioA: ICTSetup;
-  scenarioB: ICTSetup | null;
+  scenarioA: TradeScenario;
+  scenarioB: TradeScenario | null;
   watchList: string[];
 
   risk: {
@@ -107,6 +108,10 @@ export type DeepICTAnalysis = {
     lowLiquidity:        boolean;
   };
 
+  immediateRebalance: {
+    zones: Array<{ zone: string; timeframe: string; direction: "Bullish" | "Bearish"; note: string }>;
+    summary: string;
+  } | null;
   noTrade:     boolean;
   noTradeNote: string | null;
 };
@@ -227,22 +232,28 @@ async function fetchYahooNews(ticker: string): Promise<string[]> {
   } catch { return []; }
 }
 
-// Aggregate 1H bars into 4H candles
+// Aggregate 1H bars into 4H candles aligned to UTC 4H boundaries
+// (0, 4, 8, 12, 16, 20 UTC) so bars correspond to real institutional sessions
+// rather than an arbitrary positional offset.
 function derive4H(h1: Bar[]): Bar[] {
-  const out: Bar[] = [];
-  for (let i = 0; i < h1.length; i += 4) {
-    const chunk = h1.slice(i, i + 4);
-    if (chunk.length < 2) break;
-    out.push({
-      o: chunk[0].o,
-      h: Math.max(...chunk.map(b => b.h)),
-      l: Math.min(...chunk.map(b => b.l)),
-      c: chunk[chunk.length - 1].c,
-      v: chunk.reduce((s, b) => s + b.v, 0),
-      t: chunk[0].t,
-    });
+  if (!h1.length) return [];
+  const buckets = new Map<number, Bar[]>();
+  for (const bar of h1) {
+    const bucket = Math.floor(bar.t / (4 * 3600)) * (4 * 3600);
+    if (!buckets.has(bucket)) buckets.set(bucket, []);
+    buckets.get(bucket)!.push(bar);
   }
-  return out;
+  return [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .filter(([, bars]) => bars.length >= 2)
+    .map(([t, bars]) => ({
+      t,
+      o: bars[0].o,
+      h: Math.max(...bars.map(b => b.h)),
+      l: Math.min(...bars.map(b => b.l)),
+      c: bars[bars.length - 1].c,
+      v: bars.reduce((s, b) => s + b.v, 0),
+    }));
 }
 
 // ── Math helpers ───────────────────────────────────────────────────────────────
@@ -261,15 +272,55 @@ function calcATR(bars: Bar[], period = 14): number | null {
 }
 
 function calcRSI(bars: Bar[], period = 14): number | null {
-  if (bars.length < period + 2) return null;
-  const slice = bars.slice(-period - 1);
-  let gains = 0, losses = 0;
-  for (let i = 1; i < slice.length; i++) {
-    const d = slice[i].c - slice[i - 1].c;
-    if (d > 0) gains += d; else losses -= d;
+  if (bars.length < period * 2) return null;
+  const slice = bars.slice(-(period * 3));
+  // Seed: simple average of first period
+  let avgGain = 0, avgLoss = 0;
+  for (let i = 1; i <= period; i++) {
+    const d = slice[i].c - slice[i-1].c;
+    if (d > 0) avgGain += d; else avgLoss += Math.abs(d);
   }
-  if (losses === 0) return 100;
-  return 100 - (100 / (1 + gains / losses));
+  avgGain /= period; avgLoss /= period;
+  // Wilder's smoothing for remaining bars
+  for (let i = period + 1; i < slice.length; i++) {
+    const d = slice[i].c - slice[i-1].c;
+    avgGain = (avgGain * (period - 1) + (d > 0 ? d : 0)) / period;
+    avgLoss = (avgLoss * (period - 1) + (d < 0 ? -d : 0)) / period;
+  }
+  if (avgLoss === 0) return 100;
+  return 100 - (100 / (1 + avgGain / avgLoss));
+}
+
+function calcEMA(bars: Bar[], period: number): number | null {
+  if (bars.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = bars.slice(0, period).reduce((s, b) => s + b.c, 0) / period;
+  for (let i = period; i < bars.length; i++) ema = bars[i].c * k + ema * (1 - k);
+  return ema;
+}
+
+function calcADX(bars: Bar[], period = 14): number | null {
+  if (bars.length < period * 2 + 1) return null;
+  const dmP: number[] = [], dmM: number[] = [], trr: number[] = [];
+  for (let i = 1; i < bars.length; i++) {
+    const up = bars[i].h - bars[i-1].h, dn = bars[i-1].l - bars[i].l;
+    dmP.push(up > dn && up > 0 ? up : 0);
+    dmM.push(dn > up && dn > 0 ? dn : 0);
+    trr.push(Math.max(bars[i].h - bars[i].l, Math.abs(bars[i].h - bars[i-1].c), Math.abs(bars[i].l - bars[i-1].c)));
+  }
+  let sTR = trr.slice(0, period).reduce((a,b)=>a+b,0);
+  let sP  = dmP.slice(0, period).reduce((a,b)=>a+b,0);
+  let sM  = dmM.slice(0, period).reduce((a,b)=>a+b,0);
+  const dx: number[] = [];
+  for (let i = period; i < trr.length; i++) {
+    sTR = sTR - sTR / period + trr[i];
+    sP  = sP  - sP  / period + dmP[i];
+    sM  = sM  - sM  / period + dmM[i];
+    const diP = 100 * sP / sTR, diM = 100 * sM / sTR;
+    dx.push(100 * Math.abs(diP - diM) / ((diP + diM) || 1));
+  }
+  if (dx.length < period) return null;
+  return dx.slice(-period).reduce((a,b)=>a+b,0) / period;
 }
 
 function swingHiLo(bars: Bar[], n = 30) {
@@ -280,10 +331,20 @@ function swingHiLo(bars: Bar[], n = 30) {
 function fib(hi: number, lo: number, level: number) { return hi - (hi - lo) * level; }
 function px(n: number) { return `$${n.toFixed(2)}`; }
 
+// US DST: starts 2nd Sunday of March at 07:00 UTC, ends 1st Sunday of November at 06:00 UTC
+function isEDT(utcDate: Date): boolean {
+  const y = utcDate.getUTCFullYear();
+  const march1 = new Date(Date.UTC(y, 2, 1));
+  const dstStart = new Date(Date.UTC(y, 2, 1 + ((7 - march1.getUTCDay()) % 7) + 7, 7, 0, 0));
+  const nov1 = new Date(Date.UTC(y, 10, 1));
+  const dstEnd = new Date(Date.UTC(y, 10, 1 + ((7 - nov1.getUTCDay()) % 7), 6, 0, 0));
+  return utcDate >= dstStart && utcDate < dstEnd;
+}
+
 function etSession(): string {
   const now   = new Date();
-  const etOff = now.getTimezoneOffset() < new Date(now.getFullYear(), 6, 1).getTimezoneOffset() ? -4 : -5;
-  const et    = new Date(now.getTime() + (now.getTimezoneOffset() + etOff * 60) * 60_000);
+  const etOff = isEDT(now) ? -4 : -5;
+  const et    = new Date(now.getTime() + etOff * 3_600_000);
   const h = et.getHours(), min = et.getMinutes();
   const zone =
     (h >= 2  && h < 5)  ? "London Kill Zone (2–5 AM ET)"  :
@@ -307,13 +368,20 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   }
-  if (!checkRateLimit(`ict:${session.user.email}`, 5, 60_000)) {
+  if (!checkRateLimit(`sm:${session.user.email}`, 5, 60_000)) {
     return Response.json({ error: "Rate limit — max 5 deep analyses per minute" }, { status: 429 });
   }
 
   const { symbol } = await req.json() as { symbol: string };
   const ticker = sanitizeSymbol(symbol);
   if (!ticker) return Response.json({ error: "Invalid symbol" }, { status: 400 });
+
+  // Correct format for each provider:
+  // Finnhub: ES1! for futures, AAPL for equities
+  // Yahoo:   ES=F for futures, AAPL for equities
+  // EODHD:   uses ticker (plain) — it appends .US internally
+  const fhTicker    = toFinnhubSymbol(symbol);
+  const yahooTicker = toYahooSymbol(symbol);
 
   const finnhubKey = process.env.FINNHUB_API_KEY;
   const eodhdKey   = process.env.EODHD_API_KEY;
@@ -331,16 +399,16 @@ export async function POST(req: Request) {
     yahooHourly,
     news,
   ] = await Promise.all([
-    finnhubKey ? fetchFinnhubQuote(ticker, finnhubKey)    : Promise.resolve(null),
-    finnhubKey ? fetchFinnhubProfile(ticker, finnhubKey)  : Promise.resolve(null),
-    finnhubKey ? fetchFinnhubEarnings(ticker, finnhubKey) : Promise.resolve(null),
-    finnhubKey ? fetchFinnhubSentiment(ticker, finnhubKey): Promise.resolve(null),
-    finnhubKey ? fetchFinnhubBars(ticker, finnhubKey)     : Promise.resolve([]),
-    eodhdKey   ? fetchEodhdBars(ticker, eodhdKey)         : Promise.resolve([]),
-    fetchYahooBars(ticker, "1d",  "3mo"),
-    fetchYahooBars(ticker, "1wk", "1y"),
-    fetchYahooBars(ticker, "1h",  "10d"),
-    fetchYahooNews(ticker),
+    finnhubKey ? fetchFinnhubQuote(fhTicker, finnhubKey)    : Promise.resolve(null),
+    finnhubKey ? fetchFinnhubProfile(fhTicker, finnhubKey)  : Promise.resolve(null),
+    finnhubKey ? fetchFinnhubEarnings(fhTicker, finnhubKey) : Promise.resolve(null),
+    finnhubKey ? fetchFinnhubSentiment(fhTicker, finnhubKey): Promise.resolve(null),
+    finnhubKey ? fetchFinnhubBars(fhTicker, finnhubKey)     : Promise.resolve([]),
+    eodhdKey   ? fetchEodhdBars(ticker, eodhdKey)           : Promise.resolve([]),
+    fetchYahooBars(yahooTicker, "1d",  "3mo"),
+    fetchYahooBars(yahooTicker, "1wk", "1y"),
+    fetchYahooBars(yahooTicker, "1h",  "10d"),
+    fetchYahooNews(yahooTicker),
   ]);
 
   // Best daily bars: Finnhub > EODHD > Yahoo (prefer most bars)
@@ -392,8 +460,13 @@ export async function POST(req: Request) {
 
   const atr14    = calcATR(daily, 14);
   const rsi14    = calcRSI(daily, 14);
+  const ema20    = calcEMA(daily, 20);
+  const ema50    = calcEMA(daily, 50);
+  const ema200   = calcEMA(daily, 200);
+  const adx14    = calcADX(daily, 14);
   const vol20avg = daily.slice(-20).reduce((s, b) => s + b.v, 0) / 20;
   const volRatio = vol20avg > 0 ? today.v / vol20avg : null;
+  const lowLiquidityComputed = volRatio != null && volRatio < 0.5;
 
   const wkBars10 = weekly.slice(-10);
   const weeklyTrend = wkBars10.length >= 3
@@ -458,7 +531,10 @@ EQUILIBRIUM:
 
 INDICATORS:
   ATR-14: ${atr14 ? px(atr14) : "N/A"}
-  RSI-14: ${rsi14 ? rsi14.toFixed(1) : "N/A"} (${rsi14 ? rsi14 > 70 ? "Overbought" : rsi14 < 30 ? "Oversold" : "Neutral" : "N/A"})
+  RSI-14 (Wilder's): ${rsi14 ? rsi14.toFixed(1) : "N/A"} (${rsi14 ? rsi14 > 70 ? "Overbought" : rsi14 < 30 ? "Oversold" : "Neutral" : "N/A"})
+  EMA-20: ${ema20 ? px(ema20) : "N/A"} | EMA-50: ${ema50 ? px(ema50) : "N/A"} | EMA-200: ${ema200 ? px(ema200) : "N/A"}
+  EMA alignment: ${ema20 && ema50 ? (price > ema20 && ema20 > ema50 ? "BULLISH STACK (price > EMA20 > EMA50)" : price < ema20 && ema20 < ema50 ? "BEARISH STACK (price < EMA20 < EMA50)" : ema20 > ema50 ? "EMA20 > EMA50 but price below EMA20 — caution" : "EMA20 < EMA50 — downtrend structure") : "N/A"}
+  ADX-14: ${adx14 ? adx14.toFixed(1) : "N/A"} — ${adx14 ? (adx14 >= 40 ? "STRONG trend, do not fade" : adx14 >= 25 ? "Trend present, directional trades valid" : adx14 >= 20 ? "Weakening trend, reduce size" : "RANGING — mean-reversion only, avoid breakouts") : "N/A"}
   52-week range: ${pct52.toFixed(0)}% — ${pct52 > 70 ? "near highs / Premium" : pct52 < 30 ? "near lows / Discount" : "mid-range"}
   Volume vs 20-day avg: ${volRatio ? `${volRatio.toFixed(2)}x` : "N/A"}
 
@@ -512,10 +588,12 @@ RULES:
 1. NEVER go LONG in Premium. NEVER go SHORT in Discount.
 2. Minimum R:R = 3:1. If no 3:1 exists → noTrade: true.
 3. HTF/LTF conflict → noTrade: true.
-4. Only enter at defined OB, FVG, or OTE — never chase.
+4. Only enter at defined OB, FVG, OTE, or Immediate Rebalance zone — never chase.
 5. Set invalidation BEFORE entry.
 6. Use 4H bars to refine structure (they are real derived data, not estimates).
 7. Factor in news sentiment and earnings risk for the risk block.
+8. BSL and SSL are PRIMARY TAKE-PROFIT TARGETS, not just markers. Always set targets AT the liquidity pool — that is where price is drawn. If target1 is not at a BSL/SSL level, justify why.
+9. Identify all Immediate Rebalance (IR) zones across timeframes: scan adjacent candles where the upper wick of one candle and the lower wick of the next overlap or nearly meet. The overlap zone is an IR — the first retest after balance is a high-probability entry, especially in futures. Include at least one IR zone if price structure supports it.
 
 OUTPUT — Valid JSON only. No markdown, no text outside JSON:
 
@@ -596,6 +674,18 @@ OUTPUT — Valid JSON only. No markdown, no text outside JSON:
 
   "scenarioB": null or same shape as scenarioA,
 
+  "immediateRebalance": {
+    "zones": [
+      {
+        "zone": "$X.XX – $X.XX",
+        "timeframe": "Daily|4H|Weekly",
+        "direction": "Bullish|Bearish",
+        "note": "which candles created this IR and why the first retest is high-probability"
+      }
+    ],
+    "summary": "overall IR context — how many zones, which are most relevant to current setup"
+  },
+
   "watchList": [
     "Price that CONFIRMS the bias",
     "Price that INVALIDATES the bias",
@@ -608,7 +698,7 @@ OUTPUT — Valid JSON only. No markdown, no text outside JSON:
     "majorEventThisWeek": false,
     "majorEvent": null or "event name",
     "ivElevated": false,
-    "lowLiquidity": false
+    "lowLiquidity": ${lowLiquidityComputed}
   },
 
   "noTrade": false,
@@ -619,10 +709,10 @@ FILL keyLevels with the exact pre-calculated numbers above.
 All price targets must derive from real data — no guesses.
 Return ONLY valid JSON.`;
 
-  function parseAndOverwrite(text: string): DeepICTAnalysis {
+  function parseAndOverwrite(text: string): DeepMarketAnalysis {
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) throw new Error("No JSON in response");
-    const parsed = JSON.parse(match[0]) as DeepICTAnalysis;
+    const parsed = JSON.parse(match[0]) as DeepMarketAnalysis;
     parsed.keyLevels = {
       pwh: px(pwh), pwl: px(pwl), pdh: px(pdh), pdl: px(pdl),
       weeklyOpen: px(weeklyOpen), monthlyOpen: px(monthlyOpen),
@@ -631,6 +721,7 @@ Return ONLY valid JSON.`;
     };
     parsed.risk.earningsWithin5Days = earningsWithin5Days;
     parsed.risk.earningsDate        = fhEarningsDate ?? null;
+    parsed.risk.lowLiquidity        = lowLiquidityComputed;
     return parsed;
   }
 
@@ -653,7 +744,7 @@ Return ONLY valid JSON.`;
       const d = await res.json() as { choices?: { message?: { content?: string } }[] };
       return d.choices?.[0]?.message?.content?.trim() ?? null;
     } catch (err) {
-      console.error(`[ict-analysis] ${url} error:`, err instanceof Error ? err.message : err);
+      console.error(`[deep-analysis] ${url} error:`, err instanceof Error ? err.message : err);
       return null;
     }
   }
@@ -675,7 +766,7 @@ Return ONLY valid JSON.`;
         .map(b => (b as { type: "text"; text: string }).text)
         .join("").trim();
     } catch (err) {
-      console.error("[ict-analysis] Anthropic error:", err instanceof Error ? err.message : err);
+      console.error("[deep-analysis] Anthropic error:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -708,7 +799,7 @@ Return ONLY valid JSON.`;
   try {
     return Response.json(parseAndOverwrite(analysisText));
   } catch (err) {
-    console.error("[ict-analysis] Parse failed. Raw snippet:", analysisText.slice(0, 400));
+    console.error("[deep-analysis] Parse failed. Raw snippet:", analysisText.slice(0, 400));
     return Response.json(
       { error: `Analysis parse failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 },

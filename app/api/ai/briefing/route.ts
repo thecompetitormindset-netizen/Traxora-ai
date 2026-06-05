@@ -134,13 +134,22 @@ function row(label: string, q: Q | null): string {
   return `${label}: $${q.price.toFixed(2)} (${chg})${vol}${yr}${zone}`;
 }
 
+function isEDT(utcDate: Date): boolean {
+  const y = utcDate.getUTCFullYear();
+  const march1 = new Date(Date.UTC(y, 2, 1));
+  const dstStart = new Date(Date.UTC(y, 2, 1 + ((7 - march1.getUTCDay()) % 7) + 7, 7, 0, 0));
+  const nov1 = new Date(Date.UTC(y, 10, 1));
+  const dstEnd = new Date(Date.UTC(y, 10, 1 + ((7 - nov1.getUTCDay()) % 7), 6, 0, 0));
+  return utcDate >= dstStart && utcDate < dstEnd;
+}
+
 function etSession(): string {
   const now = new Date();
-  const etOff = now.getTimezoneOffset() < new Date(now.getFullYear(), 6, 1).getTimezoneOffset() ? -4 : -5;
-  const et  = new Date(now.getTime() + (now.getTimezoneOffset() + etOff * 60) * 60_000);
-  const h   = et.getHours();
-  const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][et.getDay()];
-  const dt  = et.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const etOff = isEDT(now) ? -4 : -5;
+  const et  = new Date(now.getTime() + etOff * 3_600_000);
+  const h   = et.getUTCHours();
+  const day = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][et.getUTCDay()];
+  const dt  = et.toISOString().slice(0, 10);
   const session =
     h < 2  ? "Overnight / Pre-London" :
     h < 5  ? "London Open Kill Zone (2-5 AM ET)" :
@@ -539,7 +548,7 @@ OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation 
     "keyRisks": ["string", "string"]
   },
 
-  "ictAnalysis": {
+  "marketAnalysis": {
     "bias": "Bullish | Bearish | Neutral",
     "killZone": "string — which Kill Zone to prioritize today and why",
     "priceZone": "string — SPY premium/discount position with equilibrium price",
@@ -566,7 +575,7 @@ OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation 
       "bullCase": "string — specific bull scenario with price target",
       "bearCase": "string — specific bear scenario with invalidation level",
       "catalyst": "string — primary catalyst driving this setup",
-      "ictSetup": "string — specific setup (e.g. 'Bullish FVG fill at Order Block in Discount zone during NY session')",
+      "setupNote": "string — specific setup (e.g. 'Bullish FVG fill at Order Block in Discount zone during NY session')",
       "entryZone": "string — specific price range for entry",
       "stopLoss": "string — price level + structural reason (e.g. 'Below $XXX OB low')",
       "target1": "string — first liquidity target with price",
@@ -600,16 +609,63 @@ OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation 
 
   "riskWarnings": ["string", "string", "string"],
   "positionSizingNote": "string — specific VIX-based sizing guidance (e.g. 'VIX at 18 = normal sizing; reduce to 50% above VIX 25')",
-  "overallConfidence": 68
+  "overallConfidence": 68,
+
+  "topOptionsPlays": [
+    {
+      "rank": 1,
+      "symbol": "TICKER",
+      "name": "Full Company Name",
+      "direction": "Calls | Puts",
+      "strike": "string — e.g. '$290 ATM' or '$295 OTM'",
+      "expiry": "string — e.g. 'Jun 20 (16 DTE)' — always include DTE",
+      "dte": 16,
+      "entryTrigger": "string — exact price or condition to wait for before entering",
+      "entryPrice": "string — current underlying price",
+      "stopCondition": "string — what invalidates this trade",
+      "target": "string — price target for the underlying",
+      "maxRisk": "string — estimated premium cost per contract",
+      "riskRating": "Low | Medium | High | Extreme",
+      "dteRisk": "string — explicit DTE warning e.g. 'High theta decay after day 3'",
+      "ivContext": "string — is IV elevated or depressed? Buy when cheap, sell when rich",
+      "confidence": 72,
+      "thesis": "string — 1-2 sentence thesis why this options play works",
+      "hardGates": "PASS | FAIL — state if any hard gate triggers (RR<2, DTE≤7+OTM, earnings within 5d)"
+    }
+  ],
+
+  "topFuturesPlays": [
+    {
+      "rank": 1,
+      "contract": "ES | NQ | GC | CL | SI | YM | NQ | RTY",
+      "name": "Full Contract Name",
+      "direction": "Long | Short",
+      "entryZone": "string — price range e.g. '$7,550–$7,565'",
+      "stopLoss": "string — price + structural reason",
+      "target1": "string — first target with price",
+      "target2": "string | null — second target",
+      "rrRatio": "string e.g. '3.2:1'",
+      "sessionTiming": "string — best kill zone / session to take this trade",
+      "pointValue": "string — e.g. '$50/pt for ES'",
+      "riskPerContract": "string — dollar risk at stop e.g. '$375 risk on 1 ES contract'",
+      "microContract": "string — micro equivalent e.g. 'Use MES ($5/pt) to reduce risk by 10x'",
+      "leverageWarning": "string — explicit leverage warning",
+      "riskRating": "Low | Medium | High | Extreme",
+      "confidence": 70,
+      "thesis": "string — 1-2 sentence thesis",
+      "keyLevel": "string — the single price level that makes or breaks this trade"
+    }
+  ]
 }
 
 FINAL CHECKS before responding:
 • Exactly 10 opportunities ranked by conviction.
+• Exactly 5 options plays and 5 futures plays in their dedicated sections.
 • Every price level must be derived from the live data provided above.
-• Options plays must include direction, structure type, DTE concept, and IV warning if VIX is elevated.
-• Futures plays must include session timing and leverage risk warning.
-• Economic calendar reflects real events this week (use your training knowledge of typical scheduled releases).
-• facts[] arrays contain only verified data from the feed. probabilities[] contain structure-based inferences. speculative field is null unless truly needed.
+• Options plays: HARD GATE CHECK REQUIRED — if DTE ≤ 7 and strike is OTM by >1%, set riskRating to Extreme and hardGates to FAIL with reason. If earnings within 5 days, flag it.
+• Futures plays: always include microContract alternative and riskPerContract in dollar terms.
+• Economic calendar reflects real events this week.
+• facts[] arrays contain only verified data from the feed. probabilities[] contain structure-based inferences.
 • The JSON must be complete and valid — do not truncate.`;
 
   try {

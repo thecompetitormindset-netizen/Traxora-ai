@@ -1,9 +1,13 @@
 import { XMLParser } from "fast-xml-parser";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const symbol = searchParams.get("symbol")?.replace(/\.(US|COMM)$/, "").trim();
+  const query  = symbol ? `${symbol} stock` : "stock market";
+
   try {
     const res = await fetch(
-      "https://news.google.com/rss/search?q=stock%20market&hl=en-US&gl=US&ceid=US:en",
+      `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US&gl=US&ceid=US:en`,
       { cache: "no-store" },
     );
 
@@ -14,7 +18,7 @@ export async function GET() {
     const parsed = parser.parse(xml);
     const items = parsed?.rss?.channel?.item ?? [];
 
-    const news = (Array.isArray(items) ? items : [items]).slice(0, 12).map((item: any) => ({
+    const news = (Array.isArray(items) ? items : [items]).slice(0, 6).map((item: any) => ({
       title:   item.title,
       link:    item.link,
       pubDate: item.pubDate,

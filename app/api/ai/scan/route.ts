@@ -1,4 +1,4 @@
-import { ictScore } from "@/app/lib/ict";
+import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
@@ -34,10 +34,10 @@ function trend5d(h: number[]): { label: string; pct: number } {
   };
 }
 
-function ictAnalyze(s: StockInput) {
+function scoreStock(s: StockInput) {
   const trend = trend5d(s.history5d);
 
-  const ict = ictScore(
+  const sm = smartMoneyScore(
     {
       price:         s.price,
       previousClose: s.previousClose,
@@ -54,10 +54,10 @@ function ictAnalyze(s: StockInput) {
   );
 
   const { signal, confidence, score, priceZone, marketStructure,
-          yearPct, dayH, dayL, dayMid, daySpan } = ict;
+          yearPct, dayH, dayL, dayMid, daySpan } = sm;
 
-  // Fall back to the pre-computed ratio when ictScore returns null (avgVolume === 0 from data source)
-  const volRatio = ict.volRatio ?? s.volumeRatio;
+  // Fall back to the pre-computed ratio when smartMoneyScore returns null (avgVolume === 0 from data source)
+  const volRatio = sm.volRatio ?? s.volumeRatio;
   const highVol  = volRatio >= 1.4;
   const lowVol   = volRatio < 0.75;
 
@@ -75,7 +75,7 @@ function ictAnalyze(s: StockInput) {
     lowVol          ? `${volRatio.toFixed(1)}x volume — low conviction` :
                       `${volRatio.toFixed(1)}x volume — normal`;
 
-  const ictSetup =
+  const setupNote =
     signal === "BUY"
       ? `${priceZone} zone${yearPct != null && yearPct < 30 ? " + yearly discount" : ""} with ${s.changePercent >= 0 ? "+" : ""}${s.changePercent.toFixed(2)}% momentum. ${volVerdict}. ${trend.label}.`
     : signal === "SELL"
@@ -108,7 +108,7 @@ function ictAnalyze(s: StockInput) {
       ? s.news[0].title.slice(0, 80)
       : `${s.changePercent >= 0 ? "Technical" : "Bearish"} price action — no major catalyst`;
 
-  // ICT trade levels
+  // Trade levels
   let entryZone: string | null = null;
   let stopLoss:  string | null = null;
   let takeProfit: string | null = null;
@@ -121,7 +121,9 @@ function ictAnalyze(s: StockInput) {
     const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
     const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
     const entryMid  = (entryLow + entryHigh) / 2;
-    const stopVal   = signal === "BUY" ? entryLow  * 0.95 : entryHigh * 1.05;
+    // Structural stop beyond session extreme with a small buffer
+    const buf       = Math.max(span * 0.03, s.price * 0.001);
+    const stopVal   = signal === "BUY" ? dayL - buf : dayH + buf;
     const riskDist  = Math.abs(entryMid - stopVal);
     const tpVal     = signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2;
     entryZone   = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
@@ -139,7 +141,7 @@ function ictAnalyze(s: StockInput) {
   }
 
   return {
-    symbol: s.symbol, signal, confidence, ictSetup, catalyst,
+    symbol: s.symbol, signal, confidence, setupNote, catalyst,
     marketStructure, priceZone, yearZone, volumeVerdict: volVerdict,
     keyLevel, target, power3Phase, newsImpact, _score: score, news: s.news,
     entryZone, stopLoss, takeProfit, entryReason, stopReason, tpReason,
@@ -157,7 +159,7 @@ export async function POST(req: Request) {
   try {
     const { stocks }: { stocks: StockInput[] } = await req.json();
 
-    const results = stocks.map(ictAnalyze).sort((a, b) => Math.abs(b._score) - Math.abs(a._score));
+    const results = stocks.map(scoreStock).sort((a, b) => Math.abs(b._score) - Math.abs(a._score));
     const top5    = results.slice(0, 5);
 
     const avgChange = stocks.reduce((s, st) => s + st.changePercent, 0) / (stocks.length || 1);

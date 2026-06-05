@@ -35,7 +35,7 @@ type Opportunity = {
   bullCase:   string;
   bearCase:   string;
   catalyst:   string;
-  ictSetup:   string;
+  setupNote:   string;
   entryZone:  string;
   stopLoss:   string;
   target1:    string;
@@ -64,6 +64,48 @@ type KeyLevels = {
   Gold: { support: string[]; resistance: string[]; notes: string };
 };
 
+type OptionsPlay = {
+  rank:          number;
+  symbol:        string;
+  name:          string;
+  direction:     "Calls" | "Puts";
+  strike:        string;
+  expiry:        string;
+  dte:           number;
+  entryTrigger:  string;
+  entryPrice:    string;
+  stopCondition: string;
+  target:        string;
+  maxRisk:       string;
+  riskRating:    "Low" | "Medium" | "High" | "Extreme";
+  dteRisk:       string;
+  ivContext:     string;
+  confidence:    number;
+  thesis:        string;
+  hardGates:     string;
+};
+
+type FuturesPlay = {
+  rank:             number;
+  contract:         string;
+  name:             string;
+  direction:        "Long" | "Short";
+  entryZone:        string;
+  stopLoss:         string;
+  target1:          string;
+  target2:          string | null;
+  rrRatio:          string;
+  sessionTiming:    string;
+  pointValue:       string;
+  riskPerContract:  string;
+  microContract:    string;
+  leverageWarning:  string;
+  riskRating:       "Low" | "Medium" | "High" | "Extreme";
+  confidence:       number;
+  thesis:           string;
+  keyLevel:         string;
+};
+
 type BriefingData = {
   session:      string;
   regime:       string;
@@ -76,7 +118,7 @@ type BriefingData = {
     bearishFactors: string[];
     keyRisks:       string[];
   };
-  ictAnalysis: {
+  marketAnalysis: {
     bias:            string;
     killZone:        string;
     priceZone:       string;
@@ -90,6 +132,8 @@ type BriefingData = {
     marketMakerModel: string;
   };
   opportunities:     Opportunity[];
+  topOptionsPlays:   OptionsPlay[];
+  topFuturesPlays:   FuturesPlay[];
   economicCalendar:  CalEvent[];
   keyLevels:         KeyLevels;
   riskWarnings:      string[];
@@ -101,7 +145,7 @@ type BriefingData = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const DATE_KEY_BASE  = "traxora-briefing-date";
-const CACHE_KEY_BASE = "traxora-briefing-cache";
+const CACHE_KEY_BASE = "traxora-briefing-cache-v2"; // v2: marketAnalysis + setupNote field names
 const CACHE_TTL      = 4 * 60 * 60 * 1000; // 4 hours
 
 function loadCache(): BriefingData | null {
@@ -119,12 +163,15 @@ function saveCache(data: BriefingData) {
 
 function getETHour() {
   const now = new Date();
-  const jan = new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
-  const jul = new Date(now.getFullYear(), 6, 1).getTimezoneOffset();
-  const dst = now.getTimezoneOffset() < Math.max(jan, jul);
-  const off = dst ? -4 : -5;
-  const et  = new Date(now.getTime() + (now.getTimezoneOffset() + off * 60) * 60_000);
-  return { hour: et.getHours(), minute: et.getMinutes(), day: et.getDay() };
+  const y   = now.getUTCFullYear();
+  // US DST: 2nd Sunday of March at 07:00 UTC → 1st Sunday of November at 06:00 UTC
+  const march1    = new Date(Date.UTC(y, 2, 1));
+  const dstStart  = new Date(Date.UTC(y, 2, 1 + ((7 - march1.getUTCDay()) % 7) + 7, 7));
+  const nov1      = new Date(Date.UTC(y, 10, 1));
+  const dstEnd    = new Date(Date.UTC(y, 10, 1 + ((7 - nov1.getUTCDay()) % 7), 6));
+  const off       = (now >= dstStart && now < dstEnd) ? -4 : -5;
+  const et        = new Date(now.getTime() + off * 3_600_000);
+  return { hour: et.getUTCHours(), minute: et.getUTCMinutes(), day: et.getUTCDay() };
 }
 
 function pct(n: number | null) {
@@ -247,10 +294,10 @@ function OppCard({ opp }: { opp: Opportunity }) {
       {open && (
         <div className="px-4 pb-4 border-t border-[#252345] space-y-4 pt-3">
 
-          {/* ICT Setup */}
+          {/* Setup */}
           <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
             <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1">Setup</p>
-            <p className="text-xs text-[#CBD5E1] leading-relaxed">{opp.ictSetup}</p>
+            <p className="text-xs text-[#CBD5E1] leading-relaxed">{opp.setupNote}</p>
           </div>
 
           {/* Levels grid */}
@@ -346,7 +393,7 @@ function OppCard({ opp }: { opp: Opportunity }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-type Tab = "overview" | "opportunities" | "levels";
+type Tab = "overview" | "opportunities" | "options" | "futures" | "levels";
 
 export default function MorningBriefing() {
   const [visible,    setVisible]    = useState(false);
@@ -451,7 +498,7 @@ export default function MorningBriefing() {
   if (!show && !loading) return null;
 
   const d   = briefing?._raw?.data;
-  const ict = briefing?.ictAnalysis;
+  const ma = briefing?.marketAnalysis;
 
   // 14-tile grid from _raw
   const tiles = d ? [
@@ -480,12 +527,14 @@ export default function MorningBriefing() {
     briefing?.regimeColor === "bearish" ? "bg-rose-400" : "bg-amber-400";
 
   const biasCls =
-    ict?.bias === "Bullish" ? "text-emerald-400" :
-    ict?.bias === "Bearish" ? "text-rose-400" : "text-amber-400";
+    ma?.bias === "Bullish" ? "text-emerald-400" :
+    ma?.bias === "Bearish" ? "text-rose-400" : "text-amber-400";
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview",      label: "Overview" },
     { id: "opportunities", label: `Opportunities (${briefing?.opportunities?.length ?? 0})` },
+    { id: "options",       label: `Options (${briefing?.topOptionsPlays?.length ?? 0})` },
+    { id: "futures",       label: `Futures (${briefing?.topFuturesPlays?.length ?? 0})` },
     { id: "levels",        label: "Levels & Calendar" },
   ];
 
@@ -510,6 +559,43 @@ export default function MorningBriefing() {
                 <span className="text-[8px] text-[#4B5675] uppercase tracking-widest">Confidence</span>
                 <span className={`text-[10px] font-black ${confCls(briefing.overallConfidence)}`}>{briefing.overallConfidence}%</span>
               </div>
+            )}
+            {!loading && briefing && (
+              <button
+                type="button"
+                id="discord-brief-btn"
+                title="Copy Discord post"
+                onClick={() => {
+                  const opps = (briefing.opportunities ?? []).slice(0, 5);
+                  const lines: string[] = [];
+                  lines.push(`🌅 **Morning Brief** — ${briefing._raw?.session ?? briefing.session} | Traxora AI`);
+                  lines.push(`📊 Market: **${briefing.marketAnalysis?.bias ?? briefing.regime}** · ${briefing.vixReading}`);
+                  lines.push("");
+                  if (opps.length > 0) {
+                    lines.push("**Top Plays:**");
+                    opps.forEach(o => {
+                      const dir = o.trend === "Bullish" ? "🟢" : o.trend === "Bearish" ? "🔴" : "🟡";
+                      lines.push(`${dir} **${o.asset}** — Entry ${o.entryZone} · Stop ${o.stopLoss} · T1 ${o.target1} · R:R ${o.rrRatio}`);
+                    });
+                  }
+                  const optPlay = briefing.topOptionsPlays?.[0];
+                  if (optPlay) {
+                    lines.push("");
+                    lines.push(`⚡ **Options:** ${optPlay.symbol} ${optPlay.direction} $${optPlay.strike} exp ${optPlay.expiry}`);
+                  }
+                  lines.push("");
+                  lines.push("📈 **traxora.ai**");
+                  navigator.clipboard.writeText(lines.join("\n")).then(() => {
+                    const btn = document.getElementById("discord-brief-btn");
+                    if (btn) { btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = ""; btn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/></svg>`; }, 2000); }
+                  });
+                }}
+                className="w-8 h-8 rounded-xl bg-[#5865F2]/20 hover:bg-[#5865F2]/40 border border-[#5865F2]/30 flex items-center justify-center text-[#7B8DB4] hover:text-white transition-colors"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z"/>
+                </svg>
+              </button>
             )}
             {!loading && (
               <button
@@ -554,7 +640,7 @@ export default function MorningBriefing() {
               <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
-              <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments using institutional smart money framework…</p>
+              <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments across multiple timeframes…</p>
             </div>
           </div>
         )}
@@ -625,54 +711,54 @@ export default function MorningBriefing() {
                   ))}
                 </div>
 
-                {/* ICT Analysis */}
+                {/* Market Analysis */}
                 <div className="px-6 pt-5">
-                  <SectionHead label="Smart Money Analysis" icon="🎯" />
+                  <SectionHead label="Market Analysis" icon="🎯" />
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                     <div className="bg-[#0D0B1A] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Market Bias</p>
-                      <p className={`text-sm font-black ${biasCls}`}>{ict?.bias}</p>
+                      <p className={`text-sm font-black ${biasCls}`}>{ma?.bias}</p>
                     </div>
                     <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Price Zone</p>
-                      <p className="text-xs font-bold text-[#F1F5F9]">{ict?.priceZone}</p>
+                      <p className="text-xs font-bold text-[#F1F5F9]">{ma?.priceZone}</p>
                     </div>
                     <div className="bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
                       <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">MM Phase</p>
-                      <p className="text-xs font-bold text-teal-400">{ict?.marketMakerModel}</p>
+                      <p className="text-xs font-bold text-teal-400">{ma?.marketMakerModel}</p>
                     </div>
                     <div className="bg-[#0D0B1A] border border-emerald-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-emerald-400 uppercase tracking-widest mb-1">BSL (Liq. Above)</p>
-                      <p className="text-xs font-mono text-[#F1F5F9]">{ict?.liquidityAbove}</p>
+                      <p className="text-xs font-mono text-[#F1F5F9]">{ma?.liquidityAbove}</p>
                     </div>
                     <div className="bg-[#0D0B1A] border border-rose-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-rose-400 uppercase tracking-widest mb-1">SSL (Liq. Below)</p>
-                      <p className="text-xs font-mono text-[#F1F5F9]">{ict?.liquidityBelow}</p>
+                      <p className="text-xs font-mono text-[#F1F5F9]">{ma?.liquidityBelow}</p>
                     </div>
                     <div className="bg-[#0D0B1A] border border-amber-500/20 rounded-xl p-3">
                       <p className="text-[8px] text-amber-400 uppercase tracking-widest mb-1">Kill Zone</p>
-                      <p className="text-[10px] text-[#CBD5E1] leading-snug">{ict?.killZone}</p>
+                      <p className="text-[10px] text-[#CBD5E1] leading-snug">{ma?.killZone}</p>
                     </div>
                   </div>
 
                   {/* FVG / OB / SMT */}
                   <div className="space-y-2">
-                    {ict?.keyFVG && (
+                    {ma?.keyFVG && (
                       <div className="flex items-start gap-2 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-emerald-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">FVG</span>
-                        <p className="text-[10px] text-[#CBD5E1]">{ict.keyFVG}</p>
+                        <p className="text-[10px] text-[#CBD5E1]">{ma.keyFVG}</p>
                       </div>
                     )}
-                    {ict?.keyOrderBlock && (
+                    {ma?.keyOrderBlock && (
                       <div className="flex items-start gap-2 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">OB</span>
-                        <p className="text-[10px] text-[#CBD5E1]">{ict.keyOrderBlock}</p>
+                        <p className="text-[10px] text-[#CBD5E1]">{ma.keyOrderBlock}</p>
                       </div>
                     )}
-                    {ict?.smtDivergence && (
+                    {ma?.smtDivergence && (
                       <div className="flex items-start gap-2 bg-[#0D0B1A] border border-teal-500/20 rounded-xl px-3 py-2">
                         <span className="text-[8px] font-black text-teal-400 uppercase tracking-widest shrink-0 mt-0.5 w-8">SMT</span>
-                        <p className="text-[10px] text-[#CBD5E1]">{ict.smtDivergence}</p>
+                        <p className="text-[10px] text-[#CBD5E1]">{ma.smtDivergence}</p>
                       </div>
                     )}
                   </div>
@@ -681,13 +767,13 @@ export default function MorningBriefing() {
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-2.5">
                       <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest mb-1.5">Sector Leaders</p>
-                      {(ict?.sectorLeaders ?? []).map((s, i) => (
+                      {(ma?.sectorLeaders ?? []).map((s, i) => (
                         <p key={i} className="text-[10px] text-[#CBD5E1]">↑ {s}</p>
                       ))}
                     </div>
                     <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-2.5">
                       <p className="text-[8px] font-black text-rose-400 uppercase tracking-widest mb-1.5">Sector Laggers</p>
-                      {(ict?.sectorLaggers ?? []).map((s, i) => (
+                      {(ma?.sectorLaggers ?? []).map((s, i) => (
                         <p key={i} className="text-[10px] text-[#CBD5E1]">↓ {s}</p>
                       ))}
                     </div>
@@ -754,6 +840,118 @@ export default function MorningBriefing() {
                 {(briefing.opportunities ?? []).map(opp => (
                   <OppCard key={opp.rank} opp={opp} />
                 ))}
+              </div>
+            )}
+
+            {/* ── TAB: Options Plays ── */}
+            {tab === "options" && (
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+                <SectionHead label="Top 5 Options Plays" icon="📊" />
+                {(briefing.topOptionsPlays ?? []).length === 0 ? (
+                  <p className="text-xs text-[#4B5675] text-center py-8">Refresh the briefing to load options plays.</p>
+                ) : (briefing.topOptionsPlays ?? []).map(p => {
+                  const isFail    = p.hardGates?.toLowerCase().startsWith("fail");
+                  const riskColor = p.riskRating === "Low" ? "text-emerald-400" : p.riskRating === "Medium" ? "text-amber-400" : "text-rose-400";
+                  const dirColor  = p.direction === "Calls" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25";
+                  return (
+                    <div key={p.rank} className={`bg-[#13112A] border rounded-2xl overflow-hidden ${isFail ? "border-rose-500/30" : "border-[#252345]"}`}>
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-[#4B5675]">#{p.rank}</span>
+                          <p className="font-bold text-sm">{p.symbol}</p>
+                          <p className="text-[10px] text-[#4B5675] truncate max-w-[120px]">{p.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${dirColor}`}>{p.direction}</span>
+                          <span className={`text-[9px] font-bold ${riskColor}`}>{p.riskRating}</span>
+                          <span className="text-[9px] font-mono text-[#4B5675]">{p.confidence}%</span>
+                        </div>
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        {isFail && (
+                          <div className="flex items-center gap-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg px-3 py-1.5">
+                            <span className="text-rose-400 text-xs font-black">⛔</span>
+                            <p className="text-[10px] text-rose-300 font-semibold">{p.hardGates}</p>
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
+                          {[
+                            { l: "Strike",  v: p.strike },
+                            { l: "Expiry",  v: p.expiry },
+                            { l: "Entry trigger", v: p.entryTrigger },
+                            { l: "Stop condition",v: p.stopCondition },
+                            { l: "Target",  v: p.target },
+                            { l: "Max risk/contract", v: p.maxRisk },
+                          ].map(r => (
+                            <div key={r.l}>
+                              <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">{r.l}</p>
+                              <p className="text-[#CBD5E1] font-medium mt-0.5">{r.v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-[#7B8DB4] leading-relaxed border-t border-[#252345] pt-2">{p.thesis}</p>
+                        <div className="flex gap-3 text-[9px] flex-wrap">
+                          <span className="text-amber-400/80">📅 {p.dteRisk}</span>
+                          <span className="text-sky-400/80">📈 {p.ivContext}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── TAB: Futures Plays ── */}
+            {tab === "futures" && (
+              <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
+                <SectionHead label="Top 5 Futures Plays" icon="⚡" />
+                {(briefing.topFuturesPlays ?? []).length === 0 ? (
+                  <p className="text-xs text-[#4B5675] text-center py-8">Refresh the briefing to load futures plays.</p>
+                ) : (briefing.topFuturesPlays ?? []).map(p => {
+                  const isLong   = p.direction === "Long";
+                  const dirColor = isLong ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25";
+                  const riskColor= p.riskRating === "Low" ? "text-emerald-400" : p.riskRating === "Medium" ? "text-amber-400" : "text-rose-400";
+                  return (
+                    <div key={p.rank} className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] font-black text-[#4B5675]">#{p.rank}</span>
+                          <p className="font-bold text-sm">{p.contract}</p>
+                          <p className="text-[10px] text-[#4B5675]">{p.name}</p>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border ${dirColor}`}>{p.direction}</span>
+                          <span className={`text-[9px] font-bold ${riskColor}`}>{p.riskRating}</span>
+                          <span className="text-[9px] font-mono text-emerald-400">{p.rrRatio}</span>
+                        </div>
+                      </div>
+                      <div className="px-4 py-3 space-y-2">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[10px]">
+                          {[
+                            { l: "Entry Zone",  v: p.entryZone },
+                            { l: "Stop Loss",   v: p.stopLoss },
+                            { l: "Target 1",    v: p.target1 },
+                            { l: "Target 2",    v: p.target2 ?? "—" },
+                            { l: "Point Value", v: p.pointValue },
+                            { l: "Risk/Contract",v: p.riskPerContract },
+                          ].map(r => (
+                            <div key={r.l}>
+                              <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">{r.l}</p>
+                              <p className="text-[#CBD5E1] font-medium mt-0.5">{r.v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-[#7B8DB4] leading-relaxed border-t border-[#252345] pt-2">{p.thesis}</p>
+                        <div className="space-y-1">
+                          <p className="text-[9px] text-amber-400/80">🕐 {p.sessionTiming}</p>
+                          <p className="text-[9px] text-[#4B5675]">🔑 Key level: {p.keyLevel}</p>
+                          <p className="text-[9px] text-sky-400/80">📦 Micro: {p.microContract}</p>
+                          <p className="text-[9px] text-rose-400/70">⚠ {p.leverageWarning}</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
