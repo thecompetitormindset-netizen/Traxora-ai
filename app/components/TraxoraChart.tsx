@@ -22,7 +22,6 @@ type OhlcBar = { time: Time; open: number; high: number; low: number; close: num
 type VolBar  = { time: Time; value: number; color: string };
 type LineBar = { time: Time; value: number };
 
-// Live crosshair data shown in the header legend
 type HoverData = {
   time:   string;
   open:   number; high: number; low: number; close: number;
@@ -42,6 +41,26 @@ const INTERVALS: { label: string; value: Interval; apiInterval: string; apiRange
   { label: "1D",  value: "1D",  apiInterval: "1d",  apiRange: "365d" },
   { label: "1W",  value: "1W",  apiInterval: "1w",  apiRange: "730d" },
 ];
+
+// ── Colors ────────────────────────────────────────────────────────────────────
+
+const C = {
+  bg:        "#070511",
+  grid:      "#100E1F",
+  border:    "#16122A",
+  text:      "#3D4F6B",
+  textBright:"#7B8DB4",
+  bull:      "#00D97E",
+  bear:      "#FF4560",
+  bullDim:   "#00D97E35",
+  bearDim:   "#FF456028",
+  ema9:      "#38BDF8",
+  ema21:     "#FB923C",
+  ema50:     "#A78BFA",
+  vwap:      "#F59E0B",
+  bb:        "#6366F1",
+  rsi:       "#EC4899",
+};
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
 
@@ -193,7 +212,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const clean      = symbol.replace(".US", "").replace(".COMM", "");
   const isFutures  = symbol.endsWith(".COMM");
 
-  // ── Create chart on mount ─────────────────────────────────────────────────
+  // ── Create chart ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -201,31 +220,38 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       autoSize: true,
       height,
       layout: {
-        background: { type: ColorType.Solid, color: "#06040E" },
-        textColor:  "#3D4F6B",
+        background: { type: ColorType.Solid, color: C.bg },
+        textColor:  C.text,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-        fontSize:   10,
+        fontSize:   11,
       },
       grid: {
-        vertLines: { color: "#0D0B1A", style: 1 },
-        horzLines: { color: "#0D0B1A", style: 1 },
+        vertLines: { color: C.grid, style: 0 },
+        horzLines: { color: C.grid, style: 0 },
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: "#252345", width: 1, style: 3, labelBackgroundColor: "#161230" },
-        horzLine: { color: "#252345", width: 1, style: 3, labelBackgroundColor: "#161230" },
+        vertLine: { color: "#2A2548", width: 1, style: 2, labelBackgroundColor: "#1A1535" },
+        horzLine: { color: "#2A2548", width: 1, style: 2, labelBackgroundColor: "#1A1535" },
       },
       rightPriceScale: {
-        borderColor:  "#130F24",
-        scaleMargins: { top: 0.05, bottom: 0.22 },
-        textColor:    "#3D4F6B",
+        borderColor:  C.border,
+        scaleMargins: { top: 0.06, bottom: 0.22 },
+        textColor:    C.textBright,
       },
       timeScale: {
-        borderColor:    "#130F24",
+        borderColor:    C.border,
         timeVisible:    true,
         secondsVisible: false,
-        barSpacing:     9,
+        barSpacing:     10,
         minBarSpacing:  3,
+        tickMarkFormatter: (time: number) => {
+          const d = new Date(time * 1000);
+          if (isIntraday) {
+            return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: false });
+          }
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        },
       },
     });
 
@@ -233,50 +259,50 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
     // Candlesticks
     const candleOpts: CandlestickSeriesPartialOptions = {
-      upColor:          "#0ECB81",
-      downColor:        "#F6465D",
-      borderUpColor:    "#0ECB81",
-      borderDownColor:  "#F6465D",
-      borderVisible:    true,
-      wickUpColor:      "#0ECB81",
-      wickDownColor:    "#F6465D",
+      upColor:         C.bull,
+      downColor:       C.bear,
+      borderUpColor:   C.bull,
+      borderDownColor: C.bear,
+      wickUpColor:     C.bull + "CC",
+      wickDownColor:   C.bear + "CC",
+      borderVisible:   true,
     };
     candleRef.current = chart.addSeries(CandlestickSeries, candleOpts);
 
-    // Volume histogram
+    // Volume
     volRef.current = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol" });
-    volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.80, bottom: 0 } });
+    volRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
 
-    // EMAs
-    ema9Ref.current  = chart.addSeries(LineSeries, { color: "#22D3EE", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    ema21Ref.current = chart.addSeries(LineSeries, { color: "#F97316", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    ema50Ref.current = chart.addSeries(LineSeries, { color: "#A78BFA", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    // EMAs — thicker lines
+    ema9Ref.current  = chart.addSeries(LineSeries, { color: C.ema9,  lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    ema21Ref.current = chart.addSeries(LineSeries, { color: C.ema21, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    ema50Ref.current = chart.addSeries(LineSeries, { color: C.ema50, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
-    // VWAP — yellow dashed
+    // VWAP
     vwapRef.current = chart.addSeries(LineSeries, {
-      color: "#EAB308", lineWidth: 2, priceLineVisible: false,
+      color: C.vwap, lineWidth: 2, priceLineVisible: false,
       lastValueVisible: true, crosshairMarkerVisible: false, lineStyle: 1,
     });
 
-    // Bollinger Bands — solid, more visible
-    bbUpperRef.current = chart.addSeries(LineSeries, { color: "#818CF880", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-    bbMidRef.current   = chart.addSeries(LineSeries, { color: "#818CF840", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, lineStyle: 2 });
-    bbLowerRef.current = chart.addSeries(LineSeries, { color: "#818CF880", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    // Bollinger Bands
+    bbUpperRef.current = chart.addSeries(LineSeries, { color: C.bb + "90", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    bbMidRef.current   = chart.addSeries(LineSeries, { color: C.bb + "50", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, lineStyle: 2 });
+    bbLowerRef.current = chart.addSeries(LineSeries, { color: C.bb + "90", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
 
-    // RSI on its own scale
-    rsiRef.current  = chart.addSeries(LineSeries, { color: "#F472B6", lineWidth: 1, priceLineVisible: false, lastValueVisible: true, crosshairMarkerVisible: false, priceScaleId: "rsi" });
-    rsiObRef.current = chart.addSeries(LineSeries, { color: "#F43F5E50", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi", lineStyle: 3 });
-    rsiOsRef.current = chart.addSeries(LineSeries, { color: "#10B98150", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi", lineStyle: 3 });
-    rsiRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.76, bottom: 0.01 }, borderColor: "#130F24", textColor: "#3D4F6B" });
+    // RSI
+    rsiRef.current   = chart.addSeries(LineSeries, { color: C.rsi, lineWidth: 2, priceLineVisible: false, lastValueVisible: true,  crosshairMarkerVisible: false, priceScaleId: "rsi" });
+    rsiObRef.current = chart.addSeries(LineSeries, { color: "#FF456055", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi", lineStyle: 3 });
+    rsiOsRef.current = chart.addSeries(LineSeries, { color: "#00D97E55", lineWidth: 1, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi", lineStyle: 3 });
+    rsiRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.78, bottom: 0.01 }, borderColor: C.border, textColor: C.textBright });
 
-    // Crosshair legend — update header instead of floating tooltip
+    // Crosshair legend
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !candleRef.current) { setHoverData(null); return; }
       const d = param.seriesData.get(candleRef.current) as CandlestickData | undefined;
       if (!d) { setHoverData(null); return; }
 
       const timeLabel = typeof param.time === "number"
-        ? new Date((param.time as number) * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+        ? new Date((param.time as number) * 1000).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
         : String(param.time);
 
       const bar = allBarsRef.current.find(b => toTime(b.time) === param.time);
@@ -287,14 +313,14 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       };
 
       setHoverData({
-        time:   timeLabel,
-        open:   d.open, high: d.high, low: d.low, close: d.close,
+        time: timeLabel,
+        open: d.open, high: d.high, low: d.low, close: d.close,
         volume: bar?.volume ?? 0,
-        rsi:    getVal(rsiRef),
-        vwap:   getVal(vwapRef),
-        ema9:   getVal(ema9Ref),
-        ema21:  getVal(ema21Ref),
-        ema50:  getVal(ema50Ref),
+        rsi:  getVal(rsiRef),
+        vwap: getVal(vwapRef),
+        ema9: getVal(ema9Ref),
+        ema21: getVal(ema21Ref),
+        ema50: getVal(ema50Ref),
       });
     });
 
@@ -351,13 +377,13 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       const candles: OhlcBar[] = raw.map(b => ({ time: toTime(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
       const volumes: VolBar[]  = raw.map(b => ({
         time: toTime(b.time), value: b.volume,
-        color: b.close >= b.open ? "#0ECB8130" : "#F6465D30",
+        color: b.close >= b.open ? C.bullDim : C.bearDim,
       }));
 
       candleRef.current?.setData(candles as CandlestickData[]);
       volRef.current?.setData(volumes);
-      ema9Ref.current?.setData(showEMA   ? calcEMA(candles, 9)  : []);
-      ema21Ref.current?.setData(showEMA  ? calcEMA(candles, 21) : []);
+      ema9Ref.current?.setData(showEMA    ? calcEMA(candles, 9)  : []);
+      ema21Ref.current?.setData(showEMA   ? calcEMA(candles, 21) : []);
       ema50Ref.current?.setData(showEMA50 ? calcEMA(candles, 50) : []);
       vwapRef.current?.setData(showVWAP && intraday ? calcVWAP(raw) : []);
 
@@ -393,89 +419,108 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // What to show in the legend — hover data wins, otherwise last bar
   const display = hoverData ?? (lastBar ? {
     time: null, open: lastBar.o, high: lastBar.h, low: lastBar.l, close: lastBar.c,
     volume: lastBar.v, rsi: null, vwap: null, ema9: null, ema21: null, ema50: null,
   } : null);
 
-  const isBull   = lastChg != null ? lastChg >= 0 : null;
-  const chgColor = isBull === null ? "text-[#4B5675]" : isBull ? "text-[#0ECB81]" : "text-[#F6465D]";
+  const isBull        = lastChg != null ? lastChg >= 0 : null;
   const displayIsBull = display ? display.close >= display.open : isBull;
+
+  const rsiValue = hoverData?.rsi ?? null;
+  const rsiColor = rsiValue != null
+    ? rsiValue > 70 ? "#FF4560" : rsiValue < 30 ? "#00D97E" : C.rsi
+    : C.rsi;
 
   function IndicatorBtn({ active, color, label, onClick }: { active: boolean; color: string; label: string; onClick: () => void }) {
     return (
       <button type="button" onClick={onClick}
-        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[9px] font-bold transition-all border ${
-          active ? "bg-[#17132E] border-[#252345] text-[#C4C9E0]" : "border-transparent text-[#2D3A52] hover:text-[#4B5675]"
+        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all ${
+          active
+            ? "text-[#E2E8F0]"
+            : "text-[#2D3A52] hover:text-[#4B5675]"
         }`}
+        style={active ? { background: color + "18", border: `1px solid ${color}35` } : { border: "1px solid transparent" }}
       >
-        <span className="w-3 h-px rounded inline-block" style={{ background: active ? color : "#2D3A52" }} />
+        <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: active ? color : "#1E1B3A" }} />
         {label}
       </button>
     );
   }
 
   return (
-    <div className="bg-[#06040E] border border-[#130F24] rounded-2xl overflow-hidden select-none">
+    <div className="rounded-2xl overflow-hidden select-none" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
 
       {/* ── Header ── */}
-      <div className="px-4 pt-3 pb-2 border-b border-[#0D0B1A]">
+      <div className="px-4 pt-3 pb-2.5" style={{ borderBottom: `1px solid ${C.grid}` }}>
 
-        {/* Row 1: symbol + price + timeframe + expand */}
+        {/* Row 1: symbol + price + controls */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
 
-            {/* Symbol */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#0ECB81] animate-pulse" />
-              <span className="text-sm font-black tracking-tight text-[#E2E8F0]">{clean}</span>
-              {isFutures && <span className="text-[7px] font-black px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400 border border-violet-500/25">FUT</span>}
+            {/* Symbol badge */}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="relative flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full" style={{ background: C.bull }} />
+                <span className="absolute w-2 h-2 rounded-full animate-ping" style={{ background: C.bull, opacity: 0.4 }} />
+              </div>
+              <span className="text-sm font-black tracking-tight" style={{ color: "#E2E8F0" }}>{clean}</span>
+              {isFutures && (
+                <span className="text-[7px] font-black px-1.5 py-0.5 rounded-md" style={{ background: "#7C3AED20", color: "#A78BFA", border: "1px solid #7C3AED30" }}>FUTURES</span>
+              )}
             </div>
 
             {/* Price */}
             {lastPrice != null && !loading ? (
-              <div className="flex items-baseline gap-1.5">
-                <span className={`text-xl font-black font-mono leading-none ${displayIsBull ? "text-[#0ECB81]" : "text-[#F6465D]"}`}>
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-black font-mono leading-none" style={{ color: displayIsBull ? C.bull : C.bear }}>
                   ${fmtPrice(lastPrice)}
                 </span>
                 {lastChg != null && (
-                  <span className={`text-xs font-bold font-mono ${chgColor}`}>
-                    {lastChg >= 0 ? "+" : ""}{lastChg.toFixed(2)}%
+                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md"
+                    style={{
+                      color: lastChg >= 0 ? C.bull : C.bear,
+                      background: lastChg >= 0 ? C.bullDim : C.bearDim,
+                    }}>
+                    {lastChg >= 0 ? "▲" : "▼"} {Math.abs(lastChg).toFixed(2)}%
                   </span>
                 )}
               </div>
             ) : loading ? (
-              <div className="h-6 w-24 bg-[#17132E] rounded animate-pulse" />
+              <div className="h-7 w-28 rounded-lg animate-pulse" style={{ background: C.grid }} />
             ) : null}
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {/* Timeframe */}
-            <div className="flex items-center gap-px bg-[#0A0815] border border-[#130F24] rounded-lg p-px">
+            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: "#0A0817", border: `1px solid ${C.border}` }}>
               {INTERVALS.map(iv => (
                 <button key={iv.value} type="button" onClick={() => setIntervalState(iv.value)}
-                  className={`px-2 py-1 rounded-md text-[9px] font-bold transition-all ${
-                    interval === iv.value ? "bg-[#1E1B3A] text-[#0ECB81]" : "text-[#252345] hover:text-[#3D4F6B]"
-                  }`}
+                  className="px-2.5 py-1 rounded-lg text-[9px] font-bold transition-all"
+                  style={interval === iv.value
+                    ? { background: "#1E1B3A", color: C.bull }
+                    : { color: C.text }
+                  }
                 >
                   {iv.label}
                 </button>
               ))}
             </div>
+
             {/* Expand */}
             {onExpandToggle && (
               <button type="button" onClick={onExpandToggle} title={isExpanded ? "Collapse" : "Expand"}
-                className="bg-[#0A0815] border border-[#130F24] hover:border-[#252345] text-[#252345] hover:text-[#4B5675] p-1.5 rounded-lg transition-all"
+                className="p-1.5 rounded-lg transition-all"
+                style={{ background: "#0A0817", border: `1px solid ${C.border}`, color: C.text }}
               >
                 {isExpanded ? (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
                     <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
                   </svg>
                 ) : (
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
                     <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
                   </svg>
@@ -485,68 +530,51 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           </div>
         </div>
 
-        {/* Row 2: OHLCV legend — updates live when hovering */}
+        {/* Row 2: OHLCV legend */}
         {display && !loading && (
-          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <div className="flex items-center gap-4 mt-2 flex-wrap">
             {hoverData?.time && (
-              <span className="text-[9px] text-[#2D3A52] font-mono">{hoverData.time}</span>
+              <span className="text-[9px] font-mono" style={{ color: C.textBright }}>{hoverData.time}</span>
             )}
-            {[
-              { l: "O", v: display.open,  c: displayIsBull ? "#64748B" : "#64748B" },
-              { l: "H", v: display.high,  c: "#0ECB81" },
-              { l: "L", v: display.low,   c: "#F6465D" },
-              { l: "C", v: display.close, c: displayIsBull ? "#0ECB81" : "#F6465D" },
-            ].map(r => (
-              <span key={r.l} className="text-[9px] font-mono">
-                <span className="text-[#2D3A52]">{r.l} </span>
-                <span style={{ color: r.c }} className="font-bold">{fmtPrice(r.v)}</span>
-              </span>
-            ))}
-            {display.volume > 0 && (
-              <span className="text-[9px] font-mono text-[#2D3A52]">
-                VOL <span className="text-[#3D4F6B]">{fmtVol(display.volume)}</span>
-              </span>
-            )}
-            {/* Live indicator values on hover */}
+            <div className="flex items-center gap-3">
+              {[
+                { l: "O", v: display.open,  c: C.textBright },
+                { l: "H", v: display.high,  c: C.bull },
+                { l: "L", v: display.low,   c: C.bear },
+                { l: "C", v: display.close, c: displayIsBull ? C.bull : C.bear },
+              ].map(r => (
+                <span key={r.l} className="text-[9px] font-mono">
+                  <span style={{ color: C.text }}>{r.l} </span>
+                  <span style={{ color: r.c }} className="font-bold">{fmtPrice(r.v)}</span>
+                </span>
+              ))}
+              {display.volume > 0 && (
+                <span className="text-[9px] font-mono">
+                  <span style={{ color: C.text }}>VOL </span>
+                  <span style={{ color: C.textBright }} className="font-bold">{fmtVol(display.volume)}</span>
+                </span>
+              )}
+            </div>
+            {/* Indicator values on hover */}
             {hoverData && (
-              <>
-                {showEMA && hoverData.ema9 != null && (
-                  <span className="text-[9px] font-mono" style={{ color: "#22D3EE80" }}>
-                    EMA9 <span style={{ color: "#22D3EE" }}>{fmtPrice(hoverData.ema9)}</span>
-                  </span>
-                )}
-                {showEMA && hoverData.ema21 != null && (
-                  <span className="text-[9px] font-mono" style={{ color: "#F9731680" }}>
-                    EMA21 <span style={{ color: "#F97316" }}>{fmtPrice(hoverData.ema21)}</span>
-                  </span>
-                )}
-                {showEMA50 && hoverData.ema50 != null && (
-                  <span className="text-[9px] font-mono" style={{ color: "#A78BFA80" }}>
-                    EMA50 <span style={{ color: "#A78BFA" }}>{fmtPrice(hoverData.ema50)}</span>
-                  </span>
-                )}
-                {showVWAP && hoverData.vwap != null && (
-                  <span className="text-[9px] font-mono" style={{ color: "#EAB30880" }}>
-                    VWAP <span style={{ color: "#EAB308" }}>{fmtPrice(hoverData.vwap)}</span>
-                  </span>
-                )}
-                {showRSI && hoverData.rsi != null && (
-                  <span className={`text-[9px] font-mono font-bold ${hoverData.rsi > 70 ? "text-rose-400" : hoverData.rsi < 30 ? "text-emerald-400" : "text-pink-400"}`}>
-                    RSI {hoverData.rsi.toFixed(1)}
-                  </span>
-                )}
-              </>
+              <div className="flex items-center gap-2">
+                {showEMA && hoverData.ema9  != null && <span className="text-[9px] font-mono font-bold" style={{ color: C.ema9  }}>EMA9 {fmtPrice(hoverData.ema9)}</span>}
+                {showEMA && hoverData.ema21 != null && <span className="text-[9px] font-mono font-bold" style={{ color: C.ema21 }}>EMA21 {fmtPrice(hoverData.ema21)}</span>}
+                {showEMA50 && hoverData.ema50 != null && <span className="text-[9px] font-mono font-bold" style={{ color: C.ema50 }}>EMA50 {fmtPrice(hoverData.ema50)}</span>}
+                {showVWAP && hoverData.vwap != null && <span className="text-[9px] font-mono font-bold" style={{ color: C.vwap }}>VWAP {fmtPrice(hoverData.vwap)}</span>}
+                {showRSI && rsiValue != null && <span className="text-[9px] font-mono font-bold" style={{ color: rsiColor }}>RSI {rsiValue.toFixed(1)}</span>}
+              </div>
             )}
           </div>
         )}
 
         {/* Row 3: Indicator toggles */}
-        <div className="flex items-center gap-0.5 mt-2 flex-wrap">
-          <IndicatorBtn active={showEMA}   color="#22D3EE" label="EMA 9/21" onClick={() => setShowEMA(v => !v)} />
-          <IndicatorBtn active={showEMA50} color="#A78BFA" label="EMA 50"   onClick={() => setShowEMA50(v => !v)} />
-          {isIntraday && <IndicatorBtn active={showVWAP} color="#EAB308" label="VWAP" onClick={() => setShowVWAP(v => !v)} />}
-          <IndicatorBtn active={showBB}    color="#818CF8" label="BB(20)"   onClick={() => setShowBB(v => !v)} />
-          <IndicatorBtn active={showRSI}   color="#F472B6" label="RSI"      onClick={() => setShowRSI(v => !v)} />
+        <div className="flex items-center gap-1 mt-2 flex-wrap">
+          <IndicatorBtn active={showEMA}   color={C.ema9}  label="EMA 9/21" onClick={() => setShowEMA(v => !v)} />
+          <IndicatorBtn active={showEMA50} color={C.ema50} label="EMA 50"   onClick={() => setShowEMA50(v => !v)} />
+          {isIntraday && <IndicatorBtn active={showVWAP} color={C.vwap} label="VWAP" onClick={() => setShowVWAP(v => !v)} />}
+          <IndicatorBtn active={showBB}   color={C.bb}   label="BB(20)"   onClick={() => setShowBB(v => !v)} />
+          <IndicatorBtn active={showRSI}  color={C.rsi}  label="RSI"      onClick={() => setShowRSI(v => !v)} />
         </div>
       </div>
 
@@ -556,36 +584,47 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none">
-          <span className="text-[40px] font-black tracking-[0.35em] uppercase" style={{ color: "#0D0B1A" }}>TRAXORA</span>
+          <span className="text-[36px] font-black tracking-[0.4em] uppercase" style={{ color: "#0D0B1C", letterSpacing: "0.4em" }}>TRAXORA</span>
         </div>
 
-        {/* RSI zone label */}
+        {/* RSI label */}
         {showRSI && !loading && (
-          <div className="absolute bottom-7 left-3 pointer-events-none flex items-center gap-1.5">
-            <div className="w-3 h-px rounded" style={{ background: "#F472B6" }} />
-            <span className="text-[8px] font-bold font-mono" style={{ color: "#F472B640" }}>RSI 14</span>
+          <div className="absolute bottom-8 left-3 pointer-events-none flex items-center gap-1.5">
+            <div className="w-3 h-0.5 rounded" style={{ background: C.rsi }} />
+            <span className="text-[8px] font-bold font-mono" style={{ color: C.rsi + "60" }}>RSI 14</span>
           </div>
         )}
 
         {/* Loading */}
         {loading && (
-          <div className="absolute inset-0 bg-[#06040E] flex flex-col items-center justify-center gap-4">
-            <div className="flex items-end gap-1 h-9">
-              {Array.from({ length: 10 }).map((_, i) => (
-                <div key={i} className="w-1.5 rounded-sm animate-pulse"
-                  style={{ height: `${16 + Math.sin(i * 0.65) * 14}px`, background: "#0ECB8118", animationDelay: `${i * 60}ms` }} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-5" style={{ background: C.bg }}>
+            <div className="flex items-end gap-1 h-10">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <div key={i} className="w-1.5 rounded-sm"
+                  style={{
+                    height: `${18 + Math.sin(i * 0.7) * 14}px`,
+                    background: i % 2 === 0 ? C.bull + "25" : C.bear + "20",
+                    animation: "pulse 1.4s ease-in-out infinite",
+                    animationDelay: `${i * 80}ms`,
+                  }} />
               ))}
             </div>
-            <span className="text-[9px] font-mono tracking-widest uppercase" style={{ color: "#17132E" }}>Loading {clean}</span>
+            <span className="text-[9px] font-mono tracking-[0.2em] uppercase" style={{ color: C.text }}>Loading {clean}…</span>
           </div>
         )}
 
         {/* Error */}
         {error && !loading && (
-          <div className="absolute inset-0 bg-[#06040E] flex flex-col items-center justify-center gap-2">
-            <p className="text-xs font-mono" style={{ color: "#252345" }}>Chart unavailable</p>
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: C.bg }}>
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: C.bear + "15", border: `1px solid ${C.bear}30` }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.bear} strokeWidth="2" strokeLinecap="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <p className="text-xs font-mono" style={{ color: C.textBright }}>Chart data unavailable</p>
             <button type="button" onClick={loadData}
-              className="text-[10px] font-mono text-[#0ECB81] hover:text-[#34D399] transition-colors">
+              className="text-[10px] font-mono font-bold transition-colors"
+              style={{ color: C.bull }}>
               RETRY →
             </button>
           </div>
@@ -593,9 +632,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       </div>
 
       {/* ── Footer ── */}
-      <div className="flex items-center justify-between px-4 py-1 border-t border-[#0D0B1A]">
-        <span className="text-[7px] font-black tracking-widest uppercase" style={{ color: "#130F24" }}>Traxora</span>
-        <span className="text-[7px] font-mono" style={{ color: "#130F24" }}>Not financial advice</span>
+      <div className="flex items-center justify-between px-4 py-1.5" style={{ borderTop: `1px solid ${C.grid}` }}>
+        <span className="text-[7px] font-black tracking-[0.2em] uppercase" style={{ color: "#1A1635" }}>Traxora AI</span>
+        <span className="text-[7px] font-mono" style={{ color: "#1A1635" }}>Not financial advice</span>
       </div>
     </div>
   );
