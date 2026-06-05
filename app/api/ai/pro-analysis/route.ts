@@ -669,30 +669,33 @@ If recommended_contracts = 0 → No Trade.
 
   const userMessage = `Analyse this market. Return ONLY the JSON schema — no text outside it.\n\n${marketData}`;
 
-  // ── Try Anthropic (primary) ────────────────────────────────────────────────
+  // ── Try Groq first (fastest — 5-8s) ──────────────────────────────────────
   let rawText: string | null = null;
 
-  try {
-    const msg = await client.messages.create({
-      model:      "claude-sonnet-4-6",
-      max_tokens: 4000,
-      system:     systemPrompt,
-      messages:   [{ role: "user", content: userMessage }],
-    });
-    rawText = (msg.content[0] as { type: string; text: string }).text?.trim() ?? null;
-  } catch (err) {
-    console.error("[pro-analysis] Anthropic error:", err instanceof Error ? err.message : err);
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    rawText = await callOpenAICompat(
+      "https://api.groq.com/openai/v1/chat/completions",
+      groqKey, "llama-3.3-70b-versatile",
+      systemPrompt, userMessage, 3000,
+    );
   }
 
-  // ── Fallback: Groq ─────────────────────────────────────────────────────────
+  // ── Fallback: Anthropic ────────────────────────────────────────────────────
   if (!rawText) {
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      rawText = await callOpenAICompat(
-        "https://api.groq.com/openai/v1/chat/completions",
-        groqKey, "llama-3.3-70b-versatile",
-        systemPrompt, userMessage, 4000,
-      );
+    try {
+      const msg = await Promise.race([
+        client.messages.create({
+          model:      "claude-haiku-4-5-20251001",
+          max_tokens: 3000,
+          system:     systemPrompt,
+          messages:   [{ role: "user", content: userMessage }],
+        }),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 25_000)),
+      ]);
+      rawText = (msg.content[0] as { type: string; text: string }).text?.trim() ?? null;
+    } catch (err) {
+      console.error("[pro-analysis] Anthropic error:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -703,7 +706,7 @@ If recommended_contracts = 0 → No Trade.
       rawText = await callOpenAICompat(
         "https://api.deepseek.com/v1/chat/completions",
         deepseekKey, "deepseek-chat",
-        systemPrompt, userMessage, 4000,
+        systemPrompt, userMessage, 3000,
       );
     }
   }

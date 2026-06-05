@@ -738,7 +738,7 @@ Return ONLY valid JSON.`;
             { role: "user",   content: prompt },
           ],
         }),
-        signal: AbortSignal.timeout(50000),
+        signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) throw new Error(`${res.status}: ${await res.text().catch(() => res.statusText)}`);
       const d = await res.json() as { choices?: { message?: { content?: string } }[] };
@@ -751,33 +751,36 @@ Return ONLY valid JSON.`;
 
   let analysisText: string | null = null;
 
-  // ── Try Anthropic ─────────────────────────────────────────────────────────────
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (anthropicKey) {
-    try {
-      const response = await client.messages.create({
-        model:      "claude-sonnet-4-6",
-        max_tokens: 4096,
-        system:     SYSTEM_FRAMEWORK,
-        messages:   [{ role: "user", content: prompt }],
-      });
-      analysisText = response.content
-        .filter(b => b.type === "text")
-        .map(b => (b as { type: "text"; text: string }).text)
-        .join("").trim();
-    } catch (err) {
-      console.error("[deep-analysis] Anthropic error:", err instanceof Error ? err.message : err);
-    }
+  // ── Try Groq first (fastest — 5-8s) ──────────────────────────────────────────
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    analysisText = await callOpenAICompat(
+      "https://api.groq.com/openai/v1/chat/completions",
+      groqKey, "llama-3.3-70b-versatile", 3000,
+    );
   }
 
-  // ── Fallback: Groq ────────────────────────────────────────────────────────────
+  // ── Fallback: Anthropic ───────────────────────────────────────────────────────
   if (!analysisText) {
-    const groqKey = process.env.GROQ_API_KEY;
-    if (groqKey) {
-      analysisText = await callOpenAICompat(
-        "https://api.groq.com/openai/v1/chat/completions",
-        groqKey, "llama-3.3-70b-versatile", 4096,
-      );
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicKey) {
+      try {
+        const response = await Promise.race([
+          client.messages.create({
+            model:      "claude-haiku-4-5-20251001",
+            max_tokens: 3000,
+            system:     SYSTEM_FRAMEWORK,
+            messages:   [{ role: "user", content: prompt }],
+          }),
+          new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 25_000)),
+        ]);
+        analysisText = response.content
+          .filter(b => b.type === "text")
+          .map(b => (b as { type: "text"; text: string }).text)
+          .join("").trim();
+      } catch (err) {
+        console.error("[deep-analysis] Anthropic error:", err instanceof Error ? err.message : err);
+      }
     }
   }
 
@@ -787,7 +790,7 @@ Return ONLY valid JSON.`;
     if (deepseekKey) {
       analysisText = await callOpenAICompat(
         "https://api.deepseek.com/v1/chat/completions",
-        deepseekKey, "deepseek-chat", 4096,
+        deepseekKey, "deepseek-chat", 3000,
       );
     }
   }
