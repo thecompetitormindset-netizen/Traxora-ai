@@ -9,11 +9,12 @@ import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 export const runtime     = "nodejs";
 export const maxDuration = 55;
 
-async function callOpenAICompat(url: string, key: string, model: string, prompt: string): Promise<string> {
+async function callOpenAICompat(url: string, key: string, model: string, prompt: string, timeoutMs = 25_000): Promise<string> {
   const res = await fetch(url, {
     method:  "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ model, max_tokens: 6000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
   const data = await res.json() as { choices?: { message?: { content?: string } }[] };
@@ -23,39 +24,41 @@ async function callOpenAICompat(url: string, key: string, model: string, prompt:
 }
 
 async function callAI(prompt: string): Promise<string> {
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const groqKey      = process.env.GROQ_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
-  // ── Anthropic (primary) ────────────────────────────────────────────────────
+  // ── Groq first (fastest — 5-10s) ──────────────────────────────────────────
+  if (groqKey) {
+    try {
+      return await callOpenAICompat(
+        "https://api.groq.com/openai/v1/chat/completions",
+        groqKey, "llama-3.3-70b-versatile", prompt, 20_000,
+      );
+    } catch (err) {
+      console.error("Groq briefing error:", err instanceof Error ? err.message : err);
+    }
+  }
+
+  // ── Anthropic (fallback) ───────────────────────────────────────────────────
   if (anthropicKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicKey });
-      const res = await client.messages.create({
-        model:      "claude-sonnet-4-6",
-        max_tokens: 6000,
-        system:     SYSTEM_FRAMEWORK,
-        messages:   [{ role: "user", content: prompt }],
-      });
+      const res = await Promise.race([
+        client.messages.create({
+          model:      "claude-haiku-4-5-20251001",
+          max_tokens: 4000,
+          system:     SYSTEM_FRAMEWORK,
+          messages:   [{ role: "user", content: prompt }],
+        }),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 25_000)),
+      ]);
       return res.content
         .filter(b => b.type === "text")
         .map(b => (b as { type: "text"; text: string }).text)
         .join("").trim();
     } catch (err) {
       console.error("Anthropic briefing error:", err instanceof Error ? err.message : err);
-      // fall through to next provider
-    }
-  }
-
-  // ── Groq (free fallback) ───────────────────────────────────────────────────
-  if (groqKey) {
-    try {
-      return await callOpenAICompat(
-        "https://api.groq.com/openai/v1/chat/completions",
-        groqKey, "llama-3.3-70b-versatile", prompt,
-      );
-    } catch (err) {
-      console.error("Groq briefing error:", err instanceof Error ? err.message : err);
     }
   }
 
@@ -64,7 +67,7 @@ async function callAI(prompt: string): Promise<string> {
     try {
       return await callOpenAICompat(
         "https://api.deepseek.com/v1/chat/completions",
-        deepseekKey, "deepseek-chat", prompt,
+        deepseekKey, "deepseek-chat", prompt, 20_000,
       );
     } catch (err) {
       console.error("DeepSeek briefing error:", err instanceof Error ? err.message : err);
