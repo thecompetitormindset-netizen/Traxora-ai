@@ -1,244 +1,275 @@
 "use client";
 
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
-// ── Icon Components ──────────────────────────────────────────────────────────
+// ── Icons ─────────────────────────────────────────────────────────────────────
 
-function DashboardIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="9" height="9" rx="2" />
-      <rect x="13" y="2" width="9" height="5" rx="2" />
-      <rect x="2" y="13" width="9" height="9" rx="2" />
-      <rect x="13" y="9" width="9" height="13" rx="2" />
+const Icon = {
+  Dashboard: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="9" height="9" rx="2.5"/><rect x="13" y="2" width="9" height="5" rx="2.5"/>
+      <rect x="2" y="13" width="9" height="9" rx="2.5"/><rect x="13" y="9" width="9" height="13" rx="2.5"/>
     </svg>
-  );
-}
-
-function TradeIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="5"  y1="2"  x2="5"  y2="22" />
-      <rect x="2"   y="6"   width="6" height="10" rx="0.5" />
-      <line x1="12" y1="4"  x2="12" y2="22" />
-      <rect x="9"   y="8"   width="6" height="9"  rx="0.5" />
-      <line x1="19" y1="3"  x2="19" y2="21" />
-      <rect x="16"  y="5"   width="6" height="7"  rx="0.5" />
+  ),
+  Signals: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
     </svg>
-  );
-}
-
-function SignalsIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  ),
+  Trade: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="14" rx="2.5"/>
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>
+      <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
     </svg>
-  );
-}
-
-function JournalIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-      <line x1="12" y1="7"  x2="17" y2="7"  />
-      <line x1="12" y1="11" x2="17" y2="11" />
-      <line x1="12" y1="15" x2="15" y2="15" />
+  ),
+  Settings: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
     </svg>
-  );
-}
-
-
-
-function ExploreIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10" />
-      <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  );
-}
-
-function SentimentIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-    </svg>
-  );
-}
-
-function IPOIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2L8 8H2l5 4-2 7 7-4 7 4-2-7 5-4h-6z" />
-    </svg>
-  );
-}
-
-function BriefingIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="5" />
-      <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-    </svg>
-  );
-}
-
-function PortfolioIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="7" width="20" height="14" rx="2" />
-      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-      <line x1="12" y1="12" x2="12" y2="16" />
-      <line x1="10" y1="14" x2="14" y2="14" />
-    </svg>
-  );
-}
-
-function HistoryIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="12 8 12 12 14 14" />
-      <path d="M3.05 11a9 9 0 1 1 .5 4m-.5 5V15h5" />
-    </svg>
-  );
-}
-
-function IntelIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-      <path d="M2 17l10 5 10-5"/>
-      <path d="M2 12l10 5 10-5"/>
-    </svg>
-  );
-}
-
-function StrategyIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-    </svg>
-  );
-}
-
-// ── Nav config ───────────────────────────────────────────────────────────────
-
-const NAV_LINKS = [
-  { name: "Dash",      href: "/dashboard",        icon: <DashboardIcon /> },
-  { name: "Trade",     href: "/paper",             icon: <TradeIcon /> },
-  { name: "Signals",   href: "/analysis",          icon: <SignalsIcon /> },
-  { name: "Intel",     href: "/intelligence",       icon: <IntelIcon /> },
-  { name: "Strategy",  href: "/strategy",           icon: <StrategyIcon /> },
-  { name: "Journal",   href: "/journal",           icon: <JournalIcon /> },
-  { name: "History",   href: "/history",           icon: <HistoryIcon /> },
-  { name: "Explore",   href: "/explore",           icon: <ExploreIcon /> },
-  { name: "IPO",       href: "/ipo",               icon: <IPOIcon /> },
-  { name: "Pulse",     href: "/market-sentiment",  icon: <SentimentIcon /> },
-  { name: "Settings",  href: "/settings",          icon: <SettingsIcon /> },
-] as const;
-
-// ── NavItem ──────────────────────────────────────────────────────────────────
-
-type NavItemProps = {
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  isActive: boolean;
-  showMarketDot?: boolean;
+  ),
 };
 
-function NavItem({ name, href, icon, isActive, showMarketDot }: NavItemProps) {
-  return (
-    <Link
-      href={href}
-      className={`relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[16px] transition-all duration-200 min-w-[52px] ${
-        isActive
-          ? "bg-emerald-500/[0.12] text-emerald-300"
-          : "text-[#4B5675] hover:text-[#94A3B8] hover:bg-white/[0.05]"
-      }`}
-    >
-      {showMarketDot && <MarketDot />}
-      {isActive && (
-        <span className="absolute bottom-[7px] left-1/2 -translate-x-1/2 w-4 h-[2px] rounded-full bg-emerald-400 opacity-60" />
-      )}
-      <span className={`transition-transform duration-200 ${isActive ? "scale-110" : ""}`}>
-        {icon}
-      </span>
-      <span className="text-[10px] font-semibold leading-none tracking-wide">{name}</span>
-    </Link>
-  );
-}
+// ── Sub-items ─────────────────────────────────────────────────────────────────
 
-// ── Market status dot ────────────────────────────────────────────────────────
+const SIGNALS_ITEMS = [
+  { name: "Analysis",    desc: "AI signal + trade plan",        href: "/analysis",          emoji: "⚡" },
+  { name: "Intelligence",desc: "Deep market research",          href: "/intelligence",       emoji: "🧠" },
+  { name: "Strategy",    desc: "Setup scanner & plays",         href: "/strategy",           emoji: "📊" },
+  { name: "Explore",     desc: "Browse instruments",            href: "/explore",            emoji: "🌐" },
+  { name: "IPO",         desc: "New listings & analysis",       href: "/ipo",                emoji: "🚀" },
+  { name: "Pulse",       desc: "Market sentiment",              href: "/market-sentiment",   emoji: "📡" },
+  { name: "Brief",       desc: "Morning briefing",              href: null,                  emoji: "🌅" },
+];
+
+const TRADE_ITEMS = [
+  { name: "Paper Trade", desc: "Simulate trades risk-free",    href: "/paper",    emoji: "📋" },
+  { name: "Journal",     desc: "AI-written trade journal",     href: "/journal",  emoji: "📖" },
+  { name: "History",     desc: "Past signal performance",      href: "/history",  emoji: "⏱" },
+];
+
+const SETTINGS_ITEMS = [
+  { name: "Settings",    desc: "Account & preferences",        href: "/settings", emoji: "⚙️" },
+  { name: "Guide",       desc: "How to use Traxora",           href: "/guide",    emoji: "📚" },
+];
+
+// ── Market dot ────────────────────────────────────────────────────────────────
 
 function MarketDot() {
   const now   = new Date();
   const total = now.getUTCHours() * 60 + now.getUTCMinutes();
   const day   = now.getUTCDay();
   const open  = day >= 1 && day <= 5 && total >= 810 && total < 1200;
-
   return (
-    <span
-      title={`US Market ${open ? "Open" : "Closed"}`}
-      className={`absolute -top-1.5 -right-1.5 w-2.5 h-2.5 rounded-full border-2 border-[#13112A] ${
-        open ? "bg-emerald-400 shadow-[0_0_8px_#10B981]" : "bg-[#4B5675]"
-      }`}
-    />
+    <span className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full border border-[#13112A] ${
+      open ? "bg-emerald-400 shadow-[0_0_6px_#10B981]" : "bg-[#4B5675]"
+    }`} />
   );
 }
 
-// ── Sidebar ──────────────────────────────────────────────────────────────────
+// ── Sub-item grid ─────────────────────────────────────────────────────────────
 
-export default function Sidebar() {
-  const pathname = usePathname();
+type SubItem = { name: string; desc: string; href: string | null; emoji: string };
+
+function SubPanel({
+  items, onClose, pathname,
+}: { items: SubItem[]; onClose: () => void; pathname: string }) {
+  const router = useRouter();
+
+  function handleClick(item: SubItem) {
+    onClose();
+    if (item.href === null) {
+      window.dispatchEvent(new Event("traxora-show-briefing"));
+    } else {
+      router.push(item.href);
+    }
+  }
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 sm:bottom-6 sm:left-1/2 sm:right-auto sm:translate-x-[-50%] sm:px-0 sm:pt-0 sm:pb-0 bg-[#0A0815]/80 sm:bg-transparent backdrop-blur-2xl sm:backdrop-blur-none border-t border-white/[0.06] sm:border-0" aria-label="Main navigation">
-      <div className="flex items-center gap-0.5 px-2 py-1.5 sm:py-2 rounded-none sm:rounded-[22px] bg-transparent sm:bg-[#13112A]/80 sm:backdrop-blur-2xl sm:border sm:border-white/[0.08] sm:shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)_inset,0_0_60px_rgba(99,102,241,0.08)] overflow-x-auto max-w-[96vw] w-full sm:w-auto justify-around sm:justify-start">
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))" }}
+    >
+      {items.map((item) => {
+        const active = item.href && (pathname === item.href || pathname?.startsWith(item.href + "/"));
+        return (
+          <button
+            key={item.name}
+            type="button"
+            onClick={() => handleClick(item)}
+            className={`flex flex-col items-center gap-2 px-3 py-3 rounded-2xl text-center transition-all duration-150 active:scale-95 ${
+              active
+                ? "bg-emerald-500/15 border border-emerald-500/30"
+                : "bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.07] hover:border-white/[0.12]"
+            }`}
+          >
+            <span className="text-2xl leading-none">{item.emoji}</span>
+            <div>
+              <p className={`text-[11px] font-bold leading-none mb-0.5 ${active ? "text-emerald-300" : "text-[#E2E8F0]"}`}>
+                {item.name}
+              </p>
+              <p className="text-[9px] text-[#4B5675] leading-tight">{item.desc}</p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
-        {NAV_LINKS.map((link) => {
-          const isActive =
-            pathname === link.href ||
-            (link.href !== "/dashboard" && link.href !== "/paper" && pathname?.startsWith(link.href));
+// ── Main Sidebar ──────────────────────────────────────────────────────────────
+
+type PanelId = "signals" | "trade" | "settings" | null;
+
+export default function Sidebar() {
+  const pathname          = usePathname();
+  const [open, setOpen]   = useState<PanelId>(null);
+  const navRef            = useRef<HTMLDivElement>(null);
+
+  // Close panel on route change
+  useEffect(() => { setOpen(null); }, [pathname]);
+
+  // Close panel on outside tap
+  useEffect(() => {
+    if (!open) return;
+    function handle(e: MouseEvent | TouchEvent) {
+      if (navRef.current && !navRef.current.contains(e.target as Node)) setOpen(null);
+    }
+    document.addEventListener("mousedown", handle);
+    document.addEventListener("touchstart", handle);
+    return () => { document.removeEventListener("mousedown", handle); document.removeEventListener("touchstart", handle); };
+  }, [open]);
+
+  function toggle(id: PanelId) { setOpen(prev => prev === id ? null : id); }
+
+  const signalsActive  = ["/analysis","/intelligence","/strategy","/explore","/ipo","/market-sentiment"].some(p => pathname?.startsWith(p));
+  const tradeActive    = ["/paper","/journal","/history"].some(p => pathname?.startsWith(p));
+  const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
+  const dashActive     = pathname === "/dashboard";
+
+  const NAV = [
+    {
+      id:     "dash" as const,
+      label:  "Dash",
+      icon:   <Icon.Dashboard />,
+      active: dashActive,
+      href:   "/dashboard",
+      panel:  null,
+    },
+    {
+      id:     "signals" as const,
+      label:  "Signals",
+      icon:   <Icon.Signals />,
+      active: signalsActive || open === "signals",
+      href:   null,
+      panel:  "signals" as PanelId,
+    },
+    {
+      id:     "trade" as const,
+      label:  "Trade",
+      icon:   <Icon.Trade />,
+      active: tradeActive || open === "trade",
+      href:   null,
+      panel:  "trade" as PanelId,
+    },
+    {
+      id:     "settings" as const,
+      label:  "More",
+      icon:   <Icon.Settings />,
+      active: settingsActive || open === "settings",
+      href:   null,
+      panel:  "settings" as PanelId,
+    },
+  ];
+
+  const panelItems: Record<string, SubItem[]> = {
+    signals:  SIGNALS_ITEMS,
+    trade:    TRADE_ITEMS,
+    settings: SETTINGS_ITEMS,
+  };
+
+  return (
+    <div ref={navRef} className="fixed bottom-0 left-0 right-0 z-50" aria-label="Main navigation">
+
+      {/* ── Sub-panel ── */}
+      <div
+        className={`transition-all duration-300 ease-out overflow-hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        style={{ maxHeight: open ? 320 : 0 }}
+      >
+        <div className="mx-3 mb-3 rounded-2xl border border-white/[0.08] bg-[#0F0D1C]/95 backdrop-blur-2xl shadow-2xl p-4">
+          {/* Panel header */}
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
+              {open === "signals" ? "Signals & Market" : open === "trade" ? "Trading & Review" : "Account & Help"}
+            </p>
+            <button type="button" onClick={() => setOpen(null)} aria-label="Close"
+              className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center text-[#4B5675] hover:text-[#7B8DB4] transition-colors">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+
+          {open && panelItems[open] && (
+            <SubPanel items={panelItems[open]} onClose={() => setOpen(null)} pathname={pathname ?? ""} />
+          )}
+        </div>
+      </div>
+
+      {/* ── Nav bar ── */}
+      <div
+        className="flex items-center justify-around px-4 pt-2 border-t border-white/[0.06]"
+        style={{
+          background: "linear-gradient(to top, rgba(10,8,21,0.97) 0%, rgba(10,8,21,0.90) 100%)",
+          backdropFilter: "blur(24px)",
+          paddingBottom: "max(env(safe-area-inset-bottom), 10px)",
+        }}
+      >
+        {NAV.map((item) => {
+          const isActive = item.active;
+          const isOpen   = item.panel && open === item.panel;
+
+          const content = (
+            <span className={`relative flex flex-col items-center gap-1.5 px-5 py-2 rounded-2xl transition-all duration-200 ${
+              isActive || isOpen
+                ? "text-emerald-400"
+                : "text-[#3D4F6B] hover:text-[#7B8DB4]"
+            }`}>
+              {item.id === "dash" && <MarketDot />}
+
+              {/* Icon with active glow */}
+              <span className={`transition-all duration-200 ${isActive || isOpen ? "scale-110 drop-shadow-[0_0_8px_rgba(52,211,153,0.5)]" : ""}`}>
+                {item.icon}
+              </span>
+
+              {/* Label */}
+              <span className="text-[10px] font-bold leading-none tracking-wide">{item.label}</span>
+
+              {/* Active indicator pill */}
+              {(isActive || isOpen) && (
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-emerald-400" />
+              )}
+            </span>
+          );
+
+          if (item.href) {
+            return (
+              <Link key={item.id} href={item.href}>
+                {content}
+              </Link>
+            );
+          }
 
           return (
-            <NavItem
-              key={link.href}
-              name={link.name}
-              href={link.href}
-              icon={link.icon}
-              isActive={isActive}
-              showMarketDot={link.href === "/dashboard"}
-            />
+            <button key={item.id} type="button" onClick={() => toggle(item.panel!)}>
+              {content}
+            </button>
           );
         })}
-
-        {/* Separator */}
-        <span className="w-px h-8 bg-white/[0.06] mx-1 shrink-0" />
-
-        {/* Morning Briefing */}
-        <button
-          type="button"
-          onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
-          title="Morning Briefing"
-          className="relative flex flex-col items-center gap-1 px-3 py-2.5 rounded-[16px] transition-all duration-200 min-w-[52px] text-[#4B5675] hover:text-[#94A3B8] hover:bg-white/[0.05]"
-        >
-          <BriefingIcon />
-          <span className="text-[10px] font-semibold leading-none tracking-wide">Brief</span>
-        </button>
-
       </div>
-    </nav>
+    </div>
   );
 }
