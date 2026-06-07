@@ -347,6 +347,15 @@ function AnalysisContent() {
               height={chartHeight}
               isExpanded={expandChart}
               onExpandToggle={() => setExpandChart(e => !e)}
+              signalData={analysis && analysis.signal !== "HOLD" && analysis.trade ? {
+                signal:     analysis.signal,
+                confidence: analysis.confidence,
+                entry:      analysis.trade.entryZone,
+                stop:       analysis.trade.stopLoss,
+                target:     analysis.trade.takeProfit,
+                rrRatio:    analysis.trade.rrRatio,
+                summary:    analysis.summary,
+              } : null}
             />
           </div>
 
