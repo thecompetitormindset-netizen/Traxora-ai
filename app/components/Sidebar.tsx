@@ -204,8 +204,8 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50" aria-label="Main navigation">
-      <div className="flex items-center gap-0.5 px-2 py-2 rounded-[22px] bg-[#13112A]/80 backdrop-blur-2xl border border-white/[0.08] shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)_inset,0_0_60px_rgba(99,102,241,0.08)] overflow-x-auto max-w-[96vw]">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex justify-center px-2 pb-[env(safe-area-inset-bottom)] pt-2 sm:bottom-6 sm:left-1/2 sm:right-auto sm:translate-x-[-50%] sm:px-0 sm:pt-0 sm:pb-0 bg-[#0A0815]/80 sm:bg-transparent backdrop-blur-2xl sm:backdrop-blur-none border-t border-white/[0.06] sm:border-0" aria-label="Main navigation">
+      <div className="flex items-center gap-0.5 px-2 py-1.5 sm:py-2 rounded-none sm:rounded-[22px] bg-transparent sm:bg-[#13112A]/80 sm:backdrop-blur-2xl sm:border sm:border-white/[0.08] sm:shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)_inset,0_0_60px_rgba(99,102,241,0.08)] overflow-x-auto max-w-[96vw] w-full sm:w-auto justify-around sm:justify-start">
 
         {NAV_LINKS.map((link) => {
           const isActive =

@@ -561,8 +561,8 @@ export default function MorningBriefing() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
-      <div className="w-full max-w-3xl bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm">
+      <div className="w-full max-w-3xl bg-[#13112A] border border-[#252345] rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[95dvh] sm:max-h-[92vh]">
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#252345] bg-gradient-to-r from-amber-500/8 to-transparent shrink-0">

@@ -9,6 +9,7 @@ import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
 import OnboardingModal from "../components/OnboardingModal";
+import SignalPerformance from "../components/SignalPerformance";
 import { scopedKey } from "../lib/userState";
 
 type TradeLevels = {
@@ -468,6 +469,7 @@ function DashboardContent() {
   const [addInput, setAddInput]             = useState("");
   const [addLoading, setAddLoading]         = useState(false);
   const [addError, setAddError]             = useState<string | null>(null);
+  const [refreshCountdown, setRefreshCountdown] = useState(60);
   const [stocks, setStocks]                 = useState<StockCard[]>(
     DEFAULT_WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true }))
   );
@@ -640,6 +642,13 @@ function DashboardContent() {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Countdown timer for live refresh
+  useEffect(() => {
+    setRefreshCountdown(60);
+    const tick = setInterval(() => setRefreshCountdown(c => c <= 1 ? 60 : c - 1), 1000);
+    return () => clearInterval(tick);
+  }, [watchlist]);
 
   // 60-second quote refresh — prices only, no AI re-run
   useEffect(() => {
@@ -951,6 +960,10 @@ function DashboardContent() {
                 <p className="text-sm text-[#7B8DB4] mt-1">AI-powered signals across stocks &amp; futures</p>
               </div>
               <MarketStatus />
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13112A] border border-[#252345]">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-[10px] font-mono text-[#4B5675]">Live · refreshes in <span className="text-emerald-400 font-bold">{refreshCountdown}s</span></span>
+              </div>
               {notifPermission === "default" && (
                 <button type="button" onClick={requestNotifications}
                   className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium transition-all">
@@ -1062,6 +1075,11 @@ function DashboardContent() {
                 </div>
               );
             })()}
+
+            {/* ── Signal Track Record ── */}
+            <div className="mt-3">
+              <SignalPerformance />
+            </div>
 
             {/* ── Paper Portfolio summary ── */}
             <Link href="/paper" className="mt-4 block group">

@@ -148,6 +148,13 @@ function AnalysisContent() {
   }
 
   const [expandChart, setExpandChart] = useState(false);
+  const [chartHeight, setChartHeight] = useState(460);
+  useEffect(() => {
+    function calc() { setChartHeight(window.innerWidth < 640 ? (expandChart ? 360 : 280) : (expandChart ? 680 : 460)); }
+    calc();
+    window.addEventListener("resize", calc);
+    return () => window.removeEventListener("resize", calc);
+  }, [expandChart]);
 
   const [quoteData, setQuoteData] = useState<{
     price: number | null;
@@ -209,7 +216,27 @@ function AnalysisContent() {
             }),
           });
           const result = await analyzeRes.json();
-          if (result?.signal) setAnalysis(result);
+          if (result?.signal) {
+            setAnalysis(result);
+            // Auto-set entry zone price alert so user gets notified when price reaches their zone
+            if (result.signal !== "HOLD" && result.trade?.entryZone && price) {
+              try {
+                const ALERTS_KEY = "traxora_price_alerts";
+                const raw = localStorage.getItem(`traxora_${ALERTS_KEY}`) ?? "{}";
+                const alerts = JSON.parse(raw) as Record<string, { above?: number | null; below?: number | null }>;
+                const zoneStr: string = result.trade.entryZone;
+                const nums = zoneStr.match(/\d+(\.\d+)?/g)?.map(Number) ?? [];
+                if (nums.length >= 1) {
+                  const entryTarget = result.signal === "BUY" ? Math.min(...nums) : Math.max(...nums);
+                  alerts[symbol] = {
+                    ...alerts[symbol],
+                    [result.signal === "BUY" ? "below" : "above"]: entryTarget,
+                  };
+                  localStorage.setItem(`traxora_${ALERTS_KEY}`, JSON.stringify(alerts));
+                }
+              } catch { /* ignore */ }
+            }
+          }
         }
       } catch {
         // analysis stays null
@@ -227,6 +254,17 @@ function AnalysisContent() {
           quoteData.previousClose) *
         100
       : null;
+
+  const [showGuide, setShowGuide] = useState(() => {
+    try { return !localStorage.getItem("traxora_ran_analysis"); } catch { return false; }
+  });
+
+  useEffect(() => {
+    if (analysis) {
+      try { localStorage.setItem("traxora_ran_analysis", "1"); } catch { /* ignore */ }
+      setShowGuide(false);
+    }
+  }, [analysis]);
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -306,11 +344,29 @@ function AnalysisContent() {
           <div className="mt-6">
             <TraxoraChart
               symbol={symbol}
-              height={expandChart ? 680 : 460}
+              height={chartHeight}
               isExpanded={expandChart}
               onExpandToggle={() => setExpandChart(e => !e)}
             />
           </div>
+
+          {/* ── First-signal guide banner ── */}
+          {showGuide && !loadingAnalysis && !analysis && (
+            <div className="mt-4 flex items-start gap-4 px-5 py-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5">
+              <span className="text-2xl shrink-0">👋</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-emerald-300 mb-1">Your first analysis is loading</p>
+                <p className="text-xs text-[#7B8DB4] leading-relaxed">
+                  Traxora AI is fetching live data for <strong className="text-[#F1F5F9]">{symbol.replace(".US","").replace(".COMM","")}</strong>.
+                  In a few seconds you&apos;ll see a <strong className="text-emerald-400">BUY</strong>, <strong className="text-amber-400">HOLD</strong>, or <strong className="text-rose-400">SELL</strong> signal with an exact entry zone, stop loss, and take profit.
+                  Run <strong className="text-[#F1F5F9]">Deep Analysis</strong> below for the full institutional-grade breakdown.
+                </p>
+              </div>
+              <button type="button" onClick={() => setShowGuide(false)} aria-label="Dismiss guide" className="text-[#4B5675] hover:text-[#7B8DB4] shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
 
           {/* ── Info panels — always below chart in a grid ── */}
           <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -366,11 +422,19 @@ function AnalysisContent() {
                 <p className="text-sm text-[#4B5675]">Unable to generate signal. Market data may be unavailable.</p>
               )}
 
+              {/* Entry zone alert badge */}
+              {!loadingAnalysis && analysis && analysis.signal !== "HOLD" && analysis.trade?.entryZone && (
+                <div className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                  <span className="text-[9px] text-amber-500/80 font-medium">Price alert auto-set for entry zone {analysis.trade.entryZone}</span>
+                </div>
+              )}
+
               {/* Paper Trade CTA */}
               {!loadingAnalysis && analysis && analysis.signal !== "HOLD" && (
                 <a
                   href={`/paper?symbol=${encodeURIComponent(symbol.replace(".US","").replace(".COMM",""))}&side=${analysis.signal === "BUY" ? "BUY" : "SELL"}`}
-                  className={`mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
+                  className={`mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
                     analysis.signal === "BUY" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"
                   }`}
                 >
