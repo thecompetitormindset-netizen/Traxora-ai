@@ -173,8 +173,8 @@ function StrategyContent() {
         <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
           <Topbar />
           <div className="mt-6 max-w-4xl mx-auto">
-            <h1 className="text-3xl font-black mb-2">Strategy Analytics</h1>
-            <p className="text-[#7B8DB4] text-sm mb-8">Performance breakdown of your paper trading history.</p>
+            <h1 className="text-3xl font-black mb-2">Your Stats</h1>
+            <p className="text-[#7B8DB4] text-sm mb-8">Your trade performance at a glance.</p>
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
               <p className="text-4xl mb-3">📊</p>
               <p className="text-sm font-semibold mb-1">No closed trades yet</p>
@@ -196,7 +196,7 @@ function StrategyContent() {
           {/* Header */}
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-black tracking-tight">Strategy Analytics</h1>
+              <h1 className="text-3xl font-black tracking-tight">Your Stats</h1>
               <p className="text-[#7B8DB4] text-sm mt-1">{trades.length} closed trades · account started at $10,000</p>
             </div>
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">

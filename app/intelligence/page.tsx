@@ -373,8 +373,8 @@ function IntelligenceContent() {
 
         {/* Header */}
         <div className="mt-6 mb-6">
-          <h1 className="text-3xl font-black tracking-tight">Options & Futures Intelligence</h1>
-          <p className="text-[#7B8DB4] mt-1 text-sm">Live plays, signals, and full analysis across all derivatives markets.</p>
+          <h1 className="text-3xl font-black tracking-tight">Markets</h1>
+          <p className="text-[#7B8DB4] mt-1 text-sm">Live signals and plays across futures and options markets.</p>
         </div>
 
         {/* Section tabs */}

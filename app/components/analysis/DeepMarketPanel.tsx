@@ -129,12 +129,12 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
                 { label: "Weekly",     value: data.marketStructure.weekly },
                 { label: "Daily",      value: data.marketStructure.daily },
                 { label: "4H (inferred)", value: data.marketStructure.h4 },
-                { label: "Recent BOS",   value: data.marketStructure.recentBOS },
-                { label: "ChoCH/MSS",    value: data.marketStructure.recentChoCH },
+                { label: "Recent Break",  value: data.marketStructure.recentBOS },
+                { label: "Trend Shift",   value: data.marketStructure.recentChoCH },
               ].map(r => <DataRow key={r.label} label={r.label} value={r.value} />)}
             </div>
             <div className="mt-2 bg-emerald-500/5 border border-emerald-500/15 rounded-xl px-4 py-2.5">
-              <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-0.5">Draw on Liquidity</p>
+              <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-0.5">Where Price Is Heading</p>
               <p className="text-xs text-[#CBD5E1]">{data.marketStructure.drawOnLiquidity}</p>
             </div>
           </div>
@@ -172,14 +172,14 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
             <div className="space-y-2">
               <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">BSL — Long TP</p>
+                  <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest">Upside Targets</p>
                   <span className="text-[7px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-px rounded font-bold">TARGET</span>
                 </div>
                 {(data.liquidity?.bsl ?? []).map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▲ {l}</p>)}
               </div>
               <div className="bg-rose-500/5 border border-rose-500/15 rounded-xl p-3">
                 <div className="flex items-center justify-between mb-1.5">
-                  <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest">SSL — Short TP</p>
+                  <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest">Downside Targets</p>
                   <span className="text-[7px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-px rounded font-bold">TARGET</span>
                 </div>
                 {(data.liquidity?.ssl ?? []).map((l, i) => <p key={i} className="text-[10px] text-[#CBD5E1]">▼ {l}</p>)}
@@ -194,25 +194,25 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
 
           {/* Order Blocks */}
           <div>
-            <SectionHead icon="📦" label="Order Blocks" />
+            <SectionHead icon="📦" label="Key Levels" />
             <div className="space-y-2">
               {data.orderBlocks.bullish && (
                 <div className={`rounded-xl p-3 border ${data.orderBlocks.bullish.mitigated ? "border-[#252345] opacity-50" : "border-emerald-500/20 bg-emerald-500/5"}`}>
-                  <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1">Bullish OB · {data.orderBlocks.bullish.timeframe}</p>
+                  <p className="text-[8px] text-emerald-400 font-black uppercase tracking-widest mb-1">Support Level · {data.orderBlocks.bullish.timeframe}</p>
                   <p className="text-xs font-mono text-[#F1F5F9]">{data.orderBlocks.bullish.zone}</p>
                   {data.orderBlocks.bullish.mitigated && <p className="text-[9px] text-[#4B5675] mt-0.5">Mitigated</p>}
                 </div>
               )}
               {data.orderBlocks.bearish && (
                 <div className={`rounded-xl p-3 border ${data.orderBlocks.bearish.mitigated ? "border-[#252345] opacity-50" : "border-rose-500/20 bg-rose-500/5"}`}>
-                  <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest mb-1">Bearish OB · {data.orderBlocks.bearish.timeframe}</p>
+                  <p className="text-[8px] text-rose-400 font-black uppercase tracking-widest mb-1">Resistance Level · {data.orderBlocks.bearish.timeframe}</p>
                   <p className="text-xs font-mono text-[#F1F5F9]">{data.orderBlocks.bearish.zone}</p>
                   {data.orderBlocks.bearish.mitigated && <p className="text-[9px] text-[#4B5675] mt-0.5">Mitigated</p>}
                 </div>
               )}
               {data.orderBlocks.priceAtOB && (
                 <div className="bg-amber-500/10 border border-amber-500/25 rounded-xl px-3 py-2">
-                  <p className="text-[9px] text-amber-400 font-bold">⚡ Price currently AT order block</p>
+                  <p className="text-[9px] text-amber-400 font-bold">⚡ Price at key level right now</p>
                 </div>
               )}
               <p className="text-[10px] text-[#7B8DB4] leading-relaxed">{data.orderBlocks.note}</p>
@@ -221,7 +221,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
 
           {/* FVGs */}
           <div>
-            <SectionHead icon="⬜" label="Fair Value Gaps" />
+            <SectionHead icon="⬜" label="Price Gaps" />
             <div className="space-y-2">
               {(data.fvgs?.above ?? []).length > 0 && (
                 <div className="bg-emerald-500/5 border border-emerald-500/15 rounded-xl p-3">
@@ -241,7 +241,7 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
               )}
               {data.fvgs.currentlyInFVG && (
                 <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl px-3 py-2">
-                  <p className="text-[9px] text-emerald-400 font-bold">⚡ Price currently inside FVG</p>
+                  <p className="text-[9px] text-emerald-400 font-bold">⚡ Price inside unfilled gap</p>
                 </div>
               )}
               <p className="text-[10px] text-[#7B8DB4] leading-relaxed">{data.fvgs.note}</p>
@@ -260,28 +260,28 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
           </div>
 
           <div className="bg-[#0D0B1A] border border-[#252345] rounded-2xl p-4">
-            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-2">OTE Zones (Fibonacci)</p>
+            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-2">Best Entry Zones</p>
             {data.ote.longZone && (
               <div className="mb-2">
-                <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest mb-0.5">Long OTE (0.705–0.79)</p>
+                <p className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest mb-0.5">Long Entry Zone</p>
                 <p className="text-xs font-mono text-[#F1F5F9]">{data.ote.longZone.from} – {data.ote.longZone.to}</p>
               </div>
             )}
             {data.ote.shortZone && (
               <div className="mb-2">
-                <p className="text-[8px] text-rose-400 font-bold uppercase tracking-widest mb-0.5">Short OTE (0.705–0.79)</p>
+                <p className="text-[8px] text-rose-400 font-bold uppercase tracking-widest mb-0.5">Short Entry Zone</p>
                 <p className="text-xs font-mono text-[#F1F5F9]">{data.ote.shortZone.from} – {data.ote.shortZone.to}</p>
               </div>
             )}
             {data.ote.inOTE && (
               <div className="mt-2 bg-amber-500/10 border border-amber-500/25 rounded-lg px-3 py-1.5">
-                <p className="text-[9px] text-amber-400 font-bold">Price currently in OTE zone</p>
+                <p className="text-[9px] text-amber-400 font-bold">Price in best entry zone now</p>
               </div>
             )}
           </div>
 
           <div className="bg-[#0D0B1A] border border-[#252345] rounded-2xl p-4">
-            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-2">Kill Zones</p>
+            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-2">Best Trading Window</p>
             <p className="text-xs font-bold text-emerald-400 mb-2">{data.killZones.nextKillZone}</p>
             <p className="text-[10px] text-[#7B8DB4] leading-relaxed">{data.killZones.setupNote}</p>
           </div>
@@ -290,13 +290,13 @@ export default function DeepMarketPanel({ data, symbol }: { data: DeepAnalysis; 
         {/* Immediate Rebalance */}
         {data.immediateRebalance && (data.immediateRebalance.zones ?? []).length > 0 && (
           <div>
-            <SectionHead icon="⚖️" label="Immediate Rebalance Zones" />
+            <SectionHead icon="⚖️" label="Session Gap Entries" />
             <div className="space-y-2 mb-3">
               {(data.immediateRebalance.zones ?? []).map((z, i) => (
                 <div key={i} className={`rounded-xl p-3 border ${z.direction === "Bullish" ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
                   <div className="flex items-center justify-between mb-1">
                     <p className={`text-[8px] font-black uppercase tracking-widest ${z.direction === "Bullish" ? "text-emerald-400" : "text-rose-400"}`}>
-                      {z.direction} IR · {z.timeframe}
+                      {z.direction} Gap · {z.timeframe}
                     </p>
                     <span className="text-[7px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
                   </div>

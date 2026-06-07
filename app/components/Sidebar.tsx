@@ -36,24 +36,21 @@ const Icon = {
 // ── Sub-items ─────────────────────────────────────────────────────────────────
 
 const SIGNALS_ITEMS = [
-  { name: "Analysis",    desc: "AI signal + trade plan",        href: "/analysis",          emoji: "⚡" },
-  { name: "Intelligence",desc: "Deep market research",          href: "/intelligence",       emoji: "🧠" },
-  { name: "Strategy",    desc: "Setup scanner & plays",         href: "/strategy",           emoji: "📊" },
-  { name: "Explore",     desc: "Browse instruments",            href: "/explore",            emoji: "🌐" },
-  { name: "IPO",         desc: "New listings & analysis",       href: "/ipo",                emoji: "🚀" },
-  { name: "Pulse",       desc: "Market sentiment",              href: "/market-sentiment",   emoji: "📡" },
-  { name: "Brief",       desc: "Morning briefing",              href: null,                  emoji: "🌅" },
+  { name: "Signals",   desc: "AI signal + entry plan",    href: "/analysis",     emoji: "⚡" },
+  { name: "Markets",   desc: "Futures & options plays",   href: "/intelligence", emoji: "📊" },
+  { name: "IPO",       desc: "New listings & outlook",    href: "/ipo",          emoji: "🚀" },
+  { name: "Brief",     desc: "Morning market briefing",   href: null,            emoji: "🌅" },
 ];
 
 const TRADE_ITEMS = [
-  { name: "Paper Trade", desc: "Simulate trades risk-free",    href: "/paper",    emoji: "📋" },
-  { name: "Journal",     desc: "AI-written trade journal",     href: "/journal",  emoji: "📖" },
-  { name: "History",     desc: "Past signal performance",      href: "/history",  emoji: "⏱" },
+  { name: "Planner",   desc: "Size your positions",       href: "/paper",    emoji: "🎯" },
+  { name: "Journal",   desc: "AI trade journal",          href: "/journal",  emoji: "📖" },
+  { name: "Stats",     desc: "Your performance",          href: "/strategy", emoji: "📈" },
 ];
 
 const SETTINGS_ITEMS = [
-  { name: "Settings",    desc: "Account & preferences",        href: "/settings", emoji: "⚙️" },
-  { name: "Guide",       desc: "How to use Traxora",           href: "/guide",    emoji: "📚" },
+  { name: "Settings",  desc: "Account & preferences",     href: "/settings", emoji: "⚙️" },
+  { name: "Guide",     desc: "How to use Traxora",        href: "/guide",    emoji: "📚" },
 ];
 
 // ── Market dot ────────────────────────────────────────────────────────────────
@@ -203,7 +200,7 @@ export default function Sidebar() {
           {/* Panel header */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
-              {open === "signals" ? "Signals & Market" : open === "trade" ? "Trading & Review" : "Account & Help"}
+              {open === "signals" ? "Signals & Markets" : open === "trade" ? "Trade & Journal" : "Account & Help"}
             </p>
             <button type="button" onClick={() => setOpen(null)} aria-label="Close"
               className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center text-[#4B5675] hover:text-[#7B8DB4] transition-colors">

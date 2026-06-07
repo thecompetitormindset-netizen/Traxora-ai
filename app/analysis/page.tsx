@@ -39,7 +39,7 @@ function AnalysisContent() {
   const [proError, setProError]           = useState<string | null>(null);
 
   const DEEP_STEPS = ["Fetching market data…", "Computing indicators…", "Running AI…", "Parsing results…"];
-  const PRO_STEPS  = ["Gathering data…", "Building 8-lens model…", "Running AI…", "Finalizing…"];
+  const PRO_STEPS  = ["Gathering data…", "Checking risk gates…", "Running AI…", "Finalizing…"];
 
   useEffect(() => {
     if (!loadingDeep) { setDeepStep(0); return; }
@@ -533,7 +533,7 @@ function AnalysisContent() {
             {/* Smart Money Structure */}
             {analysis?.signals && (
               <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
-                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Market Structure</p>
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Structure</p>
                 <div className="flex gap-2 mb-3">
                   {[
                     { label: "Structure", val: analysis.signals.marketStructure },
@@ -548,12 +548,12 @@ function AnalysisContent() {
                 </div>
                 <div className="space-y-2">
                   {[
-                    { tag: "OB",  color: "text-teal-400",    text: analysis.signals.orderBlock   },
-                    { tag: "FVG", color: "text-blue-400",    text: analysis.signals.fairValueGap },
-                    { tag: "OTE", color: "text-cyan-400",    text: analysis.signals.ote          },
+                    { tag: "Key Level", color: "text-teal-400", text: analysis.signals.orderBlock   },
+                    { tag: "Price Gap", color: "text-blue-400", text: analysis.signals.fairValueGap },
+                    { tag: "Best Entry",color: "text-cyan-400", text: analysis.signals.ote          },
                   ].filter(r => r.text).map(({ tag, color, text }) => (
                     <div key={tag} className="flex gap-2">
-                      <span className={`text-[10px] font-black w-7 shrink-0 mt-0.5 ${color}`}>{tag}</span>
+                      <span className={`text-[10px] font-black shrink-0 mt-0.5 w-16 ${color}`}>{tag}</span>
                       <p className="text-[11px] text-[#CBD5E1] leading-snug">{text}</p>
                     </div>
                   ))}
@@ -567,17 +567,17 @@ function AnalysisContent() {
                     <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.liquidity}</p>
                     {analysis.signals.bslPrice != null && analysis.signals.sslPrice != null && (
                       <div className="flex gap-2 mt-1.5">
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">BSL ${analysis.signals.bslPrice.toFixed(2)}</span>
-                        <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">SSL ${analysis.signals.sslPrice.toFixed(2)}</span>
+                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">↑ Target ${analysis.signals.bslPrice.toFixed(2)}</span>
+                        <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">↓ Support ${analysis.signals.sslPrice.toFixed(2)}</span>
                       </div>
                     )}
                   </div>
 
-                  {/* Immediate Rebalance zone */}
+                  {/* Session gap / immediate rebalance */}
                   {analysis.signals.immediateRebalance && (
                     <div className="rounded-xl bg-violet-500/5 border border-violet-500/20 p-2.5">
                       <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">IR</span>
+                        <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">Session Gap</span>
                         <span className="text-[7px] text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
                       </div>
                       <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.immediateRebalance}</p>
@@ -704,25 +704,27 @@ function AnalysisContent() {
               )}
             </div>
 
-            {/* Deep Market Analysis trigger */}
-            <div className="bg-[#13112A] rounded-2xl p-5 border border-emerald-500/20">
-              <div className="flex items-center gap-2 mb-2">
-                <span>🎯</span>
-                <p className="text-sm font-bold text-[#F1F5F9]">Deep Market Analysis</p>
+            {/* AI Deep Dive */}
+            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345] space-y-3">
+              <div className="flex items-center gap-2">
+                <span>🔍</span>
+                <p className="text-sm font-bold text-[#F1F5F9]">AI Deep Dive</p>
               </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed mb-4">
-                Full multi-timeframe breakdown — structure, OBs, FVGs, liquidity targets, IR zones, and two trade setups with exact entry/SL/TP.
+              <p className="text-xs text-[#4B5675] leading-relaxed">
+                Full breakdown across all timeframes — key levels, price gaps, entry zone, stop, and two complete trade setups.
               </p>
+
+              {/* Standard deep analysis */}
               <button
                 type="button"
                 onClick={runDeepAnalysis}
                 disabled={loadingDeep}
                 className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white"
               >
-                {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "Re-run Deep Analysis" : "Run Deep Market Analysis"}
+                {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "↺ Run Again" : "Run Deep Analysis"}
               </button>
               {loadingDeep && (
-                <div className="mt-2 space-y-1.5">
+                <div className="space-y-1.5">
                   {DEEP_STEPS.map((s, i) => (
                     <div key={i} className="flex items-center gap-2">
                       <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < deepStep ? "bg-emerald-500" : i === deepStep ? "bg-emerald-400 animate-pulse" : "bg-[#252345]"}`} />
@@ -731,21 +733,18 @@ function AnalysisContent() {
                   ))}
                 </div>
               )}
-              {deepError && <p className="text-xs text-rose-400 mt-2 text-center">{deepError}</p>}
+              {deepError && <p className="text-xs text-rose-400 text-center">{deepError}</p>}
 
-              {/* Pro Analysis button */}
-              <div className="mt-3 pt-3 border-t border-[#252345]">
-                <p className="text-[10px] text-violet-400 font-bold uppercase tracking-widest mb-1.5">⚡ Pro Analysis</p>
-                <p className="text-[10px] text-[#4B5675] leading-relaxed mb-3">
-                  8-lens institutional framework — microstructure, auction theory, volatility edge, hard gates, and position sizing. Flags bad setups before you enter.
-                </p>
+              {/* Advanced check — runs additional risk gates */}
+              <div className="pt-2 border-t border-[#1C1933]">
+                <p className="text-[10px] text-[#4B5675] mb-2">Advanced — checks risk gates, volatility, and position sizing before you enter</p>
                 <button
                   type="button"
                   onClick={runProAnalysis}
                   disabled={loadingPro}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition-all text-white"
+                  className="w-full py-2 rounded-xl text-xs font-bold bg-[#1C1933] hover:bg-[#252345] border border-[#252345] disabled:opacity-50 transition-all text-[#7B8DB4] hover:text-[#F1F5F9]"
                 >
-                  {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "Re-run Pro Analysis" : "Run Pro Analysis"}
+                  {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "↺ Re-run Advanced Check" : "Run Advanced Check"}
                 </button>
                 {loadingPro && (
                   <div className="mt-2 space-y-1.5">
@@ -757,7 +756,7 @@ function AnalysisContent() {
                     ))}
                   </div>
                 )}
-                {proError && <p className="text-xs text-rose-400 mt-2 text-center">{proError}</p>}
+                {proError && <p className="text-xs text-rose-400 text-center">{proError}</p>}
               </div>
             </div>
           </div>
