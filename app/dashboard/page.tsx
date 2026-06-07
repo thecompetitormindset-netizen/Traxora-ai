@@ -8,6 +8,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
+import OnboardingModal from "../components/OnboardingModal";
 import { scopedKey } from "../lib/userState";
 
 type TradeLevels = {
@@ -932,6 +933,7 @@ function DashboardContent() {
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
+      <OnboardingModal />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
@@ -992,7 +994,7 @@ function DashboardContent() {
 
             {/* Stat cards */}
             <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Sentiment card — pulsing while AI signals are loading */}
+              {/* Sentiment card */}
               <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
                 <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
                 {isAnalyzing ? (
@@ -1019,6 +1021,47 @@ function DashboardContent() {
                 </div>
               ))}
             </div>
+
+            {/* Signal accuracy bar */}
+            {!isAnalyzing && (buyCount + sellCount) > 0 && (() => {
+              const directional = buyCount + sellCount;
+              const highConf = stocks.filter((c: StockCard) => c.signal !== "HOLD" && c.confidence === "High").length;
+              const pctHigh  = directional > 0 ? Math.round((highConf / directional) * 100) : 0;
+              return (
+                <div className="mt-3 bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4 flex items-center gap-6 flex-wrap">
+                  <div>
+                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Today&apos;s Signal Quality</p>
+                    <p className="text-xs text-[#7B8DB4] mt-0.5">{directional} directional · {highConf} high-confidence</p>
+                  </div>
+                  <div className="flex-1 min-w-[140px]">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-[#4B5675]">High confidence</span>
+                      <span className="text-xs font-black text-emerald-400">{pctHigh}%</span>
+                    </div>
+                    <div className="h-1.5 rounded-full bg-[#1C1933] overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700"
+                        style={{ width: `${pctHigh}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-center">
+                      <p className="text-lg font-black text-emerald-400 font-mono">{buyCount}</p>
+                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Buy</p>
+                    </div>
+                    <div className="w-px h-8 bg-[#1C1933]" />
+                    <div className="text-center">
+                      <p className="text-lg font-black text-rose-400 font-mono">{sellCount}</p>
+                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Sell</p>
+                    </div>
+                    <div className="w-px h-8 bg-[#1C1933]" />
+                    <div className="text-center">
+                      <p className="text-lg font-black text-amber-400 font-mono">{holdCount}</p>
+                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Hold</p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ── Paper Portfolio summary ── */}
             <Link href="/paper" className="mt-4 block group">

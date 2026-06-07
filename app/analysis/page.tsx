@@ -30,11 +30,28 @@ function AnalysisContent() {
 
   const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
   const [loadingDeep, setLoadingDeep] = useState(false);
+  const [deepStep, setDeepStep]       = useState(0);
   const [deepError, setDeepError] = useState<string | null>(null);
 
   const [proAnalysis, setProAnalysis]     = useState<ProAnalysisResult | null>(null);
   const [loadingPro, setLoadingPro]       = useState(false);
+  const [proStep, setProStep]             = useState(0);
   const [proError, setProError]           = useState<string | null>(null);
+
+  const DEEP_STEPS = ["Fetching market data…", "Computing indicators…", "Running AI…", "Parsing results…"];
+  const PRO_STEPS  = ["Gathering data…", "Building 8-lens model…", "Running AI…", "Finalizing…"];
+
+  useEffect(() => {
+    if (!loadingDeep) { setDeepStep(0); return; }
+    const timers = [1500, 6000, 12000].map((ms, i) => setTimeout(() => setDeepStep(i + 1), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [loadingDeep]);
+
+  useEffect(() => {
+    if (!loadingPro) { setProStep(0); return; }
+    const timers = [2000, 8000, 16000].map((ms, i) => setTimeout(() => setProStep(i + 1), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [loadingPro]);
 
   const [volumeProfile, setVolumeProfile] = useState<VolumeProfile | null>(null);
 
@@ -636,17 +653,20 @@ function AnalysisContent() {
                 type="button"
                 onClick={runDeepAnalysis}
                 disabled={loadingDeep}
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white"
               >
-                {loadingDeep ? (
-                  <>
-                    <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                    Analyzing…
-                  </>
-                ) : deepAnalysis ? "Re-run Deep Analysis" : "Run Deep Market Analysis"}
+                {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "Re-run Deep Analysis" : "Run Deep Market Analysis"}
               </button>
+              {loadingDeep && (
+                <div className="mt-2 space-y-1.5">
+                  {DEEP_STEPS.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < deepStep ? "bg-emerald-500" : i === deepStep ? "bg-emerald-400 animate-pulse" : "bg-[#252345]"}`} />
+                      <span className={`text-[9px] transition-all ${i < deepStep ? "text-emerald-600 line-through" : i === deepStep ? "text-[#CBD5E1]" : "text-[#252345]"}`}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               {deepError && <p className="text-xs text-rose-400 mt-2 text-center">{deepError}</p>}
 
               {/* Pro Analysis button */}
@@ -659,17 +679,20 @@ function AnalysisContent() {
                   type="button"
                   onClick={runProAnalysis}
                   disabled={loadingPro}
-                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition-all text-white flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl text-xs font-bold bg-violet-600 hover:bg-violet-500 disabled:opacity-50 transition-all text-white"
                 >
-                  {loadingPro ? (
-                    <>
-                      <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                      </svg>
-                      Running 8-lens analysis…
-                    </>
-                  ) : proAnalysis ? "Re-run Pro Analysis" : "Run Pro Analysis"}
+                  {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "Re-run Pro Analysis" : "Run Pro Analysis"}
                 </button>
+                {loadingPro && (
+                  <div className="mt-2 space-y-1.5">
+                    {PRO_STEPS.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < proStep ? "bg-violet-500" : i === proStep ? "bg-violet-400 animate-pulse" : "bg-[#252345]"}`} />
+                        <span className={`text-[9px] transition-all ${i < proStep ? "text-violet-600 line-through" : i === proStep ? "text-[#CBD5E1]" : "text-[#252345]"}`}>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {proError && <p className="text-xs text-rose-400 mt-2 text-center">{proError}</p>}
               </div>
             </div>

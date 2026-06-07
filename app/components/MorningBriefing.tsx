@@ -395,14 +395,36 @@ function OppCard({ opp }: { opp: Opportunity }) {
 
 type Tab = "overview" | "opportunities" | "options" | "futures" | "levels";
 
+const LOAD_STEPS = [
+  { label: "Fetching live market prices…",         duration: 4000 },
+  { label: "Scanning 35+ instruments…",            duration: 6000 },
+  { label: "Running AI analysis…",                 duration: 10000 },
+  { label: "Building your brief…",                 duration: 8000 },
+  { label: "Almost ready…",                        duration: 99999 },
+];
+
 export default function MorningBriefing() {
   const [visible,    setVisible]    = useState(false);
   const [loading,    setLoading]    = useState(false);
+  const [loadStep,   setLoadStep]   = useState(0);
   const [error,      setError]      = useState<string | null>(null);
   const [briefing,   setBriefing]   = useState<BriefingData | null>(null);
   const [manualOpen, setManualOpen] = useState(false);
   const [tab,        setTab]        = useState<Tab>("overview");
   const loadingRef = useRef(false);
+  const stepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    if (!loading) { setLoadStep(0); stepTimers.current.forEach(clearTimeout); stepTimers.current = []; return; }
+    let elapsed = 0;
+    LOAD_STEPS.forEach((s, i) => {
+      if (i === 0) return;
+      elapsed += LOAD_STEPS[i - 1].duration;
+      const t = setTimeout(() => setLoadStep(i), elapsed);
+      stepTimers.current.push(t);
+    });
+    return () => { stepTimers.current.forEach(clearTimeout); stepTimers.current = []; };
+  }, [loading]);
 
   function close() {
     setVisible(false);
@@ -623,25 +645,63 @@ export default function MorningBriefing() {
           </div>
         </div>
 
-        {/* ── Loading skeleton ── */}
+        {/* ── Loading — step progress ── */}
         {loading && (
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
-            <div className="grid grid-cols-7 gap-2">
-              {Array.from({ length: 14 }).map((_, i) => (
-                <div key={i} className="h-14 rounded-xl bg-[#252345] animate-pulse" />
+          <div className="flex-1 flex flex-col items-center justify-center px-6 py-10 gap-8">
+            {/* Animated bars */}
+            <div className="flex items-end gap-[3px] h-14">
+              {Array.from({ length: 18 }).map((_, i) => (
+                <div key={i} className="w-1.5 rounded-sm"
+                  style={{
+                    height: `${18 + Math.abs(Math.sin(i * 0.72)) * 32}px`,
+                    background: i % 3 === 2 ? "#F23645" + "35" : "#00D17A" + "30",
+                    animation: "pulse 1.6s ease-in-out infinite",
+                    animationDelay: `${i * 65}ms`,
+                  }} />
               ))}
             </div>
-            <div className="space-y-2.5 mt-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className={`h-3 rounded-full bg-[#252345] animate-pulse ${i % 3 === 2 ? "w-2/3" : "w-full"}`} />
-              ))}
+
+            {/* Step list */}
+            <div className="w-full max-w-xs space-y-3">
+              {LOAD_STEPS.slice(0, -1).map((step, i) => {
+                const done    = i < loadStep;
+                const current = i === loadStep;
+                return (
+                  <div key={i} className="flex items-center gap-3">
+                    {/* Icon */}
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-all duration-500 ${
+                      done    ? "bg-emerald-500/20 border border-emerald-500/40" :
+                      current ? "bg-emerald-500/10 border border-emerald-500/30 animate-pulse" :
+                                "bg-[#1C1933] border border-[#252345]"
+                    }`}>
+                      {done ? (
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"/>
+                        </svg>
+                      ) : current ? (
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                      ) : (
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#252345]" />
+                      )}
+                    </div>
+                    {/* Label */}
+                    <span className={`text-xs font-medium transition-all duration-500 ${
+                      done    ? "text-emerald-500/60 line-through" :
+                      current ? "text-[#CBD5E1]" :
+                                "text-[#2D3A52]"
+                    }`}>{step.label}</span>
+                  </div>
+                );
+              })}
             </div>
-            <div className="flex items-center gap-2 mt-2">
-              <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
-                <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-              </svg>
-              <p className="text-xs text-[#4B5675]">Traxora AI is analyzing 35+ instruments across multiple timeframes…</p>
+
+            {/* Progress bar */}
+            <div className="w-full max-w-xs h-0.5 rounded-full bg-[#1C1933] overflow-hidden">
+              <div className="h-full rounded-full bg-emerald-500/50 transition-all duration-1000 ease-out"
+                style={{ width: `${Math.min(((loadStep) / (LOAD_STEPS.length - 1)) * 100, 90)}%` }} />
             </div>
+
+            <p className="text-[10px] text-[#2D3A52] font-mono tracking-wider">TRAXORA AI · ANALYZING MARKETS</p>
           </div>
         )}
 

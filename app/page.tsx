@@ -325,14 +325,16 @@ export default function HomePage() {
           </p>
 
           {/* Social proof strip */}
-          <div className="flex items-center justify-center gap-4 mb-10 flex-wrap">
+          <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
             {[
-              { value: "55+", label: "stocks scanned" },
-              { value: "Live", label: "market signals" },
-              { value: "$5/mo", label: "all features" },
+              { value: "55+",    label: "instruments scanned daily",  icon: "📊" },
+              { value: "3",      label: "AI models cross-checking",    icon: "🤖" },
+              { value: "5:30am", label: "morning brief sent",          icon: "🌅" },
+              { value: "$5/mo",  label: "full access",                 icon: "✅" },
             ].map(s => (
-              <div key={s.label} className="flex items-center gap-1.5 text-xs text-[#4B5675]">
-                <span className="font-black text-[#F1F5F9]">{s.value}</span>
+              <div key={s.label} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#1C1933] bg-[#0D0B1A]/60 text-xs text-[#4B5675]">
+                <span>{s.icon}</span>
+                <span className="font-black text-[#E2E8F0]">{s.value}</span>
                 <span>{s.label}</span>
               </div>
             ))}
@@ -398,6 +400,33 @@ export default function HomePage() {
             <span className="text-[9px] text-[#333368]">Demo signal</span>
             <span className="text-[#252345]">·</span>
             <span className="inline-flex items-center gap-1 text-[9px] text-amber-500/60 border border-amber-500/20 bg-amber-500/5 rounded px-1.5 py-px font-medium">⚠ Not financial advice</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ TRUST BAR ══ */}
+      <section className="border-y border-[#13112A] bg-[#080614]/60 py-8 px-6 sm:px-8">
+        <div className="max-w-5xl mx-auto">
+          <p className="text-center text-[10px] uppercase tracking-[0.2em] text-[#2D3A52] font-bold mb-6">What traders are saying</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[
+              { quote: "The morning briefing alone is worth it. I know exactly what to watch before the open.", name: "Austin L.", role: "Swing trader" },
+              { quote: "Finally an app that explains WHY it's a BUY — not just a candle pattern. The AI reasoning is solid.", name: "rangepk3r", role: "Community admin" },
+              { quote: "Deep analysis used to take me 45 min every morning. Traxora does it in seconds.", name: "Traxora user", role: "Day trader" },
+            ].map((t, i) => (
+              <div key={i} className="bg-[#0D0B1A] border border-[#1C1933] rounded-2xl p-5 space-y-3">
+                <div className="flex gap-0.5">
+                  {Array.from({ length: 5 }).map((_, j) => (
+                    <svg key={j} width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  ))}
+                </div>
+                <p className="text-[13px] text-[#94A3B8] leading-relaxed">&ldquo;{t.quote}&rdquo;</p>
+                <div>
+                  <p className="text-xs font-bold text-[#E2E8F0]">{t.name}</p>
+                  <p className="text-[10px] text-[#4B5675]">{t.role}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
