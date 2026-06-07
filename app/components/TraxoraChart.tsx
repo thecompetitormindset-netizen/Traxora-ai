@@ -37,21 +37,21 @@ const INTERVALS: { label: string; value: Interval; apiInterval: string; apiRange
 // ── Colors ────────────────────────────────────────────────────────────────────
 
 const C = {
-  bg:      "#0B0914",
-  panel:   "#0F0D1C",
-  border:  "#1C1933",
-  borderH: "#252345",
-  dim:     "#3D4F6B",
-  mid:     "#5A6A8A",
-  bright:  "#8B9CC0",
-  bull:    "#00D17A",
-  bear:    "#F23645",
-  bullDim: "#00D17A28",
-  bearDim: "#F2364520",
-  trend:   "#38BDF8",   // EMA 9/21
-  longT:   "#A78BFA",   // EMA 50
-  fair:    "#FBBF24",   // VWAP
-  momentum:"#E879F9",   // RSI
+  bg:      "#0D0B1A",   // matches card dark bg (#0D0B1A)
+  panel:   "#13112A",   // matches card surface (#13112A)
+  border:  "#1C1933",   // subtle inner borders
+  borderH: "#252345",   // main card borders (#252345)
+  dim:     "#4B5675",   // dim labels — exact site value
+  mid:     "#7B8DB4",   // mid text — exact site value
+  bright:  "#CBD5E1",   // bright values — exact site value
+  bull:    "#10B981",   // emerald-500 — matches BUY badges
+  bear:    "#F43F5E",   // rose-500 — matches SELL badges
+  bullDim: "#10B98118",
+  bearDim: "#F43F5E18",
+  trend:   "#22D3EE",   // cyan-400
+  longT:   "#A78BFA",   // violet-400
+  fair:    "#F59E0B",   // amber-500
+  momentum:"#E879F9",   // fuchsia-400
 };
 
 // ── Math helpers ──────────────────────────────────────────────────────────────
@@ -168,7 +168,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       layout: {
         background: { type: ColorType.Solid, color: C.bg },
         textColor:  C.mid,
-        fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+        fontFamily: "ui-sans-serif, system-ui, sans-serif",
         fontSize:   11,
       },
       grid: {
@@ -177,16 +177,16 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: C.borderH, width: 1, style: 2, labelBackgroundColor: "#1C1933" },
-        horzLine: { color: C.borderH, width: 1, style: 2, labelBackgroundColor: "#1C1933" },
+        vertLine: { color: C.borderH, width: 1, style: 2, labelBackgroundColor: C.panel },
+        horzLine: { color: C.borderH, width: 1, style: 2, labelBackgroundColor: C.panel },
       },
       rightPriceScale: {
-        borderColor:  C.border,
+        borderColor:  C.borderH,
         scaleMargins: { top: 0.08, bottom: 0.20 },
-        textColor:    C.bright,
+        textColor:    C.mid,
       },
       timeScale: {
-        borderColor:    C.border,
+        borderColor:    C.borderH,
         timeVisible:    true,
         secondsVisible: false,
         barSpacing:     10,
@@ -348,7 +348,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   }
 
   return (
-    <div className="rounded-2xl overflow-hidden select-none" style={{ background: C.bg, border: `1px solid ${C.border}` }}>
+    <div className="rounded-2xl overflow-hidden select-none" style={{ background: C.bg, border: `1px solid ${C.borderH}` }}>
 
       {/* ── Header ── */}
       <div className="px-4 pt-3 pb-2" style={{ borderBottom: `1px solid ${C.border}` }}>
