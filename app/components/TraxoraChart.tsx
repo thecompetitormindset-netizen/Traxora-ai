@@ -140,13 +140,25 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const rsiObRef     = useRef<ISeriesApi<"Line"> | null>(null);
   const rsiOsRef     = useRef<ISeriesApi<"Line"> | null>(null);
 
-  const [interval,  setIntervalState] = useState<Interval>("1D");
-  const [loading,   setLoading]       = useState(true);
-  const [error,     setError]         = useState(false);
-  const [lastPrice, setLastPrice]     = useState<number | null>(null);
-  const [lastChg,   setLastChg]       = useState<number | null>(null);
-  const [tooltip,   setTooltip]       = useState<Tooltip>(null);
-  const allBarsRef                    = useRef<RawBar[]>([]);
+  const [interval,    setIntervalState] = useState<Interval>("1D");
+  const [loading,     setLoading]       = useState(true);
+  const [error,       setError]         = useState(false);
+  const [lastPrice,   setLastPrice]     = useState<number | null>(null);
+  const [lastChg,     setLastChg]       = useState<number | null>(null);
+  const [tooltip,     setTooltip]       = useState<Tooltip>(null);
+  const [fullscreen,  setFullscreen]    = useState(false);
+  const [fsHeight,    setFsHeight]      = useState(600);
+  const allBarsRef                      = useRef<RawBar[]>([]);
+
+  // ESC key exits fullscreen
+  useEffect(() => {
+    if (!fullscreen) return;
+    setFsHeight(window.innerHeight - 100);
+    function onKey(e: KeyboardEvent) { if (e.key === "Escape") setFullscreen(false); }
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = ""; };
+  }, [fullscreen]);
 
   // All off by default — clean chart first
   const [showTrend,    setShowTrend]    = useState(false);
@@ -348,7 +360,20 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   }
 
   return (
-    <div className="rounded-2xl overflow-hidden select-none" style={{ background: C.bg, border: `1px solid ${C.borderH}` }}>
+    <>
+    {/* Fullscreen backdrop */}
+    {fullscreen && (
+      <div className="fixed inset-0 z-[199] bg-black/60 backdrop-blur-sm" onClick={() => setFullscreen(false)} />
+    )}
+
+    <div
+      className={`overflow-hidden select-none transition-all duration-300 ${
+        fullscreen
+          ? "fixed inset-4 z-[200] rounded-2xl shadow-2xl shadow-black/80"
+          : "rounded-2xl"
+      }`}
+      style={{ background: C.bg, border: `1px solid ${C.borderH}` }}
+    >
 
       {/* ── Header ── */}
       <div className="px-4 pt-3 pb-2" style={{ borderBottom: `1px solid ${C.border}` }}>
@@ -394,16 +419,16 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
                 </button>
               ))}
             </div>
-            {onExpandToggle && (
-              <button type="button" onClick={onExpandToggle}
-                className="p-1.5 rounded-lg transition-all"
-                style={{ background: "#0A0817", border: `1px solid ${C.border}`, color: C.dim }}>
-                {isExpanded
-                  ? <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
-                  : <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-                }
-              </button>
-            )}
+            {/* Full screen button */}
+            <button type="button" onClick={() => setFullscreen(v => !v)}
+              title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+              className="p-1.5 rounded-lg transition-all hover:text-white"
+              style={{ background: fullscreen ? C.borderH : "#0A0817", border: `1px solid ${fullscreen ? C.borderH : C.border}`, color: fullscreen ? "white" : C.dim }}>
+              {fullscreen
+                ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
+                : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+              }
+            </button>
           </div>
         </div>
 
@@ -418,7 +443,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
       {/* ── Chart canvas ── */}
       <div className="relative">
-        <div ref={containerRef} style={{ height }} />
+        <div ref={containerRef} style={{ height: fullscreen ? fsHeight : height }} />
 
         {/* Watermark */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -498,5 +523,6 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
         <span className="text-[7px] font-mono" style={{ color: "#191630" }}>Not financial advice</span>
       </div>
     </div>
+    </>
   );
 }
