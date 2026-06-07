@@ -5,23 +5,27 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 
 const FREE_FEATURES = [
-  "Dashboard with live signals",
+  "Live watchlist with BUY / SELL / HOLD signals",
+  "AI chat — 25 questions/day",
   "Market sentiment tracker",
   "IPO tracker",
-  "AI chat",
+  "Wheeling Hub position tracker",
   "Community guide",
 ];
 
 const PRO_FEATURES = [
   "Everything in Free",
-  "Deep AI analysis (unlimited)",
-  "Morning briefing email at market open",
-  "Market scanner — top 3 live setups",
-  "Real Positions tracker + AI insights",
-  "Options analysis with expected move",
-  "Auto trade journal (AI-written)",
-  "AI coaching every 10 closed trades",
-  "Risk Guard automatic stop execution",
+  "Unlimited deep AI analysis per signal",
+  "Morning briefing email at market open (5:30am ET)",
+  "Live market scanner — top options plays",
+  "Wheeling Hub CSP scanner with live IV data",
+  "Options analysis with expected move & Greeks",
+  "AI trade journal — auto-written after every trade",
+  "AI coaching after every 10 closed trades",
+  "Signal Track Record — T+3 win-rate backtest",
+  "Risk Guard — automatic stop monitoring",
+  "Futures signals — ES, NQ, GC, CL + more",
+  "Priority signal alerts via browser notifications",
 ];
 
 export default function PricingPage() {
@@ -72,7 +76,7 @@ export default function PricingPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-5xl font-black mb-4">Simple pricing.</h1>
-          <p className="text-[#7B8DB4] text-lg">$5 a month. Cancel anytime. No hidden fees.</p>
+          <p className="text-[#7B8DB4] text-lg">$14.99 a month. Cancel anytime. No hidden fees.</p>
         </div>
 
         {/* Plans */}
@@ -107,7 +111,7 @@ export default function PricingPage() {
               <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">Most popular</span>
             </div>
             <div className="mb-8">
-              <p className="text-4xl font-black">$5<span className="text-lg font-normal text-[#4B5675]">/mo</span></p>
+              <p className="text-4xl font-black">$14.99<span className="text-lg font-normal text-[#4B5675]">/mo</span></p>
               <p className="text-xs text-[#4B5675] mt-1">Billed monthly · cancel anytime</p>
             </div>
 
@@ -127,7 +131,7 @@ export default function PricingPage() {
               disabled={loading}
               className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm font-bold text-white shadow-lg shadow-emerald-500/20"
             >
-              {loading ? "Redirecting to checkout…" : session ? "Subscribe for $5/mo →" : "Sign in to subscribe →"}
+              {loading ? "Redirecting to checkout…" : session ? "Subscribe for $14.99/mo →" : "Sign in to subscribe →"}
             </button>
 
             {session && (

@@ -179,6 +179,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const bbUpRef      = useRef<ISeriesApi<"Line"> | null>(null);
   const bbMidRef     = useRef<ISeriesApi<"Line"> | null>(null);
   const bbLoRef      = useRef<ISeriesApi<"Line"> | null>(null);
+  const closeLineRef = useRef<ISeriesApi<"Line"> | null>(null);
 
   // Signal price lines
   const entryLineRef  = useRef<IPriceLine | null>(null);
@@ -193,7 +194,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const [lastBar,     setLastBar]       = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
   const [tooltip,     setTooltip]       = useState<Tooltip>(null);
   const [fullscreen,  setFullscreen]    = useState(false);
-  const [fsHeight,    setFsHeight]      = useState(600);
+  const [chartType,   setChartType]     = useState<"candle" | "line">("candle");
   const allBarsRef                      = useRef<RawBar[]>([]);
 
   const [showTrend,    setShowTrend]    = useState(false);
@@ -210,7 +211,6 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   // ESC exits fullscreen
   useEffect(() => {
     if (!fullscreen) return;
-    setFsHeight(window.innerHeight - 112);
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
@@ -235,6 +235,12 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     if (stopP)   stopLineRef.current   = candleRef.current.createPriceLine({ price: stopP,   color: C.stop,   lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Stop"  });
     if (targetP) targetLineRef.current = candleRef.current.createPriceLine({ price: targetP, color: C.target, lineWidth: 1, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: "Target"});
   }, [signalData, showSignals]);
+
+  // ── Toggle candle / line visibility ──────────────────────────────────────────
+  useEffect(() => {
+    candleRef.current?.applyOptions({ visible: chartType === "candle" });
+    closeLineRef.current?.applyOptions({ visible: chartType === "line" });
+  }, [chartType]);
 
   // ── Create chart ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -284,19 +290,26 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     rsiOsRef.current = chart.addSeries(LineSeries, { color: C.bull + "40", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi" });
     rsiRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.80, bottom: 0.02 }, borderColor: C.border, textColor: C.bright });
 
+    // Line chart series — hidden by default; shown when chartType === "line"
+    closeLineRef.current = chart.addSeries(LineSeries, {
+      color: C.bull, lineWidth: 2,
+      priceLineVisible: false, lastValueVisible: true,
+      crosshairMarkerVisible: true, crosshairMarkerRadius: 4,
+      visible: false,
+    });
+
     chart.subscribeCrosshairMove((param) => {
-      if (!param.time || !candleRef.current || !param.point) { setTooltip(null); return; }
-      const d = param.seriesData.get(candleRef.current) as CandlestickData | undefined;
-      if (!d) { setTooltip(null); return; }
-      const ts = param.time as number;
-      const dt = new Date(ts * 1000);
+      if (!param.time || !param.point) { setTooltip(null); return; }
+      const ts   = param.time as number;
+      const bar  = allBarsRef.current.find(b => toTime(b.time) === ts);
+      if (!bar) { setTooltip(null); return; }
+      const dt   = new Date(ts * 1000);
       const timeLabel = isIntraday
         ? dt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false })
         : dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-      const bar = allBarsRef.current.find(b => toTime(b.time) === param.time);
       const getLine = (ref: React.RefObject<ISeriesApi<"Line"> | null>) =>
         ref.current ? ((param.seriesData.get(ref.current) as { value?: number } | undefined)?.value ?? null) : null;
-      setTooltip({ x: param.point.x, y: param.point.y, time: timeLabel, open: d.open, high: d.high, low: d.low, close: d.close, volume: bar?.volume ?? 0, ema9: getLine(ema9Ref), ema50: getLine(ema50Ref), vwap: getLine(vwapRef), rsi: getLine(rsiRef) });
+      setTooltip({ x: param.point.x, y: param.point.y, time: timeLabel, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume, ema9: getLine(ema9Ref), ema50: getLine(ema50Ref), vwap: getLine(vwapRef), rsi: getLine(rsiRef) });
     });
 
     const ro = new ResizeObserver(() => chart.applyOptions({ width: containerRef.current?.clientWidth ?? 800 }));
@@ -304,7 +317,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
     return () => {
       ro.disconnect(); chart.remove();
-      chartRef.current = candleRef.current = volRef.current = null;
+      chartRef.current = candleRef.current = volRef.current = closeLineRef.current = null;
       ema9Ref.current = ema21Ref.current = ema50Ref.current = vwapRef.current = null;
       bbUpRef.current = bbMidRef.current = bbLoRef.current = null;
       rsiRef.current = rsiObRef.current = rsiOsRef.current = null;
@@ -344,7 +357,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       const candles: OhlcBar[] = raw.map(b => ({ time: toTime(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
       const volumes: VolBar[]  = raw.map(b => ({ time: toTime(b.time), value: b.volume, color: b.close >= b.open ? C.bullDim : C.bearDim }));
 
+      const lineData: LineBar[] = raw.map(b => ({ time: toTime(b.time), value: b.close }));
       candleRef.current?.setData(candles as CandlestickData[]);
+      closeLineRef.current?.setData(lineData);
       volRef.current?.setData(volumes);
       ema9Ref.current?.setData(showTrend  ? ema(candles, 9)  : []);
       ema21Ref.current?.setData(showTrend ? ema(candles, 21) : []);
@@ -379,8 +394,8 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const rsiVal   = tooltip?.rsi ?? null;
   const rsiColor = rsiVal == null ? C.momentum : rsiVal > 70 ? C.bear : rsiVal < 30 ? C.bull : C.momentum;
 
-  const TIP_W = 180;
-  const tipX  = tooltip ? Math.min(tooltip.x + 14, (containerRef.current?.clientWidth ?? 600) - TIP_W - 8) : 0;
+  const TIP_W = 168;
+  const tipX  = tooltip ? Math.max(4, Math.min(tooltip.x + 14, (containerRef.current?.clientWidth ?? 600) - TIP_W - 4)) : 0;
   const tipY  = tooltip ? Math.max(8, tooltip.y - 110) : 0;
 
   function Chip({ active, color, label, onClick }: { active: boolean; color: string; label: string; onClick: () => void }) {
@@ -409,7 +424,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
     <div
       className={`overflow-hidden select-none transition-all duration-300 ${
-        fullscreen ? "fixed inset-3 z-[200] rounded-2xl shadow-2xl shadow-black/80 flex flex-col" : "rounded-2xl"
+        fullscreen
+          ? "fixed inset-0 sm:inset-3 z-[200] sm:rounded-2xl shadow-2xl shadow-black/80 flex flex-col"
+          : "rounded-2xl"
       }`}
       style={{ background: C.bg, border: `1px solid ${C.borderH}` }}
     >
@@ -466,6 +483,25 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
           {/* Controls */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {/* Chart type toggle */}
+            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: "#0A0817", border: `1px solid ${C.border}` }}>
+              <button type="button" onClick={() => setChartType("candle")} title="Candlestick"
+                className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
+                style={chartType === "candle" ? { background: "#1E1B3A", color: C.bull } : { color: C.dim }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <rect x="3" y="8" width="5" height="10" rx="1"/><line x1="5.5" y1="4" x2="5.5" y2="8"/><line x1="5.5" y1="18" x2="5.5" y2="21"/>
+                  <rect x="16" y="5" width="5" height="10" rx="1"/><line x1="18.5" y1="2" x2="18.5" y2="5"/><line x1="18.5" y1="15" x2="18.5" y2="20"/>
+                </svg>
+              </button>
+              <button type="button" onClick={() => setChartType("line")} title="Line"
+                className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
+                style={chartType === "line" ? { background: "#1E1B3A", color: C.bull } : { color: C.dim }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 17 8 10 13 13 21 5"/>
+                </svg>
+              </button>
+            </div>
+
             <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: "#0A0817", border: `1px solid ${C.border}` }}>
               {INTERVALS.map(iv => (
                 <button key={iv.value} type="button" onClick={() => setIntervalState(iv.value)}
@@ -476,7 +512,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
               ))}
             </div>
             <button type="button" onClick={() => setFullscreen(v => !v)} title={fullscreen ? "Exit (Esc)" : "Full screen"}
-              className="p-1.5 rounded-lg transition-all"
+              className="p-2 sm:p-1.5 rounded-lg transition-all min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
               style={{ background: fullscreen ? C.borderH : "#0A0817", border: `1px solid ${fullscreen ? C.borderH : C.border}`, color: fullscreen ? "#E2E8F0" : C.dim }}>
               {fullscreen
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
@@ -502,11 +538,15 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       </div>
 
       {/* ── Chart area + optional signal panel ── */}
-      <div className={`flex-1 flex min-h-0 ${fullscreen ? "flex-row" : ""}`}>
+      <div className={`flex-1 flex min-h-0 ${fullscreen ? "flex-col sm:flex-row" : ""}`}>
 
         {/* Chart canvas */}
-        <div className="relative flex-1 min-w-0">
-          <div ref={containerRef} style={{ height: fullscreen ? fsHeight : height }} />
+        <div className={`relative flex-1 min-w-0 ${fullscreen ? "min-h-0" : ""}`}>
+          <div
+            ref={containerRef}
+            className={fullscreen ? "w-full h-full" : ""}
+            style={fullscreen ? undefined : { height }}
+          />
 
           {/* Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -564,9 +604,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           )}
         </div>
 
-        {/* ── Signal panel — only in fullscreen with signal data ── */}
+        {/* ── Signal panel — only in fullscreen with signal data, hidden on mobile portrait ── */}
         {fullscreen && signalData && (
-          <div className="w-52 shrink-0 flex flex-col gap-3 p-4 overflow-y-auto" style={{ borderLeft: `1px solid ${C.borderH}` }}>
+          <div className="hidden sm:flex sm:w-52 shrink-0 flex-col gap-3 p-4 overflow-y-auto" style={{ borderLeft: `1px solid ${C.borderH}` }}>
             {/* Signal badge */}
             <div>
               <p className="text-[9px] font-black uppercase tracking-widest mb-2" style={{ color: C.dim }}>AI Signal</p>

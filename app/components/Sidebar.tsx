@@ -25,6 +25,11 @@ const Icon = {
       <line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/>
     </svg>
   ),
+  Wheel: () => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="2"/>
+    </svg>
+  ),
   Settings: () => (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"/>
@@ -36,13 +41,15 @@ const Icon = {
 // ── Sub-items ─────────────────────────────────────────────────────────────────
 
 const SIGNALS_ITEMS = [
-  { name: "Signals",   desc: "AI signal + entry plan",    href: "/analysis",     emoji: "⚡" },
-  { name: "Markets",   desc: "Futures & options plays",   href: "/intelligence", emoji: "📊" },
-  { name: "IPO",       desc: "New listings & outlook",    href: "/ipo",          emoji: "🚀" },
-  { name: "Brief",     desc: "Morning market briefing",   href: null,            emoji: "🌅" },
+  { name: "Signals",   desc: "AI signal + entry plan",    href: "/analysis",     emoji: "⚡",  event: null },
+  { name: "Markets",   desc: "Futures & options plays",   href: "/intelligence", emoji: "📊",  event: null },
+  { name: "IPO",       desc: "New listings & outlook",    href: "/ipo",          emoji: "🚀",  event: null },
+  { name: "Brief",     desc: "Morning market briefing",   href: null,            emoji: "🌅",  event: "traxora-show-briefing" },
+  { name: "AI Chat",   desc: "Ask the AI anything",       href: null,            emoji: "💬",  event: "traxora-open-chat" },
 ];
 
 const TRADE_ITEMS = [
+  { name: "Wheel Hub", desc: "CSP & covered calls",       href: "/wheel",    emoji: "🔄" },
   { name: "Planner",   desc: "Size your positions",       href: "/paper",    emoji: "🎯" },
   { name: "Journal",   desc: "AI trade journal",          href: "/journal",  emoji: "📖" },
   { name: "Stats",     desc: "Your performance",          href: "/strategy", emoji: "📈" },
@@ -69,7 +76,7 @@ function MarketDot() {
 
 // ── Sub-item grid ─────────────────────────────────────────────────────────────
 
-type SubItem = { name: string; desc: string; href: string | null; emoji: string };
+type SubItem = { name: string; desc: string; href: string | null; emoji: string; event?: string | null };
 
 function SubPanel({
   items, onClose, pathname,
@@ -78,10 +85,10 @@ function SubPanel({
 
   function handleClick(item: SubItem) {
     onClose();
-    if (item.href === null) {
-      window.dispatchEvent(new Event("traxora-show-briefing"));
-    } else {
+    if (item.href !== null) {
       router.push(item.href);
+    } else if (item.event) {
+      window.dispatchEvent(new Event(item.event));
     }
   }
 
@@ -146,6 +153,7 @@ export default function Sidebar() {
   const tradeActive    = ["/paper","/journal","/history"].some(p => pathname?.startsWith(p));
   const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
   const dashActive     = pathname === "/dashboard";
+  const wheelActive    = pathname?.startsWith("/wheel") ?? false;
 
   const NAV = [
     {
@@ -163,6 +171,14 @@ export default function Sidebar() {
       active: signalsActive || open === "signals",
       href:   null,
       panel:  "signals" as PanelId,
+    },
+    {
+      id:     "wheel" as const,
+      label:  "Wheel",
+      icon:   <Icon.Wheel />,
+      active: wheelActive,
+      href:   "/wheel",
+      panel:  null,
     },
     {
       id:     "trade" as const,
@@ -230,7 +246,7 @@ export default function Sidebar() {
           const isOpen   = item.panel && open === item.panel;
 
           const content = (
-            <span className={`relative flex flex-col items-center gap-1.5 px-5 py-2 rounded-2xl transition-all duration-200 ${
+            <span className={`relative flex flex-col items-center gap-1.5 px-3 py-2 rounded-2xl transition-all duration-200 ${
               isActive || isOpen
                 ? "text-emerald-400"
                 : "text-[#3D4F6B] hover:text-[#7B8DB4]"

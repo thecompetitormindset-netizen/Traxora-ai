@@ -306,9 +306,9 @@ function OptionsPlaysSection() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <h2 className="text-base font-semibold">Top Options Plays</h2>
+      <div className="flex flex-col items-center gap-2 mb-4 text-center">
+        <h2 className="text-base font-semibold">Top Options Plays</h2>
+        <div className="flex items-center justify-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono text-[#4B5675]">
             {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
           </span>
@@ -949,17 +949,34 @@ function DashboardContent() {
         <main className="flex-1 p-4 sm:p-6 xl:p-8 overflow-y-auto pb-28">
           <div className="max-w-6xl mx-auto w-full space-y-12">
 
+          {/* ── MORNING BRIEF CTA ── */}
+          <div
+            className="w-full flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 py-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
+            onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
+          >
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
+              <span className="text-xl">🌅</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-[#F1F5F9]">Today's Market Brief</p>
+              <p className="text-xs text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
+            </div>
+            <span className="text-xs text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
+          </div>
+
           {/* ── SENTIMENT ── */}
           <SentimentWidget />
 
           {/* ── PAGE 1: OVERVIEW ── */}
           <section>
-            <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex flex-col items-center gap-3 mb-2 text-center">
               <div>
                 <h1 className="text-2xl font-bold tracking-tight">Investment Dashboard</h1>
                 <p className="text-sm text-[#7B8DB4] mt-1">AI-powered signals across stocks &amp; futures</p>
               </div>
               <MarketStatus />
+            </div>
+            <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13112A] border border-[#252345]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 <span className="text-[10px] font-mono text-[#4B5675]">Live · refreshes in <span className="text-emerald-400 font-bold">{refreshCountdown}s</span></span>
@@ -1084,7 +1101,7 @@ function DashboardContent() {
             {/* ── Paper Portfolio summary ── */}
             <Link href="/paper" className="mt-4 block group">
               <div className="bg-[#13112A] border border-[#252345] hover:border-[#333368] rounded-2xl px-5 py-4 transition-all">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-center gap-4 mb-3">
                   <p className="text-xs text-[#4B5675] font-semibold uppercase tracking-widest">Paper Portfolio</p>
                   <span className="text-[10px] text-emerald-400 group-hover:text-emerald-300 font-medium">View trades →</span>
                 </div>
@@ -1149,19 +1166,17 @@ function DashboardContent() {
 
             {/* Watchlist */}
             <div className="mt-8">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-semibold">Market Watchlist</h2>
-                  <span className="text-[10px] font-mono text-[#4B5675]">
-                    {displayStocks.length} stocks
-                    {trendingStocks.length > 0 && (
-                      <span className="text-teal-400"> · {trendingStocks.length} trending</span>
-                    )}
-                    {lastFetched && (
-                      <span className="text-[#333368]"> · {new Date(lastFetched).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                    )}
-                  </span>
-                </div>
+              <div className="flex flex-col items-center gap-2 mb-4 text-center">
+                <h2 className="text-base font-semibold">Market Watchlist</h2>
+                <span className="text-[10px] font-mono text-[#4B5675]">
+                  {displayStocks.length} stocks
+                  {trendingStocks.length > 0 && (
+                    <span className="text-teal-400"> · {trendingStocks.length} trending</span>
+                  )}
+                  {lastFetched && (
+                    <span className="text-[#333368]"> · {new Date(lastFetched).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                  )}
+                </span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -1376,13 +1391,50 @@ function DashboardContent() {
             </div>
           </section>
 
+          {/* ── EARNINGS CALENDAR ── */}
+          {(() => {
+            const upcoming = displayStocks
+              .filter(s => s.earningsDate && !s.earningsDate.includes("—"))
+              .sort((a, b) => {
+                const order = (d: string) =>
+                  d.includes("Tomorrow") ? 0 :
+                  d.includes("in 1d") || d.includes("in 2d") || d.includes("in 3d") ? 1 :
+                  d.includes("in ") ? 2 : 3;
+                return order(a.earningsDate!) - order(b.earningsDate!);
+              })
+              .slice(0, 6);
+            if (upcoming.length === 0) return null;
+            return (
+              <section>
+                <div className="flex flex-col items-center gap-1 mb-4 text-center">
+                  <h2 className="text-base font-semibold">Upcoming Earnings</h2>
+                  <p className="text-xs text-[#7B8DB4]">Watchlist companies reporting soon</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {upcoming.map(s => (
+                    <div key={s.symbol}
+                      className="bg-[#13112A] border border-[#252345] rounded-2xl p-3 text-center cursor-pointer hover:border-[#333368] transition-colors"
+                      onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
+                    >
+                      <p className="text-sm font-bold text-[#F1F5F9] font-mono">{s.symbol.replace(".US","").replace(".COMM","")}</p>
+                      <p className="text-[10px] text-[#4B5675] mt-0.5 truncate">{s.name}</p>
+                      <span className={`inline-block mt-2 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                        s.earningsDate!.includes("Tomorrow") || s.earningsDate!.includes("in 1d") || s.earningsDate!.includes("in 2d") || s.earningsDate!.includes("in 3d")
+                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                      }`}>{s.earningsDate}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
+
           {/* ── PAGE 2: FUTURES MARKETS ── */}
           <section>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-base font-semibold">Futures Markets</h2>
-                <p className="text-xs text-[#7B8DB4] mt-0.5">{futures.length} contracts · add any ticker (ES, GC, ZN, HG…)</p>
-              </div>
+            <div className="flex flex-col items-center gap-2 mb-4 text-center">
+              <h2 className="text-base font-semibold">Futures Markets</h2>
+              <p className="text-xs text-[#7B8DB4]">{futures.length} contracts · add any ticker (ES, GC, ZN, HG…)</p>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1520,7 +1572,7 @@ function DashboardContent() {
           <section>
             {/* Risk rules */}
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
-              <p className="text-sm font-semibold mb-4">5 rules to protect your money</p>
+              <p className="text-sm font-semibold mb-4 text-center">5 rules to protect your money</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   { icon: "💰", rule: "Never risk more than 5–10% per trade", detail: "If you have $500, max $25–$50 per signal." },
@@ -1542,12 +1594,12 @@ function DashboardContent() {
             </div>
 
             {/* Exchange CTA */}
-            <div className="mt-4 rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 p-6 flex items-center justify-between gap-6 flex-wrap">
+            <div className="mt-4 rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 p-6 flex flex-col items-center gap-4 text-center">
               <div>
                 <h3 className="font-semibold">Explore all exchanges</h3>
                 <p className="text-sm text-[#7B8DB4] mt-1">CBOE, CBOT, CME, KCBT, MGE, NYBOT &amp; NYMEX — instant AI analysis on every contract.</p>
               </div>
-              <Link href="/explore" className="shrink-0 bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-semibold text-white">
+              <Link href="/explore" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-semibold text-white">
                 Open Explorer
               </Link>
             </div>

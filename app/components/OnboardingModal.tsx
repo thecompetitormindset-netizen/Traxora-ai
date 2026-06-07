@@ -7,28 +7,34 @@ const ONBOARD_KEY = "traxora_onboarded_v1";
 
 const STEPS = [
   {
+    icon: "⚡",
+    title: "Add stocks to your watchlist",
+    desc: "Go to your Dashboard and tap Edit on the watchlist. Add any stocks you follow — Traxora will scan them for BUY/SELL/HOLD signals with entry zones and stop losses every minute.",
+    action: { label: "Open Dashboard →", href: "/dashboard" },
+  },
+  {
     icon: "🌅",
-    title: "Start with the Morning Brief",
-    desc: "Every morning Traxora AI scans 35+ instruments and delivers a full market brief with the top plays, options setups, and macro context — tap the sunrise icon in the top bar.",
+    title: "Read the morning briefing",
+    desc: "Every trading day, tap the sunrise card on your dashboard for a full AI market brief — macro overview, top options plays, futures setups, and what to watch that session.",
     action: null,
   },
   {
-    icon: "⚡",
-    title: "Run a signal on any ticker",
-    desc: "Go to Signals → type any stock or futures symbol → hit Analyze. You'll get a BUY/SELL/HOLD verdict with entry zone, stop loss, and take profit in seconds.",
-    action: { label: "Go to Signals →", href: "/analysis" },
+    icon: "🔄",
+    title: "Try the Wheeling Hub",
+    desc: "Sell cash-secured puts on stocks you'd be OK owning. The Wheeling Hub scans for high-premium put candidates and tracks your CSP → assignment → covered call cycle.",
+    action: { label: "Open Wheeling Hub →", href: "/wheel" },
   },
   {
-    icon: "📋",
-    title: "Paper trade to build confidence",
-    desc: "Every signal has a one-tap 'Buy Long' or 'Sell Short' button that opens a paper trade. Track your P&L, review your journal, and refine your edge before risking real money.",
-    action: { label: "Open Paper Portfolio →", href: "/paper" },
+    icon: "💬",
+    title: "Ask the AI anything",
+    desc: "Tap Signals → AI Chat from the nav, or the floating chat button. Ask about a specific stock, a trade setup, earnings risk, options strategy — you get a sourced answer in seconds.",
+    action: null,
   },
   {
     icon: "🎯",
     title: "You're all set",
-    desc: "Traxora AI runs 24/7. The morning email lands at 5:30am ET on trading days. Check your journal weekly to track your improvement.",
-    action: null,
+    desc: "Traxora runs 24/7. Morning brief at market open, live signals all day, and your journal builds automatically. Check your Stats page weekly to track your edge.",
+    action: { label: "Go to Stats →", href: "/strategy" },
   },
 ];
 

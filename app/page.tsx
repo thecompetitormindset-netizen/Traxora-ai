@@ -269,6 +269,7 @@ export default function HomePage() {
         <div className="flex items-center gap-5">
           <Link href="/explore"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Markets</Link>
           <Link href="/analysis"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Signals</Link>
+          <Link href="/pricing"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Pricing</Link>
           <Link href="/guide"     className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Guide</Link>
           <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95">
             {session ? "Dashboard →" : "Sign in →"}
@@ -327,10 +328,10 @@ export default function HomePage() {
           {/* Social proof strip */}
           <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
             {[
-              { value: "55+",    label: "instruments scanned daily",  icon: "📊" },
-              { value: "3",      label: "AI models cross-checking",    icon: "🤖" },
-              { value: "5:30am", label: "morning brief sent",          icon: "🌅" },
-              { value: "$5/mo",  label: "full access",                 icon: "✅" },
+              { value: "55+",      label: "instruments scanned daily",  icon: "📊" },
+              { value: "3",        label: "AI models cross-checking",    icon: "🤖" },
+              { value: "5:30am",   label: "morning brief sent",          icon: "🌅" },
+              { value: "$14.99",   label: "per month · cancel anytime",  icon: "✅" },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#1C1933] bg-[#0D0B1A]/60 text-xs text-[#4B5675]">
                 <span>{s.icon}</span>
@@ -401,6 +402,57 @@ export default function HomePage() {
             <span className="text-[#252345]">·</span>
             <span className="inline-flex items-center gap-1 text-[9px] text-amber-500/60 border border-amber-500/20 bg-amber-500/5 rounded px-1.5 py-px font-medium">⚠ Not financial advice</span>
           </div>
+        </div>
+      </section>
+
+      {/* ══ PRODUCT FEATURES ══ */}
+      <section className="px-6 sm:px-8 py-16 max-w-5xl mx-auto w-full">
+        <p className="text-center text-[10px] uppercase tracking-[0.2em] text-[#2D3A52] font-bold mb-8">Everything in one platform</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            {
+              icon: "⚡",
+              title: "Live Signal Watchlist",
+              desc: "Track unlimited stocks with BUY / HOLD / SELL signals, entry zones, stop losses, and targets — updated every minute.",
+              tag: "Free",
+              tagColor: "text-[#4B5675] border-[#252345]",
+            },
+            {
+              icon: "🔄",
+              title: "Wheeling Hub",
+              desc: "Scan for high-premium cash-secured put candidates. Track your wheel positions end-to-end — CSP → assignment → covered call.",
+              tag: "Free",
+              tagColor: "text-[#4B5675] border-[#252345]",
+            },
+            {
+              icon: "🌅",
+              title: "Morning Briefing",
+              desc: "Full AI market brief at 5:30am ET — macro regime, top options plays, futures setups, VIX context, and the day's key levels.",
+              tag: "Pro",
+              tagColor: "text-emerald-400 border-emerald-500/30",
+            },
+            {
+              icon: "💬",
+              title: "AI Analyst Chat",
+              desc: "Ask about any stock — earnings risk, options strategy, smart money levels, trade ideas. Get a sourced answer in seconds.",
+              tag: "Free",
+              tagColor: "text-[#4B5675] border-[#252345]",
+            },
+          ].map(f => (
+            <div key={f.title} className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 hover:border-[#333368] transition-colors">
+              <div className="flex items-start justify-between mb-3">
+                <span className="text-2xl">{f.icon}</span>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${f.tagColor}`}>{f.tag}</span>
+              </div>
+              <h3 className="text-base font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
+              <p className="text-sm text-[#7B8DB4] leading-relaxed">{f.desc}</p>
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center mt-8">
+          <Link href="/pricing" className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">
+            See full feature list →
+          </Link>
         </div>
       </section>
 

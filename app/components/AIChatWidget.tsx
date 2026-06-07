@@ -36,6 +36,16 @@ export default function AIChatWidget() {
     return () => clearTimeout(timer);
   }, [isGuest]);
 
+  // Open from sidebar "AI Chat" nav item
+  useEffect(() => {
+    function handleOpen() {
+      setOpen(true);
+      setMessages(prev => prev.length === 0 ? [GREETING] : prev);
+    }
+    window.addEventListener("traxora-open-chat", handleOpen);
+    return () => window.removeEventListener("traxora-open-chat", handleOpen);
+  }, []);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
