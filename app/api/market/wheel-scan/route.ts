@@ -4,19 +4,43 @@ export const maxDuration = 45;
 
 import { auth } from "@/auth";
 
-// High-liquidity stocks suitable for the wheel strategy
 const WHEEL_UNIVERSE = [
-  // High-IV tech
   "NVDA","AMD","TSLA","META","AMZN","GOOGL","MSFT","AAPL","NFLX","COIN",
-  // Finance
   "JPM","BAC","GS","C",
-  // Semi / growth
   "SMCI","PLTR","MARA","SOFI","IREN",
-  // ETFs (low IV but liquid)
   "SPY","QQQ","IWM",
-  // Other popular wheel names
-  "PYPL","SHOP","CRWD","SNAP","UBER","LYFT","RIVN","F","GM","NIO",
+  "PYPL","SHOP","CRWD","SNAP","UBER","F","GM",
 ];
+
+// ── Crumb cache (same pattern as options-scan) ────────────────────────────────
+
+let _creds: { cookie: string; crumb: string; expiry: number } | null = null;
+
+async function getCreds(): Promise<{ cookie: string; crumb: string } | null> {
+  if (_creds && Date.now() < _creds.expiry) return _creds;
+  try {
+    const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    const pageRes = await fetch("https://finance.yahoo.com/", {
+      headers: { "User-Agent": ua, "Accept": "text/html,*/*" },
+      redirect: "follow", signal: AbortSignal.timeout(8000),
+    });
+    const setCookie = pageRes.headers.get("set-cookie") ?? "";
+    const cookiePairs = [...setCookie.matchAll(/([A-Za-z0-9_-]+=(?:[^;,"\s]|"[^"]*")+)/g)]
+      .map(m => m[1])
+      .filter(p => !["expires=","path=","domain=","SameSite=","Secure"].some(x => p.startsWith(x)));
+    const cookie = cookiePairs.join("; ");
+    if (!cookie) return null;
+    const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
+      headers: { "User-Agent": ua, "Cookie": cookie }, signal: AbortSignal.timeout(6000),
+    });
+    const crumb = (await crumbRes.text()).trim();
+    if (!crumb || crumb.length < 4 || crumb.includes("<")) return null;
+    _creds = { cookie, crumb, expiry: Date.now() + 5 * 60 * 1000 };
+    return _creds;
+  } catch { return null; }
+}
+
+// ── Quote fetch ───────────────────────────────────────────────────────────────
 
 async function fetchQuote(symbol: string) {
   try {
@@ -31,19 +55,17 @@ async function fetchQuote(symbol: string) {
     if (!meta?.regularMarketPrice) return null;
 
     const closes: number[] = (result?.indicators?.quote?.[0]?.close ?? []).filter(Boolean);
-    const price  = meta.regularMarketPrice as number;
-    const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
-    const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
-    const low52  = (meta.fiftyTwoWeekLow  ?? price) as number;
-
-    // 52-week position: 0 = at 52-week low, 100 = at 52-week high
+    const price   = meta.regularMarketPrice as number;
+    const prev    = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
+    const high52  = (meta.fiftyTwoWeekHigh ?? price) as number;
+    const low52   = (meta.fiftyTwoWeekLow  ?? price) as number;
     const range52 = high52 - low52;
     const pos52   = range52 > 0 ? Math.round(((price - low52) / range52) * 100) : 50;
 
-    // 20-day historical volatility
-    let hv20 = null;
+    // 20-day historical volatility (annualised)
+    let hv20: number | null = null;
     if (closes.length >= 21) {
-      const last21 = closes.slice(-21);
+      const last21  = closes.slice(-21);
       const returns = last21.slice(1).map((c, i) => Math.log(c / last21[i]));
       const mean    = returns.reduce((s, r) => s + r, 0) / returns.length;
       const variance = returns.reduce((s, r) => s + (r - mean) ** 2, 0) / (returns.length - 1);
@@ -54,49 +76,61 @@ async function fetchQuote(symbol: string) {
   } catch { return null; }
 }
 
-async function fetchOptionsIV(symbol: string) {
+// ── Options fetch (crumb-authenticated) ──────────────────────────────────────
+
+async function fetchWheelOptions(symbol: string) {
   try {
-    const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36";
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`,
-      { cache: "no-store", headers: { "User-Agent": ua, "Referer": "https://finance.yahoo.com/" }, signal: AbortSignal.timeout(8000) },
-    );
-    if (!res.ok) return null;
-    const data   = await res.json();
-    const result = data?.optionChain?.result?.[0];
+    const ua      = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+    const headers = { "User-Agent": ua, "Accept": "application/json, text/plain, */*", "Referer": "https://finance.yahoo.com/" };
+
+    async function tryUrl(url: string, extra: Record<string, string> = {}) {
+      const res = await fetch(url, { cache: "no-store", headers: { ...headers, ...extra }, signal: AbortSignal.timeout(8000) });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data?.optionChain?.result?.[0] ?? null;
+    }
+
+    // Try with crumb first, fall back to unauthenticated
+    const creds = await getCreds();
+    let result = null;
+    if (creds) {
+      result = await tryUrl(
+        `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}?crumb=${encodeURIComponent(creds.crumb)}`,
+        { "Cookie": creds.cookie },
+      );
+    }
+    if (!result) result = await tryUrl(`https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
+    if (!result) result = await tryUrl(`https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
     if (!result) return null;
 
-    const opts  = result.options?.[0];
-    const puts  = (opts?.puts  ?? []) as Array<{ strike: number; impliedVolatility: number; bid: number; ask: number; openInterest: number; expiration: number }>;
-    const calls = (opts?.calls ?? []) as Array<{ strike: number; impliedVolatility: number; bid: number; ask: number; openInterest: number }>;
-    const quotePrice  = result.quote?.regularMarketPrice ?? 0;
+    const quotePrice  = (result.quote?.regularMarketPrice ?? 0) as number;
     const expiryDates = (result.expirationDates ?? []) as number[];
-    const expiryTs    = expiryDates[0];
+    const expiryTs    = expiryDates[0] as number | undefined;
+    const opts        = result.options?.[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const puts  = (opts?.puts  ?? []) as any[];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const calls = (opts?.calls ?? []) as any[];
 
     if (!quotePrice || !puts.length) return null;
 
-    // ATM IV from calls
-    const atmCall = [...calls].sort((a, b) => Math.abs(a.strike - quotePrice) - Math.abs(b.strike - quotePrice))[0];
-    const atmIV   = atmCall?.impliedVolatility ? Math.round(atmCall.impliedVolatility * 100) : null;
-
-    // DTE
     const dte = expiryTs ? Math.max(1, Math.ceil((expiryTs * 1000 - Date.now()) / 86_400_000)) : 30;
 
-    // Find ~30 delta put (approximately 0.85 * price for short DTE)
-    // Delta ≈ -0.30 corresponds to roughly price * exp(-0.52 * IV * sqrt(T))
+    // ATM IV from the nearest call
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const atmCall = [...calls].sort((a: any, b: any) => Math.abs(a.strike - quotePrice) - Math.abs(b.strike - quotePrice))[0];
+    const atmIV   = atmCall?.impliedVolatility ? Math.round(atmCall.impliedVolatility * 100) : null;
+
+    // Approximate 30-delta put strike: price × exp(−0.52 × σ × √T)
     const targetStrike = atmIV
       ? Math.round(quotePrice * Math.exp(-0.52 * (atmIV / 100) * Math.sqrt(dte / 365)) / 2.5) * 2.5
       : Math.round(quotePrice * 0.93 / 2.5) * 2.5;
 
-    const nearestPut = [...puts].sort((a, b) => Math.abs(a.strike - targetStrike) - Math.abs(b.strike - targetStrike))[0];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const nearestPut = [...puts].sort((a: any, b: any) => Math.abs(a.strike - targetStrike) - Math.abs(b.strike - targetStrike))[0];
 
-    const midPremium = nearestPut?.bid != null && nearestPut?.ask != null
-      ? (nearestPut.bid + nearestPut.ask) / 2
-      : null;
-    const premiumPct = midPremium && quotePrice
-      ? +((midPremium / nearestPut.strike) * 100).toFixed(2)
-      : null;
-
+    const mid        = nearestPut?.bid != null && nearestPut?.ask != null ? (nearestPut.bid + nearestPut.ask) / 2 : null;
+    const premiumPct = mid && nearestPut?.strike ? +((mid / nearestPut.strike) * 100).toFixed(2) : null;
     const expiryLabel = expiryTs
       ? new Date(expiryTs * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : null;
@@ -105,76 +139,55 @@ async function fetchOptionsIV(symbol: string) {
       atmIV,
       dte,
       expiryLabel,
-      targetStrike: nearestPut?.strike ?? targetStrike,
-      premium:      midPremium ? +midPremium.toFixed(2) : null,
+      strike:       nearestPut?.strike ?? targetStrike,
+      premium:      mid ? +mid.toFixed(2) : null,
       premiumPct,
-      openInterest: nearestPut?.openInterest ?? null,
+      openInterest: (nearestPut?.openInterest ?? null) as number | null,
     };
   } catch { return null; }
 }
 
-export type WheelCandidate = {
-  symbol:       string;
-  price:        number;
-  changePct:    number;
-  pos52:        number;
-  hv20:         number | null;
-  atmIV:        number | null;
-  ivHvSpread:   number | null;
-  dte:          number;
-  expiry:       string | null;
-  strike:       number;
-  premium:      number | null;
-  premiumPct:   number | null;
-  openInterest: number | null;
-  wheelScore:   number;
-  verdict:      string;
-};
+// ── Scoring ───────────────────────────────────────────────────────────────────
 
-function scoreCandidate(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>, o: NonNullable<Awaited<ReturnType<typeof fetchOptionsIV>>>): number {
-  let score = 0;
-
-  // IV quality — sweet spot 30–70%
+function score(
+  q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>,
+  o: NonNullable<Awaited<ReturnType<typeof fetchWheelOptions>>>,
+): number {
+  let s = 0;
   if (o.atmIV) {
-    if (o.atmIV >= 40 && o.atmIV <= 70) score += 35;
-    else if (o.atmIV >= 30)              score += 25;
-    else if (o.atmIV >= 20)              score += 10;
+    if (o.atmIV >= 40 && o.atmIV <= 70) s += 35;
+    else if (o.atmIV >= 30)              s += 25;
+    else if (o.atmIV >= 20)              s += 10;
   }
-
-  // IV > HV spread (higher = better premium relative to realized vol)
   const spread = o.atmIV && q.hv20 ? o.atmIV - q.hv20 : null;
-  if (spread != null) {
-    if (spread > 10)      score += 20;
-    else if (spread > 0)  score += 10;
-    else                  score += 0; // IV < HV — not ideal
-  }
-
-  // 52-week position — want stock not at all-time lows (risky assignment)
-  if (q.pos52 >= 30 && q.pos52 <= 75) score += 20; // mid-range: not overextended, not collapsing
-  else if (q.pos52 >= 20)              score += 10;
-
-  // Premium yield — higher is better for income
+  if (spread != null) s += spread > 10 ? 20 : spread > 0 ? 10 : 0;
+  if (q.pos52 >= 30 && q.pos52 <= 75) s += 20;
+  else if (q.pos52 >= 20)              s += 10;
   if (o.premiumPct) {
-    if (o.premiumPct >= 3)     score += 20;
-    else if (o.premiumPct >= 2) score += 12;
-    else if (o.premiumPct >= 1) score += 5;
+    if (o.premiumPct >= 3)      s += 20;
+    else if (o.premiumPct >= 2) s += 12;
+    else if (o.premiumPct >= 1) s += 5;
   }
-
-  // Open interest — liquidity check
-  if (o.openInterest) {
-    if (o.openInterest >= 1000) score += 5;
-    else if (o.openInterest >= 200) score += 2;
-  }
-
-  return Math.min(Math.round(score), 100);
+  if (o.openInterest) s += o.openInterest >= 1000 ? 5 : o.openInterest >= 200 ? 2 : 0;
+  return Math.min(Math.round(s), 100);
 }
 
-function verdict(score: number, iv: number | null): string {
-  if (score >= 75) return "Strong candidate";
-  if (score >= 55) return "Good candidate";
-  if (score >= 35) return iv && iv < 20 ? "Low IV — poor premium" : "Marginal";
+function verdict(sc: number, iv: number | null): string {
+  if (sc >= 75) return "Strong candidate";
+  if (sc >= 55) return "Good candidate";
+  if (sc >= 35) return iv && iv < 20 ? "Low IV — poor premium" : "Marginal";
   return "Avoid";
 }
+
+// ── Route ─────────────────────────────────────────────────────────────────────
+
+export type WheelCandidate = {
+  symbol: string; price: number; changePct: number; pos52: number;
+  hv20: number | null; atmIV: number | null; ivHvSpread: number | null;
+  dte: number; expiry: string | null; strike: number;
+  premium: number | null; premiumPct: number | null; openInterest: number | null;
+  wheelScore: number; verdict: string;
+};
 
 export async function GET() {
   const session = await auth();
@@ -182,7 +195,7 @@ export async function GET() {
 
   const [quotes, optionsResults] = await Promise.all([
     Promise.all(WHEEL_UNIVERSE.map(fetchQuote)),
-    Promise.all(WHEEL_UNIVERSE.map(fetchOptionsIV)),
+    Promise.all(WHEEL_UNIVERSE.map(fetchWheelOptions)),
   ]);
 
   const candidates: WheelCandidate[] = [];
@@ -192,32 +205,20 @@ export async function GET() {
     const o = optionsResults[i];
     if (!q || !o) continue;
 
-    const spread      = o.atmIV && q.hv20 ? o.atmIV - q.hv20 : null;
-    const wheelScore  = scoreCandidate(q, o);
+    const wheelScore  = score(q, o);
+    const ivHvSpread  = o.atmIV && q.hv20 ? Math.round(o.atmIV - q.hv20) : null;
 
     candidates.push({
-      symbol:       q.symbol,
-      price:        +q.price.toFixed(2),
-      changePct:    +q.changePct.toFixed(2),
-      pos52:        q.pos52,
-      hv20:         q.hv20,
-      atmIV:        o.atmIV,
-      ivHvSpread:   spread != null ? Math.round(spread) : null,
-      dte:          o.dte,
-      expiry:       o.expiryLabel,
-      strike:       o.targetStrike,
-      premium:      o.premium,
-      premiumPct:   o.premiumPct,
-      openInterest: o.openInterest,
-      wheelScore,
-      verdict:      verdict(wheelScore, o.atmIV),
+      symbol: q.symbol, price: +q.price.toFixed(2), changePct: +q.changePct.toFixed(2),
+      pos52: q.pos52, hv20: q.hv20, atmIV: o.atmIV, ivHvSpread,
+      dte: o.dte, expiry: o.expiryLabel, strike: o.strike,
+      premium: o.premium, premiumPct: o.premiumPct, openInterest: o.openInterest,
+      wheelScore, verdict: verdict(wheelScore, o.atmIV),
     });
   }
 
-  const sorted = candidates.sort((a, b) => b.wheelScore - a.wheelScore);
-
   return Response.json(
-    { candidates: sorted, scanned: WHEEL_UNIVERSE.length, withIV: candidates.length },
+    { candidates: candidates.sort((a, b) => b.wheelScore - a.wheelScore), scanned: WHEEL_UNIVERSE.length, withIV: candidates.length },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
