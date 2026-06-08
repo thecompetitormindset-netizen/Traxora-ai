@@ -86,7 +86,10 @@ async function fetchExtendedQuote(symbol: string): Promise<StockData | null> {
     const lows:    number[] = (q?.low    ?? []).filter(Boolean);
 
     const todayVol = (meta.regularMarketVolume ?? volumes.at(-1) ?? 0) as number;
-    const avgVol   = (meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? 0) as number;
+    // averageDailyVolume fields are not returned by the chart endpoint — compute from history
+    const avgVol = volumes.length >= 5
+      ? Math.round(volumes.slice(-20).reduce((s: number, v: number) => s + v, 0) / Math.min(volumes.length, 20))
+      : (meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? todayVol) as number;
     const h52 = (meta.fiftyTwoWeekHigh ?? null) as number | null;
     const l52 = (meta.fiftyTwoWeekLow  ?? null) as number | null;
 
