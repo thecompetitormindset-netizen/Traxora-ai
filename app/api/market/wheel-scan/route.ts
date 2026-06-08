@@ -143,6 +143,117 @@ async function fetchWheelOptions(symbol: string) {
       premium:      mid ? +mid.toFixed(2) : null,
       premiumPct,
       openInterest: (nearestPut?.openInterest ?? null) as number | null,
+      callVol:      null as number | null,
+      putVol:       null as number | null,
+      pcVolRatio:   null as number | null,
+      actualDelta:  null as number | null,
+    };
+  } catch { return null; }
+}
+
+// ── CBOE delayed quotes — free, no API key, real data ─────────────────────────
+// cdn.cboe.com serves 15-min delayed options with IV and Greeks, no auth needed
+
+async function fetchWheelOptionsCBOE(symbol: string): Promise<Awaited<ReturnType<typeof fetchWheelOptions>>> {
+  try {
+    const res = await fetch(
+      `https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(symbol)}.json`,
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Referer": "https://www.cboe.com/",
+          "Accept":  "application/json",
+        },
+        signal: AbortSignal.timeout(12_000),
+      },
+    );
+    if (!res.ok) return null;
+
+    const data = (await res.json())?.data;
+    if (!data?.current_price || !Array.isArray(data.options)) return null;
+
+    const stockPrice: number = data.current_price;
+    const symLen = symbol.length;
+    const today  = new Date().toISOString().split("T")[0];
+
+    // Contract name format: {SYMBOL}{YYMMDD}{C|P}{strike*1000 zero-padded to 8 digits}
+    // e.g. AAPL260610C00302500 → expiry=2026-06-10, type=C, strike=302.50
+    function parseOpt(name: string): { expiry: string; type: "C" | "P"; strike: number } | null {
+      const body = name.slice(symLen);
+      const m = /^(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(body);
+      if (!m) return null;
+      return { expiry: `20${m[1]}-${m[2]}-${m[3]}`, type: m[4] as "C" | "P", strike: parseInt(m[5], 10) / 1000 };
+    }
+
+    // Parse all options and keep only future expiries
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed = (data.options as any[]).reduce<{ expiry: string; type: "C"|"P"; strike: number; raw: any }[]>((acc, opt) => {
+      const p = parseOpt(opt.option as string);
+      if (p && p.expiry > today) acc.push({ ...p, raw: opt });
+      return acc;
+    }, []);
+    if (!parsed.length) return null;
+
+    // Nearest future expiry
+    const expiries  = [...new Set(parsed.map(o => o.expiry))].sort();
+    const nearestExp = expiries[0];
+    const nearExp   = parsed.filter(o => o.expiry === nearestExp);
+
+    const dte = Math.max(1, Math.ceil((new Date(nearestExp + "T20:00:00Z").getTime() - Date.now()) / 86_400_000));
+
+    // Call/put volume totals for today's flow
+    const nearCalls = nearExp.filter(o => o.type === "C");
+    const nearPuts  = nearExp.filter(o => o.type === "P");
+    const callVol   = nearCalls.reduce((s, c) => s + ((c.raw.volume as number) ?? 0), 0);
+    const putVol    = nearPuts.reduce((s,  p) => s + ((p.raw.volume as number) ?? 0), 0);
+    const pcVolRatio = callVol > 0 ? parseFloat((putVol / callVol).toFixed(2)) : null;
+
+    // ATM call → IV  (CBOE returns iv as decimal: 0.37 = 37%)
+    const atmCall = nearExp
+      .filter(o => o.type === "C" && (o.raw.iv as number) > 0)
+      .sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
+    const atmIV = atmCall ? Math.round((atmCall.raw.iv as number) * 100) : null;
+
+    // 30-delta put target
+    const targetStrike = atmIV
+      ? Math.round(stockPrice * Math.exp(-0.52 * (atmIV / 100) * Math.sqrt(dte / 365)) / 2.5) * 2.5
+      : Math.round(stockPrice * 0.93 / 2.5) * 2.5;
+
+    // Use actual CBOE delta to find nearest-30Δ put; fall back to formula-based strike
+    const putsWithDelta = nearPuts.filter(o =>
+      typeof (o.raw.delta as number) === "number" && (o.raw.delta as number) < 0 &&
+      Math.abs(o.raw.delta as number) >= 0.05
+    );
+    const nearestPut = putsWithDelta.length
+      ? putsWithDelta.sort((a, b) =>
+          Math.abs(Math.abs(a.raw.delta as number) - 0.30) -
+          Math.abs(Math.abs(b.raw.delta as number) - 0.30)
+        )[0]
+      : nearExp.filter(o => o.type === "P")
+          .sort((a, b) => Math.abs(a.strike - targetStrike) - Math.abs(b.strike - targetStrike))[0];
+    const actualDelta = nearestPut?.raw?.delta != null
+      ? Math.round(Math.abs(nearestPut.raw.delta as number) * 100)
+      : null;
+
+    const bid        = (nearestPut?.raw.bid  as number) ?? null;
+    const ask        = (nearestPut?.raw.ask  as number) ?? null;
+    const mid        = bid != null && ask != null ? (bid + ask) / 2 : null;
+    const putStrike  = nearestPut?.strike ?? targetStrike;
+    const premiumPct = mid && putStrike ? +((mid / putStrike) * 100).toFixed(2) : null;
+
+    return {
+      atmIV,
+      dte,
+      expiryLabel: new Date(nearestExp + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+      strike:       putStrike,
+      premium:      mid ? +mid.toFixed(2) : null,
+      premiumPct,
+      openInterest: (nearestPut?.raw.open_interest as number) ?? null,
+      callVol,
+      putVol,
+      pcVolRatio,
+      actualDelta,
     };
   } catch { return null; }
 }
@@ -186,21 +297,31 @@ export type WheelCandidate = {
   hv20: number | null; atmIV: number | null; ivHvSpread: number | null;
   dte: number; expiry: string | null; strike: number;
   premium: number | null; premiumPct: number | null; openInterest: number | null;
+  callVol: number | null; putVol: number | null; pcVolRatio: number | null;
+  actualDelta: number | null;
   wheelScore: number; verdict: string;
 };
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+  const { searchParams } = new URL(req.url);
+  const customSymbol = searchParams.get("symbol")?.toUpperCase().trim() || null;
+  const universe = customSymbol ? [customSymbol] : WHEEL_UNIVERSE;
+
+  // CBOE delayed quotes — free, no key, real IV. Yahoo Finance fallback per symbol.
   const [quotes, optionsResults] = await Promise.all([
-    Promise.all(WHEEL_UNIVERSE.map(fetchQuote)),
-    Promise.all(WHEEL_UNIVERSE.map(fetchWheelOptions)),
+    Promise.all(universe.map(fetchQuote)),
+    Promise.all(universe.map(async (sym) => {
+      const r = await fetchWheelOptionsCBOE(sym);
+      return r ?? fetchWheelOptions(sym);
+    })),
   ]);
 
   const candidates: WheelCandidate[] = [];
 
-  for (let i = 0; i < WHEEL_UNIVERSE.length; i++) {
+  for (let i = 0; i < universe.length; i++) {
     const q = quotes[i];
     const o = optionsResults[i];
     if (!q || !o) continue;
@@ -213,12 +334,14 @@ export async function GET() {
       pos52: q.pos52, hv20: q.hv20, atmIV: o.atmIV, ivHvSpread,
       dte: o.dte, expiry: o.expiryLabel, strike: o.strike,
       premium: o.premium, premiumPct: o.premiumPct, openInterest: o.openInterest,
+      callVol: o.callVol ?? null, putVol: o.putVol ?? null, pcVolRatio: o.pcVolRatio ?? null,
+      actualDelta: o.actualDelta ?? null,
       wheelScore, verdict: verdict(wheelScore, o.atmIV),
     });
   }
 
   return Response.json(
-    { candidates: candidates.sort((a, b) => b.wheelScore - a.wheelScore), scanned: WHEEL_UNIVERSE.length, withIV: candidates.length },
+    { candidates: candidates.sort((a, b) => b.wheelScore - a.wheelScore), scanned: universe.length, withIV: candidates.length },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

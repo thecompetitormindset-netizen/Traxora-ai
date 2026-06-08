@@ -112,7 +112,7 @@ const CONCEPTS = [
   { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"Liquidity sweep stop hunt institutional trading" },
   { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"Market Structure Shift CHoCH BOS break of structure" },
   { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-teal-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"Optimal Trade Entry Fibonacci retracement zone" },
-  { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (7–10 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"Kill Zones London New York trading sessions" },
+  { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (9:30–11 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"Kill Zones London New York trading sessions" },
 ];
 
 /* ── Dynamic data ─────────────────────────────────────────────────────────── */
@@ -330,8 +330,8 @@ export default function HomePage() {
             {[
               { value: "55+",      label: "instruments scanned daily",  icon: "📊" },
               { value: "3",        label: "AI models cross-checking",    icon: "🤖" },
-              { value: "5:30am",   label: "morning brief sent",          icon: "🌅" },
-              { value: "$14.99",   label: "per month · cancel anytime",  icon: "✅" },
+              { value: "8:30am",   label: "morning brief sent",          icon: "🌅" },
+              { value: "$5/mo",    label: "full access · cancel anytime", icon: "✅" },
             ].map(s => (
               <div key={s.label} className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#1C1933] bg-[#0D0B1A]/60 text-xs text-[#4B5675]">
                 <span>{s.icon}</span>
@@ -427,13 +427,13 @@ export default function HomePage() {
             {
               icon: "🌅",
               title: "Morning Briefing",
-              desc: "Full AI market brief at 5:30am ET — macro regime, top options plays, futures setups, VIX context, and the day's key levels.",
+              desc: "Full AI market brief at 8:30am ET — macro regime, top options plays, futures setups, VIX context, and the day's key levels.",
               tag: "Pro",
               tagColor: "text-emerald-400 border-emerald-500/30",
             },
             {
               icon: "💬",
-              title: "AI Analyst Chat",
+              title: "AI Chat",
               desc: "Ask about any stock — earnings risk, options strategy, smart money levels, trade ideas. Get a sourced answer in seconds.",
               tag: "Free",
               tagColor: "text-[#4B5675] border-[#252345]",
@@ -856,7 +856,7 @@ export default function HomePage() {
       <section className="px-6 sm:px-8 py-24 max-w-5xl mx-auto w-full">
         <div className="text-center mb-12">
           <p className="text-[11px] font-semibold uppercase tracking-widest text-rose-400 mb-3">Why Traxora?</p>
-          <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is $5.</h2>
+          <h2 className="text-3xl font-black tracking-tight">Other tools charge $29–$118/month.<br />Traxora is $5/mo.</h2>
           <p className="text-[#7B8DB4] text-sm mt-3 max-w-md mx-auto">And none of them use Smart Money methodology or Claude Sonnet 4.6.</p>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-[#252345]">

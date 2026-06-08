@@ -64,102 +64,124 @@ async function fetchQuote(symbol: string) {
     if (!meta?.regularMarketPrice) return null;
 
     const price  = meta.regularMarketPrice as number;
-    const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
+    const closes: number[] = res?.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
+    // chartPreviousClose can reference the START of the date range (30d ago), not yesterday.
+    // Use closes.at(-2) as the more reliable prior-session close when previousClose is missing.
+    const prevFromHistory = closes.length >= 2 ? closes.at(-2) as number : null;
+    const prev   = (meta.previousClose ?? prevFromHistory ?? meta.chartPreviousClose ?? price) as number;
     const high   = (meta.regularMarketDayHigh ?? price) as number;
     const low    = (meta.regularMarketDayLow  ?? price) as number;
     const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
     const low52  = (meta.fiftyTwoWeekLow  ?? price) as number;
     const name   = (meta.shortName ?? symbol) as string;
+    const highs:   number[] = res?.indicators?.quote?.[0]?.high?.filter(Boolean)   ?? [];
+    const lows:    number[] = res?.indicators?.quote?.[0]?.low?.filter(Boolean)    ?? [];
+    const volumes: number[] = res?.indicators?.quote?.[0]?.volume?.filter(Boolean) ?? [];
+    const volume   = (meta.regularMarketVolume ?? 0) as number;
+    const avgVol   = volumes.length >= 5
+      ? Math.round(volumes.slice(-20).reduce((s: number, v: number) => s + v, 0) / Math.min(volumes.length, 20))
+      : volume;
 
-    const closes: number[] = res?.indicators?.quote?.[0]?.close?.filter(Boolean) ?? [];
-    const highs:  number[] = res?.indicators?.quote?.[0]?.high?.filter(Boolean)  ?? [];
-    const lows:   number[] = res?.indicators?.quote?.[0]?.low?.filter(Boolean)   ?? [];
-
-    return { symbol, name, price, prev, high, low, high52, low52, closes, highs, lows };
+    return { symbol, name, price, prev, high, low, high52, low52, closes, highs, lows, volume, avgVol };
   } catch { return null; }
 }
 
-// Yahoo Finance requires a crumb + session cookie for their options endpoint.
-// Without it, requests from cloud IPs (Vercel, etc.) return 401 or empty results.
-let _yahooCredCache: { cookie: string; crumb: string; expiry: number } | null = null;
-
-async function getYahooCreds(): Promise<{ cookie: string; crumb: string } | null> {
-  if (_yahooCredCache && Date.now() < _yahooCredCache.expiry) {
-    return _yahooCredCache;
-  }
+// Alpha Vantage earnings calendar — free, returns next earnings date for symbol
+async function fetchEarningsDate(symbol: string): Promise<number | null> {
   try {
-    const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-    // Step 1: land on finance.yahoo.com to get session cookies
-    const pageRes = await fetch("https://finance.yahoo.com/", {
-      headers: { "User-Agent": ua, "Accept": "text/html,*/*", "Accept-Language": "en-US,en;q=0.9" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(8000),
-    });
-    const setCookie = pageRes.headers.get("set-cookie") ?? "";
-    // Collect all cookie name=value pairs (Yahoo sets several)
-    const cookiePairs = [...setCookie.matchAll(/([A-Za-z0-9_-]+=(?:[^;,"\s]|"[^"]*")+)/g)]
-      .map(m => m[1])
-      .filter(p => !p.startsWith("expires=") && !p.startsWith("path=") && !p.startsWith("domain=") && !p.startsWith("SameSite=") && !p.startsWith("Secure"));
-    const cookie = cookiePairs.join("; ");
-    if (!cookie) return null;
-
-    // Step 2: exchange session cookie for a crumb
-    const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
-      headers: { "User-Agent": ua, "Cookie": cookie },
-      signal: AbortSignal.timeout(6000),
-    });
-    const crumb = (await crumbRes.text()).trim();
-    if (!crumb || crumb.length < 4 || crumb.includes("<")) return null;
-
-    _yahooCredCache = { cookie, crumb, expiry: Date.now() + 5 * 60 * 1000 };
-    return _yahooCredCache;
+    const key = process.env.ALPHA_VANTAGE_API_KEY;
+    if (!key) return null;
+    const res = await fetch(
+      `https://www.alphavantage.co/query?function=EARNINGS_CALENDAR&symbol=${encodeURIComponent(symbol)}&horizon=3month&apikey=${key}`,
+      { cache: "no-store", signal: AbortSignal.timeout(6_000) },
+    );
+    if (!res.ok) return null;
+    const csv = await res.text();
+    const lines = csv.trim().split("\n").slice(1);
+    if (!lines.length || !lines[0].trim()) return null;
+    const reportDate = lines[0].split(",")[2]?.trim();
+    if (!reportDate || !/^\d{4}-\d{2}-\d{2}$/.test(reportDate)) return null;
+    return Math.floor(new Date(reportDate + "T12:00:00Z").getTime() / 1000);
   } catch { return null; }
 }
 
-async function fetchOptionsChain(symbol: string) {
-  const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-  const baseHeaders = {
-    "User-Agent": ua,
-    "Accept": "application/json, text/plain, */*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Referer": "https://finance.yahoo.com/",
-  };
-
-  async function tryFetch(url: string, extra: Record<string, string> = {}) {
-    try {
-      const r = await fetch(url, {
-        cache: "no-store", headers: { ...baseHeaders, ...extra },
-        signal: AbortSignal.timeout(12000),
-      });
-      if (!r.ok) return null;
-      const d      = await r.json();
-      const result = d?.optionChain?.result?.[0];
-      if (!result) return null;
-      const expirationDates = (result.expirationDates as number[]) ?? [];
-      const options         = result.options?.[0];
-      const calls           = (options?.calls ?? []) as OptionContract[];
-      const puts            = (options?.puts  ?? []) as OptionContract[];
-      if (calls.length === 0 && puts.length === 0) return null;
-      return { expirationDates, calls, puts };
-    } catch { return null; }
-  }
-
-  // Attempt 1: crumb-authenticated request (most reliable from server)
-  const creds = await getYahooCreds();
-  if (creds) {
-    const result = await tryFetch(
-      `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}?crumb=${encodeURIComponent(creds.crumb)}`,
-      { "Cookie": creds.cookie },
+// CBOE delayed quotes — free, no API key, real IV + Greeks, 15-min delay
+// cdn.cboe.com returns iv as decimal (0.37 = 37%), same scale Yahoo used
+async function fetchOptionsChain(symbol: string): Promise<{ expirationDates: number[]; calls: OptionContract[]; puts: OptionContract[]; termIVs: { expiry: string; ts: number; iv: number }[] } | null> {
+  try {
+    const res = await fetch(
+      `https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(symbol)}.json`,
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Referer": "https://www.cboe.com/",
+          "Accept":  "application/json",
+        },
+        signal: AbortSignal.timeout(12_000),
+      },
     );
-    if (result) return result;
-  }
+    if (!res.ok) return null;
 
-  // Attempt 2: unauthenticated query1 (works on some IPs)
-  const r1 = await tryFetch(`https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
-  if (r1) return r1;
+    const data = (await res.json())?.data;
+    if (!data?.current_price || !Array.isArray(data.options)) return null;
 
-  // Attempt 3: query2 fallback
-  return await tryFetch(`https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
+    const stockPrice: number = data.current_price;
+    const symLen = symbol.length;
+    const today  = new Date().toISOString().split("T")[0];
+
+    // Contract: {SYMBOL}{YYMMDD}{C|P}{strike×1000 zero-padded 8 digits}
+    function parseOpt(name: string): { expiry: string; type: "C" | "P"; strike: number } | null {
+      const body = name.slice(symLen);
+      const m = /^(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(body);
+      if (!m) return null;
+      return { expiry: `20${m[1]}-${m[2]}-${m[3]}`, type: m[4] as "C" | "P", strike: parseInt(m[5], 10) / 1000 };
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed = (data.options as any[]).reduce<{ expiry: string; type: "C"|"P"; strike: number; raw: any }[]>((acc, opt) => {
+      const p = parseOpt(opt.option as string);
+      if (p && p.expiry > today) acc.push({ ...p, raw: opt });
+      return acc;
+    }, []);
+    if (!parsed.length) return null;
+
+    // All future expiry dates → Unix timestamps (seconds) for term structure
+    const expiries = [...new Set(parsed.map(o => o.expiry))].sort();
+    const expirationDates = expiries.map(e => Math.floor(new Date(e + "T20:00:00Z").getTime() / 1000));
+
+    // Use nearest expiry for the main options chain
+    const nearContracts = parsed.filter(o => o.expiry === expiries[0]);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function toContract(o: { expiry: string; type: "C"|"P"; strike: number; raw: any }): OptionContract {
+      return {
+        contractSymbol:    o.raw.option     as string,
+        strike:            o.strike,
+        lastPrice:         (o.raw.last_trade_price as number) ?? 0,
+        bid:               (o.raw.bid              as number) ?? 0,
+        ask:               (o.raw.ask              as number) ?? 0,
+        volume:            (o.raw.volume            as number | undefined),
+        openInterest:      (o.raw.open_interest     as number | undefined),
+        impliedVolatility: (o.raw.iv                as number) ?? 0, // 0.37 = 37%
+        inTheMoney:        o.type === "C" ? o.strike < stockPrice : o.strike > stockPrice,
+      };
+    }
+
+    const calls = nearContracts.filter(o => o.type === "C").map(toContract);
+    const puts  = nearContracts.filter(o => o.type === "P").map(toContract);
+    if (!calls.length && !puts.length) return null;
+
+    // ATM IV for each of the next 3 expiries — real term structure, not just a count
+    const termIVs = expiries.slice(0, 3).map(exp => {
+      const expCalls = parsed.filter(o => o.expiry === exp && o.type === "C" && (o.raw.iv as number) > 0);
+      const atm = [...expCalls].sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
+      if (!atm) return null;
+      return { expiry: exp, ts: Math.floor(new Date(exp + "T20:00:00Z").getTime() / 1000), iv: atm.raw.iv as number };
+    }).filter((x): x is { expiry: string; ts: number; iv: number } => x !== null);
+
+    return { expirationDates, calls, puts, termIVs };
+  } catch { return null; }
 }
 
 export async function POST(req: Request) {
@@ -176,7 +198,7 @@ export async function POST(req: Request) {
   const { symbol } = await req.json() as { symbol: string };
   const sym = symbol.replace(/\s/g, "").toUpperCase();
 
-  const [quote, chain] = await Promise.all([fetchQuote(sym), fetchOptionsChain(sym)]);
+  const [quote, chain, earningsTs] = await Promise.all([fetchQuote(sym), fetchOptionsChain(sym), fetchEarningsDate(sym)]);
 
   if (!quote) {
     return Response.json({ error: `Could not fetch data for ${sym}. Check the ticker and try again.` }, { status: 400 });
@@ -188,8 +210,10 @@ export async function POST(req: Request) {
   let atmIV        = 0;
   let atmCallStr   = 0;
   let atmPutStr    = 0;
-  let topCalls: OptionContract[] = [];
-  let topPuts:  OptionContract[] = [];
+  let topCalls:     OptionContract[] = [];
+  let topPuts:      OptionContract[] = [];
+  let unusualCalls: OptionContract[] = [];
+  let unusualPuts:  OptionContract[] = [];
   let skewCtx      = "";
   let gammaWallCtx = "";
   let termStructCtx = "";
@@ -259,10 +283,33 @@ export async function POST(req: Request) {
       gammaWallCtx = `GAMMA WALL: $${gammaWallStrike.toFixed(0)} (${(maxGammaOI / 1000).toFixed(0)}K combined OI) — ${side}. Near expiry, MMs must hedge heavily here. Price tends to pin at this strike or violently break through it.`;
     }
 
-    // ── Term structure: compare nearest vs next expiry IV (if available) ─────
-    if ((chain.expirationDates?.length ?? 0) >= 2) {
-      termStructCtx = `TERM STRUCTURE: ${chain.expirationDates!.length} expiries available. Nearest expiry IV reflects short-term event risk; rolling to the next expiry reduces theta burn but costs more premium.`;
+    // ── Real term structure: ATM IV for each of next 3 expiries ─────────────
+    if (chain.termIVs.length >= 2) {
+      const rows = chain.termIVs.map(t => {
+        const expDte  = Math.max(0, Math.ceil((t.ts * 1000 - Date.now()) / 86_400_000));
+        const expLabel = new Date(t.ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        const expMove  = price * t.iv * Math.sqrt(Math.max(expDte, 1) / 252);
+        return `  ${expLabel} (${expDte} DTE): IV ${(t.iv * 100).toFixed(1)}% | ±$${expMove.toFixed(2)} expected move`;
+      });
+      const ivSlope = chain.termIVs.length >= 2
+        ? chain.termIVs[0].iv > chain.termIVs[1].iv ? "BACKWARDATION (front IV > back IV — elevated near-term fear or event risk)"
+          : chain.termIVs[0].iv < chain.termIVs[1].iv - 0.02 ? "CONTANGO (back IV > front — unusual, may signal structural concern)"
+          : "FLAT term structure"
+        : "";
+      termStructCtx = `TERM STRUCTURE (${chain.termIVs.length} expiries):\n${rows.join("\n")}\n${ivSlope}`;
     }
+
+    // ── Unusual options activity: Vol > 3× OI = fresh positioning ────────────
+    unusualCalls = [...calls]
+      .filter(c => c.strike >= price * 0.93 && c.strike <= price * 1.12 &&
+        (c.volume ?? 0) >= Math.max(50, (c.openInterest ?? 0) * 3) && (c.openInterest ?? 0) > 0)
+      .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+      .slice(0, 3);
+    unusualPuts = [...puts]
+      .filter(p => p.strike >= price * 0.88 && p.strike <= price * 1.07 &&
+        (p.volume ?? 0) >= Math.max(50, (p.openInterest ?? 0) * 3) && (p.openInterest ?? 0) > 0)
+      .sort((a, b) => (b.volume ?? 0) - (a.volume ?? 0))
+      .slice(0, 3);
   }
 
   // ── Expected move ──────────────────────────────────────────────────────────
@@ -317,6 +364,17 @@ export async function POST(req: Request) {
       pcCtx = `Put/Call OI Ratio: ${pcRatio} — ${pcBias}`;
     }
 
+    // Today's call/put volume ratio — shows real-time directional flow, separate from OI
+    const totalCallVol = calls.reduce((s, c) => s + (c.volume ?? 0), 0);
+    const totalPutVol  = puts.reduce((s, p) => s + (p.volume ?? 0), 0);
+    if (totalCallVol + totalPutVol > 0) {
+      const pcVolRatio = (totalPutVol / Math.max(totalCallVol, 1)).toFixed(2);
+      const volBias = Number(pcVolRatio) > 1.2 ? "bearish flow (put buying dominates today)"
+        : Number(pcVolRatio) < 0.7 ? "bullish flow (call buying dominates today)"
+        : "balanced flow today";
+      pcCtx += `${pcCtx ? "\n" : ""}Put/Call Volume Ratio (today's flow): ${pcVolRatio} — ${volBias} | Call vol: ${totalCallVol.toLocaleString()} | Put vol: ${totalPutVol.toLocaleString()}`;
+    }
+
     // Max pain: strike where total dollar value of expiring options is minimised
     const allStrikes = [...new Set([...calls, ...puts].map(o => o.strike))].sort((a, b) => a - b);
     let minPain = Infinity, maxPainStrike = price;
@@ -333,6 +391,11 @@ export async function POST(req: Request) {
   const dte = chain?.expirationDates?.[0]
     ? Math.max(0, Math.ceil((chain.expirationDates[0] * 1000 - Date.now()) / 86_400_000))
     : null;
+
+  // DTE-adjusted expected move — for spread strike selection and expiry-based targeting
+  const dteMove     = atmIV > 0 && dte && dte > 0 ? price * atmIV * Math.sqrt(dte / 252) : dailyMove;
+  const dteUpTarget = dteMove ? price + dteMove : null;
+  const dteDnTarget = dteMove ? price - dteMove : null;
 
   // ── Black-Scholes ATM Greeks ──────────────────────────────────────────────
   let greeksCtx = "";
@@ -356,16 +419,43 @@ export async function POST(req: Request) {
     if (callVal && putVal && callVal > 0 && putVal > 0) {
       const straddle = callVal + putVal;
       const impliedEM = straddle * 0.85; // ~1σ approximation from straddle price
-      straddleCtx = `STRADDLE PRICE: $${straddle.toFixed(2)} (market's expected move = ±$${impliedEM.toFixed(2)}, ${((impliedEM / price) * 100).toFixed(1)}% of stock price)${dailyMove ? ` — IV formula says ±$${dailyMove.toFixed(2)}, straddle says ±$${impliedEM.toFixed(2)} — ${Math.abs(impliedEM - dailyMove) / dailyMove < 0.1 ? "consistent" : "divergence: use straddle price as primary"}` : ""}`;
+      straddleCtx = `STRADDLE PRICE: $${straddle.toFixed(2)} (market's expected move ±$${impliedEM.toFixed(2)}, ${((impliedEM / price) * 100).toFixed(1)}% of stock price)${dteMove ? ` — DTE-adjusted IV move: ±$${dteMove.toFixed(2)}, straddle: ±$${impliedEM.toFixed(2)} — ${Math.abs(impliedEM - dteMove) / dteMove < 0.1 ? "consistent" : "divergence — prefer straddle price for spread targeting"}` : ""}`;
     }
   }
 
   // ── Build prompt ───────────────────────────────────────────────────────────
+  const expiryTs0      = chain?.expirationDates?.[0] ?? null;
+  const earningsInWindow = earningsTs && expiryTs0
+    ? earningsTs >= Math.floor(Date.now() / 1000) && earningsTs <= expiryTs0 + 86_400
+    : false;
+  const earningsDateStr = earningsTs
+    ? new Date(earningsTs * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+
+  const unusualCtx = (() => {
+    const rows: string[] = [];
+    if (unusualCalls.length) {
+      rows.push("  Calls: " + unusualCalls.map(c => {
+        const mid = c.bid > 0 && c.ask > 0 ? (c.bid + c.ask) / 2 : c.lastPrice;
+        return `$${c.strike} (${(c.volume ?? 0).toLocaleString()} vol / ${(c.openInterest ?? 0).toLocaleString()} OI = ${((c.volume ?? 0) / Math.max(c.openInterest ?? 1, 1)).toFixed(1)}×) mid $${mid.toFixed(2)} IV ${(c.impliedVolatility * 100).toFixed(0)}%`;
+      }).join(" | "));
+    }
+    if (unusualPuts.length) {
+      rows.push("  Puts:  " + unusualPuts.map(p => {
+        const mid = p.bid > 0 && p.ask > 0 ? (p.bid + p.ask) / 2 : p.lastPrice;
+        return `$${p.strike} (${(p.volume ?? 0).toLocaleString()} vol / ${(p.openInterest ?? 0).toLocaleString()} OI = ${((p.volume ?? 0) / Math.max(p.openInterest ?? 1, 1)).toFixed(1)}×) mid $${mid.toFixed(2)} IV ${(p.impliedVolatility * 100).toFixed(0)}%`;
+      }).join(" | "));
+    }
+    return rows.length ? `UNUSUAL OPTIONS ACTIVITY (Vol > 3× OI — fresh positioning, not rolling):\n${rows.join("\n")}` : "";
+  })();
+
   const priceCtx = `LIVE DATA — ${sym} (${quote.name})
 Price: $${price.toFixed(2)} | Prev close: $${quote.prev.toFixed(2)} | Change: ${((price - quote.prev) / quote.prev * 100).toFixed(2)}%
 Day range: $${quote.low.toFixed(2)} – $${quote.high.toFixed(2)}
 52-week range: $${quote.low52.toFixed(2)} – $${quote.high52.toFixed(2)}
 30-day high: $${quote.highs.length ? Math.max(...quote.highs).toFixed(2) : "N/A"} | 30-day low: $${quote.lows.length ? Math.min(...quote.lows).toFixed(2) : "N/A"}
+Volume: ${quote.volume.toLocaleString()} | 20d avg: ${quote.avgVol.toLocaleString()} | Ratio: ${quote.avgVol > 0 ? (quote.volume / quote.avgVol).toFixed(2) : "N/A"}x${quote.volume > quote.avgVol * 2 ? " ⚠ UNUSUAL VOLUME" : ""}
+${earningsDateStr ? `Next earnings: ${earningsDateStr}${earningsInWindow ? " ⚠️ WITHIN NEAREST EXPIRY WINDOW — EXPECT IV CRUSH AFTER ANNOUNCEMENT. Do NOT buy single options into this without accounting for vol collapse." : " (outside nearest expiry — no IV crush risk on this chain)"}` : ""}
 ${ivRankCtx}
 ${pcCtx}
 ${maxPainCtx}`.trim();
@@ -374,7 +464,8 @@ ${maxPainCtx}`.trim();
     ? `OPTIONS CHAIN — nearest expiry: ${nextExpiry}
 ATM call strike: $${atmCallStr} | ATM put strike: $${atmPutStr}
 ATM implied volatility: ${(atmIV * 100).toFixed(1)}%
-Expected 1σ daily move: ${dailyMove ? `±$${dailyMove.toFixed(2)} → upside $${upTarget!.toFixed(2)} / downside $${downTarget!.toFixed(2)}` : "N/A"}
+Expected move to expiry${dte ? ` (${dte} DTE)` : ""}: ${dteMove ? `±$${dteMove.toFixed(2)} → upside $${dteUpTarget!.toFixed(2)} / downside $${dteDnTarget!.toFixed(2)}` : "N/A"}
+1-day move (app badge only): ${dailyMove ? `±$${dailyMove.toFixed(2)}` : "N/A"} — for today's intraday range only, NOT for spread targeting
 ${straddleCtx ? `\n${straddleCtx}` : ""}
 ${greeksCtx ? `\n${greeksCtx}` : ""}
 ${skewCtx}
@@ -382,10 +473,17 @@ ${gammaWallCtx}
 ${termStructCtx}
 
 Top calls by open interest:
-${topCalls.map(c => `  $${c.strike} strike | IV ${(c.impliedVolatility * 100).toFixed(0)}% | OI ${(c.openInterest ?? 0).toLocaleString()} | last $${c.lastPrice.toFixed(2)}`).join("\n") || "  None available"}
+${topCalls.map(c => { const mid = c.bid > 0 && c.ask > 0 ? (c.bid + c.ask) / 2 : c.lastPrice; return `  $${c.strike} | IV ${(c.impliedVolatility * 100).toFixed(0)}% | OI ${(c.openInterest ?? 0).toLocaleString()} | Vol ${(c.volume ?? 0).toLocaleString()} | bid $${c.bid.toFixed(2)} ask $${c.ask.toFixed(2)} mid $${mid.toFixed(2)}`; }).join("\n") || "  None available"}
 
 Top puts by open interest:
-${topPuts.map(p => `  $${p.strike} strike | IV ${(p.impliedVolatility * 100).toFixed(0)}% | OI ${(p.openInterest ?? 0).toLocaleString()} | last $${p.lastPrice.toFixed(2)}`).join("\n") || "  None available"}`
+${topPuts.map(p => { const mid = p.bid > 0 && p.ask > 0 ? (p.bid + p.ask) / 2 : p.lastPrice; return `  $${p.strike} | IV ${(p.impliedVolatility * 100).toFixed(0)}% | OI ${(p.openInterest ?? 0).toLocaleString()} | Vol ${(p.volume ?? 0).toLocaleString()} | bid $${p.bid.toFixed(2)} ask $${p.ask.toFixed(2)} mid $${p.bid > 0 && p.ask > 0 ? ((p.bid + p.ask) / 2).toFixed(2) : p.lastPrice.toFixed(2)}`; }).join("\n") || "  None available"}
+
+Near-ATM call pricing (use these mids for spread cost calculations — do NOT estimate):
+${(() => { const range = chain ? [...chain.calls].filter(c => c.strike >= price * 0.96 && c.strike <= price * 1.12).sort((a,b) => a.strike - b.strike) : []; return range.map(c => { const mid = c.bid > 0 && c.ask > 0 ? (c.bid + c.ask) / 2 : c.lastPrice; const unusual = (c.volume ?? 0) >= Math.max(50, (c.openInterest ?? 0) * 3) && (c.openInterest ?? 0) > 0; return `  $${c.strike} call | bid $${c.bid.toFixed(2)} ask $${c.ask.toFixed(2)} mid $${mid.toFixed(2)} | IV ${(c.impliedVolatility*100).toFixed(0)}% | Vol ${(c.volume ?? 0).toLocaleString()}${unusual ? " ⚠ UNUSUAL" : ""}`; }).join("\n") || "  None"; })()}
+
+Near-ATM put pricing (use these mids for spread cost calculations — do NOT estimate):
+${(() => { const range = chain ? [...chain.puts].filter(p => p.strike >= price * 0.88 && p.strike <= price * 1.04).sort((a,b) => a.strike - b.strike) : []; return range.map(p => { const mid = p.bid > 0 && p.ask > 0 ? (p.bid + p.ask) / 2 : p.lastPrice; const unusual = (p.volume ?? 0) >= Math.max(50, (p.openInterest ?? 0) * 3) && (p.openInterest ?? 0) > 0; return `  $${p.strike} put | bid $${p.bid.toFixed(2)} ask $${p.ask.toFixed(2)} mid $${mid.toFixed(2)} | IV ${(p.impliedVolatility*100).toFixed(0)}% | Vol ${(p.volume ?? 0).toLocaleString()}${unusual ? " ⚠ UNUSUAL" : ""}`; }).join("\n") || "  None"; })()}
+${unusualCtx ? `\n${unusualCtx}` : ""}`
     : "Options chain unavailable — analysis based on price structure only.";
 
   // Price position within 30-day range (premium/discount context)
@@ -411,6 +509,10 @@ ${dte !== null ? `Days to nearest expiry: ${dte} DTE — ${dte <= 7 ? "VERY SHOR
 
 ${optionsCtx}
 
+GAP REPORTING RULE: The "Change:" field above is computed from the actual previous session close (meta.previousClose, or closes[-2] from the 30-day price series). Use that EXACT number when reporting today's gap. Never recompute it from training memory. Never use a multi-session cumulative move and call it today's gap.
+
+SPREAD PRICING RULE: When recommending a debit or credit spread, calculate the net debit/credit ONLY from the "Near-ATM call/put pricing" tables above. Formula: long leg mid − short leg mid = net debit (for debit spreads). Show the calculation explicitly, e.g. "Buy $405 call at $8.37 mid / Sell $420 call at $2.27 mid = $6.10 net debit". Never guess or approximate spread costs — use the provided bid/ask mids.
+
 HARD RULES YOU MUST FOLLOW:
 1. If DTE ≤ 7 and price is more than 1% away from the recommended strike, you MUST flag HIGH RISK and state the exact % move needed by expiry.
 2. If price is in the top 70% of its 30-day range, calls are valid ONLY when there is a confirmed momentum catalyst: a gap-up of 3%+, a volume surge of 2x+ avg, or a breakout above a prior resistance level. A large gap-up IS the breakout — do not require further confirmation just to recommend a trade.
@@ -435,11 +537,11 @@ State whether IV is RICH, CHEAP, or FAIR vs realized vol (data provided above). 
 State the vol risk premium explicitly: "IV at X% vs 20d realized vol Y% — premium is [rich/cheap/fair]."
 
 **Expected Move**
-The 1σ range from IV: upside $X, downside $X. State whether the recommended strike is inside or outside this range.
+Use the DTE-adjusted expected move (not the 1-day move). State the 1σ range to expiry: upside $X, downside $X. If straddle price is available, use it as the primary reference — it is market-derived. State whether the recommended strike is inside or outside this range.
 If max pain data available: note where max pain is and whether it aligns or conflicts with the directional bias.
 
 **Put/Call Flow Read**
-Use the P/C OI ratio to confirm or challenge the directional thesis. A high P/C ratio with a bullish thesis = smart money may be positioned opposite; flag it.
+Use BOTH the P/C OI ratio (cumulative positioning) and the P/C Volume ratio (today's actual flow). If they disagree, call it out — it signals a real-time positioning shift. If UNUSUAL OPTIONS ACTIVITY is present (Vol > 3× OI strikes), treat those as the highest-conviction directional signal: someone is opening a fresh large bet. State the direction and strike of the unusual flow and whether it confirms or contradicts the thesis.
 
 **Entry Conditions — wait for ALL of these before entering:**
 - Price level to hold or break: $X

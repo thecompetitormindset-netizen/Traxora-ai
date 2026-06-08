@@ -252,6 +252,7 @@ type OptionsPlay = {
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
   premiumEst: string | null;
+  pcVolRatio: number | null;
   score: number; hasOptions: boolean;
 };
 
@@ -382,7 +383,7 @@ function OptionsPlaysSection() {
           {plays.map((p, i) => (
             <Link
               key={p.symbol}
-              href={`/paper?tab=options&sym=${encodeURIComponent(p.symbol)}`}
+              href={`/intelligence?section=analyze&sym=${encodeURIComponent(p.symbol)}`}
               className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
                 p.play === "CALLS" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
               }`}
@@ -444,7 +445,7 @@ function OptionsPlaysSection() {
                   </div>
                 )}
                 <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">
-                  {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}
+                  {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
                 </p>
               </div>
 

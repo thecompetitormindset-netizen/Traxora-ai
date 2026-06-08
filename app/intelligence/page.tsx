@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
@@ -16,7 +17,7 @@ type OptionsPlay = {
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; score: number; hasOptions: boolean;
+  premiumEst: string | null; pcVolRatio: number | null; score: number; hasOptions: boolean;
 };
 
 type FuturesCard = {
@@ -223,7 +224,7 @@ function OptionsPlaysPanel() {
                         </div>
                       ))}
                       <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5">
-                        {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}
+                        {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
                         {!p.hasOptions && <span className="text-amber-400/70"> · price-based est</span>}
                       </p>
                     </div>
@@ -266,7 +267,7 @@ function FuturesPanel() {
   );
 
   useEffect(() => {
-    FUTURES_LIST.forEach(async ({ symbol, name }) => {
+    FUTURES_LIST.forEach(async ({ symbol }) => {
       try {
         const [quoteRes, barsRes] = await Promise.all([
           fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`).then(r => r.json()),
@@ -363,7 +364,12 @@ function FuturesPanel() {
 type Section = "options" | "futures" | "analyze";
 
 function IntelligenceContent() {
-  const [section, setSection] = useState<Section>("options");
+  const params  = useSearchParams();
+  const initSym = params.get("sym") ?? "";
+  const [section, setSection] = useState<Section>(() => {
+    const s = params.get("section");
+    return (s === "futures" || s === "analyze" || s === "options") ? s : "options";
+  });
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -396,7 +402,7 @@ function IntelligenceContent() {
         {section === "analyze"  && (
           <div className="max-w-3xl">
             <p className="text-sm text-[#7B8DB4] mb-4">Enter any optionable ticker for a full AI options analysis — expected move, IV context, entry trigger, and risk rating.</p>
-            <OptionsTab />
+            <OptionsTab initialSymbol={initSym} />
           </div>
         )}
       </main>

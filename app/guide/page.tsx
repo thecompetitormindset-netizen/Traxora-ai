@@ -493,7 +493,7 @@ export default function GuidePage() {
                 { tag: "LIQ", label: "Liquidity Sweep",       desc: "Stops hunted above highs or below lows before the real move" },
                 { tag: "MSS", label: "Market Structure Shift",desc: "Trend changes: uptrend breaks below last HL, or downtrend above last LH" },
                 { tag: "OTE", label: "Optimal Trade Entry",   desc: "61.8–78.6% Fibonacci retracement — highest-probability reversal zone" },
-                { tag: "KZ",  label: "Kill Zone",             desc: "London 2–5 AM ET, NY 7–10 AM ET — when 80% of institutional moves happen" },
+                { tag: "KZ",  label: "Kill Zone",             desc: "London 2–5 AM ET, NY 9:30–11 AM ET — when 80% of institutional moves happen" },
               ].map(c => (
                 <div key={c.tag} className="flex gap-2 items-start">
                   <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-1.5 py-0.5 rounded shrink-0 mt-0.5">{c.tag}</span>

@@ -269,8 +269,8 @@ export default function SettingsPage() {
               )}
             </Section>
 
-            {/* Daily Morning Brief */}
-            <Section title="Daily Morning Brief">
+            {/* Morning Briefing */}
+            <Section title="Morning Briefing">
               <div className="px-5 py-5 border-b border-[#252345]">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-base">
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                     </svg>
                   }
                   label="Upgrade to Pro"
-                  sublabel="$5/month · full AI access · cancel anytime"
+                  sublabel="$5/mo · full AI access · cancel anytime"
                   onClick={() => { window.location.href = "/pricing"; }}
                 />
               )}

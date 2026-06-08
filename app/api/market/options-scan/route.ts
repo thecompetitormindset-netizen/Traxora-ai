@@ -48,81 +48,84 @@ async function fetchQuote(symbol: string) {
   } catch { return null; }
 }
 
-// Yahoo crumb cache — shared across all scan calls in the same Lambda warm instance
-let _scanYahooCreds: { cookie: string; crumb: string; expiry: number } | null = null;
-
-async function getScanYahooCreds(): Promise<{ cookie: string; crumb: string } | null> {
-  if (_scanYahooCreds && Date.now() < _scanYahooCreds.expiry) return _scanYahooCreds;
-  try {
-    const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-    const pageRes = await fetch("https://finance.yahoo.com/", {
-      headers: { "User-Agent": ua, "Accept": "text/html,*/*" },
-      redirect: "follow", signal: AbortSignal.timeout(8000),
-    });
-    const setCookie = pageRes.headers.get("set-cookie") ?? "";
-    const cookiePairs = [...setCookie.matchAll(/([A-Za-z0-9_-]+=(?:[^;,"\s]|"[^"]*")+)/g)]
-      .map(m => m[1])
-      .filter(p => !["expires=","path=","domain=","SameSite=","Secure"].some(x => p.startsWith(x)));
-    const cookie = cookiePairs.join("; ");
-    if (!cookie) return null;
-    const crumbRes = await fetch("https://query1.finance.yahoo.com/v1/test/getcrumb", {
-      headers: { "User-Agent": ua, "Cookie": cookie }, signal: AbortSignal.timeout(6000),
-    });
-    const crumb = (await crumbRes.text()).trim();
-    if (!crumb || crumb.length < 4 || crumb.includes("<")) return null;
-    _scanYahooCreds = { cookie, crumb, expiry: Date.now() + 5 * 60 * 1000 };
-    return _scanYahooCreds;
-  } catch { return null; }
-}
-
+// CBOE delayed quotes — free, no API key, real IV, 15-min delay
+// iv returned as decimal (0.37 = 37%), same scale as Yahoo impliedVolatility
 async function fetchOptionsIV(symbol: string) {
   try {
-    const ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-    const baseHeaders = { "User-Agent": ua, "Accept": "application/json, text/plain, */*", "Referer": "https://finance.yahoo.com/" };
+    const res = await fetch(
+      `https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(symbol)}.json`,
+      {
+        cache: "no-store",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Referer": "https://www.cboe.com/",
+          "Accept":  "application/json",
+        },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!res.ok) return null;
 
-    async function tryUrl(url: string, extra: Record<string, string> = {}) {
-      const res = await fetch(url, { cache: "no-store", headers: { ...baseHeaders, ...extra }, signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data?.optionChain?.result?.[0] ?? null;
+    const data = (await res.json())?.data;
+    if (!data?.current_price || !Array.isArray(data.options)) return null;
+
+    const stockPrice: number = data.current_price;
+    const symLen = symbol.length;
+    const today  = new Date().toISOString().split("T")[0];
+
+    function parseOpt(name: string): { expiry: string; type: "C" | "P"; strike: number } | null {
+      const body = name.slice(symLen);
+      const m = /^(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(body);
+      if (!m) return null;
+      return { expiry: `20${m[1]}-${m[2]}-${m[3]}`, type: m[4] as "C" | "P", strike: parseInt(m[5], 10) / 1000 };
     }
 
-    // Try crumb-authenticated first, then unauthenticated fallbacks
-    const creds = await getScanYahooCreds();
-    let result = null;
-    if (creds) {
-      result = await tryUrl(
-        `https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}?crumb=${encodeURIComponent(creds.crumb)}`,
-        { "Cookie": creds.cookie },
-      );
-    }
-    if (!result) result = await tryUrl(`https://query1.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
-    if (!result) result = await tryUrl(`https://query2.finance.yahoo.com/v7/finance/options/${encodeURIComponent(symbol)}`);
-    if (!result) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const parsed = (data.options as any[]).reduce<{ expiry: string; type: "C"|"P"; strike: number; raw: any }[]>((acc, opt) => {
+      const p = parseOpt(opt.option as string);
+      if (p && p.expiry > today) acc.push({ ...p, raw: opt });
+      return acc;
+    }, []);
+    if (!parsed.length) return null;
 
-    const expiryTs = result.expirationDates?.[0] as number | undefined;
-    const expiry   = expiryTs
-      ? new Date(expiryTs * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    const expiries    = [...new Set(parsed.map(o => o.expiry))].sort();
+    const nearestExp  = expiries[0];
+    const nearContracts = parsed.filter(o => o.expiry === nearestExp);
+    const expiryTs    = Math.floor(new Date(nearestExp + "T20:00:00Z").getTime() / 1000);
+    const expiry      = new Date(nearestExp + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+    const calls = nearContracts.filter(o => o.type === "C");
+    const puts  = nearContracts.filter(o => o.type === "P");
+
+    // ATM IV (decimal): nearest call and put with iv > 0
+    const atmCall = [...calls]
+      .filter(o => (o.raw.iv as number) > 0)
+      .sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
+    const atmPutCand = [...puts]
+      .filter(o => (o.raw.iv as number) > 0)
+      .sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
+    const iv = (atmCall?.raw.iv as number) || (atmPutCand?.raw.iv as number) || 0;
+
+    const atmStrike  = atmCall?.strike ?? atmPutCand?.strike ?? null;
+    const atmCallMid = atmCall && (atmCall.raw.bid as number) > 0 && (atmCall.raw.ask as number) > 0
+      ? ((atmCall.raw.bid as number) + (atmCall.raw.ask as number)) / 2
+      : null;
+    const atmPutMid  = atmPutCand && (atmPutCand.raw.bid as number) > 0 && (atmPutCand.raw.ask as number) > 0
+      ? ((atmPutCand.raw.bid as number) + (atmPutCand.raw.ask as number)) / 2
       : null;
 
-    const opts  = result.options?.[0];
-    const calls = (opts?.calls ?? []) as any[];
-    const puts  = (opts?.puts  ?? []) as any[];
-    const quotePrice = result.quote?.regularMarketPrice ?? 0;
+    const callWall = calls.reduce((best: typeof calls[0] | null, c) =>
+      !best || (c.raw.open_interest ?? 0) > (best.raw.open_interest ?? 0) ? c : best, null
+    )?.strike ?? null;
+    const putWall = puts.reduce((best: typeof puts[0] | null, p) =>
+      !best || (p.raw.open_interest ?? 0) > (best.raw.open_interest ?? 0) ? p : best, null
+    )?.strike ?? null;
 
-    const atm = (arr: any[]) =>
-      [...arr].sort((a, b) => Math.abs(a.strike - quotePrice) - Math.abs(b.strike - quotePrice))[0];
+    const totalCallVol = calls.reduce((s, c) => s + ((c.raw.volume as number) ?? 0), 0);
+    const totalPutVol  = puts.reduce((s,  p) => s + ((p.raw.volume as number) ?? 0), 0);
+    const pcVolRatio   = totalCallVol > 0 ? parseFloat((totalPutVol / totalCallVol).toFixed(2)) : null;
 
-    const atmCall = atm(calls);
-    const atmPut  = atm(puts);
-    const iv = (atmCall?.impliedVolatility ?? 0) || (atmPut?.impliedVolatility ?? 0);
-
-    const callWall = calls.reduce((best: any, c: any) =>
-      (!best || (c.openInterest ?? 0) > (best.openInterest ?? 0)) ? c : best, null)?.strike ?? null;
-    const putWall = puts.reduce((best: any, p: any) =>
-      (!best || (p.openInterest ?? 0) > (best.openInterest ?? 0)) ? p : best, null)?.strike ?? null;
-
-    return { iv, expiry, expiryTs, callWall, putWall };
+    return { iv, expiry, expiryTs, callWall, putWall, atmStrike, atmCallMid, atmPutMid, totalCallVol, totalPutVol, pcVolRatio };
   } catch { return null; }
 }
 
@@ -151,6 +154,7 @@ export async function runOptionsScan() {
     stop:         string;
     rrRatio:      string;
     premiumEst:   string | null;
+    pcVolRatio:   number | null;
     score:        number;
     hasOptions:   boolean;
   }[] = [];
@@ -208,16 +212,17 @@ export async function runOptionsScan() {
     const risk   = Math.abs(stopPrice   - q.price);
     const rrRatio = `${(reward / risk).toFixed(1)}:1 R:R`;
 
-    // Strike: nearest round number to current price
+    // Strike: use actual ATM strike from CBOE chain, fall back to nearest round number
     const strikeIncrement = q.price > 500 ? 5 : q.price > 100 ? 5 : q.price > 20 ? 2.5 : 1;
-    const strikeRaw  = Math.round(q.price / strikeIncrement) * strikeIncrement;
+    const strikeRaw  = opt?.atmStrike ?? Math.round(q.price / strikeIncrement) * strikeIncrement;
     const strike     = `$${strikeRaw % 1 === 0 ? strikeRaw.toFixed(0) : strikeRaw.toFixed(1)} ATM`;
 
-    // ATM premium estimate per contract — Bachelier approximation: S × (σ/√252) × √DTE × 0.4 × 100
+    // ATM premium: real bid/ask mid from CBOE chain; Bachelier approximation as fallback
     const dte = opt?.expiryTs ? Math.max(1, Math.ceil((opt.expiryTs * 1000 - Date.now()) / 86_400_000)) : 7;
-    const premiumEst = ivPct
-      ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dte / 365) * 0.4 * 100)} / contract`
-      : null;
+    const actualMid  = isBull ? opt?.atmCallMid : opt?.atmPutMid;
+    const premiumEst = actualMid
+      ? `~$${Math.round(actualMid * 100)} / contract`
+      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dte / 365) * 0.4 * 100)} / contract` : null);
 
     // Score: signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((sm.score + 20) / 40) * 50;
@@ -244,6 +249,7 @@ export async function runOptionsScan() {
       stop,
       rrRatio,
       premiumEst,
+      pcVolRatio:   opt?.pcVolRatio ?? null,
       score,
       hasOptions:   !!opt?.iv,
     });

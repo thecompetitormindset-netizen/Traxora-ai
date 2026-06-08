@@ -49,10 +49,10 @@ const SIGNALS_ITEMS = [
 ];
 
 const TRADE_ITEMS = [
-  { name: "Wheel Hub", desc: "CSP & covered calls",       href: "/wheel",    emoji: "🔄" },
-  { name: "Planner",   desc: "Size your positions",       href: "/paper",    emoji: "🎯" },
   { name: "Journal",   desc: "AI trade journal",          href: "/journal",  emoji: "📖" },
   { name: "Stats",     desc: "Your performance",          href: "/strategy", emoji: "📈" },
+  { name: "Planner",   desc: "Size your positions",       href: "/paper",    emoji: "🎯" },
+  { name: "History",   desc: "Closed trades & signals",   href: "/history",  emoji: "🗂️" },
 ];
 
 const SETTINGS_ITEMS = [
@@ -93,10 +93,7 @@ function SubPanel({
   }
 
   return (
-    <div
-      className="grid gap-2"
-      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))" }}
-    >
+    <div className="flex flex-wrap justify-center gap-2">
       {items.map((item) => {
         const active = item.href && (pathname === item.href || pathname?.startsWith(item.href + "/"));
         return (
@@ -216,7 +213,7 @@ export default function Sidebar() {
           {/* Panel header */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
-              {open === "signals" ? "Signals & Markets" : open === "trade" ? "Trade & Journal" : "Account & Help"}
+              {open === "signals" ? "Signals & Markets" : open === "trade" ? "Journal & Tools" : "Account & Help"}
             </p>
             <button type="button" onClick={() => setOpen(null)} aria-label="Close"
               className="w-6 h-6 rounded-full bg-white/[0.05] flex items-center justify-center text-[#4B5675] hover:text-[#7B8DB4] transition-colors">
