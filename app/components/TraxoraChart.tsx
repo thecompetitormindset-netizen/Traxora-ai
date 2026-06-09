@@ -44,7 +44,7 @@ const INTERVALS: { label: string; value: Interval; apiInterval: string; apiRange
 
 // ── Colors ────────────────────────────────────────────────────────────────────
 
-const C = {
+const C_DARK = {
   bg:       "#0D0B1A",
   panel:    "#13112A",
   border:   "#1C1933",
@@ -63,6 +63,27 @@ const C = {
   entry:    "#F59E0B",
   stop:     "#F43F5E",
   target:   "#10B981",
+};
+
+const C_LIGHT = {
+  bg:       "#FAFBFE",
+  panel:    "#F2F5FA",
+  border:   "#E1E8F4",
+  borderH:  "#C8D4E8",
+  dim:      "#94A3B8",
+  mid:      "#64748B",
+  bright:   "#0F172A",
+  bull:     "#059669",
+  bear:     "#E11D48",
+  bullDim:  "#05966916",
+  bearDim:  "#E11D4816",
+  trend:    "#0891B2",
+  longT:    "#7C3AED",
+  fair:     "#D97706",
+  momentum: "#C026D3",
+  entry:    "#D97706",
+  stop:     "#E11D48",
+  target:   "#059669",
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -166,6 +187,16 @@ interface TraxoraChartProps {
 
 export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpandToggle, signalData }: TraxoraChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // ── Theme awareness ───────────────────────────────────────────────────────────
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => {
+    const update = () => setIsDark(document.documentElement.getAttribute("data-theme") !== "light");
+    update();
+    window.addEventListener("theme-changed", update);
+    return () => window.removeEventListener("theme-changed", update);
+  }, []);
+  const C = isDark ? C_DARK : C_LIGHT;
   const chartRef     = useRef<IChartApi | null>(null);
   const candleRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volRef       = useRef<ISeriesApi<"Histogram"> | null>(null);
@@ -323,7 +354,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       rsiRef.current = rsiObRef.current = rsiOsRef.current = null;
       entryLineRef.current = stopLineRef.current = targetLineRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load data ─────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -386,7 +417,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       setLastChg(prev ? ((last.close - prev.close) / prev.close) * 100 : null);
     } catch { setError(true); }
     finally { setLoading(false); }
-  }, [symbol, interval, showTrend, showLongT, showFair, showMomentum, showBB, isIntraday]);
+  }, [symbol, interval, showTrend, showLongT, showFair, showMomentum, showBB, isIntraday, isDark]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -441,7 +472,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
                 <span className="absolute inset-0 rounded-full" style={{ background: C.bull }} />
                 <span className="absolute inset-0 rounded-full animate-ping opacity-50" style={{ background: C.bull }} />
               </div>
-              <span className="font-black tracking-tight text-sm" style={{ color: "#E8ECFF" }}>{clean}</span>
+              <span className="font-black tracking-tight text-sm" style={{ color: C.bright }}>{clean}</span>
               {isFutures && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ background: "#7C3AED18", color: C.longT, border: `1px solid ${C.longT}30` }}>FUT</span>}
             </div>
             {lastPrice != null && !loading && (
@@ -484,10 +515,10 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           {/* Controls */}
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Chart type toggle */}
-            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: "#0A0817", border: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
               <button type="button" onClick={() => setChartType("candle")} title="Candlestick"
                 className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
-                style={chartType === "candle" ? { background: "#1E1B3A", color: C.bull } : { color: C.dim }}>
+                style={chartType === "candle" ? { background: C.borderH, color: C.bull } : { color: C.dim }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <rect x="3" y="8" width="5" height="10" rx="1"/><line x1="5.5" y1="4" x2="5.5" y2="8"/><line x1="5.5" y1="18" x2="5.5" y2="21"/>
                   <rect x="16" y="5" width="5" height="10" rx="1"/><line x1="18.5" y1="2" x2="18.5" y2="5"/><line x1="18.5" y1="15" x2="18.5" y2="20"/>
@@ -495,25 +526,25 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
               </button>
               <button type="button" onClick={() => setChartType("line")} title="Line"
                 className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
-                style={chartType === "line" ? { background: "#1E1B3A", color: C.bull } : { color: C.dim }}>
+                style={chartType === "line" ? { background: C.borderH, color: C.bull } : { color: C.dim }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="3 17 8 10 13 13 21 5"/>
                 </svg>
               </button>
             </div>
 
-            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: "#0A0817", border: `1px solid ${C.border}` }}>
+            <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
               {INTERVALS.map(iv => (
                 <button key={iv.value} type="button" onClick={() => setIntervalState(iv.value)}
                   className="px-3 py-1 rounded-lg text-[10px] font-bold transition-all"
-                  style={interval === iv.value ? { background: "#1E1B3A", color: C.bull } : { color: C.dim }}>
+                  style={interval === iv.value ? { background: C.borderH, color: C.bull } : { color: C.dim }}>
                   {iv.label}
                 </button>
               ))}
             </div>
             <button type="button" onClick={() => setFullscreen(v => !v)} title={fullscreen ? "Exit (Esc)" : "Full screen"}
               className="p-2 sm:p-1.5 rounded-lg transition-all min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
-              style={{ background: fullscreen ? C.borderH : "#0A0817", border: `1px solid ${fullscreen ? C.borderH : C.border}`, color: fullscreen ? "#E2E8F0" : C.dim }}>
+              style={{ background: fullscreen ? C.borderH : C.panel, border: `1px solid ${fullscreen ? C.borderH : C.border}`, color: fullscreen ? C.bright : C.dim }}>
               {fullscreen
                 ? <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/></svg>
                 : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>

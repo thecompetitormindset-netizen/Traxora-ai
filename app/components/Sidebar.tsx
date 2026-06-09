@@ -209,7 +209,7 @@ export default function Sidebar() {
         className={`transition-all duration-300 ease-out overflow-hidden ${open ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         style={{ maxHeight: open ? 320 : 0 }}
       >
-        <div className="mx-3 mb-3 rounded-2xl border border-white/[0.08] bg-[#0F0D1C]/95 backdrop-blur-2xl shadow-2xl p-4">
+        <div className="sidebar-sub-panel mx-3 mb-3 rounded-2xl border border-white/[0.08] bg-[#0F0D1C]/95 backdrop-blur-2xl shadow-2xl p-4">
           {/* Panel header */}
           <div className="flex items-center justify-between mb-3">
             <p className="text-[10px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
@@ -231,7 +231,7 @@ export default function Sidebar() {
 
       {/* ── Nav bar ── */}
       <div
-        className="flex items-center justify-around px-4 pt-2 border-t border-white/[0.06]"
+        className="sidebar-main-nav flex items-center justify-around px-4 pt-2 border-t border-white/[0.06]"
         style={{
           background: "linear-gradient(to top, rgba(10,8,21,0.97) 0%, rgba(10,8,21,0.90) 100%)",
           backdropFilter: "blur(24px)",
