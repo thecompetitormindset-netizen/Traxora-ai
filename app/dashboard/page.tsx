@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PaywallGuard from "../components/PaywallGuard";
@@ -11,6 +11,7 @@ import MarketStatus from "../components/MarketStatus";
 import OnboardingModal from "../components/OnboardingModal";
 import SignalPerformance from "../components/SignalPerformance";
 import { scopedKey } from "../lib/userState";
+import { getSignalCache, setSignalCache } from "../lib/signalCache";
 
 type TradeLevels = {
   entryZone:   string;
@@ -555,15 +556,27 @@ function DashboardContent() {
           })
           .catch(() => { /* best-effort */ });
         if (price && prev) {
-          const analyzeRes = await fetch("/api/ai/analyze", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol, price, previousClose: prev, open: data?.open, high: data?.high, low: data?.low, dayChangePercent: change, quick: true }),
-          });
-          const analysis = await analyzeRes.json();
-          const signal: "BUY" | "HOLD" | "SELL" | null = analysis?.signal ?? null;
-          const confidence: "High" | "Medium" | "Low" | null = analysis?.confidence ?? null;
-          const trade: TradeLevels | null = analysis?.trade ?? null;
+          // Check 30-min signal cache before hitting the AI API
+          const cached = getSignalCache(symbol, price);
+          let signal:     "BUY" | "HOLD" | "SELL" | null = cached?.signal ?? null;
+          let confidence: "High" | "Medium" | "Low" | null = cached?.confidence ?? null;
+          let trade:      TradeLevels | null = (cached?.trade as TradeLevels) ?? null;
+
+          if (!cached) {
+            const analyzeRes = await fetch("/api/ai/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ symbol, price, previousClose: prev, open: data?.open, high: data?.high, low: data?.low, dayChangePercent: change, quick: true }),
+            });
+            const analysis = await analyzeRes.json();
+            signal     = analysis?.signal ?? null;
+            confidence = analysis?.confidence ?? null;
+            trade      = analysis?.trade ?? null;
+            if (signal && confidence) {
+              setSignalCache(symbol, price, { signal, confidence, trade });
+            }
+          }
+
           setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, signal, confidence, trade } : c));
           if (signal && signal !== "HOLD") {
             setPoppedSymbols((prev) => new Set([...prev, symbol]));
@@ -644,50 +657,57 @@ function DashboardContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Countdown timer for live refresh
-  useEffect(() => {
-    setRefreshCountdown(60);
-    const tick = setInterval(() => setRefreshCountdown(c => c <= 1 ? 60 : c - 1), 1000);
-    return () => clearInterval(tick);
+  // Price-only refresh (no AI re-run) — extracted so countdown can call it directly
+  const refreshPrices = useCallback(() => {
+    if (watchlist.length === 0) return;
+    const currentAlerts = loadAlerts();
+    watchlist.forEach(async ({ symbol, name }) => {
+      try {
+        const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
+        const data = await res.json();
+        const price  = data?.price ?? null;
+        const prev   = data?.previousClose ?? null;
+        const change = price && prev ? ((price - prev) / prev) * 100 : null;
+        if (price) {
+          setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, price, change } : c));
+          const hit = checkAlert(symbol, price, currentAlerts);
+          if (hit) {
+            const dir    = hit === "above" ? "↑ Above" : "↓ Below";
+            const thresh = hit === "above" ? currentAlerts[symbol].above : currentAlerts[symbol].below;
+            fireNotification(symbol, name, "BUY", price, "High");
+            if (Notification.permission === "granted") {
+              new Notification(`${dir} $${thresh} — ${symbol.replace(/\.(US|COMM)$/, "")}`, {
+                body: `${name} · now $${price.toFixed(2)}`,
+                icon: "/icon-192.png",
+                tag:  `price-alert-${symbol}`,
+              });
+            }
+            const updated = { ...currentAlerts, [symbol]: { ...currentAlerts[symbol], [hit]: null } };
+            saveAlerts(updated);
+            setPriceAlerts(updated);
+          }
+        }
+      } catch { /* silent */ }
+    });
+    setLastFetched(Date.now());
   }, [watchlist]);
 
-  // 60-second quote refresh — prices only, no AI re-run
+  // Countdown timer — fires refreshPrices when it hits 0, then resets to 60
+  const refreshPricesRef = useRef(refreshPrices);
+  useEffect(() => { refreshPricesRef.current = refreshPrices; }, [refreshPrices]);
+
   useEffect(() => {
-    if (watchlist.length === 0) return;
-    const id = setInterval(() => {
-      const currentAlerts = loadAlerts();
-      watchlist.forEach(async ({ symbol, name }) => {
-        try {
-          const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
-          const data = await res.json();
-          const price  = data?.price ?? null;
-          const prev   = data?.previousClose ?? null;
-          const change = price && prev ? ((price - prev) / prev) * 100 : null;
-          if (price) {
-            setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, price, change } : c));
-            const hit = checkAlert(symbol, price, currentAlerts);
-            if (hit) {
-              const dir   = hit === "above" ? "↑ Above" : "↓ Below";
-              const thresh = hit === "above" ? currentAlerts[symbol].above : currentAlerts[symbol].below;
-              fireNotification(symbol, name, "BUY", price, "High");
-              if (Notification.permission === "granted") {
-                new Notification(`${dir} $${thresh} — ${symbol.replace(/\.(US|COMM)$/, "")}`, {
-                  body: `${name} · now $${price.toFixed(2)}`,
-                  icon: "/icon-192.png",
-                  tag:  `price-alert-${symbol}`,
-                });
-              }
-              // Clear the triggered threshold so it doesn't fire every minute
-              const updated = { ...currentAlerts, [symbol]: { ...currentAlerts[symbol], [hit]: null } };
-              saveAlerts(updated);
-              setPriceAlerts(updated);
-            }
-          }
-        } catch { /* silent */ }
+    setRefreshCountdown(60);
+    const tick = setInterval(() => {
+      setRefreshCountdown(c => {
+        if (c <= 1) {
+          refreshPricesRef.current();
+          return 60;
+        }
+        return c - 1;
       });
-      setLastFetched(Date.now());
-    }, 60_000);
-    return () => clearInterval(id);
+    }, 1000);
+    return () => clearInterval(tick);
   }, [watchlist]);
 
   // Fetch earnings dates once the watchlist is set (background, non-blocking)

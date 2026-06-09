@@ -116,21 +116,7 @@ const CONCEPTS = [
 ];
 
 /* ── Dynamic data ─────────────────────────────────────────────────────────── */
-const HERO_LINES = [
-  { top: "Trade like",      bottom: "smart money."        },
-  { top: "Think like an",   bottom: "institution."         },
-  { top: "Read the market's", bottom: "footprints."        },
-  { top: "Never miss a",    bottom: "Kill Zone."           },
-  { top: "See what hedge", bottom: "funds see."            },
-];
-
-const HERO_SUBS = [
-  "AI that reads price action like institutions — one clear signal per setup.",
-  "Smart Money concepts automated. Plain English, every trade.",
-  "Order Blocks, FVGs, Liquidity sweeps — the framework that moves billions, now automated.",
-  "6 key market concepts checked in seconds. One clear BUY, HOLD, or SELL.",
-  "Know which sessions matter, which levels count, and when institutions move.",
-];
+// Hero copy is static — no rotation needed when the headline is sharp
 
 const TICKER_POOL = [
   { sym:"NVDA",  price:"—",  chg:"—",  up:true  },
@@ -181,8 +167,6 @@ export default function HomePage() {
     else { signIn("google", { callbackUrl: "/dashboard" }); }
   }
 
-  const [heroIdx,    setHeroIdx]    = useState(0);
-  const [heroVisible, setHeroVisible] = useState(true);
   const [signalIdx,  setSignalIdx]  = useState(0);
   const [signalFade, setSignalFade] = useState(true);
   const [quoteIdx,   setQuoteIdx]   = useState(0);
@@ -194,18 +178,6 @@ export default function HomePage() {
   const [displayTicker, setDisplayTicker] = useState(TICKER_POOL.slice(0, 12));
   useEffect(() => {
     setDisplayTicker([...TICKER_POOL].sort(() => Math.random() - 0.5).slice(0, 12));
-  }, []);
-
-  // Hero text rotation
-  useEffect(() => {
-    const id = setInterval(() => {
-      setHeroVisible(false);
-      setTimeout(() => {
-        setHeroIdx(i => (i + 1) % HERO_LINES.length);
-        setHeroVisible(true);
-      }, 400);
-    }, 3500);
-    return () => clearInterval(id);
   }, []);
 
   // Live signal rotation
@@ -246,12 +218,18 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  const hero   = HERO_LINES[heroIdx];
-  const heroSub = HERO_SUBS[heroIdx];
   const signal = LIVE_SIGNALS[signalIdx];
   const quote  = QUOTES[quoteIdx];
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const sigColor = signal.sig === "BUY" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" : signal.sig === "SELL" ? "text-rose-400 bg-rose-500/10 border-rose-500/30" : "text-amber-400 bg-amber-500/10 border-amber-500/30";
   const sigBorder = signal.sig === "BUY" ? "border-emerald-500/25" : signal.sig === "SELL" ? "border-rose-500/25" : "border-amber-500/25";
+
+  const NAV_LINKS = [
+    { href: "/intelligence", label: "Scanner"  },
+    { href: "/analysis",     label: "Signals"  },
+    { href: "/pricing",      label: "Pricing"  },
+    { href: "/guide",        label: "Guide"    },
+  ];
 
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col overflow-hidden">
@@ -267,15 +245,52 @@ export default function HomePage() {
           <span className="text-sm font-bold tracking-tight">Traxora AI</span>
         </div>
         <div className="flex items-center gap-5">
-          <Link href="/explore"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Markets</Link>
-          <Link href="/analysis"  className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Signals</Link>
-          <Link href="/pricing"   className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Pricing</Link>
-          <Link href="/guide"     className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">Guide</Link>
+          {NAV_LINKS.map(l => (
+            <Link key={l.href} href={l.href} className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">{l.label}</Link>
+          ))}
           <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-all px-4 py-2 rounded-xl text-sm font-semibold shadow-lg shadow-emerald-500/20 hover:scale-105 active:scale-95">
             {session ? "Dashboard →" : "Sign in →"}
           </button>
+          {/* Mobile hamburger — visible only on small screens */}
+          <button
+            type="button"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen ? "true" : "false"}
+            onClick={() => setMobileMenuOpen(o => !o)}
+            className="md:hidden flex flex-col items-center justify-center w-9 h-9 gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors"
+          >
+            <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "opacity-0" : ""}`} />
+            <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
+          </button>
         </div>
       </nav>
+
+      {/* ══ MOBILE MENU DRAWER ══ */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/95 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-72 opacity-100" : "max-h-0 opacity-0"}`}
+        aria-hidden={mobileMenuOpen ? undefined : "true"}
+      >
+        <div className="px-6 py-4 flex flex-col gap-1">
+          {NAV_LINKS.map(l => (
+            <Link
+              key={l.href}
+              href={l.href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="text-sm font-medium text-[#CBD5E1] hover:text-[#F1F5F9] py-3 border-b border-[#252345]/60 last:border-0 transition-colors"
+            >
+              {l.label}
+            </Link>
+          ))}
+          <button
+            type="button"
+            onClick={() => { setMobileMenuOpen(false); handleLaunch(); }}
+            className="mt-2 w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-3 rounded-xl text-sm font-bold text-white"
+          >
+            {session ? "Open Dashboard →" : "Sign in with Google →"}
+          </button>
+        </div>
+      </div>
 
       {/* ══ TICKER BAR ══ */}
       <div className="border-b border-[#252345]/60 bg-[#0D0B1A]/60 overflow-hidden py-2 relative">
@@ -328,8 +343,8 @@ export default function HomePage() {
           {/* Social proof strip */}
           <div className="flex items-center justify-center gap-2 mb-10 flex-wrap">
             {[
-              { value: "55+",      label: "instruments scanned daily",  icon: "📊" },
-              { value: "3",        label: "AI models cross-checking",    icon: "🤖" },
+              { value: "32+",      label: "instruments scanned daily",  icon: "📊" },
+              { value: "6",        label: "Smart Money concepts per signal", icon: "🤖" },
               { value: "8:30am",   label: "morning brief sent",          icon: "🌅" },
               { value: "$5/mo",    label: "full access · cancel anytime", icon: "✅" },
             ].map(s => (
@@ -815,27 +830,42 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Featured concept (large) */}
-          <div className="mb-6">
-            {CONCEPTS.map((c, i) => (
-              <div key={c.tag} className={`transition-all duration-500 ${i === conceptIdx ? "opacity-100 scale-100" : "opacity-0 scale-98 absolute pointer-events-none"}`}
-                style={{ display: i === conceptIdx ? "block" : "none" }}>
-                <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(c.search)}`} target="_blank" rel="noopener noreferrer"
-                  className={`block bg-[#13112A] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all max-w-2xl mx-auto`}>
-                  <div className={`bg-gradient-to-br ${c.gradient} px-6 pt-6 pb-4 h-56 flex items-center`}>
-                    {c.diagram}
-                  </div>
-                  <div className="p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
-                      <p className="font-bold text-base text-[#F1F5F9]">{c.title}</p>
+          {/* Featured concept (large) — opacity-based swap so CSS transitions actually fire */}
+          <div className="mb-6 max-w-2xl mx-auto">
+            {CONCEPTS.map((c, i) => {
+              const isActive = i === conceptIdx;
+              return (
+                <div
+                  key={c.tag}
+                  className={`transition-all duration-500 ${
+                    isActive
+                      ? "opacity-100 scale-100 relative pointer-events-auto"
+                      : "opacity-0 scale-[0.98] absolute inset-0 pointer-events-none"
+                  }`}
+                  aria-hidden={isActive ? "false" : "true"}
+                >
+                  <a
+                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(c.search)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block bg-[#13112A] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all`}
+                    tabIndex={isActive ? 0 : -1}
+                  >
+                    <div className={`bg-gradient-to-br ${c.gradient} px-6 pt-6 pb-4 h-56 flex items-center`}>
+                      {c.diagram}
                     </div>
-                    <p className="text-sm text-[#7B8DB4] leading-relaxed">{c.desc}</p>
-                    <p className={`mt-4 text-xs font-semibold ${c.accent}`}>Watch tutorial on YouTube →</p>
-                  </div>
-                </a>
-              </div>
-            ))}
+                    <div className="p-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
+                        <p className="font-bold text-base text-[#F1F5F9]">{c.title}</p>
+                      </div>
+                      <p className="text-sm text-[#7B8DB4] leading-relaxed">{c.desc}</p>
+                      <p className={`mt-4 text-xs font-semibold ${c.accent}`}>Watch tutorial on YouTube →</p>
+                    </div>
+                  </a>
+                </div>
+              );
+            })}
           </div>
 
           {/* All 6 in small grid */}
@@ -970,10 +1000,11 @@ export default function HomePage() {
         </div>
         <div className="flex gap-6">
           <Link href="/dashboard"     className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Dashboard</Link>
-          <Link href="/explore"       className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Markets</Link>
+          <Link href="/intelligence"   className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Scanner</Link>
           <Link href="/analysis"      className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Signals</Link>
           <Link href="/pricing"       className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors font-semibold">Pricing</Link>
-          <Link href="/settings"      className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Settings</Link>
+          <Link href="/privacy"       className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Privacy</Link>
+          <Link href="/terms"         className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Terms</Link>
         </div>
       </footer>
     </div>

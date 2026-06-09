@@ -40,11 +40,12 @@ type ReviewResult = {
 };
 
 export default function JournalPage() {
-  const [entries,    setEntries]    = useState<JournalEntry[]>([]);
-  const [review,     setReview]     = useState<ReviewResult | null>(null);
-  const [reviewing,  setReviewing]  = useState(false);
-  const [reviewErr,  setReviewErr]  = useState("");
-  const [expanded,   setExpanded]   = useState<Set<string>>(new Set());
+  const [entries,       setEntries]       = useState<JournalEntry[]>([]);
+  const [review,        setReview]        = useState<ReviewResult | null>(null);
+  const [reviewing,     setReviewing]     = useState(false);
+  const [reviewErr,     setReviewErr]     = useState("");
+  const [expanded,      setExpanded]      = useState<Set<string>>(new Set());
+  const [confirmClear,  setConfirmClear]  = useState(false);
 
   useEffect(() => {
     const local = getJournal();
@@ -167,7 +168,7 @@ export default function JournalPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => { clearJournal(); setReview(null); }}
+                  onClick={() => setConfirmClear(true)}
                   className="text-xs text-[#4B5675] hover:text-rose-400 transition-colors"
                 >
                   Clear all
@@ -482,6 +483,47 @@ export default function JournalPage() {
         </div>
       </main>
     </div>
+
+    {/* Clear-all confirmation modal */}
+    {confirmClear && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+        onClick={() => setConfirmClear(false)}
+      >
+        <div
+          className="bg-[#13112A] border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full shadow-xl"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shrink-0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-[#F1F5F9]">Clear entire journal?</p>
+              <p className="text-xs text-[#4B5675] mt-0.5">This permanently deletes all {entries.length} entries. Cannot be undone.</p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmClear(false)}
+              className="flex-1 py-2.5 px-4 rounded-xl border border-[#252345] text-sm font-semibold text-[#7B8DB4] hover:border-[#7B8DB4]/40 hover:text-[#F1F5F9] transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => { clearJournal(); setReview(null); setConfirmClear(false); }}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-bold text-white transition-colors"
+            >
+              Clear journal
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     </PaywallGuard>
   );
 }

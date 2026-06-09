@@ -31,6 +31,17 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [recentSymbols, setRecentSymbols] = useState<string[]>([]);
+
+  const RECENT_KEY = scopedKey("recent_symbols");
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      setRecentSymbols(raw ? JSON.parse(raw) : []);
+    } catch { setRecentSymbols([]); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session]);
 
   useEffect(() => {
     function loadCount() {
@@ -72,9 +83,19 @@ export default function Topbar({ onSearch }: TopbarProps) {
     return () => clearTimeout(timer);
   }, [query]);
 
+  function saveRecent(symbol: string) {
+    try {
+      const prev: string[] = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+      const next = [symbol, ...prev.filter(s => s !== symbol)].slice(0, 8);
+      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      setRecentSymbols(next);
+    } catch { /* ignore */ }
+  }
+
   function handleSelect(symbol: string) {
     setQuery(symbol);
     setOpen(false);
+    saveRecent(symbol);
     onSearch?.(symbol);
     router.push(`/analysis?symbol=${encodeURIComponent(symbol)}`);
   }
@@ -104,7 +125,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             placeholder="Search any symbol or company…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => { if (results.length > 0) setOpen(true); }}
+            onFocus={() => { if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
             className="flex-1 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
           {loading && (
@@ -118,8 +139,42 @@ export default function Topbar({ onSearch }: TopbarProps) {
         </div>
 
         {/* Dropdown */}
-        {open && results.length > 0 && (
+        {open && (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) && (
           <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+            {/* Recent symbols — shown when query is empty */}
+            {!query.trim() && recentSymbols.length > 0 && (
+              <>
+                <div className="px-4 py-2 flex items-center justify-between border-b border-[#252345]">
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Recent</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try { localStorage.removeItem(RECENT_KEY); } catch { /* ignore */ }
+                      setRecentSymbols([]);
+                      setOpen(false);
+                    }}
+                    className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                {recentSymbols.map(sym => (
+                  <button
+                    key={sym}
+                    type="button"
+                    onClick={() => handleSelect(sym)}
+                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[#1A1838] transition-colors border-b border-[#252345] last:border-0"
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <p className="text-sm font-bold text-[#F1F5F9] font-mono">{sym.replace(".US", "").replace(".COMM", "")}</p>
+                    <p className="text-xs text-[#4B5675] ml-1">{sym}</p>
+                  </button>
+                ))}
+              </>
+            )}
+            {/* Search results */}
             {results.map((item, i) => (
               <button
                 key={`${item.symbol}-${i}`}

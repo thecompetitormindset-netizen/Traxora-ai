@@ -10,6 +10,7 @@ const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), {
 });
 import MarketStatus from "@/app/components/MarketStatus";
 import { getPortfolio } from "@/app/lib/trading";
+import { scopedKey } from "@/app/lib/userState";
 import type { AIAnalysis, DeepAnalysis, TradePlan } from "@/app/components/analysis/types";
 import { signalStyle, riskStyle, confidenceStyle } from "@/app/components/analysis/types";
 import DeepMarketPanel from "@/app/components/analysis/DeepMarketPanel";
@@ -32,6 +33,7 @@ function AnalysisContent() {
   const [loadingDeep, setLoadingDeep] = useState(false);
   const [deepStep, setDeepStep]       = useState(0);
   const [deepError, setDeepError] = useState<string | null>(null);
+  const [overrideInfo, setOverrideInfo] = useState<{ from: string; to: string } | null>(null);
 
   const [proAnalysis, setProAnalysis]     = useState<ProAnalysisResult | null>(null);
   const [loadingPro, setLoadingPro]       = useState(false);
@@ -80,11 +82,14 @@ function AnalysisContent() {
     const mapped: "BUY" | "HOLD" | "SELL" =
       deepAnalysis.overallBias === "BULLISH" ? "BUY" :
       deepAnalysis.overallBias === "BEARISH" ? "SELL" : "HOLD";
-    setAnalysis(prev =>
-      prev
+    setAnalysis(prev => {
+      if (prev && prev.signal !== mapped) {
+        setOverrideInfo({ from: prev.signal, to: mapped });
+      }
+      return prev
         ? { ...prev, signal: mapped, confidence: deepAnalysis.confidence }
-        : { signal: mapped, confidence: deepAnalysis.confidence, summary: deepAnalysis.biasReasoning, keyPoints: [], risk: "Medium" as const }
-    );
+        : { signal: mapped, confidence: deepAnalysis.confidence, summary: deepAnalysis.biasReasoning, keyPoints: [], risk: "Medium" as const };
+    });
   }, [deepAnalysis]);
 
   useEffect(() => {
@@ -94,6 +99,16 @@ function AnalysisContent() {
       .then((items) => { setNews(Array.isArray(items) ? items : []); })
       .catch(() => setNews([]))
       .finally(() => setNewsLoading(false));
+  }, [symbol]);
+
+  // Save visited symbol to recent history (used by Topbar search dropdown)
+  useEffect(() => {
+    try {
+      const key = scopedKey("recent_symbols");
+      const prev: string[] = JSON.parse(localStorage.getItem(key) ?? "[]");
+      const next = [symbol, ...prev.filter(s => s !== symbol)].slice(0, 8);
+      localStorage.setItem(key, JSON.stringify(next));
+    } catch { /* ignore */ }
   }, [symbol]);
 
   async function runDeepAnalysis() {
@@ -256,12 +271,12 @@ function AnalysisContent() {
       : null;
 
   const [showGuide, setShowGuide] = useState(() => {
-    try { return !localStorage.getItem("traxora_ran_analysis"); } catch { return false; }
+    try { return !localStorage.getItem(scopedKey("traxora_ran_analysis")); } catch { return false; }
   });
 
   useEffect(() => {
     if (analysis) {
-      try { localStorage.setItem("traxora_ran_analysis", "1"); } catch { /* ignore */ }
+      try { localStorage.setItem(scopedKey("traxora_ran_analysis"), "1"); } catch { /* ignore */ }
       setShowGuide(false);
     }
   }, [analysis]);
@@ -373,6 +388,30 @@ function AnalysisContent() {
               </div>
               <button type="button" onClick={() => setShowGuide(false)} aria-label="Dismiss guide" className="text-[#4B5675] hover:text-[#7B8DB4] shrink-0">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          )}
+
+          {/* ── Deep analysis signal override banner ── */}
+          {overrideInfo && (
+            <div className="mt-4 flex items-start gap-3 px-5 py-4 rounded-2xl border border-amber-500/30 bg-amber-500/8">
+              <span className="text-xl shrink-0 mt-0.5">🔁</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-amber-300 mb-1">Signal updated by Deep Analysis</p>
+                <p className="text-xs text-[#7B8DB4] leading-relaxed">
+                  The quick scan showed <strong className="text-[#F1F5F9]">{overrideInfo.from}</strong>, but the full institutional analysis found{" "}
+                  <strong className="text-[#F1F5F9]">{overrideInfo.to}</strong>. Deep Analysis uses 6 Smart Money concepts, IV data, and multi-timeframe structure — it takes precedence.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOverrideInfo(null)}
+                aria-label="Dismiss"
+                className="text-[#4B5675] hover:text-[#7B8DB4] shrink-0"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
               </button>
             </div>
           )}

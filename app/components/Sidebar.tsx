@@ -42,7 +42,7 @@ const Icon = {
 
 const SIGNALS_ITEMS = [
   { name: "Signals",   desc: "AI signal + entry plan",    href: "/analysis",     emoji: "⚡",  event: null },
-  { name: "Markets",   desc: "Futures & options plays",   href: "/intelligence", emoji: "📊",  event: null },
+  { name: "Scanner",   desc: "Futures & options plays",   href: "/intelligence", emoji: "📊",  event: null },
   { name: "IPO",       desc: "New listings & outlook",    href: "/ipo",          emoji: "🚀",  event: null },
   { name: "Brief",     desc: "Morning market briefing",   href: null,            emoji: "🌅",  event: "traxora-show-briefing" },
   { name: "AI Chat",   desc: "Ask the AI anything",       href: null,            emoji: "💬",  event: "traxora-open-chat" },

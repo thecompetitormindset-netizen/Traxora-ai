@@ -98,7 +98,7 @@ function loginEmailHtml(params: {
             <p style="margin:0 0 20px;font-size:14px;color:#94a3b8;line-height:1.7">
               Hi <strong style="color:#f1f5f9">${name}</strong>,
               ${isNewUser
-                ? " your Traxora AI account is ready. You now have access to live ICT signals, the daily morning brief, and AI-powered market analysis."
+                ? " your Traxora AI account is ready. You now have access to live smart money signals, the daily morning brief, and AI-powered market analysis."
                 : " we noticed a new sign-in to your Traxora AI account. If this was you, no action is needed."}
             </p>
 
@@ -178,7 +178,7 @@ function loginEmailHtml(params: {
           <td style="border-top:1px solid #1c2333;padding:18px 24px;text-align:center">
             <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">
               <tr>
-                <td style="background:#4f46e5;border-radius:10px">
+                <td style="background:#059669;border-radius:10px">
                   <a href="https://traxora-ai.vercel.app/dashboard" target="_blank"
                     style="display:block;padding:12px 28px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none">
                     ${isNewUser ? "Start Trading →" : "Open Dashboard →"}
@@ -211,6 +211,9 @@ function loginEmailHtml(params: {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [Google],
+  // Required on Vercel: trusts the x-forwarded-host header from the edge proxy
+  // so OAuth callbacks resolve to the correct production URL instead of localhost.
+  trustHost: true,
   session: {
     strategy:  "jwt",
     maxAge:    30 * 24 * 60 * 60, // 30 days
@@ -218,12 +221,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      // Set ALLOWED_EMAILS="a@b.com,c@d.com" in Vercel env to restrict access.
-      // Leave unset to allow any Google account (public app mode).
+      // ALLOWED_EMAILS: comma-separated list for private/beta mode.
+      // Leave unset (or empty) in Vercel env to allow any Google account — this is the public/production setting.
       const allowList = process.env.ALLOWED_EMAILS;
-      if (!allowList) return true;
-      const allowed = allowList.split(",").map(e => e.trim().toLowerCase());
-      return !!user.email && allowed.includes(user.email.toLowerCase());
+      if (!allowList || allowList.trim() === "") return true;
+      const allowed = allowList.split(",").map(e => e.trim().toLowerCase()).filter(Boolean);
+      if (allowed.length === 0) return true;
+      const granted = !!user.email && allowed.includes(user.email.toLowerCase());
+      if (!granted) {
+        console.warn(`[auth] Sign-in denied for ${user.email} — not in ALLOWED_EMAILS list. Remove ALLOWED_EMAILS from Vercel env to open to all users.`);
+      }
+      return granted;
     },
   },
   events: {

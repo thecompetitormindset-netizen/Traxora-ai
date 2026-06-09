@@ -1,15 +1,15 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const AUTH_ERRORS: Record<string, string> = {
-  OAuthCallback:         "Google sign-in failed. Ensure this app is authorized in Google Cloud Console.",
+  OAuthCallback:         "Google sign-in failed. Check that the Google Cloud Console has this app's redirect URI registered.",
   OAuthAccountNotLinked: "This Google account is linked to a different sign-in method.",
   Configuration:         "Auth configuration error — check AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET in Vercel.",
-  AccessDenied:          "Access denied by Google.",
+  AccessDenied:          "Sign-in not permitted. If this app is in private mode, contact the owner to be added. Otherwise, the Google OAuth app may need to be published in Google Cloud Console.",
   Default:               "Sign-in failed. Please try again.",
 };
 
@@ -28,6 +28,12 @@ const STEPS = [
   { n: "3", text: "You're in — dashboard loads instantly" },
 ];
 
+function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /FBAN|FBAV|Instagram|Twitter|LinkedInApp|MicroMessenger|WhatsApp|Telegram|Line\/|Snapchat|TikTok|Pinterest|Reddit|GSA\//.test(ua);
+}
+
 function LoginContent() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -35,6 +41,11 @@ function LoginContent() {
   const errorCode   = searchParams.get("error");
   const errorMsg    = errorCode ? (AUTH_ERRORS[errorCode] ?? AUTH_ERRORS.Default) : null;
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const [inAppBrowser, setInAppBrowser] = useState(false);
+
+  useEffect(() => {
+    setInAppBrowser(isInAppBrowser());
+  }, []);
 
   useEffect(() => {
     const justSignedOut = searchParams.get("signedOut");
@@ -106,6 +117,16 @@ function LoginContent() {
           <h2 className="text-xl font-bold mb-1">Sign in to Traxora AI</h2>
           <p className="text-sm text-[#7B8DB4] mb-6">Start with a 30-second setup. No credit card required to try.</p>
 
+          {inAppBrowser && (
+            <div className="mb-4 px-4 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm">
+              <p className="font-bold mb-1">⚠️ Open in your browser first</p>
+              <p className="text-xs text-amber-400 leading-relaxed">
+                You&apos;re in an in-app browser (Messenger, Instagram, etc.). Google blocks sign-in here.
+                Tap <strong>···</strong> or the share icon and choose <strong>&quot;Open in Chrome&quot;</strong> or <strong>&quot;Open in Safari&quot;</strong>, then sign in.
+              </p>
+            </div>
+          )}
+
           {errorMsg && (
             <div className="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm text-center">
               {errorMsg}
@@ -116,7 +137,8 @@ function LoginContent() {
             <button
               type="button"
               onClick={() => signIn("google", { callbackUrl })}
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 transition-colors text-gray-900 font-semibold py-3 px-5 rounded-xl text-sm"
+              disabled={inAppBrowser}
+              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 transition-colors text-gray-900 font-semibold py-3 px-5 rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <svg width="18" height="18" viewBox="0 0 24 24">
                 <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -143,6 +165,11 @@ function LoginContent() {
           <p className="text-center text-xs text-[#4B5675] mt-5 leading-relaxed">
             For informational purposes only — not financial advice.
           </p>
+          <div className="flex items-center justify-center gap-4 mt-3">
+            <Link href="/privacy" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Privacy Policy</Link>
+            <span className="text-[#252345]">·</span>
+            <Link href="/terms"   className="text-xs text-[#4B5675] hover:text-[#7B8DB4] transition-colors">Terms of Service</Link>
+          </div>
 
           <div className="mt-4 text-center">
             <Link href="/guide" className="text-xs text-emerald-500 hover:text-emerald-400 transition-colors">

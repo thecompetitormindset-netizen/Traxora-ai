@@ -352,7 +352,7 @@ export default function SettingsPage() {
                   }
                   label="Manage subscription"
                   sublabel="View billing or cancel — opens your Ko-fi account"
-                  onClick={() => window.open("https://ko-fi.com/account", "_blank")}
+                  onClick={() => window.open("https://ko-fi.com/settings/memberships", "_blank")}
                 />
               ) : (
                 <Row

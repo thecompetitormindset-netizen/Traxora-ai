@@ -46,14 +46,22 @@ export const metadata: Metadata = {
     title: "Traxora AI — Trade Like Smart Money",
     description:
       "AI reads Order Blocks, FVGs, Liquidity, Volume Profile & Market Structure in seconds. Real-time signals for stocks, futures & options. $5/mo.",
-    type: "website",
+    type:   "website",
     locale: "en_US",
+    url:    "https://traxora-ai.vercel.app",
+    siteName: "Traxora AI",
+    images: [{
+      url:    "https://traxora-ai.vercel.app/opengraph-image",
+      width:  1200,
+      height: 630,
+      alt:    "Traxora AI — AI-Powered Smart Money Trading Signals",
+    }],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Traxora AI — Smart Money Trading Platform",
-    description:
-      "AI-powered BUY/SELL/HOLD signals with volume profile analysis, options flow, morning briefings, and trade journal. $5/mo.",
+    card:        "summary_large_image",
+    title:       "Traxora AI — Smart Money Trading Platform",
+    description: "AI-powered BUY/SELL/HOLD signals with volume profile analysis, options flow, morning briefings, and trade journal. $5/mo.",
+    images:      ["https://traxora-ai.vercel.app/opengraph-image"],
   },
   appleWebApp: {
     capable: true,
