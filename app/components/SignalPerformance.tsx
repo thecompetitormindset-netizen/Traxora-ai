@@ -103,6 +103,9 @@ export default function SignalPerformance() {
 
   if (!report) return null;
 
+  const MIN_RELIABLE = 20; // signals needed before showing expectancy / payoff
+  const isReliable   = report.actedTrades >= MIN_RELIABLE;
+
   const acc      = report.directionalAccuracy;
   const accColor = acc >= 0.6 ? "text-emerald-400" : acc >= 0.5 ? "text-amber-400" : "text-rose-400";
   const accBg    = acc >= 0.6 ? "bg-emerald-500/10 border-emerald-500/25" : acc >= 0.5 ? "bg-amber-500/10 border-amber-500/25" : "bg-rose-500/10 border-rose-500/25";
@@ -120,14 +123,22 @@ export default function SignalPerformance() {
               <p className={`text-xl font-black font-mono ${accColor}`}>{pct(acc)}</p>
               <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">Accuracy</p>
             </div>
-            <div className="px-3 py-1.5 rounded-xl border border-[#252345] text-center">
-              <p className="text-xl font-black font-mono text-[#F1F5F9]">{report.expectancyPct}</p>
-              <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">Expectancy</p>
-            </div>
-            {report.payoffRatio != null && (
-              <div className="px-3 py-1.5 rounded-xl border border-[#252345] text-center">
-                <p className="text-xl font-black font-mono text-[#F1F5F9]">{report.payoffRatio.toFixed(2)}x</p>
-                <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">Payoff</p>
+            {isReliable ? (
+              <>
+                <div className="px-3 py-1.5 rounded-xl border border-[#252345] text-center">
+                  <p className="text-xl font-black font-mono text-[#F1F5F9]">{report.expectancyPct}</p>
+                  <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">Expectancy</p>
+                </div>
+                {report.payoffRatio != null && (
+                  <div className="px-3 py-1.5 rounded-xl border border-[#252345] text-center">
+                    <p className="text-xl font-black font-mono text-[#F1F5F9]">{report.payoffRatio.toFixed(2)}x</p>
+                    <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">Payoff</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="px-3 py-1.5 rounded-xl border border-amber-500/20 bg-amber-500/5 text-center max-w-[180px]">
+                <p className="text-[9px] text-amber-400 leading-snug">Expectancy unlocks after {MIN_RELIABLE} signals — {MIN_RELIABLE - report.actedTrades} more needed for reliable stats</p>
               </div>
             )}
           </div>
@@ -175,6 +186,15 @@ export default function SignalPerformance() {
             <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">AI Verdict</p>
             <p className="text-xs text-[#CBD5E1] leading-relaxed">{report.verdict}</p>
           </div>
+
+          {/* Sample size warning */}
+          {!isReliable && (
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-3 py-2.5">
+              <p className="text-[10px] text-amber-400 leading-relaxed">
+                ⚠ {report.actedTrades} signals is too small for statistically reliable results. Expectancy and payoff figures become meaningful at {MIN_RELIABLE}+ signals. Keep using AI analysis to build your track record.
+              </p>
+            </div>
+          )}
 
           <button type="button" onClick={evaluate}
             className="text-[9px] text-[#4B5675] hover:text-[#7B8DB4] transition-colors font-mono">

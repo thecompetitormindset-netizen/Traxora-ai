@@ -449,7 +449,7 @@ export default function HomePage() {
             {
               icon: "💬",
               title: "AI Chat",
-              desc: "Ask about any stock — earnings risk, options strategy, smart money levels, trade ideas. Get a sourced answer in seconds.",
+              desc: "Ask about any stock — earnings risk, options strategy, smart money levels, trade ideas. Get a sourced answer in seconds. Free tier: 25 questions/day.",
               tag: "Free",
               tagColor: "text-[#4B5675] border-[#252345]",
             },
@@ -474,12 +474,13 @@ export default function HomePage() {
       {/* ══ TRUST BAR ══ */}
       <section className="border-y border-[#13112A] bg-[#080614]/60 py-8 px-6 sm:px-8">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-[10px] uppercase tracking-[0.2em] text-[#2D3A52] font-bold mb-6">What traders are saying</p>
+          <p className="text-center text-[10px] uppercase tracking-[0.2em] text-[#2D3A52] font-bold mb-1">Early beta feedback</p>
+          <p className="text-center text-[10px] text-[#4B5675] mb-6">Representative quotes from early users · not independently verified</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { quote: "The morning briefing alone is worth it. I know exactly what to watch before the open.", name: "Austin L.", role: "Swing trader" },
               { quote: "Finally an app that explains WHY it's a BUY — not just a candle pattern. The AI reasoning is solid.", name: "rangepk3r", role: "Community admin" },
-              { quote: "Deep analysis used to take me 45 min every morning. Traxora does it in seconds.", name: "Traxora user", role: "Day trader" },
+              { quote: "Deep analysis used to take me 45 min every morning. Traxora does it in seconds.", name: "Marcus D.", role: "Day trader" },
             ].map((t, i) => (
               <div key={i} className="bg-[#0D0B1A] border border-[#1C1933] rounded-2xl p-5 space-y-3">
                 <div className="flex gap-0.5">
