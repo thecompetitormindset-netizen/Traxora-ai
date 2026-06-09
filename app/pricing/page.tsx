@@ -29,20 +29,17 @@ const PRO_FEATURES = [
   "Priority signal alerts via browser notifications",
 ];
 
-type BillingCycle = "monthly" | "annual";
-
 function PricingContent() {
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const featureParam = searchParams.get("feature");
   const errorParam   = searchParams.get("error");
 
-  const [loading,      setLoading]      = useState(false);
-  const [checking,     setChecking]     = useState(false);
-  const [error,        setError]        = useState<string | null>(null);
-  const [userPlan,     setUserPlan]     = useState<"pro" | "free" | null>(null);
-  const [planLoaded,   setPlanLoaded]   = useState(false);
-  const [billing,      setBilling]      = useState<BillingCycle>("monthly");
+  const [loading,    setLoading]    = useState(false);
+  const [checking,   setChecking]   = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [userPlan,   setUserPlan]   = useState<"pro" | "free" | null>(null);
+  const [planLoaded, setPlanLoaded] = useState(false);
 
   // Detect current plan on mount
   useEffect(() => {
@@ -57,12 +54,7 @@ function PricingContent() {
       .finally(() => setPlanLoaded(true));
   }, [status]);
 
-  // If already Pro, redirect to dashboard unless they arrived via a feature gate
-  useEffect(() => {
-    if (userPlan === "pro" && !featureParam) {
-      window.location.href = "/dashboard";
-    }
-  }, [userPlan, featureParam]);
+  // No automatic redirect — let Pro users see the pricing page (they may want billing info)
 
   async function handleUpgrade() {
     if (!session) { window.location.href = "/login?callbackUrl=/pricing"; return; }
@@ -132,38 +124,9 @@ function PricingContent() {
         )}
 
         {/* Header */}
-        <div className="text-center mb-10">
+        <div className="text-center mb-12">
           <h1 className="text-5xl font-black mb-4">Simple pricing.</h1>
-          <p className="text-[#7B8DB4] text-lg">Cancel anytime. No hidden fees.</p>
-        </div>
-
-        {/* Billing cycle toggle */}
-        <div className="flex items-center justify-center mb-10">
-          <div className="flex items-center bg-[#13112A] border border-[#252345] rounded-xl p-1 gap-1">
-            <button
-              type="button"
-              onClick={() => setBilling("monthly")}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                billing === "monthly"
-                  ? "bg-[#252345] text-[#F1F5F9]"
-                  : "text-[#4B5675] hover:text-[#7B8DB4]"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setBilling("annual")}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
-                billing === "annual"
-                  ? "bg-[#252345] text-[#F1F5F9]"
-                  : "text-[#4B5675] hover:text-[#7B8DB4]"
-              }`}
-            >
-              Annual
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-bold">Save 18%</span>
-            </button>
-          </div>
+          <p className="text-[#7B8DB4] text-lg">$5/mo. Cancel anytime. No hidden fees.</p>
         </div>
 
         {/* Plans */}
@@ -210,20 +173,8 @@ function PricingContent() {
               }
             </div>
             <div className="mb-8">
-              {billing === "monthly" ? (
-                <>
-                  <p className="text-4xl font-black">$5<span className="text-lg font-normal text-[#4B5675]">/mo</span></p>
-                  <p className="text-xs text-[#4B5675] mt-1">Billed monthly · cancel anytime</p>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-4xl font-black">$49<span className="text-lg font-normal text-[#4B5675]">/yr</span></p>
-                    <span className="text-xs text-emerald-400 font-bold">≈ $4.08/mo</span>
-                  </div>
-                  <p className="text-xs text-[#4B5675] mt-1">Billed once yearly · cancel anytime · save $11</p>
-                </>
-              )}
+              <p className="text-4xl font-black">$5<span className="text-lg font-normal text-[#4B5675]">/mo</span></p>
+              <p className="text-xs text-[#4B5675] mt-1">Billed monthly · cancel anytime</p>
             </div>
 
             <ul className="space-y-3 flex-1 mb-8">
@@ -259,12 +210,7 @@ function PricingContent() {
                   disabled={loading}
                   className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm font-bold text-white shadow-lg shadow-emerald-500/20"
                 >
-                  {loading
-                    ? "Redirecting to checkout…"
-                    : session
-                      ? billing === "annual" ? "Subscribe for $49/yr →" : "Subscribe for $5/mo →"
-                      : "Sign in to subscribe →"
-                  }
+                  {loading ? "Redirecting to checkout…" : session ? "Subscribe for $5/mo →" : "Sign in to subscribe →"}
                 </button>
 
                 {session && (
@@ -280,9 +226,7 @@ function PricingContent() {
               </>
             )}
 
-            <p className="text-[10px] text-[#4B5675] text-center mt-3">
-              Secure checkout via Ko-fi · cancel anytime from Settings{billing === "annual" ? " · annual billed upfront" : ""}
-            </p>
+            <p className="text-[10px] text-[#4B5675] text-center mt-3">Secure checkout via Ko-fi · cancel anytime from Settings</p>
           </div>
         </div>
 

@@ -1,4 +1,4 @@
-import { scopedKey } from "./userState";
+import { scopedKey, getCurrentUser } from "./userState";
 
 const TTL_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -15,6 +15,7 @@ function cacheKey(symbol: string, price: number): string {
 }
 
 export function getSignalCache(symbol: string, price: number): CachedSignal | null {
+  if (!getCurrentUser()) return null; // never read cache before user is identified
   try {
     const raw = localStorage.getItem(cacheKey(symbol, price));
     if (!raw) return null;
@@ -30,6 +31,7 @@ export function getSignalCache(symbol: string, price: number): CachedSignal | nu
 }
 
 export function setSignalCache(symbol: string, price: number, data: Omit<CachedSignal, "ts">): void {
+  if (!getCurrentUser()) return; // never write cache before user is identified
   try {
     const entry: CachedSignal = { ...data, ts: Date.now() };
     localStorage.setItem(cacheKey(symbol, price), JSON.stringify(entry));

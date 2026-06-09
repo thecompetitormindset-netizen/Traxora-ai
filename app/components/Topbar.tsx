@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { THEME_KEY } from "../lib/theme";
 import { useRouter } from "next/navigation";
-import { scopedKey } from "../lib/userState";
+import { setCurrentUser, scopedKey } from "../lib/userState";
 
 type SearchItem = {
   code: string;
@@ -33,15 +33,17 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const [alertCount, setAlertCount] = useState(0);
   const [recentSymbols, setRecentSymbols] = useState<string[]>([]);
 
-  const RECENT_KEY = scopedKey("recent_symbols");
+  // Keep module-level _userId in sync with session so scopedKey works in this component
+  useEffect(() => {
+    setCurrentUser(session?.user?.email ?? null);
+  }, [session]);
 
   useEffect(() => {
     try {
-      const raw = localStorage.getItem(RECENT_KEY);
+      const raw = localStorage.getItem(scopedKey("recent_symbols"));
       setRecentSymbols(raw ? JSON.parse(raw) : []);
     } catch { setRecentSymbols([]); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [session]); // re-run when session changes so key is recomputed with correct user
 
   useEffect(() => {
     function loadCount() {
@@ -85,9 +87,10 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
   function saveRecent(symbol: string) {
     try {
-      const prev: string[] = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]");
+      const key  = scopedKey("recent_symbols"); // recompute fresh — _userId now set by effect above
+      const prev: string[] = JSON.parse(localStorage.getItem(key) ?? "[]");
       const next = [symbol, ...prev.filter(s => s !== symbol)].slice(0, 8);
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      localStorage.setItem(key, JSON.stringify(next));
       setRecentSymbols(next);
     } catch { /* ignore */ }
   }
@@ -149,7 +152,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
                   <button
                     type="button"
                     onClick={() => {
-                      try { localStorage.removeItem(RECENT_KEY); } catch { /* ignore */ }
+                      try { localStorage.removeItem(scopedKey("recent_symbols")); } catch { /* ignore */ }
                       setRecentSymbols([]);
                       setOpen(false);
                     }}

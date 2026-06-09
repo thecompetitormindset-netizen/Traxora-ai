@@ -270,9 +270,15 @@ function AnalysisContent() {
         100
       : null;
 
-  const [showGuide, setShowGuide] = useState(() => {
-    try { return !localStorage.getItem(scopedKey("traxora_ran_analysis")); } catch { return false; }
-  });
+  const [showGuide, setShowGuide] = useState(false); // initialized in effect after user is known
+
+  // Show guide only for users who haven't run analysis yet — read after _userId is set by Topbar effect
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(scopedKey("traxora_ran_analysis"))) setShowGuide(true);
+    } catch { /* ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // empty dep: runs once after mount, by which time Topbar's setCurrentUser effect has also run
 
   useEffect(() => {
     if (analysis) {
