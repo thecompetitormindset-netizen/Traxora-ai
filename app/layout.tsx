@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import Providers from "./providers";
 import CookieBanner from "./components/CookieBanner";
 import WelcomeModal from "./components/WelcomeModal";
@@ -110,6 +111,7 @@ export default function RootLayout({
           <ServiceWorkerRegistrar />
         </div>
         <Analytics />
+        <SpeedInsights />
         <CookieBanner />
       </body>
     </html>
