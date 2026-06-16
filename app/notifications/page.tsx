@@ -90,14 +90,14 @@ export default function NotificationsPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="max-w-3xl mx-auto w-full">
+        <div className="max-w-5xl mx-auto w-full">
 
           {/* ── Header ── */}
-          <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
+          <div className="mt-3 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-4xl font-bold">Signal Alerts</h1>
+              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Signal Alerts</h1>
               <p className="text-[#7B8DB4] mt-2 text-sm">
                 AI-generated BUY &amp; SELL signals from your watchlist.
               </p>
@@ -202,13 +202,13 @@ export default function NotificationsPage() {
                 </p>
               </div>
             ) : (
-              <div className="bg-[#13112A] border border-[#252345] rounded-3xl overflow-hidden divide-y divide-[#252345]">
+              <div className="glass surface-sheen border border-[#252345] rounded-3xl overflow-hidden divide-y divide-[#252345]">
                 {alerts.map((alert, i) => {
                   const clean = alert.symbol.replace(".US", "").replace(".COMM", "");
                   const isBuy = alert.signal === "BUY";
 
                   return (
-                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 hover:bg-[#0F1623] transition-colors">
+                    <div key={i} className="flex items-center gap-4 px-5 py-3.5 hover:bg-white/[0.03] transition-colors">
                       {/* Signal dot */}
                       <span className={`w-2 h-2 rounded-full shrink-0 ${isBuy ? "bg-emerald-400 shadow-[0_0_6px_#10B981]" : "bg-rose-400 shadow-[0_0_6px_#EF4444]"}`} />
 

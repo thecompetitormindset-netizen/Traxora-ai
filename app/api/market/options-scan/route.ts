@@ -192,7 +192,9 @@ export async function runOptionsScan() {
     const expectedMove = parseFloat(((dailyMove / q.price) * 100).toFixed(2));
 
     // ── Trade levels ────────────────────────────────────────
-    const isBull = sm.signal === "BUY";
+    const isBull      = sm.signal === "BUY";
+    const finalSignal = sm.signal as "BUY" | "SELL";
+    const finalConfidence = sm.confidence;
 
     // Entry zone: 0.3% band around current price
     const entryLow  = q.price * (isBull ? 0.997 : 1.001);
@@ -228,15 +230,15 @@ export async function runOptionsScan() {
     const normalizedScore = ((sm.score + 20) / 40) * 50;
     const ivScore    = ivPct ? (ivPct >= 25 && ivPct <= 80 ? 30 : ivPct > 80 ? 15 : 5) : 0;
     const momScore   = Math.min(Math.abs(changePct) * 2, 15);
-    const confScore  = sm.confidence === "High" ? 10 : sm.confidence === "Medium" ? 5 : 0;
+    const confScore  = finalConfidence === "High" ? 10 : finalConfidence === "Medium" ? 5 : 0;
     const score      = normalizedScore + ivScore + momScore + confScore;
 
     results.push({
       symbol:       q.symbol,
       price:        q.price,
       changePct,
-      signal:       sm.signal as "BUY" | "SELL",
-      confidence:   sm.confidence,
+      signal:       finalSignal,
+      confidence:   finalConfidence,
       play:         isBull ? "CALLS" : "PUTS",
       iv:           ivPct ? parseFloat(ivPct.toFixed(1)) : null,
       expiry:       opt?.expiry ?? null,

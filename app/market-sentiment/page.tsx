@@ -80,7 +80,7 @@ function MetricCard({
 }) {
   const [showWhy, setShowWhy] = useState(false);
   return (
-    <div className={`bg-[#13112A] border border-[#252345] rounded-2xl p-5 flex flex-col gap-3 hover:border-${accentColor}-500/30 transition-colors`}>
+    <div className={`card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5 flex flex-col gap-3 hover:border-${accentColor}-500/30 transition-colors`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675]">{label}</p>
@@ -383,14 +383,14 @@ export default function MarketSentimentPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-6xl mx-auto w-full">
 
           {/* ── Header ─────────────────────────────────────────────────── */}
           <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-4xl font-black">Market Sentiment</h1>
+              <h1 className="reveal section-header text-4xl font-black text-gradient-green">Market Sentiment</h1>
               <p className="text-[#7B8DB4] mt-2 text-sm">
                 Institutional-grade analysis powered by Claude AI — Haiku for classification, Sonnet for synthesis, Opus for deep reports.
               </p>
@@ -661,7 +661,7 @@ export default function MarketSentimentPage() {
 
           {synthLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[1,2,3].map(i => <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5"><Skeleton h="h-16" /></div>)}
+              {[1,2,3].map(i => <div key={i} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5"><Skeleton h="h-16" /></div>)}
             </div>
           ) : syntheses.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -679,7 +679,7 @@ export default function MarketSentimentPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
+            <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-6 text-center">
               <p className="text-[#4B5675] text-sm">
                 {getPortfolio().holdings.length === 0
                   ? "No open positions — buy a stock to see sentiment for your holdings."
@@ -745,7 +745,7 @@ export default function MarketSentimentPage() {
           {reportLoading && !report && (
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[1,2,3,4].map(i => (
-                <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 space-y-3">
+                <div key={i} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5 space-y-3">
                   <Skeleton h="h-3" w="w-1/3" />
                   <Skeleton h="h-4" />
                   <Skeleton h="h-4" w="w-5/6" />
@@ -797,7 +797,7 @@ export default function MarketSentimentPage() {
 
               {/* Themes + Catalysts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
+                <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">News Themes</p>
                   <div className="space-y-2">
                     {report.themes.map((t, i) => (
@@ -809,7 +809,7 @@ export default function MarketSentimentPage() {
                   </div>
                 </div>
 
-                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
+                <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5">
                   <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">Tomorrow&apos;s Catalysts</p>
                   <div className="space-y-2">
                     {report.catalysts.map((c, i) => (

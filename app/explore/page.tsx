@@ -260,20 +260,20 @@ export default function ExplorePage() {
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-6xl mx-auto w-full">
 
         {/* ── Header ── */}
-        <div className="mt-6">
-          <h1 className="text-4xl font-bold">Explore Markets</h1>
+        <div className="mt-3">
+          <h1 className="reveal section-header text-4xl font-bold text-gradient-green">Explore Markets</h1>
           <p className="text-[#7B8DB4] mt-2">
             Search any instrument or browse by exchange — stocks, futures, commodities & more.
           </p>
         </div>
 
         {/* ── Exchange Tabs ── */}
-        <div className="mt-6">
+        <div className="mt-3">
           <p className="text-xs text-[#4B5675] uppercase tracking-widest mb-3">Browse by Exchange</p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -344,7 +344,7 @@ export default function ExplorePage() {
 
         {/* ── Search Results ── */}
         {searched && (
-          <div className="mt-6">
+          <div className="mt-3">
             <h2 className="text-lg font-semibold mb-3">
               {results.length > 0 ? `${results.length} results` : "No results found"}
             </h2>
@@ -381,7 +381,7 @@ export default function ExplorePage() {
           const categories = Array.from(new Set(activeExchange.items.map((i) => i.category)));
           const c = COLOR[activeExchange.color];
           return (
-            <div className="mt-6 space-y-8">
+            <div className="mt-3 space-y-8">
               {categories.map((cat) => (
                 <div key={cat}>
                   <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">

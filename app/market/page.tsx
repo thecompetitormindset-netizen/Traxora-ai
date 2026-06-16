@@ -126,13 +126,13 @@ function MarketContent() {
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-5xl mx-auto w-full">
 
-        <div className="mt-6 flex items-start justify-between gap-4">
+        <div className="mt-3 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-bold">{symbol}</h1>
+            <h1 className="reveal section-header text-4xl font-bold text-gradient-green">{symbol}</h1>
             <p className="text-[#7B8DB4] mt-2">
               {quote?.exchange
                 ? `Exchange: ${quote.exchange}`
@@ -146,7 +146,7 @@ function MarketContent() {
           </div>
 
           <div className="flex gap-3">
-            <div className="bg-[#13112A] rounded-2xl px-5 py-4 border border-[#252345] min-w-[170px]">
+            <div className="card-shine card-hover-lift bg-[#13112A] rounded-2xl px-5 py-4 border border-[#252345] min-w-[170px]">
               <p className="text-xs text-[#7B8DB4]">Current Price</p>
               <p className="text-2xl font-bold mt-2">
                 {loadingQuote
@@ -157,7 +157,7 @@ function MarketContent() {
               </p>
             </div>
 
-            <div className="bg-[#13112A] rounded-2xl px-5 py-4 border border-[#252345] min-w-[170px]">
+            <div className="card-shine card-hover-lift bg-[#13112A] rounded-2xl px-5 py-4 border border-[#252345] min-w-[170px]">
               <p className="text-xs text-[#7B8DB4]">Day Change</p>
               <p
                 className={`text-2xl font-bold mt-2 ${
@@ -176,8 +176,8 @@ function MarketContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-          <div className="xl:col-span-2 bg-[#13112A] rounded-3xl p-6 border border-[#252345]">
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-3">
+          <div className="xl:col-span-2 card-shine glass surface-sheen rounded-3xl p-6 border border-[#252345]">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h2 className="text-2xl font-semibold">{symbol} Chart</h2>
@@ -190,7 +190,7 @@ function MarketContent() {
             <StockChart symbol={symbol} height={440} />
           </div>
 
-          <div className="bg-[#13112A] rounded-3xl p-6 border border-[#252345]">
+          <div className="card-shine glass surface-sheen rounded-3xl p-6 border border-[#252345]">
             <h2 className="text-2xl font-semibold mb-5">Trade Panel</h2>
 
             <div className="flex gap-2 mb-5">
@@ -281,7 +281,7 @@ function MarketContent() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-3">
           <div className="bg-[#1A1838] rounded-3xl p-5 border border-[#1E1C42]">
             <h3 className="text-lg font-semibold mb-3">Open</h3>
             <p className="text-2xl font-bold">

@@ -48,9 +48,9 @@ function EquityCurve({ points }: { points: number[] }) {
 
 function Stat({ label, value, sub, color = "text-[#F1F5F9]" }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-4 py-4">
+    <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-4 py-4">
       <p className="text-[9px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{label}</p>
-      <p className={`text-xl font-black font-mono ${color}`}>{value}</p>
+      <p className={`num-reveal text-xl font-black font-mono ${color}`}>{value}</p>
       {sub && <p className="text-[10px] text-[#333368] mt-0.5">{sub}</p>}
     </div>
   );
@@ -170,9 +170,9 @@ function StrategyContent() {
     return (
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
-        <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
           <Topbar />
-          <div className="mt-6 max-w-4xl mx-auto">
+          <div className="mt-3 max-w-6xl mx-auto">
             <h1 className="text-3xl font-black mb-2">Your Stats</h1>
             <p className="text-[#7B8DB4] text-sm mb-8">Your trade performance at a glance.</p>
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
@@ -189,14 +189,14 @@ function StrategyContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="mt-6 max-w-5xl mx-auto w-full space-y-6">
+        <div className="mt-3 max-w-7xl mx-auto w-full space-y-4">
 
           {/* Header */}
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-3xl font-black tracking-tight">Your Stats</h1>
+              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Your Stats</h1>
               <p className="text-[#7B8DB4] text-sm mt-1">{trades.length} closed trades · account started at $10,000</p>
             </div>
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
@@ -212,7 +212,7 @@ function StrategyContent() {
           {tab === "overview" && (
             <>
               {/* Equity curve */}
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+              <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Equity Curve</p>
                   <p className={`text-sm font-mono font-bold ${equity >= STARTING_CAPITAL ? "text-emerald-400" : "text-rose-400"}`}>
@@ -249,7 +249,7 @@ function StrategyContent() {
               {(best || worst) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {best && (
-                    <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-5 py-4">
+                    <div className="card-shine glass surface-sheen signal-card-buy border border-emerald-500/20 rounded-2xl px-5 py-4">
                       <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-semibold mb-2">Best Trade</p>
                       <div className="flex items-center justify-between">
                         <div>
@@ -261,7 +261,7 @@ function StrategyContent() {
                     </div>
                   )}
                   {worst && (
-                    <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl px-5 py-4">
+                    <div className="card-shine glass surface-sheen signal-card-sell border border-rose-500/20 rounded-2xl px-5 py-4">
                       <p className="text-[9px] text-rose-400 uppercase tracking-widest font-semibold mb-2">Worst Trade</p>
                       <div className="flex items-center justify-between">
                         <div>
@@ -276,7 +276,7 @@ function StrategyContent() {
               )}
 
               {/* AI Coaching */}
-              <div className="bg-[#13112A] border border-violet-500/20 rounded-2xl p-5">
+              <div className="card-shine glass surface-sheen border border-violet-500/20 rounded-2xl p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-violet-400">✦</span>

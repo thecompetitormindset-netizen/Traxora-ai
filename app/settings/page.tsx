@@ -13,7 +13,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <div>
       <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">{title}</p>
-      <div className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+      <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
         {children}
       </div>
     </div>
@@ -164,12 +164,12 @@ export default function SettingsPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
-          <div className="max-w-2xl mx-auto w-full">
+        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+          <div className="max-w-3xl mx-auto w-full">
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-black tracking-tight">Settings</h1>
+            <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Settings</h1>
             <p className="text-sm text-[#7B8DB4] mt-1">Manage your account, alerts, and preferences.</p>
           </div>
 

@@ -36,6 +36,11 @@ async function getEmails(): Promise<string[]> {
     (data ?? []).forEach((row: { user_email?: string }) => { if (row.user_email) list.add(row.user_email); });
   } catch { /* supabase not configured — owner still gets email */ }
 
+  // Manually granted pro emails (same list used for in-app access)
+  const granted = (process.env.GRANTED_PRO_EMAILS ?? "")
+    .split(",").map((e: string) => e.trim()).filter(Boolean);
+  granted.forEach((e: string) => list.add(e));
+
   // Additional recipients from env var (manual override)
   const envList = (process.env.CRON_EMAIL ?? "")
     .split(",").map((e: string) => e.trim()).filter(Boolean);

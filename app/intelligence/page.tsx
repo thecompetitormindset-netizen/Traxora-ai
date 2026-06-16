@@ -41,9 +41,9 @@ const FUTURES_LIST = [
 ];
 
 function signalBadgeCls(signal: string | null) {
-  if (signal === "BUY")  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (signal === "SELL") return "bg-rose-500/10    text-rose-400    border-rose-500/20";
-  return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+  if (signal === "BUY")  return "badge-buy  bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  if (signal === "SELL") return "badge-sell bg-rose-500/10    text-rose-400    border-rose-500/20";
+  return "badge-hold bg-amber-500/10 text-amber-400 border-amber-500/20";
 }
 
 function changeColor(v: number | null) {
@@ -54,12 +54,24 @@ function changeColor(v: number | null) {
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
   if (closes.length < 2) return null;
   const min = Math.min(...closes), max = Math.max(...closes), range = max - min || 1;
-  const W = 56, H = 20;
-  const pts = closes.map((c, i) => `${(i / (closes.length - 1)) * W},${H - ((c - min) / range) * H}`).join(" ");
-  const color = positive ? "#34D399" : "#F87171";
+  const W = 56, H = 22;
+  const pts = closes.map((c, i) => ({
+    x: (i / (closes.length - 1)) * W,
+    y: H - 2 - ((c - min) / range) * (H - 4),
+  }));
+  const ptsStr = pts.map(p => `${p.x},${p.y}`).join(" ");
+  const color  = positive ? "#34D399" : "#F87171";
+  const gradId = positive ? "intel-spark-up" : "intel-spark-dn";
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible" aria-hidden>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={`0,${H} ${ptsStr} ${W},${H}`} fill={`url(#${gradId})`} />
+      <polyline points={ptsStr} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="sparkline-path" />
     </svg>
   );
 }
@@ -115,11 +127,11 @@ function OptionsPlaysPanel() {
   const puts  = plays.filter(p => p.play === "PUTS");
 
   return (
-    <div>
+    <div className="scan-panel">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold">Options Plays</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             <p className="text-xs text-[#4B5675]">
               {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : "Scanning 30 liquid stocks…"}
@@ -174,8 +186,8 @@ function OptionsPlaysPanel() {
               { label: "Puts",     value: puts.length,  color: "text-rose-400"    },
               { label: "With IV",  value: withIV,       color: "text-violet-400"  },
             ].map(s => (
-              <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-xl px-4 py-3 text-center">
-                <p className={`text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
+              <div key={s.label} className="card-shine glass surface-sheen border border-[#252345] rounded-xl px-4 py-3 text-center">
+                <p className={`num-reveal text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
                 <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mt-0.5">{s.label}</p>
               </div>
             ))}
@@ -308,7 +320,7 @@ function FuturesPanel() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold">Futures Markets</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Futures Markets</h2>
           <p className="text-xs text-[#4B5675] mt-0.5">Live prices + AI signals across 8 major contracts</p>
         </div>
         <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">All markets →</Link>
@@ -317,8 +329,8 @@ function FuturesPanel() {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {futures.map(f => (
           <Link key={f.symbol} href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-            className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] transition-colors ${
-              f.signal === "BUY" ? "border-l-emerald-500/40" : f.signal === "SELL" ? "border-l-rose-500/40" : "border-l-[#252345]"
+            className={`card-shine surface-sheen card-hover-lift group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] ${
+              f.signal === "BUY" ? "border-l-emerald-500/40 signal-card-buy" : f.signal === "SELL" ? "border-l-rose-500/40 signal-card-sell" : "border-l-[#252345]"
             }`}>
             {/* Header */}
             <div className="flex items-start justify-between mb-3">
@@ -374,13 +386,13 @@ function IntelligenceContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
 
         {/* Header */}
-        <div className="mt-6 mb-6">
-          <h1 className="text-3xl font-black tracking-tight">Markets</h1>
-          <p className="text-[#7B8DB4] mt-1 text-sm">Live signals and plays across futures and options markets.</p>
+        <div className="mt-3 mb-6">
+          <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Markets</h1>
+          <p className="reveal reveal-d1 text-[#7B8DB4] mt-1 text-sm">Live signals and plays across futures and options markets.</p>
         </div>
 
         {/* Section tabs */}
@@ -400,7 +412,7 @@ function IntelligenceContent() {
         {section === "options"  && <OptionsPlaysPanel />}
         {section === "futures"  && <FuturesPanel />}
         {section === "analyze"  && (
-          <div className="max-w-3xl">
+          <div className="max-w-7xl mx-auto">
             <p className="text-sm text-[#7B8DB4] mb-4">Enter any optionable ticker for a full AI options analysis — expected move, IV context, entry trigger, and risk rating.</p>
             <OptionsTab initialSymbol={initSym} />
           </div>

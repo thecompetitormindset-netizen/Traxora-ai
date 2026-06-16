@@ -13,7 +13,7 @@ async function callOpenAICompat(url: string, key: string, model: string, prompt:
   const res = await fetch(url, {
     method:  "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ model, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
@@ -47,7 +47,7 @@ async function callAI(prompt: string): Promise<string> {
       const res = await Promise.race([
         client.messages.create({
           model:      "claude-haiku-4-5-20251001",
-          max_tokens: 4000,
+          max_tokens: 8000,
           system:     SYSTEM_FRAMEWORK,
           messages:   [{ role: "user", content: prompt }],
         }),
@@ -230,7 +230,7 @@ let memCache: { date: string; payload: Record<string, unknown> } | null = null;
 async function readCache(date: string): Promise<Record<string, unknown> | null> {
   if (memCache?.date === date) return memCache.payload;
   try {
-    const raw = await fs.readFile(path.join("/tmp", `briefing-${date}.json`), "utf-8");
+    const raw = await fs.readFile(path.join("/tmp", `briefing-v2-${date}.json`), "utf-8");
     const payload = JSON.parse(raw) as Record<string, unknown>;
     memCache = { date, payload };
     return payload;
@@ -239,7 +239,7 @@ async function readCache(date: string): Promise<Record<string, unknown> | null> 
 
 async function writeCache(date: string, payload: Record<string, unknown>): Promise<void> {
   memCache = { date, payload };
-  try { await fs.writeFile(path.join("/tmp", `briefing-${date}.json`), JSON.stringify(payload)); } catch { /* ignore */ }
+  try { await fs.writeFile(path.join("/tmp", `briefing-v2-${date}.json`), JSON.stringify(payload)); } catch { /* ignore */ }
 }
 
 // ─── Main handler ────────────────────────────────────────────────────────────
@@ -287,10 +287,10 @@ async function runBriefing(portfolio: PortfolioSnapshot | null, cacheDate?: stri
   const tickers = {
     // Broad US
     SPY: "SPY", QQQ: "QQQ", IWM: "IWM", DIA: "DIA",
-    // Volatility
-    VIX: "%5EVIX", VXN: "%5EVXN",
+    // Volatility — raw Yahoo symbols; encodeURIComponent in yq() handles encoding
+    VIX: "^VIX", VXN: "^VXN",
     // Futures
-    ES: "ES%3DF", NQ: "NQ%3DF", YM: "YM%3DF",
+    ES: "ES=F", NQ: "NQ=F", YM: "YM=F",
     // Sectors
     XLF: "XLF", XLK: "XLK", XLE: "XLE", XLV: "XLV",
     XLY: "XLY", XLP: "XLP", XLI: "XLI", XLC: "XLC",
@@ -298,11 +298,11 @@ async function runBriefing(portfolio: PortfolioSnapshot | null, cacheDate?: stri
     AAPL: "AAPL", MSFT: "MSFT", NVDA: "NVDA", TSLA: "TSLA",
     AMZN: "AMZN", GOOGL: "GOOGL", META: "META", JPM: "JPM",
     // Commodities
-    GOLD: "GC%3DF", SILVER: "SI%3DF", OIL: "CL%3DF", NATGAS: "NG%3DF",
+    GOLD: "GC=F", SILVER: "SI=F", OIL: "CL=F", NATGAS: "NG=F",
     // Forex
-    EURUSD: "EURUSD%3DX", USDJPY: "USDJPY%3DX", GBPUSD: "GBPUSD%3DX", DXY: "DX-Y.NYB",
+    EURUSD: "EURUSD=X", USDJPY: "USDJPY=X", GBPUSD: "GBPUSD=X", DXY: "DX-Y.NYB",
     // Fixed Income
-    TNX: "%5ETNX", TYX: "%5ETYX", IRX: "%5EIRX",
+    TNX: "^TNX", TYX: "^TYX", IRX: "^IRX",
     // Crypto
     BTC: "BTC-USD", ETH: "ETH-USD",
     // International
@@ -322,7 +322,7 @@ async function runBriefing(portfolio: PortfolioSnapshot | null, cacheDate?: stri
     .slice(0, 8);
   const newsMap: Record<string, string[]> = {};
   await Promise.all(movers.map(async k => {
-    newsMap[k] = await yNews(tickers[k].replace(/%3DF|%5E|%3DX/g, "=").replace("DX-Y.NYB", "DXY"));
+    newsMap[k] = await yNews(tickers[k].replace("DX-Y.NYB", "DXY").replace(/^\^/, "").replace(/=[A-Z]$/, ""));
   }));
 
   // Regime detection

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { getJournal, clearJournal, saveJournalEntry, type JournalEntry } from "../components/AutoJournal";
+import { haptic } from "../lib/haptics";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -111,6 +112,7 @@ export default function JournalPage() {
   }
 
   async function getCoaching() {
+    haptic.medium();
     setReviewing(true);
     setReviewErr("");
     try {
@@ -142,15 +144,15 @@ export default function JournalPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="max-w-3xl mx-auto w-full">
+        <div className="max-w-5xl mx-auto w-full">
 
           {/* Header */}
-          <div className="mt-6 flex items-end justify-between gap-4 flex-wrap">
+          <div className="mt-3 flex items-end justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-4xl font-bold">Trade Journal</h1>
-              <p className="text-[#7B8DB4] mt-1 text-sm">
+              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Trade Journal</h1>
+              <p className="reveal reveal-d1 text-[#7B8DB4] mt-1 text-sm">
                 AI-written analysis for every trade — mistakes, lessons, and coaching.
               </p>
             </div>
@@ -179,14 +181,14 @@ export default function JournalPage() {
 
           {/* Stats strip */}
           {entries.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
               {[
                 { label: "Closed Trades", value: entries.length.toString(),                    color: "text-emerald-400" },
                 { label: "Win Rate",      value: sells.length > 0 ? `${winRate}%` : "—",        color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Total P&L",     value: `${totalPL >= 0 ? "+" : ""}$${totalPL.toFixed(2)}`, color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
                 { label: "Avg P&L %",     value: sells.length > 0 ? `${Number(avgPLPct) >= 0 ? "+" : ""}${avgPLPct}%` : "—", color: Number(avgPLPct) >= 0 ? "text-emerald-400" : "text-rose-400" },
               ].map(s => (
-                <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
+                <div key={s.label} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
                   <p className={`text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mt-1">{s.label}</p>
                 </div>
@@ -199,7 +201,7 @@ export default function JournalPage() {
             const grades = ["A", "B", "C", "D", "F"];
             const counts = Object.fromEntries(grades.map(g => [g, sells.filter(e => e.analysis?.grade === g).length]));
             return (
-              <div className="mt-3 bg-[#13112A] border border-[#252345] rounded-2xl p-4">
+              <div className="mt-3 card-shine glass surface-sheen border border-[#252345] rounded-2xl p-4">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Grade Distribution</p>
                 <div className="flex gap-2">
                   {grades.map(g => (
@@ -235,7 +237,7 @@ export default function JournalPage() {
 
           {/* Coaching Report */}
           {review && (
-            <div className="mt-4 bg-[#13112A] border border-emerald-500/30 rounded-2xl p-5 space-y-4">
+            <div className="mt-4 card-shine glass surface-sheen border border-emerald-500/30 rounded-2xl p-5 space-y-4">
               <div className="flex items-center justify-between">
                 <p className="font-bold text-base text-[#F1F5F9]">AI Coaching Report</p>
                 <span className={`text-sm font-black px-3 py-1 rounded-lg border ${GRADE_STYLE[review.overallGrade] ?? GRADE_STYLE.C}`}>
@@ -309,9 +311,9 @@ export default function JournalPage() {
           )}
 
           {/* Trade entries */}
-          <div className="mt-6 space-y-3">
+          <div className="mt-3 space-y-3">
             {entries.length === 0 ? (
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
+              <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-10 text-center">
                 <p className="text-4xl mb-4">📓</p>
                 <p className="text-[#F1F5F9] font-semibold">No journal entries yet</p>
                 <p className="text-[#4B5675] text-sm mt-2 max-w-xs mx-auto">
@@ -330,7 +332,7 @@ export default function JournalPage() {
                 return (
                   <div
                     key={e.id}
-                    className={`bg-[#13112A] border rounded-2xl overflow-hidden transition-all ${
+                    className={`card-shine card-hover-lift bg-[#13112A] border rounded-2xl overflow-hidden ${
                       won ? "border-emerald-500/20" : "border-rose-500/20"
                     }`}
                   >
@@ -476,7 +478,7 @@ export default function JournalPage() {
           </div>
 
           {entries.length > 0 && (
-            <p className="text-center text-[10px] text-[#333368] mt-6">
+            <p className="text-center text-[10px] text-[#333368] mt-3">
               {entries.length} closed trade{entries.length !== 1 ? "s" : ""} · AI-generated coaching
             </p>
           )}
@@ -491,7 +493,7 @@ export default function JournalPage() {
         onClick={() => setConfirmClear(false)}
       >
         <div
-          className="bg-[#13112A] border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full shadow-xl"
+          className="ios-bounce-in modal-glass border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full"
           onClick={e => e.stopPropagation()}
         >
           <div className="flex items-center gap-3 mb-4">
@@ -508,15 +510,15 @@ export default function JournalPage() {
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => setConfirmClear(false)}
-              className="flex-1 py-2.5 px-4 rounded-xl border border-[#252345] text-sm font-semibold text-[#7B8DB4] hover:border-[#7B8DB4]/40 hover:text-[#F1F5F9] transition-colors"
+              onClick={() => { haptic.tick(); setConfirmClear(false); }}
+              className="btn-haptic flex-1 py-2.5 px-4 rounded-xl border border-[#252345] text-sm font-semibold text-[#7B8DB4] hover:border-[#7B8DB4]/40 hover:text-[#F1F5F9] transition-colors"
             >
               Cancel
             </button>
             <button
               type="button"
-              onClick={() => { clearJournal(); setReview(null); setConfirmClear(false); }}
-              className="flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-bold text-white transition-colors"
+              onClick={() => { haptic.error(); clearJournal(); setReview(null); setConfirmClear(false); }}
+              className="btn-haptic flex-1 py-2.5 px-4 rounded-xl bg-rose-600 hover:bg-rose-500 text-sm font-bold text-white transition-colors"
             >
               Clear journal
             </button>

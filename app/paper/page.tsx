@@ -8,6 +8,7 @@ import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import { scopedKey } from "../lib/userState";
+import { haptic } from "../lib/haptics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -109,6 +110,7 @@ function PositionSizer({
 
   function handleTake() {
     if (!valid || !entryN || !stopN || !targetN || !shares) return;
+    haptic.success();
     const t: TakenTrade = {
       id: Date.now().toString(),
       symbol: symbol.replace(".US","").replace(".COMM","") || "—",
@@ -124,7 +126,7 @@ function PositionSizer({
   const bull = signal === "BUY";
 
   return (
-    <div className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+    <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
       <div className="px-5 pt-5 pb-4 border-b border-[#1C1933]">
         <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675] mb-4">Position Sizer</p>
 
@@ -192,7 +194,7 @@ function PositionSizer({
           className="w-full bg-[#0D0B1A] border border-[#1C1933] rounded-xl px-3 py-2 text-xs text-[#7B8DB4] placeholder-[#2D3A52] focus:outline-none mb-3" />
 
         <button type="button" onClick={handleTake} disabled={!valid}
-          className={`w-full py-3 rounded-xl text-sm font-black transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.99] ${
+          className={`btn-haptic w-full py-3 rounded-xl text-sm font-black disabled:opacity-30 disabled:cursor-not-allowed ${
             saved ? "bg-emerald-700 text-white" :
             bull  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
                   : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
@@ -255,14 +257,14 @@ function TradePlannerContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-32">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 pb-32 page-enter">
         <Topbar />
-        <div className="max-w-5xl mx-auto w-full mt-6 space-y-6">
+        <div className="max-w-7xl mx-auto w-full mt-3 space-y-4">
 
           {/* Header */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-3xl font-black tracking-tight">Trade Planner</h1>
+              <h1 className="reveal section-header text-3xl font-black tracking-tight text-gradient-green">Trade Planner</h1>
               <p className="text-sm text-[#7B8DB4] mt-1">Turn signals into real position sizes — know exactly how many shares before you enter</p>
             </div>
             <div className="flex items-center gap-2">
@@ -272,7 +274,7 @@ function TradePlannerContent() {
           </div>
 
           {/* Account card */}
-          <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+          <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
             {!editingAccount ? (
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div className="flex items-center gap-8 flex-wrap">
@@ -379,7 +381,7 @@ function TradePlannerContent() {
               <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Logged Trades ({taken.length})</p>
               <div className="space-y-2">
                 {taken.map(t => (
-                  <div key={t.id} className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+                  <div key={t.id} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                     <div className="flex items-center gap-3 mb-3">
                       <span className={`text-[10px] font-black px-2 py-1 rounded-lg border ${
                         t.signal === "BUY"

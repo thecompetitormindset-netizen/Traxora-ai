@@ -53,13 +53,13 @@ export default function TopCompaniesPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-6 xl:p-8 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-4xl mx-auto w-full">
 
         <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h1 className="text-4xl font-bold">Top 500 Companies</h1>
+            <h1 className="reveal section-header text-4xl font-bold text-gradient-green">Top 500 Companies</h1>
             <p className="text-[#7B8DB4] mt-2">
               Click any company to view full details and AI analysis.
             </p>
@@ -82,7 +82,7 @@ export default function TopCompaniesPage() {
           />
         </div>
 
-        <div className="mt-5 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+        <div className="mt-5 glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-[#4B5675] text-sm animate-pulse">Loading companies…</div>
           ) : filtered.length === 0 ? (

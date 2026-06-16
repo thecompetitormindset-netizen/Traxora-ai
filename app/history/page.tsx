@@ -138,14 +138,14 @@ export default function HistoryPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="max-w-4xl mx-auto w-full">
+        <div className="max-w-6xl mx-auto w-full">
 
           {/* Header */}
-          <div className="mt-6 flex items-end justify-between flex-wrap gap-4">
+          <div className="mt-3 flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h1 className="text-4xl font-bold">Trade History</h1>
+              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Trade History</h1>
               <p className="text-[#7B8DB4] mt-1 text-sm">
                 Round-trip analysis — entry reasoning vs actual outcome.
               </p>
@@ -168,15 +168,15 @@ export default function HistoryPage() {
           </div>
 
           {/* Stats strip — hidden on signals tab */}
-          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 ${view === "signals" ? "hidden" : ""}`}>
+          <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 ${view === "signals" ? "hidden" : ""}`}>
             {[
               { label: "Total Trades",     value: trades.length.toString(),                       color: "text-emerald-400" },
               { label: "Completed Pairs",  value: roundTrips.length.toString(),                    color: "text-emerald-400" },
               { label: "Win Rate",         value: roundTrips.length ? `${winRate}%` : "—",          color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
               { label: "Realised P&L",     value: roundTrips.length ? `${totalPL >= 0 ? "+" : ""}$${fmt(totalPL)}` : "—", color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(s => (
-              <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
-                <p className={`text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
+              <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
+                <p className={`num-reveal text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mt-1">{s.label}</p>
               </div>
             ))}
@@ -184,7 +184,7 @@ export default function HistoryPage() {
 
           {/* ─── Round-Trip View ─── */}
           {view === "roundtrip" && (
-            <div className="mt-6 space-y-3">
+            <div className="mt-3 space-y-3">
 
               {roundTrips.length === 0 && unmatchedBuys.length === 0 && (
                 <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
@@ -377,7 +377,7 @@ export default function HistoryPage() {
 
           {/* ─── Raw Trade Log View ─── */}
           {view === "raw" && (
-            <div className="mt-6 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+            <div className="mt-3 bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
               {trades.length === 0 ? (
                 <div className="text-center py-10">
                   <p className="text-[#4B5675] text-sm">No trades yet. Go to Market and place a trade.</p>
@@ -434,14 +434,14 @@ export default function HistoryPage() {
           )}
 
           {trades.length > 0 && view !== "signals" && (
-            <p className="text-center text-[10px] text-[#333368] mt-6">
+            <p className="text-center text-[10px] text-[#333368] mt-3">
               {buyCount} buys · {sellCount} sells · {roundTrips.length} completed round trips
             </p>
           )}
 
           {/* ─── AI Signal History ─── */}
           {view === "signals" && (
-            <div className="mt-6 space-y-2">
+            <div className="mt-3 space-y-2">
               {signals.length === 0 ? (
                 <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
                   <p className="text-[#4B5675] text-sm">No AI signals fired yet.</p>
@@ -517,7 +517,7 @@ export default function HistoryPage() {
                       { label: "Buy signals",   value: signals.filter(s => s.signal === "BUY").length,  color: "text-emerald-400" },
                       { label: "Sell signals",  value: signals.filter(s => s.signal === "SELL").length, color: "text-rose-400"    },
                     ].map((s) => (
-                      <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+                      <div key={s.label} className="card-hover-lift bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
                         <p className="text-[10px] text-[#4B5675] uppercase tracking-widest">{s.label}</p>
                         <p className={`text-2xl font-bold font-mono mt-1.5 ${s.color}`}>{s.value}</p>
                       </div>

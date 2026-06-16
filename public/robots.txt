@@ -1,0 +1,27 @@
+User-agent: *
+Allow: /
+Allow: /pricing
+Allow: /guide
+Allow: /login
+Allow: /privacy
+Allow: /terms
+
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /analysis
+Disallow: /intelligence
+Disallow: /journal
+Disallow: /history
+Disallow: /paper
+Disallow: /settings
+Disallow: /wallet
+Disallow: /wheel
+Disallow: /market
+Disallow: /market-sentiment
+Disallow: /notifications
+Disallow: /explore
+Disallow: /strategy
+Disallow: /top-companies
+Disallow: /ipo
+
+Sitemap: https://traxora-ai.vercel.app/sitemap.xml

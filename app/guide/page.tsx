@@ -360,7 +360,7 @@ function SectionCard({ s }: { s: Section }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className={`border ${s.border} ${s.bg} rounded-2xl overflow-hidden`}>
+    <div className={`reveal card-hover-lift border ${s.border} ${s.bg} rounded-2xl overflow-hidden`}>
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -435,20 +435,20 @@ export default function GuidePage() {
   return (
     <div className="min-h-screen text-[#F1F5F9]">
       <Topbar />
-      <main className="p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <div className="max-w-3xl mx-auto w-full">
 
           {/* Header */}
           <div className="mt-6">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Documentation</p>
-            <h1 className="text-4xl font-black tracking-tight">How to Use Traxora AI</h1>
+            <p className="reveal text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Documentation</p>
+            <h1 className="reveal reveal-d1 section-header text-4xl font-black tracking-tight text-gradient-green">How to Use Traxora AI</h1>
             <p className="text-[#7B8DB4] mt-2 text-sm leading-relaxed">
               Step-by-step guides for every feature. Tap any section to expand.
             </p>
           </div>
 
           {/* Quick start */}
-          <div className="mt-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl p-5">
+          <div className="reveal reveal-d2 mt-6 bg-emerald-600/10 border border-emerald-500/20 rounded-2xl p-5">
             <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-4">
               First time? Start here — 3 steps
             </p>
@@ -484,7 +484,7 @@ export default function GuidePage() {
           </div>
 
           {/* SMC cheatsheet */}
-          <div className="mt-4 bg-[#13112A] border border-[#252345] rounded-2xl p-5">
+          <div className="reveal reveal-d3 mt-4 card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5">
             <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-3">Market concept quick-reference</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {[

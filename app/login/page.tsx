@@ -112,10 +112,68 @@ function LoginContent() {
       </div>
 
       {/* Right — sign in card */}
-      <div className="flex-1 flex items-center justify-center px-8 py-16 lg:bg-[#0D0B1A]/50 lg:border-l lg:border-[#252345]">
-        <div className="w-full max-w-sm">
-          <h2 className="text-xl font-bold mb-1">Sign in to Traxora AI</h2>
-          <p className="text-sm text-[#7B8DB4] mb-6">Start with a 30-second setup. No credit card required to try.</p>
+      <div className="flex-1 relative flex items-center justify-center px-8 py-16 lg:bg-[#0D0B1A]/50 lg:border-l lg:border-[#252345] overflow-hidden">
+        {/* Background ghost signal cards */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+          <div className="absolute -top-6 -right-10 w-56 rotate-12 opacity-[0.07]">
+            <div className="bg-[#13112A] border border-emerald-500/50 rounded-2xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-black text-[#F1F5F9]">NVDA</span>
+                <span className="text-xs font-black text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 rounded-lg">BUY</span>
+              </div>
+              {["Order Block $208.40", "FVG $209–$211", "Kill Zone Active", "R:R 2.3:1"].map(l => (
+                <div key={l} className="flex gap-2 text-[10px] mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-0.5 shrink-0" />
+                  <span className="text-[#7B8DB4]">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute top-1/3 -left-16 w-52 -rotate-6 opacity-[0.06]">
+            <div className="bg-[#13112A] border border-rose-500/50 rounded-2xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-black text-[#F1F5F9]">TSLA</span>
+                <span className="text-xs font-black text-rose-400 bg-rose-500/20 border border-rose-500/40 px-2 py-0.5 rounded-lg">SELL</span>
+              </div>
+              {["Bearish OB $442", "FVG $438–440", "BSL swept $443", "R:R 2.1:1"].map(l => (
+                <div key={l} className="flex gap-2 text-[10px] mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-0.5 shrink-0" />
+                  <span className="text-[#7B8DB4]">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="absolute -bottom-8 right-12 w-48 rotate-3 opacity-[0.06]">
+            <div className="bg-[#13112A] border border-amber-500/50 rounded-2xl p-4">
+              <div className="flex justify-between items-center mb-3">
+                <span className="text-sm font-black text-[#F1F5F9]">GC</span>
+                <span className="text-xs font-black text-emerald-400 bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 rounded-lg">BUY</span>
+              </div>
+              {["Bullish OB $2,325", "FVG $2,328–332", "SSL at $2,318", "London open"].map(l => (
+                <div key={l} className="flex gap-2 text-[10px] mb-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5 shrink-0" />
+                  <span className="text-[#7B8DB4]">{l}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-sm">
+          {/* Social proof */}
+          <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="flex -space-x-2">
+              {["bg-emerald-600","bg-teal-600","bg-cyan-600","bg-blue-600"].map((c, i) => (
+                <div key={i} className={`w-7 h-7 rounded-full ${c} border-2 border-[#0D0B1A] flex items-center justify-center`}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </div>
+              ))}
+            </div>
+            <p className="text-sm text-[#7B8DB4]"><span className="font-bold text-[#F1F5F9]">500+ traders</span> already inside</p>
+          </div>
+
+          <h2 className="text-xl font-bold mb-1 text-center">Sign in to Traxora AI</h2>
+          <p className="text-sm text-[#7B8DB4] mb-6 text-center">30-second setup. No credit card required.</p>
 
           {inAppBrowser && (
             <div className="mb-4 px-4 py-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm">

@@ -53,7 +53,7 @@ export default function CompanyPage({
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-6 xl:p-8 pb-28">
+      <main className="flex-1 p-6 xl:p-8 !pb-36">
         <Topbar />
 
         {loading ? (

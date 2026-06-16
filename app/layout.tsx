@@ -17,6 +17,7 @@ import ThemeProvider from "./components/ThemeProvider";
 import SessionWatcher from "./components/SessionWatcher";
 import SignalToast from "./components/SignalToast";
 import PortfolioSync from "./components/PortfolioSync";
+import AnimationProvider from "./components/AnimationProvider";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -89,12 +90,77 @@ export default function RootLayout({
             __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='midnight')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
           }}
         />
+        {/* JSON-LD structured data for search engines */}
+        <script
+          type="application/ld+json"
+          // eslint-disable-next-line react/no-danger
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "SoftwareApplication",
+                  "name": "Traxora AI",
+                  "url": "https://traxora-ai.vercel.app",
+                  "description": "AI-powered Smart Money trading signals platform. Real-time BUY/SELL/HOLD signals with Order Block, FVG, volume profile, options analysis, and daily morning briefings.",
+                  "applicationCategory": "FinanceApplication",
+                  "operatingSystem": "Web",
+                  "browserRequirements": "Requires JavaScript",
+                  "offers": {
+                    "@type": "Offer",
+                    "price": "5.00",
+                    "priceCurrency": "USD",
+                    "description": "Pro plan — full access, cancel anytime",
+                  },
+                  "featureList": [
+                    "AI trading signals (BUY/SELL/HOLD)",
+                    "Order Block analysis",
+                    "Fair Value Gap detection",
+                    "Liquidity sweep alerts",
+                    "Volume profile (POC, VAH, VAL)",
+                    "Morning briefing email at 8:30am ET",
+                    "Options analysis with Greeks",
+                    "Trade journal auto-generation",
+                    "Market scanner for 50+ tickers",
+                  ],
+                },
+                {
+                  "@type": "Organization",
+                  "name": "Traxora AI",
+                  "url": "https://traxora-ai.vercel.app",
+                  "logo": "https://traxora-ai.vercel.app/icon-192.png",
+                },
+                {
+                  "@type": "FAQPage",
+                  "mainEntity": [
+                    {
+                      "@type": "Question",
+                      "name": "What is Traxora AI?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal platform that uses Smart Money methodology to generate real-time BUY/SELL/HOLD signals for stocks, futures, and options. It analyzes Order Blocks, Fair Value Gaps, Liquidity Sweeps, and other institutional patterns." },
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "How much does Traxora AI cost?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI costs $5 per month for the Pro plan, which includes all features. There is also a free tier with limited access." },
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "Can I cancel anytime?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Yes, you can cancel your Pro subscription anytime from the Settings page with one click. No contracts or commitments required." },
+                    },
+                  ],
+                },
+              ],
+            }),
+          }}
+        />
         <ThemeProvider />
         {/* Fixed universe background — behind all content */}
         <CosmicBackground />
         {/* All page content sits above the cosmic layer */}
         <div className="relative z-10">
           <Providers>
+            <AnimationProvider />
             <SessionWatcher />
             <WelcomeModal />
             {children}

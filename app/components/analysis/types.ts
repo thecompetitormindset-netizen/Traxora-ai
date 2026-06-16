@@ -126,9 +126,9 @@ export type AIAnalysis = {
 };
 
 export function signalStyle(signal: string) {
-  if (signal === "BUY")  return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (signal === "SELL") return "bg-rose-500/20 text-rose-400 border-rose-500/30";
-  return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+  if (signal === "BUY")  return "badge-buy  bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+  if (signal === "SELL") return "badge-sell bg-rose-500/20    text-rose-400    border-rose-500/30";
+  return "badge-hold bg-amber-500/20 text-amber-400 border-amber-500/30";
 }
 
 export function riskStyle(risk: string) {

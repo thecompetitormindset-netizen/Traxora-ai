@@ -31,6 +31,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
+  const [bellShake, setBellShake] = useState(false);
   const [recentSymbols, setRecentSymbols] = useState<string[]>([]);
 
   // Keep module-level _userId in sync with session so scopedKey works in this component
@@ -53,8 +54,9 @@ export default function Topbar({ onSearch }: TopbarProps) {
       } catch { setAlertCount(0); }
     }
     loadCount();
-    window.addEventListener("traxora-signal", loadCount);
-    return () => window.removeEventListener("traxora-signal", loadCount);
+    const shake = () => { setBellShake(true); loadCount(); setTimeout(() => setBellShake(false), 800); };
+    window.addEventListener("traxora-signal", shake);
+    return () => window.removeEventListener("traxora-signal", shake);
   }, [session]);
 
   useEffect(() => {
@@ -104,7 +106,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   }
 
   return (
-    <div className="h-[68px] flex items-center justify-between gap-4 border-b border-white/[0.07] px-4 sm:px-6 shrink-0 relative bg-[#0D0B1A]/70 backdrop-blur-xl sticky top-0 z-30">
+    <div className="topbar-glass h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 shrink-0 relative sticky top-0 z-30">
       {/* Logo — links back to landing page */}
       <Link href="/" className="flex items-center gap-2 shrink-0 group">
         <div className="w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
@@ -113,12 +115,12 @@ export default function Topbar({ onSearch }: TopbarProps) {
             <polyline points="16 7 22 7 22 13"/>
           </svg>
         </div>
-        <span className="text-xs font-bold text-[#4B5675] group-hover:text-[#F1F5F9] transition-colors hidden sm:block tracking-tight">Traxora</span>
+        <span className="logo-text text-xs font-bold hidden sm:block tracking-tight">Traxora</span>
       </Link>
 
       {/* Search */}
       <div className="flex-1 max-w-xl relative">
-        <div className="flex items-center gap-2.5 bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] rounded-xl px-4 py-2.5 transition-colors focus-within:border-emerald-500/50 focus-within:bg-[#0D0B1A]">
+        <div className="focus-ring glass surface-sheen flex items-center gap-2.5 border border-[#252345] hover:border-[#333368] rounded-xl px-4 py-2.5 transition-all duration-100 focus-within:border-emerald-500/40">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="11" cy="11" r="8" />
             <path d="m21 21-4.35-4.35" />
@@ -143,7 +145,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
         {/* Dropdown */}
         {open && (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) && (
-          <div className="absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+          <div className="dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
             {/* Recent symbols — shown when query is empty */}
             {!query.trim() && recentSymbols.length > 0 && (
               <>
@@ -178,6 +180,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
               </>
             )}
             {/* Search results */}
+            {results.length > 0 && <div className="stagger-container">
             {results.map((item, i) => (
               <button
                 key={`${item.symbol}-${i}`}
@@ -200,6 +203,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
                 </div>
               </button>
             ))}
+            </div>}
           </div>
         )}
       </div>
@@ -209,14 +213,15 @@ export default function Topbar({ onSearch }: TopbarProps) {
         {/* Notifications */}
         <Link
           href="/notifications"
-          className="relative w-9 h-9 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-all"
+          className="relative w-9 h-9 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] flex items-center justify-center text-[#7B8DB4] hover:text-[#F1F5F9] transition-all duration-100 hover:scale-110 active:scale-95"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"
+            className={bellShake ? "bell-ring" : alertCount > 0 ? "" : ""}>
             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           {alertCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold bounce-in">
               {alertCount > 99 ? "99+" : alertCount}
             </span>
           )}

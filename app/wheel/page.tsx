@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
+import { haptic } from "../lib/haptics";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -183,6 +184,7 @@ function AddModal({ prefill, onSave, onClose }: { prefill: Partial<WheelPosition
 
   function handleSave() {
     if (!symbol || !strike || !expiry || !premium) return;
+    haptic.success();
     onSave({
       id:              Date.now().toString(),
       symbol:          symbol.toUpperCase(),
@@ -202,10 +204,10 @@ function AddModal({ prefill, onSave, onClose }: { prefill: Partial<WheelPosition
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div className="relative w-full max-w-sm bg-[#13112A] border border-[#252345] rounded-2xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="ios-bounce-in relative w-full max-w-sm modal-glass rounded-2xl p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <p className="text-sm font-bold text-[#F1F5F9] flex-1 text-center">Add Wheel Position</p>
-          <button type="button" onClick={onClose} aria-label="Close" className="text-[#4B5675] hover:text-[#F1F5F9] transition-colors shrink-0">
+          <button type="button" onClick={() => { haptic.tick(); onClose(); }} aria-label="Close" className="press-scale text-[#4B5675] hover:text-[#F1F5F9] transition-colors shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
         </div>
@@ -240,9 +242,9 @@ function AddModal({ prefill, onSave, onClose }: { prefill: Partial<WheelPosition
           </div>
         </div>
         <div className="flex gap-2 mt-5">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[#252345] text-[#7B8DB4] text-sm font-semibold hover:border-[#333368] transition-colors">Cancel</button>
+          <button type="button" onClick={() => { haptic.tick(); onClose(); }} className="btn-haptic flex-1 py-2.5 rounded-xl border border-[#252345] text-[#7B8DB4] text-sm font-semibold hover:border-[#333368] transition-colors">Cancel</button>
           <button type="button" onClick={handleSave} disabled={!symbol || !strike || !expiry || !premium}
-            className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors">Save</button>
+            className="btn-haptic flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors">Save</button>
         </div>
       </div>
     </div>
@@ -267,7 +269,7 @@ function PositionCard({ pos, onAdvance, onDelete }: { pos: WheelPosition; onAdva
   const dteUrgent = dte !== null && dte <= 7 && pos.stage !== "CLOSED";
 
   return (
-    <div className={`bg-[#0D0B1A] border rounded-2xl p-4 transition-colors ${dteUrgent ? "border-rose-500/30" : "border-[#252345]"}`}>
+    <div className={`glass surface-sheen border rounded-2xl p-4 ${dteUrgent ? "border-rose-500/30" : "border-[#252345]"}`}>
 
       {/* Roll reminder */}
       {dteUrgent && (
@@ -295,15 +297,15 @@ function PositionCard({ pos, onAdvance, onDelete }: { pos: WheelPosition; onAdva
 
       {/* Key metrics */}
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <div className="bg-[#13112A] rounded-xl p-2.5 text-center">
+        <div className="glass surface-sheen rounded-xl p-2.5 text-center">
           <p className="text-sm font-bold text-[#F1F5F9]">${pos.strike}</p>
           <p className="text-[10px] text-[#4B5675]">Strike</p>
         </div>
-        <div className="bg-[#13112A] rounded-xl p-2.5 text-center">
+        <div className="glass surface-sheen rounded-xl p-2.5 text-center">
           <p className="text-sm font-bold text-emerald-400">${fmt(pos.premiumReceived, 2)}</p>
           <p className="text-[10px] text-[#4B5675]">Premium / sh</p>
         </div>
-        <div className="bg-[#13112A] rounded-xl p-2.5 text-center">
+        <div className="glass surface-sheen rounded-xl p-2.5 text-center">
           <p className="text-sm font-bold text-emerald-400">${totalPremium.toLocaleString()}</p>
           <p className="text-[10px] text-[#4B5675]">Collected</p>
         </div>
@@ -355,10 +357,19 @@ function PositionCard({ pos, onAdvance, onDelete }: { pos: WheelPosition; onAdva
       <div className="flex items-center gap-1 mb-4">
         {(["CSP","ASSIGNED","CC","CLOSED"] as WheelStage[]).map((s, i) => {
           const current = ["CSP","ASSIGNED","CC","CLOSED"].indexOf(pos.stage);
+          const filled = i <= current;
           return (
             <div key={s} className="flex items-center gap-1 flex-1">
-              <div className={`flex-1 h-1 rounded-full transition-colors ${i <= current ? "bg-emerald-500" : "bg-[#252345]"}`} />
-              {i === 3 && <div className={`w-1.5 h-1.5 rounded-full ${i === current ? "bg-emerald-400" : i < current ? "bg-emerald-500" : "bg-[#252345]"}`} />}
+              <div className="flex-1 h-1 rounded-full bg-[#252345] overflow-hidden">
+                {filled && (
+                  <div className={`stage-bar-fill stage-bar-fill-${i} h-full w-full rounded-full bg-emerald-500`} />
+                )}
+              </div>
+              {i === 3 && (
+                <div className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                  i === current ? "bg-emerald-400 stage-dot-active" : i < current ? "bg-emerald-500" : "bg-[#252345]"
+                }`} />
+              )}
             </div>
           );
         })}
@@ -366,7 +377,7 @@ function PositionCard({ pos, onAdvance, onDelete }: { pos: WheelPosition; onAdva
 
       {meta.next && (
         <button type="button" onClick={() => onAdvance(pos.id)}
-          className="w-full py-2 rounded-xl border border-[#252345] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-emerald-400 text-xs font-semibold transition-all">
+          className="btn-haptic w-full py-2 rounded-xl border border-[#252345] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-emerald-400 text-xs font-semibold transition-all">
           {meta.nextLabel} →
         </button>
       )}
@@ -450,6 +461,7 @@ export default function WheelPage() {
   }
 
   function handleAdd(item?: ScanResult) {
+    haptic.light();
     setModal(item ? {
       symbol:          item.symbol,
       strike:          item.iv ? Math.round(thirtyDeltaStrike(item.price, item.iv)) : Math.round(item.price * 0.95),
@@ -464,6 +476,7 @@ export default function WheelPage() {
   }
 
   function handleAdvance(id: string) {
+    haptic.medium();
     const stages: WheelStage[] = ["CSP","ASSIGNED","CC","CLOSED"];
     saveAndSet(positions.map(p => {
       if (p.id !== id) return p;
@@ -498,8 +511,8 @@ export default function WheelPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#0D0B1A] text-[#F1F5F9]">
       <Topbar />
-      <div className="flex flex-1 pb-24">
-        <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-6">
+      <div className="flex flex-1 !pb-36">
+        <main className="app-ambient flex-1 max-w-6xl mx-auto w-full px-3 py-4 page-enter">
 
           {/* Header */}
           <div className="mb-6 text-center">
@@ -507,7 +520,7 @@ export default function WheelPage() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
               </svg>
-              <h1 className="text-xl font-black text-[#F1F5F9]">Wheeling Hub</h1>
+              <h1 className="text-2xl font-black tracking-tight text-gradient-green">Wheeling Hub</h1>
             </div>
             <p className="text-sm text-[#4B5675]">Scanner finds high-premium put candidates — track every wheel position end-to-end.</p>
           </div>
@@ -515,15 +528,15 @@ export default function WheelPage() {
           {/* Stats bar */}
           {positions.length > 0 && (
             <div className="grid grid-cols-3 gap-3 mb-6">
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
+              <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
                 <p className="text-2xl font-black text-[#F1F5F9]">{openPositions.length}</p>
                 <p className="text-[11px] text-[#4B5675] mt-0.5">Open</p>
               </div>
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
+              <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
                 <p className="text-2xl font-black text-emerald-400">${totalCollected.toLocaleString()}</p>
                 <p className="text-[11px] text-[#4B5675] mt-0.5">Premium collected</p>
               </div>
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 text-center">
+              <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
                 <p className="text-2xl font-black text-[#F1F5F9]">{closedPositions.length}</p>
                 <p className="text-[11px] text-[#4B5675] mt-0.5">Completed</p>
               </div>
@@ -550,7 +563,7 @@ export default function WheelPage() {
           {tab === "scanner" && (
             <div>
               {plan === "free" && (
-                <div className="bg-[#13112A] border border-emerald-500/20 rounded-2xl p-10 text-center mb-4">
+                <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl p-10 text-center mb-4">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.75" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                   </div>
@@ -588,7 +601,7 @@ export default function WheelPage() {
                   {customResult && (
                     <div className="mb-5">
                       <p className="text-[10px] text-[#4B5675] uppercase tracking-wider font-bold mb-2">Custom scan result</p>
-                      <div className="bg-[#13112A] border border-emerald-500/20 rounded-2xl overflow-hidden">
+                      <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl overflow-hidden">
                         <ScannerRow item={customResult} onAdd={handleAdd} />
                       </div>
                     </div>
@@ -625,7 +638,7 @@ export default function WheelPage() {
                   </div>
 
                   {/* Rows */}
-                  <div className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+                  <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
                     {loading && (
                       <div className="flex items-center justify-center py-16 gap-3">
                         <svg className="animate-spin text-emerald-400" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
@@ -643,8 +656,10 @@ export default function WheelPage() {
                         <p className="text-sm text-[#4B5675]">No candidates found with this filter.</p>
                       </div>
                     )}
-                    {!loading && !error && filtered.map(item => (
-                      <ScannerRow key={item.symbol} item={item} onAdd={handleAdd} />
+                    {!loading && !error && filtered.map((item, i) => (
+                      <div key={item.symbol} className={`card-stagger card-stagger-${Math.min(i + 1, 12)}`}>
+                        <ScannerRow item={item} onAdd={handleAdd} />
+                      </div>
                     ))}
                   </div>
 
@@ -684,7 +699,7 @@ export default function WheelPage() {
               </div>
 
               {positions.length === 0 ? (
-                <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
+                <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-10 text-center">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
@@ -703,8 +718,10 @@ export default function WheelPage() {
                     <>
                       <p className="text-[10px] text-[#4B5675] uppercase tracking-wider font-bold text-center">Active</p>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {openPositions.map(p => (
-                          <PositionCard key={p.id} pos={p} onAdvance={handleAdvance} onDelete={handleDelete} />
+                        {openPositions.map((p, i) => (
+                          <div key={p.id} className={`card-stagger card-stagger-${Math.min(i + 1, 12)}`}>
+                            <PositionCard pos={p} onAdvance={handleAdvance} onDelete={handleDelete} />
+                          </div>
                         ))}
                       </div>
                     </>
@@ -713,8 +730,10 @@ export default function WheelPage() {
                     <>
                       <p className="text-[10px] text-[#4B5675] uppercase tracking-wider font-bold mt-6 text-center">Completed</p>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        {closedPositions.map(p => (
-                          <PositionCard key={p.id} pos={p} onAdvance={handleAdvance} onDelete={handleDelete} />
+                        {closedPositions.map((p, i) => (
+                          <div key={p.id} className={`card-stagger card-stagger-${Math.min(i + 1, 12)}`}>
+                            <PositionCard pos={p} onAdvance={handleAdvance} onDelete={handleDelete} />
+                          </div>
                         ))}
                       </div>
                     </>

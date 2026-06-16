@@ -145,7 +145,7 @@ type BriefingData = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const DATE_KEY_BASE  = "traxora-briefing-date";
-const CACHE_KEY_BASE = "traxora-briefing-cache-v2"; // v2: marketAnalysis + setupNote field names
+const CACHE_KEY_BASE = "traxora-briefing-cache-v3"; // v3: options/futures plays now included (max_tokens 8000)
 const CACHE_TTL      = 4 * 60 * 60 * 1000; // 4 hours
 
 function loadCache(): BriefingData | null {

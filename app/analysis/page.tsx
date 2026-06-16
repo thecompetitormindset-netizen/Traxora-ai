@@ -290,15 +290,15 @@ function AnalysisContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="max-w-6xl mx-auto w-full">
-          <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
+        <div className="max-w-7xl mx-auto w-full">
+          <div className="mt-3 flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="text-4xl font-bold">
-                {symbol.replace(".US", "").replace(".COMM", "")} Analysis
+              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">
+                {symbol.replace(".US", "").replace(".COMM", "")}
               </h1>
-              <p className="text-[#7B8DB4] mt-2">
+              <p className="reveal reveal-d1 text-[#7B8DB4] mt-2">
                 AI-powered market signal for {symbol}
               </p>
             </div>
@@ -362,7 +362,7 @@ function AnalysisContent() {
           </div>
 
           {/* ── Chart — always full width ── */}
-          <div className="mt-6">
+          <div className="mt-3">
             <TraxoraChart
               symbol={symbol}
               height={chartHeight}
@@ -423,10 +423,10 @@ function AnalysisContent() {
           )}
 
           {/* ── Info panels — always below chart in a grid ── */}
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 
             {/* Signal Card */}
-            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
               <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Traxora AI Signal</p>
 
               {/* Current portfolio position for this symbol */}
@@ -504,7 +504,7 @@ function AnalysisContent() {
               const t = analysis.trade as TradePlan;
               const isBuy = analysis.signal === "BUY";
               return (
-                <div className={`bg-[#13112A] rounded-2xl p-5 border ${isBuy ? "border-emerald-500/25" : "border-rose-500/25"}`}>
+                <div className={`card-shine glass surface-sheen gradient-border-card rounded-2xl p-5 border ${isBuy ? "border-emerald-500/25 signal-card-buy" : "border-rose-500/25 signal-card-sell"}`}>
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Trade Plan</p>
 
                   <div className="grid grid-cols-3 gap-2 mb-4">
@@ -546,7 +546,7 @@ function AnalysisContent() {
             })()}
 
             {/* Price Snapshot */}
-            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
               <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Snapshot</p>
               {quoteData.price ? (
                 <div className="space-y-2">
@@ -571,7 +571,7 @@ function AnalysisContent() {
 
             {/* Key Observations */}
             {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
-              <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Key Observations</p>
                 <ul className="space-y-2">
                   {analysis.keyPoints.map((point, i) => (
@@ -586,7 +586,7 @@ function AnalysisContent() {
 
             {/* Smart Money Structure */}
             {analysis?.signals && (
-              <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Structure</p>
                 <div className="flex gap-2 mb-3">
                   {[
@@ -655,7 +655,7 @@ function AnalysisContent() {
 
             {/* Volume Profile */}
             {volumeProfile && (
-              <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Volume Profile (60-day)</p>
 
                 {/* Key levels */}
@@ -723,7 +723,7 @@ function AnalysisContent() {
             )}
 
             {/* News feed */}
-            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345]">
+            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
               <p className="text-sm font-semibold mb-3">Latest News</p>
               {newsLoading ? (
                 <div className="space-y-2">
@@ -759,7 +759,7 @@ function AnalysisContent() {
             </div>
 
             {/* AI Deep Dive */}
-            <div className="bg-[#13112A] rounded-2xl p-5 border border-[#252345] space-y-3">
+            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345] space-y-3">
               <div className="flex items-center gap-2">
                 <span>🔍</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">AI Deep Dive</p>

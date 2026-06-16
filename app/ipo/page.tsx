@@ -294,7 +294,7 @@ function IPOCard({ ipo, showPerf }: { ipo: IPOItem; showPerf?: boolean }) {
 
   return (
     <div
-      className={`bg-[#13112A] border rounded-2xl p-5 cursor-pointer transition-colors ${borderColor}`}
+      className={`card-shine glass surface-sheen card-hover-glow border rounded-2xl p-5 cursor-pointer transition-colors ${borderColor}`}
       onClick={() => setExpanded(v => !v)}
     >
       {/* Top row */}
@@ -414,13 +414,13 @@ export default function IPOPage() {
     <PaywallGuard>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="flex-1 p-4 sm:p-6 xl:p-8 pb-28">
+      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
-        <div className="max-w-5xl mx-auto w-full">
+        <div className="max-w-7xl mx-auto w-full">
 
           {/* Header */}
-          <div className="mt-6 mb-6">
-            <h1 className="text-4xl font-black">IPO Tracker</h1>
+          <div className="mt-3 mb-3">
+            <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">IPO Tracker</h1>
             <p className="text-[#7B8DB4] mt-2 text-sm">
               Upcoming and recent IPOs — tap any card to expand, then run an AI deep dive for price targets, 5-year outlook, thesis, risks, and catalysts.
             </p>
@@ -428,21 +428,21 @@ export default function IPOPage() {
 
           {/* Summary strip */}
           {!loading && data && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-              <div className="bg-[#13112A] border border-emerald-500/20 rounded-2xl p-4 text-center">
-                <p className="text-2xl font-black font-mono text-emerald-400">{upcomingStrong}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+              <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl p-4 text-center">
+                <p className="num-reveal text-2xl font-black font-mono text-emerald-400">{upcomingStrong}</p>
                 <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Strong Upcoming</p>
               </div>
-              <div className="bg-[#13112A] border border-amber-500/20 rounded-2xl p-4 text-center">
-                <p className="text-2xl font-black font-mono text-amber-400">{upcomingWatch}</p>
+              <div className="card-shine glass surface-sheen border border-amber-500/20 rounded-2xl p-4 text-center">
+                <p className="num-reveal text-2xl font-black font-mono text-amber-400">{upcomingWatch}</p>
                 <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Watch Upcoming</p>
               </div>
-              <div className="bg-[#13112A] border border-emerald-500/20 rounded-2xl p-4 text-center">
-                <p className="text-2xl font-black font-mono text-emerald-400">{recentGainers}</p>
+              <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl p-4 text-center">
+                <p className="num-reveal text-2xl font-black font-mono text-emerald-400">{recentGainers}</p>
                 <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Recent Gainers</p>
               </div>
-              <div className="bg-[#13112A] border border-rose-500/20 rounded-2xl p-4 text-center">
-                <p className="text-2xl font-black font-mono text-rose-400">{recentLosers}</p>
+              <div className="card-shine glass surface-sheen border border-rose-500/20 rounded-2xl p-4 text-center">
+                <p className="num-reveal text-2xl font-black font-mono text-rose-400">{recentLosers}</p>
                 <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Recent Losers</p>
               </div>
             </div>
@@ -491,7 +491,7 @@ export default function IPOPage() {
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 space-y-3">
+                <div key={i} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5 space-y-3">
                   <Skeleton h="h-5" w="w-3/4" />
                   <Skeleton h="h-4" w="w-1/2" />
                   <div className="grid grid-cols-3 gap-2 mt-4">
@@ -504,7 +504,7 @@ export default function IPOPage() {
 
           {/* Empty state */}
           {!loading && items.length === 0 && !error && (
-            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
+            <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-8 text-center">
               <p className="text-[#4B5675] text-sm">
                 {tab === "upcoming"
                   ? "No upcoming IPOs found in the next 60 days."

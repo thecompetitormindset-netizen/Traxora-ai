@@ -12,6 +12,7 @@ import OnboardingModal from "../components/OnboardingModal";
 import SignalPerformance from "../components/SignalPerformance";
 import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
+import { haptic } from "../lib/haptics";
 
 type TradeLevels = {
   entryZone:   string;
@@ -134,24 +135,34 @@ function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }
   const min = Math.min(...closes);
   const max = Math.max(...closes);
   const range = max - min || 1;
-  const w = 56, h = 20;
+  const w = 56, h = 22;
   const pts = closes.map((c, i) => {
     const x = (i / (closes.length - 1)) * w;
-    const y = h - ((c - min) / range) * h;
+    const y = h - 2 - ((c - min) / range) * (h - 4);
     return `${x},${y}`;
-  }).join(" ");
+  });
+  const ptsStr = pts.join(" ");
   const color = positive ? "#34D399" : "#F87171";
+  const gradId = positive ? "spark-up" : "spark-dn";
+  const areaPoints = `0,${h} ${ptsStr} ${w},${h}`;
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+      <defs>
+        <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0"/>
+        </linearGradient>
+      </defs>
+      <polygon points={areaPoints} fill={`url(#${gradId})`} className="sparkline-area" />
+      <polyline points={ptsStr} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="sparkline-path" />
     </svg>
   );
 }
 
 function signalBadge(signal: string | null) {
-  if (signal === "BUY")  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (signal === "SELL") return "bg-rose-500/10 text-rose-400 border-rose-500/20";
-  return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+  if (signal === "BUY")  return "badge-buy  bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+  if (signal === "SELL") return "badge-sell bg-rose-500/10    text-rose-400    border-rose-500/20";
+  return "badge-hold bg-amber-500/10 text-amber-400 border-amber-500/20";
 }
 
 function signalBorder(signal: string | null) {
@@ -169,6 +180,7 @@ function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", 
   if (typeof window === "undefined") return;
   // Respect pause toggle
   if (localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true") return;
+  haptic.signal();
   // Persist alert so history builds even without push permission
   const existing = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]");
   existing.unshift({ symbol, name, signal, price, confidence, time: Date.now() });
@@ -308,9 +320,9 @@ function OptionsPlaysSection() {
 
   return (
     <section>
-      <div className="flex flex-col items-center gap-2 mb-4 text-center">
+      <div className="flex items-start justify-between gap-2 mb-4">
         <h2 className="text-base font-semibold">Top Options Plays</h2>
-        <div className="flex items-center justify-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono text-[#4B5675]">
             {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
           </span>
@@ -967,39 +979,18 @@ function DashboardContent() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="flex-1 p-4 sm:p-6 xl:p-8 overflow-y-auto pb-28">
-          <div className="max-w-6xl mx-auto w-full space-y-12">
+        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 overflow-y-auto !pb-36 page-enter">
+          <div className="max-w-7xl mx-auto w-full">
 
-          {/* ── MORNING BRIEF CTA ── */}
-          <div
-            className="w-full flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 py-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
-            onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
-          >
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
-              <span className="text-xl">🌅</span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-[#F1F5F9]">Today's Market Brief</p>
-              <p className="text-xs text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
-            </div>
-            <span className="text-xs text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
-          </div>
-
-          {/* ── SENTIMENT ── */}
-          <SentimentWidget />
-
-          {/* ── PAGE 1: OVERVIEW ── */}
-          <section>
-            <div className="flex flex-col items-center gap-3 mb-2 text-center">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight">Investment Dashboard</h1>
-                <p className="text-sm text-[#7B8DB4] mt-1">AI-powered signals across stocks &amp; futures</p>
+            {/* ── PAGE HEADER ── */}
+            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+              <div className="flex items-center gap-3 min-w-0">
+                <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Dashboard</h1>
+                <MarketStatus />
               </div>
-              <MarketStatus />
-            </div>
-            <div className="flex items-center justify-center gap-2 flex-wrap mb-2">
+              <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13112A] border border-[#252345]">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="ping-live w-1.5 h-1.5 rounded-full bg-emerald-400" />
                 <span className="text-[10px] font-mono text-[#4B5675]">Live · refreshes in <span className="text-emerald-400 font-bold">{refreshCountdown}s</span></span>
               </div>
               {notifPermission === "default" && (
@@ -1039,14 +1030,41 @@ function DashboardContent() {
                 </button>
               )}
               {notifPermission === "denied" && (
-                <span className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-2 rounded-xl text-sm font-medium">Alerts Blocked</span>
+                <span className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-xl text-xs font-medium">Alerts Blocked</span>
               )}
             </div>
+            </div>
 
-            {/* Stat cards */}
-            <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* ── BENTO GRID ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+
+            {/* Morning Brief — 2/3 */}
+            <div className="lg:col-span-2 self-start">
+              <div
+                className="reveal flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 py-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
+                onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
+              >
+                <div className="hover-float w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
+                  <span className="text-xl">🌅</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-[#F1F5F9]">Today's Market Brief</p>
+                  <p className="text-xs text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
+                </div>
+                <span className="text-xs text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
+              </div>
+            </div>
+
+            {/* Sentiment — 1/3 */}
+            <div className="lg:col-span-1">
+              <SentimentWidget />
+            </div>
+
+            {/* Stats — full width */}
+            <div className="lg:col-span-3">
+            <div className="reveal stagger-container grid grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Sentiment card */}
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+              <div className="glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                 <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
                 {isAnalyzing ? (
                   <div className="flex items-center gap-2 mt-2">
@@ -1056,7 +1074,7 @@ function DashboardContent() {
                     <span className="text-sm text-[#4B5675] animate-pulse">Analyzing…</span>
                   </div>
                 ) : (
-                  <p className={`text-2xl font-bold mt-2 font-mono ${sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}`}>
+                  <p className={`num-reveal text-2xl font-bold mt-2 font-mono ${sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}`}>
                     {sentiment}
                   </p>
                 )}
@@ -1066,138 +1084,24 @@ function DashboardContent() {
                 { label: "Hold Signals", value: holdCount.toString(), color: "text-amber-400" },
                 { label: "Sell Signals", value: sellCount.toString(), color: "text-rose-400" },
               ].map((s) => (
-                <div key={s.label} className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+                <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                   <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">{s.label}</p>
-                  <p className={`text-2xl font-bold mt-2 font-mono ${s.color}`}>{s.value}</p>
+                  <p className={`num-reveal text-2xl font-bold mt-2 font-mono ${s.color}`}>{s.value}</p>
                 </div>
               ))}
             </div>
+            </div>{/* /Stats col-span-3 */}
 
-            {/* Signal accuracy bar */}
-            {!isAnalyzing && (buyCount + sellCount) > 0 && (() => {
-              const directional = buyCount + sellCount;
-              const highConf = stocks.filter((c: StockCard) => c.signal !== "HOLD" && c.confidence === "High").length;
-              const pctHigh  = directional > 0 ? Math.round((highConf / directional) * 100) : 0;
-              return (
-                <div className="mt-3 bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4 flex items-center gap-6 flex-wrap">
-                  <div>
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Today&apos;s Signal Quality</p>
-                    <p className="text-xs text-[#7B8DB4] mt-0.5">{directional} directional · {highConf} high-confidence</p>
-                  </div>
-                  <div className="flex-1 min-w-[140px]">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] text-[#4B5675]">High confidence</span>
-                      <span className="text-xs font-black text-emerald-400">{pctHigh}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-[#1C1933] overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700"
-                        style={{ width: `${pctHigh}%` }} />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-center">
-                      <p className="text-lg font-black text-emerald-400 font-mono">{buyCount}</p>
-                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Buy</p>
-                    </div>
-                    <div className="w-px h-8 bg-[#1C1933]" />
-                    <div className="text-center">
-                      <p className="text-lg font-black text-rose-400 font-mono">{sellCount}</p>
-                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Sell</p>
-                    </div>
-                    <div className="w-px h-8 bg-[#1C1933]" />
-                    <div className="text-center">
-                      <p className="text-lg font-black text-amber-400 font-mono">{holdCount}</p>
-                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wide">Hold</p>
-                    </div>
-                  </div>
+            {/* Watchlist — 2/3 */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between gap-2 mb-4">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Watchlist</h2>
+                  <span className="text-[10px] font-mono text-[#333368]">
+                    {displayStocks.length}
+                    {trendingStocks.length > 0 && <span className="text-teal-400/70"> +{trendingStocks.length}</span>}
+                  </span>
                 </div>
-              );
-            })()}
-
-            {/* ── Signal Track Record ── */}
-            <div className="mt-3">
-              <SignalPerformance />
-            </div>
-
-            {/* ── Paper Portfolio summary ── */}
-            <Link href="/paper" className="mt-4 block group">
-              <div className="bg-[#13112A] border border-[#252345] hover:border-[#333368] rounded-2xl px-5 py-4 transition-all">
-                <div className="flex items-center justify-center gap-4 mb-3">
-                  <p className="text-xs text-[#4B5675] font-semibold uppercase tracking-widest">Paper Portfolio</p>
-                  <span className="text-[10px] text-emerald-400 group-hover:text-emerald-300 font-medium">View trades →</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    {
-                      label: "Account Value",
-                      value: `$${paperStats.accountValue.toFixed(2)}`,
-                      color: "text-[#F1F5F9]",
-                      sub: `of $${PAPER_START.toLocaleString()} started`,
-                    },
-                    {
-                      label: "Realized P / L",
-                      value: `${paperStats.realizedPL >= 0 ? "+" : ""}$${paperStats.realizedPL.toFixed(2)}`,
-                      color: paperStats.realizedPL >= 0 ? "text-emerald-400" : "text-rose-400",
-                      sub: `${paperStats.closedCount} closed trade${paperStats.closedCount !== 1 ? "s" : ""}`,
-                    },
-                    {
-                      label: "Open Positions",
-                      value: paperStats.openCount.toString(),
-                      color: "text-[#F1F5F9]",
-                      sub: "active trades",
-                    },
-                    {
-                      label: "Win Rate",
-                      value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",
-                      color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]",
-                      sub: paperStats.closedCount > 0 ? `${paperStats.closedCount} trades` : "no history yet",
-                    },
-                  ].map((s) => (
-                    <div key={s.label}>
-                      <p className="text-[10px] text-[#4B5675] uppercase tracking-widest">{s.label}</p>
-                      <p className={`text-xl font-black font-mono tabular-nums mt-1 ${s.color}`}>{s.value}</p>
-                      <p className="text-[10px] text-[#333368] mt-0.5">{s.sub}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Mini equity bar */}
-                <div className="mt-4">
-                  <div className="flex justify-between text-[9px] text-[#333368] mb-1.5">
-                    <span>Account Value ${paperStats.accountValue.toFixed(2)}</span>
-                    <span>Start $10,000</span>
-                  </div>
-                  <div className="relative w-full rounded-full" style={{ height: "1px", background: "#1A1838" }}>
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full transition-all"
-                      style={{
-                        width: `${Math.min(100, Math.max(1, (paperStats.accountValue / Math.max(paperStats.accountValue, PAPER_START)) * 100))}%`,
-                        background: paperStats.realizedPL >= 0 ? "#34d399" : "#f87171",
-                        boxShadow: paperStats.realizedPL >= 0
-                          ? "0 0 8px 2px rgba(52,211,153,0.6)"
-                          : "0 0 8px 2px rgba(248,113,113,0.6)",
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </Link>
-
-
-            {/* Watchlist */}
-            <div className="mt-8">
-              <div className="flex flex-col items-center gap-2 mb-4 text-center">
-                <h2 className="text-base font-semibold">Market Watchlist</h2>
-                <span className="text-[10px] font-mono text-[#4B5675]">
-                  {displayStocks.length} stocks
-                  {trendingStocks.length > 0 && (
-                    <span className="text-teal-400"> · {trendingStocks.length} trending</span>
-                  )}
-                  {lastFetched && (
-                    <span className="text-[#333368]"> · {new Date(lastFetched).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
-                  )}
-                </span>
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
@@ -1206,7 +1110,7 @@ function DashboardContent() {
                   >
                     {editMode ? "Done" : "Edit"}
                   </button>
-                  <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">View all →</Link>
+                  <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">All →</Link>
                 </div>
               </div>
 
@@ -1240,7 +1144,7 @@ function DashboardContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {displayStocks.map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
                   const animClass = stock.isNew
@@ -1259,7 +1163,7 @@ function DashboardContent() {
                           ×
                         </button>
                       )}
-                      <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start justify-between mb-3">
                         <div>
                           <div className="flex items-center gap-1.5">
                             <p className="font-bold tracking-tight">{stock.symbol.replace(".US","").replace(".COMM","")}</p>
@@ -1274,7 +1178,7 @@ function DashboardContent() {
                           : stock.signal
                           ? (
                             <div className="flex flex-col items-end gap-1">
-                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadge(stock.signal)}`}>{stock.signal}</span>
+                              <span className={`signal-pop text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadge(stock.signal)}`}>{stock.signal}</span>
                               {stock.confidence && (
                                 <span className={`text-[9px] font-semibold ${stock.confidence === "High" ? "text-emerald-400" : stock.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
                                   {stock.confidence}
@@ -1285,7 +1189,7 @@ function DashboardContent() {
                           : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
                         }
                       </div>
-                      <p className={`text-xl font-bold font-mono ${changeColor(stock.change)}`}>
+                      <p className={`num-reveal text-xl font-bold font-mono ${stock.change !== null && stock.change >= 0 ? "price-glow-up" : stock.change !== null ? "price-glow-down" : changeColor(stock.change)}`}>
                         {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                       </p>
                       <div className="flex items-end justify-between mt-1">
@@ -1299,15 +1203,15 @@ function DashboardContent() {
 
                       {stock.trade && stock.signal !== "HOLD" ? (
                         <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
                             <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Entry</span>
                             <span className="text-[10px] font-mono font-bold text-amber-400 text-right">{stock.trade.entryZone}</span>
                           </div>
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
                             <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
                             <span className="text-[10px] font-mono font-bold text-rose-400">{stock.trade.stopLoss}</span>
                           </div>
-                          <div className="flex items-center justify-between gap-2">
+                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
                             <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Target</span>
                             <span className="text-[10px] font-mono font-bold text-emerald-400">{stock.trade.takeProfit}</span>
                           </div>
@@ -1333,11 +1237,11 @@ function DashboardContent() {
                       {!editMode && (
                         <div className="mt-3 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => e.stopPropagation()} className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium">Analyse →</Link>
+                            <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => { e.stopPropagation(); haptic.tap(); }} className="glow-green text-[11px] text-emerald-400 font-medium">Analyse →</Link>
                             {(stock.signal === "BUY" || stock.signal === "SELL") && stock.price && (
                               <Link
                                 href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&direction=${stock.signal === "BUY" ? "LONG" : "SHORT"}&price=${stock.price.toFixed(2)}`}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => { e.stopPropagation(); haptic.medium(); }}
                                 className="text-[11px] text-violet-400 hover:text-violet-300 font-medium transition-colors"
                               >
                                 Trade →
@@ -1346,9 +1250,9 @@ function DashboardContent() {
                           </div>
                           <button
                             type="button"
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); openAlertForm(stock.symbol); }}
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); haptic.light(); openAlertForm(stock.symbol); }}
                             title="Set price alert"
-                            className={`p-1 rounded-lg transition-colors ${priceAlerts[stock.symbol]?.above != null || priceAlerts[stock.symbol]?.below != null ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
+                            className={`press-scale p-1 rounded-lg transition-colors ${priceAlerts[stock.symbol]?.above != null || priceAlerts[stock.symbol]?.below != null ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
@@ -1395,13 +1299,15 @@ function DashboardContent() {
                     </>
                   );
 
-                  const sharedClass = `relative group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${animClass}`;
+                  const signalGlow = stock.signal === "BUY" ? "signal-card-buy" : stock.signal === "SELL" ? "signal-card-sell" : "";
+                  const staggerClass = !animClass ? `card-stagger card-stagger-${Math.min(displayStocks.indexOf(stock) + 1, 12)}` : animClass;
+                  const sharedClass = `${signalGlow} relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${staggerClass} transition-colors hover:border-[#333368]`;
                   const analysisHref = `/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`;
 
                   return (
                     <div
                       key={stock.symbol}
-                      className={`${sharedClass} ${!editMode ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
+                      className={`${sharedClass} ${!editMode ? "card-tappable cursor-pointer" : ""}`}
                       onClick={!editMode ? () => router.push(analysisHref) : undefined}
                     >
                       {cardBody}
@@ -1409,53 +1315,90 @@ function DashboardContent() {
                   );
                 })}
               </div>
-            </div>
-          </section>
+            </div>{/* /watchlist lg:col-span-2 */}
 
-          {/* ── EARNINGS CALENDAR ── */}
-          {(() => {
-            const upcoming = displayStocks
-              .filter(s => s.earningsDate && !s.earningsDate.includes("—"))
-              .sort((a, b) => {
-                const order = (d: string) =>
-                  d.includes("Tomorrow") ? 0 :
-                  d.includes("in 1d") || d.includes("in 2d") || d.includes("in 3d") ? 1 :
-                  d.includes("in ") ? 2 : 3;
-                return order(a.earningsDate!) - order(b.earningsDate!);
-              })
-              .slice(0, 6);
-            if (upcoming.length === 0) return null;
-            return (
-              <section>
-                <div className="flex flex-col items-center gap-1 mb-4 text-center">
-                  <h2 className="text-base font-semibold">Upcoming Earnings</h2>
-                  <p className="text-xs text-[#7B8DB4]">Watchlist companies reporting soon</p>
+            {/* Right sidebar — 1/3 */}
+            <div className="lg:col-span-1 flex flex-col gap-3">
+
+              {/* Paper Portfolio */}
+              <Link href="/paper" className="block group">
+                <div className="card-shine card-premium surface-sheen rounded-2xl px-4 py-4 transition-all hover:border-emerald-500/20">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-bold text-[#F1F5F9]">Paper Portfolio</span>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${paperStats.realizedPL >= 0 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400"}`}>
+                      {paperStats.realizedPL >= 0 ? "+" : ""}{paperStats.realizedPL.toFixed(2)} P&amp;L
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: "Value",      value: `$${paperStats.accountValue.toFixed(0)}`,                                                                                    color: "text-[#F1F5F9]" },
+                      { label: "Realized",   value: `${paperStats.realizedPL >= 0 ? "+" : ""}$${paperStats.realizedPL.toFixed(2)}`,                                             color: paperStats.realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
+                      { label: "Open",       value: paperStats.openCount.toString(),                                                                                              color: "text-[#F1F5F9]" },
+                      { label: "Win Rate",   value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",                                                                 color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
+                    ].map((s) => (
+                      <div key={s.label}>
+                        <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-0.5">{s.label}</p>
+                        <p className={`num-reveal text-base font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View trades →</p>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                  {upcoming.map(s => (
-                    <div key={s.symbol}
-                      className="bg-[#13112A] border border-[#252345] rounded-2xl p-3 text-center cursor-pointer hover:border-[#333368] transition-colors"
-                      onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
-                    >
-                      <p className="text-sm font-bold text-[#F1F5F9] font-mono">{s.symbol.replace(".US","").replace(".COMM","")}</p>
-                      <p className="text-[10px] text-[#4B5675] mt-0.5 truncate">{s.name}</p>
-                      <span className={`inline-block mt-2 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                        s.earningsDate!.includes("Tomorrow") || s.earningsDate!.includes("in 1d") || s.earningsDate!.includes("in 2d") || s.earningsDate!.includes("in 3d")
-                          ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                          : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                      }`}>{s.earningsDate}</span>
+              </Link>
+
+              {/* Signal Track Record */}
+              <SignalPerformance />
+
+              {/* Earnings compact */}
+              {(() => {
+                const upcoming = displayStocks
+                  .filter(s => s.earningsDate && !s.earningsDate.includes("—"))
+                  .sort((a, b) => {
+                    const order = (d: string) =>
+                      d.includes("Tomorrow") ? 0 :
+                      d.includes("in 1d") || d.includes("in 2d") || d.includes("in 3d") ? 1 :
+                      d.includes("in ") ? 2 : 3;
+                    return order(a.earningsDate!) - order(b.earningsDate!);
+                  })
+                  .slice(0, 5);
+                if (upcoming.length === 0) return null;
+                return (
+                  <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Earnings</h2>
+                      <span className="text-[10px] text-[#333368] font-mono">{upcoming.length}</span>
                     </div>
-                  ))}
-                </div>
-              </section>
-            );
-          })()}
+                    <div className="space-y-1.5">
+                      {upcoming.map(s => (
+                        <div key={s.symbol}
+                          className="flex items-center justify-between gap-2 px-3 py-2 bg-[#0D0B1A] rounded-xl cursor-pointer hover:bg-[#1A1838] transition-colors"
+                          onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
+                        >
+                          <div className="min-w-0">
+                            <p className="text-xs font-bold font-mono text-[#F1F5F9]">{s.symbol.replace(".US","").replace(".COMM","")}</p>
+                            <p className="text-[10px] text-[#4B5675] truncate">{s.name}</p>
+                          </div>
+                          <span className={`shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
+                            s.earningsDate!.includes("Tomorrow") || s.earningsDate!.includes("in 1d") || s.earningsDate!.includes("in 2d") || s.earningsDate!.includes("in 3d")
+                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
+                          }`}>{s.earningsDate}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>{/* /right sidebar */}
 
-          {/* ── PAGE 2: FUTURES MARKETS ── */}
-          <section>
-            <div className="flex flex-col items-center gap-2 mb-4 text-center">
-              <h2 className="text-base font-semibold">Futures Markets</h2>
-              <p className="text-xs text-[#7B8DB4]">{futures.length} contracts · add any ticker (ES, GC, ZN, HG…)</p>
+            {/* Futures — full width */}
+            <div className="lg:col-span-3">
+            <section>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Futures</h2>
+                <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
+              </div>
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -1464,7 +1407,6 @@ function DashboardContent() {
                 >
                   {editFutures ? "Done" : "Edit"}
                 </button>
-                <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">All exchanges →</Link>
               </div>
             </div>
 
@@ -1497,13 +1439,13 @@ function DashboardContent() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {futures.map((f) => {
                 const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
                 return (
                   <div
                     key={f.symbol}
-                    className={`relative group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
+                    className={`relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
                     onClick={!editFutures ? () => router.push(analysisHref) : undefined}
                   >
                     {editFutures && (
@@ -1585,11 +1527,15 @@ function DashboardContent() {
               })}
             </div>
           </section>
+          </div>{/* /futures lg:col-span-3 */}
 
-          {/* ── PAGE 3: TOP OPTIONS PLAYS ── */}
-          <OptionsPlaysSection />
+          {/* Options Plays — full width */}
+          <div className="lg:col-span-3">
+            <OptionsPlaysSection />
+          </div>
 
-          {/* ── PAGE 4: RISK RULES + BROKER CTA ── */}
+          {/* Risk Rules + Exchange CTA — full width */}
+          <div className="lg:col-span-3">
           <section>
             {/* Risk rules */}
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
@@ -1625,8 +1571,10 @@ function DashboardContent() {
               </Link>
             </div>
           </section>
+          </div>{/* /risk rules lg:col-span-3 */}
 
-          </div>
+            </div>{/* /bento grid */}
+          </div>{/* /max-w-7xl */}
         </main>
       </div>
     </div>
