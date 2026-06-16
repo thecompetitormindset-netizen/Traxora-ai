@@ -516,7 +516,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           <div className="flex items-center gap-1.5 shrink-0">
             {/* Chart type toggle */}
             <div className="flex items-center gap-px p-1 rounded-xl" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
-              <button type="button" onClick={() => setChartType("candle")} title="Candlestick"
+              <button type="button" onClick={() => setChartType("candle")} title="Candlestick" aria-label="Candlestick chart" aria-pressed={chartType === "candle" ? "true" : "false"}
                 className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
                 style={chartType === "candle" ? { background: C.borderH, color: C.bull } : { color: C.dim }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -524,7 +524,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
                   <rect x="16" y="5" width="5" height="10" rx="1"/><line x1="18.5" y1="2" x2="18.5" y2="5"/><line x1="18.5" y1="15" x2="18.5" y2="20"/>
                 </svg>
               </button>
-              <button type="button" onClick={() => setChartType("line")} title="Line"
+              <button type="button" onClick={() => setChartType("line")} title="Line" aria-label="Line chart" aria-pressed={chartType === "line" ? "true" : "false"}
                 className="px-2 py-1 rounded-lg transition-all flex items-center justify-center"
                 style={chartType === "line" ? { background: C.borderH, color: C.bull } : { color: C.dim }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -542,7 +542,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => setFullscreen(v => !v)} title={fullscreen ? "Exit (Esc)" : "Full screen"}
+            <button type="button" onClick={() => setFullscreen(v => !v)} title={fullscreen ? "Exit (Esc)" : "Full screen"} aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
               className="p-2 sm:p-1.5 rounded-lg transition-all min-w-[36px] min-h-[36px] sm:min-w-0 sm:min-h-0 flex items-center justify-center"
               style={{ background: fullscreen ? C.borderH : C.panel, border: `1px solid ${fullscreen ? C.borderH : C.border}`, color: fullscreen ? C.bright : C.dim }}>
               {fullscreen

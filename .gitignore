@@ -31,3 +31,4 @@ data/*.json
 # TypeScript incremental build info
 tsconfig.tsbuildinfo
 .env*
+!.env.example

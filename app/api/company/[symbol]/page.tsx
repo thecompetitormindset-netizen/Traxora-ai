@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../../../components/Sidebar";
 import Topbar from "../../../components/Topbar";
@@ -67,9 +68,11 @@ export default function CompanyPage({
             <div className="mt-6 flex items-start justify-between gap-6">
               <div className="flex items-start gap-4">
                 {company.logo ? (
-                  <img
+                  <Image
                     src={company.logo}
                     alt={company.name}
+                    width={64}
+                    height={64}
                     className="w-16 h-16 rounded-2xl bg-white object-contain"
                   />
                 ) : (

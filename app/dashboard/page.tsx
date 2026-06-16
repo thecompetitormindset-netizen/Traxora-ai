@@ -1302,6 +1302,7 @@ function DashboardContent() {
                             type="button"
                             onClick={(e) => { e.preventDefault(); e.stopPropagation(); haptic.light(); openAlertForm(stock.symbol); }}
                             title="Set price alert"
+                            aria-label={`Set price alert for ${stock.symbol}`}
                             className={`press-scale p-1 rounded-lg transition-colors ${priceAlerts[stock.symbol]?.above != null || priceAlerts[stock.symbol]?.below != null ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

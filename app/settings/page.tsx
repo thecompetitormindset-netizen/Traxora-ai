@@ -1,6 +1,7 @@
 "use client";
 import PaywallGuard from "@/app/components/PaywallGuard";
 
+import Image from "next/image";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
@@ -181,7 +182,7 @@ export default function SettingsPage() {
                 <>
                   <div className="flex items-center gap-4 px-5 py-5 border-b border-[#252345]">
                     {session.user.image ? (
-                      <img src={session.user.image} alt="Avatar" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+                      <Image src={session.user.image} alt="Avatar" width={48} height={48} className="w-12 h-12 rounded-xl object-cover shrink-0" />
                     ) : (
                       <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-lg font-bold shrink-0">
                         {session.user.name?.[0] ?? "U"}

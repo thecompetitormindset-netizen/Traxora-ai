@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { THEME_KEY } from "../lib/theme";
@@ -232,9 +233,11 @@ export default function Topbar({ onSearch }: TopbarProps) {
           <div className="flex items-center gap-2.5 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-1.5">
             <Link href="/settings">
               {session.user.image ? (
-                <img
+                <Image
                   src={session.user.image}
                   alt="Profile"
+                  width={28}
+                  height={28}
                   className="w-7 h-7 rounded-lg object-cover"
                 />
               ) : (
