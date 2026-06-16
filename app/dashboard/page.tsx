@@ -1350,8 +1350,10 @@ function DashboardContent() {
                   );
 
                   const signalGlow = stock.signal === "BUY" ? "signal-card-buy" : stock.signal === "SELL" ? "signal-card-sell" : "";
-                  const staggerClass = !animClass ? `card-stagger card-stagger-${Math.min(displayStocks.indexOf(stock) + 1, 12)}` : animClass;
-                  const sharedClass = `${signalGlow} relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${staggerClass} transition-colors hover:border-[#333368]`;
+                  const idx = displayStocks.indexOf(stock);
+                  const staggerClass = !animClass ? `card-stagger card-stagger-${Math.min(idx + 1, 12)}` : animClass;
+                  const isOrphan = idx === displayStocks.length - 1 && displayStocks.length % 2 !== 0;
+                  const sharedClass = `${signalGlow} relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${staggerClass} transition-colors hover:border-[#333368] ${isOrphan ? "sm:col-span-2" : ""}`;
                   const analysisHref = `/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`;
 
                   return (
