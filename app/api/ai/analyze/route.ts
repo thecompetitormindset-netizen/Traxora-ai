@@ -9,6 +9,11 @@ export const runtime = "nodejs";
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+function fmtPrice(p: number): string {
+  const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
+  return p.toFixed(decimals);
+}
+
 import { toYahooSymbol } from "@/app/lib/yahooSymbol";
 
 // Sector ETF map — used to check if sector confirms or contradicts the signal
@@ -256,9 +261,9 @@ export async function POST(req: Request) {
       const actualRR    = riskDist > 0 ? (Math.abs(tpVal - entryMid) / riskDist).toFixed(1) : "2.0";
 
       trade = {
-        entryZone:   `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`,
-        stopLoss:    `$${stopVal.toFixed(2)}`,
-        takeProfit:  `$${tpVal.toFixed(2)}`,
+        entryZone:   `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`,
+        stopLoss:    `$${fmtPrice(stopVal)}`,
+        takeProfit:  `$${fmtPrice(tpVal)}`,
         entryReason: signal === "BUY"
           ? `Discount zone — enter in lower 30% of day range${orderBlock ? " near Order Block" : ""}${immediateRebalance ? " · IR zone nearby" : ""}`
           : `Premium zone — enter in upper 30% of day range${orderBlock ? " near Order Block" : ""}${immediateRebalance ? " · IR zone nearby" : ""}`,
@@ -267,9 +272,9 @@ export async function POST(req: Request) {
           : `Structural stop above ${orderBlock ? "Order Block high" : "session high"}`,
         tpReason:    liqRR >= 1
           ? (signal === "BUY"
-              ? `Targeting BSL at $${bslPrice.toFixed(2)} — buy-side liquidity above prior session high`
-              : `Targeting SSL at $${sslPrice.toFixed(2)} — sell-side liquidity below prior session low`)
-          : `2:1 R:R target at $${tpVal.toFixed(2)} — liquidity too close for direct targeting`,
+              ? `Targeting BSL at $${fmtPrice(bslPrice)} — buy-side liquidity above prior session high`
+              : `Targeting SSL at $${fmtPrice(sslPrice)} — sell-side liquidity below prior session low`)
+          : `2:1 R:R target at $${fmtPrice(tpVal)} — liquidity too close for direct targeting`,
         rrRatio:     `${actualRR}:1`,
       };
     }

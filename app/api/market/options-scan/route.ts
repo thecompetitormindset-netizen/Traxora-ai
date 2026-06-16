@@ -5,6 +5,11 @@ export const maxDuration = 45;
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 
+function fmtPrice(p: number): string {
+  const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
+  return p.toFixed(decimals);
+}
+
 const UNIVERSE = [
   "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","ORCL",
   "JPM","BAC","GS","V","MA",
@@ -199,15 +204,15 @@ export async function runOptionsScan() {
     // Entry zone: 0.3% band around current price
     const entryLow  = q.price * (isBull ? 0.997 : 1.001);
     const entryHigh = q.price * (isBull ? 1.003 : 0.999);
-    const entryZone = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
+    const entryZone = `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`;
 
     // Target: 2× weekly move in signal direction
     const targetPrice = isBull ? q.price + weeklyMove * 2 : q.price - weeklyMove * 2;
-    const target      = `$${targetPrice.toFixed(2)}`;
+    const target      = `$${fmtPrice(targetPrice)}`;
 
     // Stop: 1× weekly move against signal direction
     const stopPrice = isBull ? q.price - weeklyMove : q.price + weeklyMove;
-    const stop      = `$${stopPrice.toFixed(2)}`;
+    const stop      = `$${fmtPrice(stopPrice)}`;
 
     // R:R ratio
     const reward = Math.abs(targetPrice - q.price);

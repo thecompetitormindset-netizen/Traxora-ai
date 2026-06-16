@@ -23,6 +23,11 @@ interface StockInput {
   news:          { title: string; publisher: string; age: string }[];
 }
 
+function fmtPrice(p: number): string {
+  const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
+  return p.toFixed(decimals);
+}
+
 function trend5d(h: number[]): { label: string; pct: number } {
   if (h.length < 2) return { label: "No trend data", pct: 0 };
   const pct = ((h[h.length - 1] - h[0]) / h[0]) * 100;
@@ -83,13 +88,13 @@ function scoreStock(s: StockInput) {
     : `Price in ${priceZone} zone — no clear directional edge. ${trend.label}.`;
 
   const keyLevel =
-    signal === "BUY"  ? `$${dayL.toFixed(2)} — stop below day low` :
-    signal === "SELL" ? `$${dayH.toFixed(2)} — resistance / stop above day high` :
-                        `$${dayMid.toFixed(2)} — equilibrium`;
+    signal === "BUY"  ? `$${fmtPrice(dayL)} — stop below day low` :
+    signal === "SELL" ? `$${fmtPrice(dayH)} — resistance / stop above day high` :
+                        `$${fmtPrice(dayMid)} — equilibrium`;
 
   const target =
-    signal === "BUY"  ? `$${(s.price + (s.price - dayL) * 2).toFixed(2)} — 2:1 R:R target` :
-    signal === "SELL" ? `$${(s.price - (dayH - s.price) * 2).toFixed(2)} — 2:1 R:R target` :
+    signal === "BUY"  ? `$${fmtPrice(s.price + (s.price - dayL) * 2)} — 2:1 R:R target` :
+    signal === "SELL" ? `$${fmtPrice(s.price - (dayH - s.price) * 2)} — 2:1 R:R target` :
                         "—";
 
   const power3Phase =
@@ -126,9 +131,9 @@ function scoreStock(s: StockInput) {
     const stopVal   = signal === "BUY" ? dayL - buf : dayH + buf;
     const riskDist  = Math.abs(entryMid - stopVal);
     const tpVal     = signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2;
-    entryZone   = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
-    stopLoss    = `$${stopVal.toFixed(2)}`;
-    takeProfit  = `$${tpVal.toFixed(2)}`;
+    entryZone   = `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`;
+    stopLoss    = `$${fmtPrice(stopVal)}`;
+    takeProfit  = `$${fmtPrice(tpVal)}`;
     entryReason = signal === "BUY"
       ? `Discount zone — lower 30% of day range (${priceZone})`
       : `Premium zone — upper 30% of day range (${priceZone})`;

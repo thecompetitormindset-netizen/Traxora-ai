@@ -92,6 +92,11 @@ async function fetchQuote(symbol: string) {
   } catch { return null; }
 }
 
+function fmtPrice(p: number): string {
+  const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
+  return p.toFixed(decimals);
+}
+
 // ── Email-specific analysis wrapper ──────────────────────────────────────────
 function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
   const sm = smartMoneyScore({
@@ -128,7 +133,7 @@ function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
     entryHigh = dayL + span * 0.60;
   }
   const entryMid = (entryLow + entryHigh) / 2;
-  const entryZone = `$${entryLow.toFixed(2)} – $${entryHigh.toFixed(2)}`;
+  const entryZone = `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`;
 
   // Structural stop: just beyond the session extreme.
   // Buffer = larger of 3% of day span or 0.1% of price — avoids wick stop-outs.
@@ -139,8 +144,8 @@ function analyze(q: NonNullable<Awaited<ReturnType<typeof fetchQuote>>>) {
     ? entryMid + riskDist * 2     // 2R above entry midpoint
     : entryMid - riskDist * 2;    // 2R below entry midpoint
 
-  const stopLoss   = `$${stopVal.toFixed(2)}`;
-  const takeProfit = `$${tpVal.toFixed(2)}`;
+  const stopLoss   = `$${fmtPrice(stopVal)}`;
+  const takeProfit = `$${fmtPrice(tpVal)}`;
 
   const refH = Math.max(dayH, q.prev);
   const refL = Math.min(dayL, q.prev);
