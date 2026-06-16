@@ -1083,8 +1083,8 @@ function DashboardContent() {
             {/* ── BENTO GRID ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
-            {/* Morning Brief — 2/3 */}
-            <div className="lg:col-span-2 self-start">
+            {/* Morning Brief — full width */}
+            <div className="lg:col-span-3">
               <div
                 className="reveal flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 py-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
                 onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
@@ -1098,11 +1098,6 @@ function DashboardContent() {
                 </div>
                 <span className="text-xs text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
               </div>
-            </div>
-
-            {/* Sentiment — 1/3 */}
-            <div className="lg:col-span-1">
-              <SentimentWidget />
             </div>
 
             {/* Stats — full width */}
@@ -1374,6 +1369,9 @@ function DashboardContent() {
 
             {/* Right sidebar — 1/3 */}
             <div className="lg:col-span-1 flex flex-col gap-3">
+
+              {/* Sentiment */}
+              <SentimentWidget />
 
               {/* Paper Portfolio */}
               <Link href="/paper" className="block group">
