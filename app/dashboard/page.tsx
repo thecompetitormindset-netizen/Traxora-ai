@@ -491,6 +491,7 @@ function DashboardContent() {
   const [poppedSymbols, setPoppedSymbols]   = useState<Set<string>>(new Set());
   const [lastFetched, setLastFetched]       = useState<number | null>(null);
   const [priceAlerts, setPriceAlerts]       = useState<AlertMap>({});
+  const [copiedSymbol, setCopiedSymbol]     = useState<string | null>(null); // symbol whose Claude prompt was just copied
   const [alertForm, setAlertForm]           = useState<string | null>(null); // symbol whose form is open
   const [alertAbove, setAlertAbove]         = useState("");
   const [alertBelow, setAlertBelow]         = useState("");
@@ -874,6 +875,23 @@ function DashboardContent() {
     setStocks((s) => s.filter((c) => c.symbol !== symbol));
   }
 
+  function copyClaudePrompt(stock: StockCard) {
+    if (!stock.trade || !stock.price) return;
+    const side = stock.signal === "BUY" ? "buy" : "sell";
+    const lines = [
+      `Using my connected Robinhood Agentic account, ${side} ${stock.symbol.replace(".US", "").replace(".COMM", "")} (${stock.name}).`,
+      `Entry zone: ${stock.trade.entryZone}`,
+      `Stop loss: ${stock.trade.stopLoss}`,
+      `Target: ${stock.trade.takeProfit}`,
+      `R:R ${stock.trade.rrRatio} — ${stock.trade.entryReason}`,
+      `Size the position conservatively for the account balance. Confirm the order details with me before submitting.`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopiedSymbol(stock.symbol);
+      setTimeout(() => setCopiedSymbol((s) => (s === stock.symbol ? null : s)), 2000);
+    });
+  }
+
   function openAlertForm(symbol: string) {
     const existing = priceAlerts[symbol];
     setAlertAbove(existing?.above != null ? String(existing.above) : "");
@@ -1246,6 +1264,16 @@ function DashboardContent() {
                               >
                                 Trade →
                               </Link>
+                            )}
+                            {(stock.signal === "BUY" || stock.signal === "SELL") && stock.trade && (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(stock); }}
+                                title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                                className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                              >
+                                {copiedSymbol === stock.symbol ? "Copied!" : "Send to Claude →"}
+                              </button>
                             )}
                           </div>
                           <button
