@@ -515,7 +515,7 @@ export default function IPOPage() {
 
           {/* Cards */}
           {!loading && items.length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(340px,1fr))] gap-4">
               {items.map((ipo, i) => (
                 <IPOCard key={i} ipo={ipo} showPerf={tab === "recent"} />
               ))}

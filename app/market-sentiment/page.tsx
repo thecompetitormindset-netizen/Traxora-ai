@@ -664,7 +664,7 @@ export default function MarketSentimentPage() {
               {[1,2,3].map(i => <div key={i} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5"><Skeleton h="h-16" /></div>)}
             </div>
           ) : syntheses.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-4">
               {syntheses.map(s => (
                 <MetricCard
                   key={s.ticker}

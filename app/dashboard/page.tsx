@@ -409,7 +409,7 @@ function OptionsPlaysSection() {
       )}
 
       {loaded && plays.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-3">
           {plays.map((p, i) => (
             <Link
               key={p.symbol}
@@ -1493,7 +1493,7 @@ function DashboardContent() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(260px,1fr))] gap-3">
               {futures.map((f) => {
                 const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
                 return (

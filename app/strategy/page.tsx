@@ -247,7 +247,7 @@ function StrategyContent() {
 
               {/* Best / Worst */}
               {(best || worst) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-3">
                   {best && (
                     <div className="card-shine glass surface-sheen signal-card-buy border border-emerald-500/20 rounded-2xl px-5 py-4">
                       <p className="text-[9px] text-emerald-400 uppercase tracking-widest font-semibold mb-2">Best Trade</p>

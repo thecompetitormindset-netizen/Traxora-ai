@@ -194,7 +194,7 @@ function OptionsPlaysPanel() {
           </div>
 
           {/* Play cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-3">
             {plays.map((p) => {
               const isCalls   = p.play === "CALLS";
               const borderCls = isCalls ? "border-l-emerald-500/40" : "border-l-rose-500/40";
