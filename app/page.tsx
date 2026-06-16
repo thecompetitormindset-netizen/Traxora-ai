@@ -168,14 +168,39 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   );
 }
 
+const PLAN_CACHE_KEY = "traxora_plan_cache";
+
 export default function HomePage() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   function handleLaunch() {
     if (session) { router.push("/dashboard"); }
     else { signIn("google", { callbackUrl: "/dashboard" }); }
   }
+
+  // Pro users skip the marketing page entirely and land straight in the app.
+  const [checkingPlan, setCheckingPlan] = useState(false);
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    try {
+      if (sessionStorage.getItem(PLAN_CACHE_KEY) === "pro") { router.replace("/dashboard"); return; }
+    } catch { /* ignore */ }
+
+    setCheckingPlan(true);
+    fetch("/api/user/plan")
+      .then(r => r.json())
+      .then(({ plan }) => {
+        if (plan === "pro") {
+          try { sessionStorage.setItem(PLAN_CACHE_KEY, "pro"); } catch { /* ignore */ }
+          router.replace("/dashboard");
+        } else {
+          setCheckingPlan(false);
+        }
+      })
+      .catch(() => setCheckingPlan(false));
+  }, [status, router]);
 
   const [signalIdx,  setSignalIdx]  = useState(0);
   const [signalFade, setSignalFade] = useState(true);
@@ -292,6 +317,16 @@ export default function HomePage() {
     { href: "/pricing",      label: "Pricing"  },
     { href: "/guide",        label: "Guide"    },
   ];
+
+  if (checkingPlan) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col overflow-hidden">
