@@ -277,6 +277,23 @@ function OptionsPlaysSection() {
   const [withIV,    setWithIV]    = useState(0);
   const [err,       setErr]       = useState<string | null>(null);
   const [lastScan,  setLastScan]  = useState<Date | null>(null);
+  const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
+
+  function copyClaudePrompt(p: OptionsPlay) {
+    const side = p.play === "CALLS" ? "buy calls on" : "buy puts on";
+    const lines = [
+      `Using my connected Robinhood Agentic account, ${side} ${p.symbol} (${p.strike} strike${p.expiry ? `, exp ${p.expiry}` : ""}).`,
+      `Entry zone: ${p.entryZone}`,
+      `Stop: ${p.stop}`,
+      `Target: ${p.target}`,
+      `R:R ${p.rrRatio}${p.premiumEst ? ` — est. premium ${p.premiumEst}` : ""}`,
+      `Size the position conservatively for the account balance. Confirm the order details with me before submitting.`,
+    ];
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      setCopiedSymbol(p.symbol);
+      setTimeout(() => setCopiedSymbol((s) => (s === p.symbol ? null : s)), 2000);
+    });
+  }
 
   async function scan() {
     setLoading(true);
@@ -462,7 +479,17 @@ function OptionsPlaysSection() {
                 </p>
               </div>
 
-              <p className="text-[11px] text-emerald-400 mt-3 group-hover:text-emerald-300 transition-colors font-medium">Analyse options →</p>
+              <div className="mt-3 flex items-center gap-3">
+                <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 transition-colors font-medium">Analyse options →</p>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyClaudePrompt(p); }}
+                  title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                  className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                >
+                  {copiedSymbol === p.symbol ? "Copied!" : "Send to Claude →"}
+                </button>
+              </div>
             </Link>
           ))}
         </div>
@@ -875,20 +902,20 @@ function DashboardContent() {
     setStocks((s) => s.filter((c) => c.symbol !== symbol));
   }
 
-  function copyClaudePrompt(stock: StockCard) {
-    if (!stock.trade || !stock.price) return;
-    const side = stock.signal === "BUY" ? "buy" : "sell";
+  function copyClaudePrompt(item: { symbol: string; name: string; signal: "BUY" | "HOLD" | "SELL" | null; trade: TradeLevels | null }) {
+    if (!item.trade || !item.signal || item.signal === "HOLD") return;
+    const side = item.signal === "BUY" ? "buy" : "sell";
     const lines = [
-      `Using my connected Robinhood Agentic account, ${side} ${stock.symbol.replace(".US", "").replace(".COMM", "")} (${stock.name}).`,
-      `Entry zone: ${stock.trade.entryZone}`,
-      `Stop loss: ${stock.trade.stopLoss}`,
-      `Target: ${stock.trade.takeProfit}`,
-      `R:R ${stock.trade.rrRatio} — ${stock.trade.entryReason}`,
+      `Using my connected Robinhood Agentic account, ${side} ${item.symbol.replace(".US", "").replace(".COMM", "")} (${item.name}).`,
+      `Entry zone: ${item.trade.entryZone}`,
+      `Stop loss: ${item.trade.stopLoss}`,
+      `Target: ${item.trade.takeProfit}`,
+      `R:R ${item.trade.rrRatio} — ${item.trade.entryReason}`,
       `Size the position conservatively for the account balance. Confirm the order details with me before submitting.`,
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      setCopiedSymbol(stock.symbol);
-      setTimeout(() => setCopiedSymbol((s) => (s === stock.symbol ? null : s)), 2000);
+      setCopiedSymbol(item.symbol);
+      setTimeout(() => setCopiedSymbol((s) => (s === item.symbol ? null : s)), 2000);
     });
   }
 
@@ -1540,7 +1567,7 @@ function DashboardContent() {
                     ) : null}
                     {/* Footer link */}
                     {!editFutures && (
-                      <div className="mt-3">
+                      <div className="mt-3 flex items-center gap-3">
                         <Link
                           href={analysisHref}
                           onClick={(e) => e.stopPropagation()}
@@ -1548,6 +1575,16 @@ function DashboardContent() {
                         >
                           Analyse →
                         </Link>
+                        {(f.signal === "BUY" || f.signal === "SELL") && f.trade && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(f); }}
+                            title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                            className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                          >
+                            {copiedSymbol === f.symbol ? "Copied!" : "Send to Claude →"}
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
