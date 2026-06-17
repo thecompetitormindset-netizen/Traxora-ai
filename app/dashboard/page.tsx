@@ -267,6 +267,7 @@ type OptionsPlay = {
   premiumEst: string | null;
   pcVolRatio: number | null;
   score: number; hasOptions: boolean;
+  dte: number | null; dteWarning: boolean;
 };
 
 function OptionsPlaysSection() {
@@ -281,13 +282,17 @@ function OptionsPlaysSection() {
 
   function copyClaudePrompt(p: OptionsPlay) {
     const side = p.play === "CALLS" ? "buy calls on" : "buy puts on";
+    const dteNote = p.dte !== null ? `${p.dte} DTE` : "unknown DTE";
     const lines = [
-      `Using my connected Robinhood Agentic account, ${side} ${p.symbol} (${p.strike} strike${p.expiry ? `, exp ${p.expiry}` : ""}).`,
+      `⚠️ EDUCATIONAL SIGNAL — verify before trading. Not financial advice. Options can lose 100% of value.`,
+      ``,
+      `Signal: ${side} ${p.symbol} (${p.strike} strike${p.expiry ? `, exp ${p.expiry} · ${dteNote}` : ""}).`,
       `Entry zone: ${p.entryZone}`,
       `Stop: ${p.stop}`,
       `Target: ${p.target}`,
       `R:R ${p.rrRatio}${p.premiumEst ? ` — est. premium ${p.premiumEst}` : ""}`,
-      `Size the position conservatively for the account balance. Confirm the order details with me before submitting.`,
+      ``,
+      `Before placing any order: confirm current DTE, IV environment, and whether there are earnings within 7 days. Only use a paper account or risk capital you can afford to lose entirely.`,
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
       setCopiedSymbol(p.symbol);
@@ -409,6 +414,13 @@ function OptionsPlaysSection() {
       )}
 
       {loaded && plays.length > 0 && (
+        <>
+        <div className="mb-3 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-start gap-2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 mt-0.5 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <p className="text-[11px] text-amber-300/80 leading-snug">
+            <span className="font-semibold text-amber-300">Educational signals only — not financial advice.</span> Options can lose 100% of their value. Always verify DTE, IV environment, and earnings dates before trading. Never risk more than you can afford to lose entirely.
+          </p>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {plays.map((p, i) => {
             const isOrphan = i === plays.length - 1 && plays.length % 3 === 1;
@@ -426,6 +438,13 @@ function OptionsPlaysSection() {
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold tracking-tight">{p.symbol}</p>
                     <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">OPTIONS</span>
+                    {p.dte !== null && (
+                      <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
+                        p.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
+                        p.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                                     "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                      }`}>{p.dte}d</span>
+                    )}
                   </div>
                   <p className="text-xs text-[#4B5675] mt-0.5">#{i + 1} ranked setup</p>
                 </div>
@@ -486,7 +505,7 @@ function OptionsPlaysSection() {
                 <button
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyClaudePrompt(p); }}
-                  title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                  title="Copy signal details (includes risk disclaimer) to paste into Claude"
                   className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
                 >
                   {copiedSymbol === p.symbol ? "Copied!" : "Send to Claude →"}
@@ -496,6 +515,7 @@ function OptionsPlaysSection() {
             );
           })}
         </div>
+        </>
       )}
     </section>
   );
@@ -1294,7 +1314,7 @@ function DashboardContent() {
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(stock); }}
-                                title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                                title="Copy signal details (includes risk disclaimer) to paste into Claude"
                                 className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
                               >
                                 {copiedSymbol === stock.symbol ? "Copied!" : "Send to Claude →"}
@@ -1582,7 +1602,7 @@ function DashboardContent() {
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(f); }}
-                            title="Copy a trade instruction to paste into Claude Code for Robinhood execution"
+                            title="Copy signal details (includes risk disclaimer) to paste into Claude"
                             className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
                           >
                             {copiedSymbol === f.symbol ? "Copied!" : "Send to Claude →"}

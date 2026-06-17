@@ -93,11 +93,20 @@ async function fetchOptionsIV(symbol: string) {
     }, []);
     if (!parsed.length) return null;
 
-    const expiries    = [...new Set(parsed.map(o => o.expiry))].sort();
-    const nearestExp  = expiries[0];
-    const nearContracts = parsed.filter(o => o.expiry === nearestExp);
-    const expiryTs    = Math.floor(new Date(nearestExp + "T20:00:00Z").getTime() / 1000);
-    const expiry      = new Date(nearestExp + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const expiries  = [...new Set(parsed.map(o => o.expiry))].sort();
+    const nowMs     = Date.now();
+
+    // Prefer 21+ DTE for directional plays — near-expiry options decay too fast.
+    // Fall back to 14+ DTE, then nearest as a last resort.
+    const chosenExp =
+      expiries.find(e => new Date(e + "T20:00:00Z").getTime() - nowMs >= 21 * 86_400_000) ??
+      expiries.find(e => new Date(e + "T20:00:00Z").getTime() - nowMs >= 14 * 86_400_000) ??
+      expiries[0];
+
+    const nearContracts = parsed.filter(o => o.expiry === chosenExp);
+    const expiryTs    = Math.floor(new Date(chosenExp + "T20:00:00Z").getTime() / 1000);
+    const dte         = Math.max(1, Math.ceil((expiryTs * 1000 - nowMs) / 86_400_000));
+    const expiry      = new Date(chosenExp + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
     const calls = nearContracts.filter(o => o.type === "C");
     const puts  = nearContracts.filter(o => o.type === "P");
@@ -130,7 +139,7 @@ async function fetchOptionsIV(symbol: string) {
     const totalPutVol  = puts.reduce((s,  p) => s + ((p.raw.volume as number) ?? 0), 0);
     const pcVolRatio   = totalCallVol > 0 ? parseFloat((totalPutVol / totalCallVol).toFixed(2)) : null;
 
-    return { iv, expiry, expiryTs, callWall, putWall, atmStrike, atmCallMid, atmPutMid, totalCallVol, totalPutVol, pcVolRatio };
+    return { iv, expiry, expiryTs, dte, callWall, putWall, atmStrike, atmCallMid, atmPutMid, totalCallVol, totalPutVol, pcVolRatio };
   } catch { return null; }
 }
 
@@ -162,6 +171,8 @@ export async function runOptionsScan() {
     pcVolRatio:   number | null;
     score:        number;
     hasOptions:   boolean;
+    dte:          number | null;
+    dteWarning:   boolean;
   }[] = [];
 
   for (let i = 0; i < UNIVERSE.length; i++) {
@@ -225,11 +236,13 @@ export async function runOptionsScan() {
     const strike     = `$${strikeRaw % 1 === 0 ? strikeRaw.toFixed(0) : strikeRaw.toFixed(1)} ATM`;
 
     // ATM premium: real bid/ask mid from CBOE chain; Bachelier approximation as fallback
-    const dte = opt?.expiryTs ? Math.max(1, Math.ceil((opt.expiryTs * 1000 - Date.now()) / 86_400_000)) : 7;
+    const dte        = opt?.dte ?? (opt?.expiryTs ? Math.max(1, Math.ceil((opt.expiryTs * 1000 - Date.now()) / 86_400_000)) : null);
+    const dteWarning = dte !== null && dte < 14;
+    const dteForCalc = dte ?? 7;
     const actualMid  = isBull ? opt?.atmCallMid : opt?.atmPutMid;
     const premiumEst = actualMid
       ? `~$${Math.round(actualMid * 100)} / contract`
-      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dte / 365) * 0.4 * 100)} / contract` : null);
+      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dteForCalc / 365) * 0.4 * 100)} / contract` : null);
 
     // Score: signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((sm.score + 20) / 40) * 50;
@@ -259,6 +272,8 @@ export async function runOptionsScan() {
       pcVolRatio:   opt?.pcVolRatio ?? null,
       score,
       hasOptions:   !!opt?.iv,
+      dte,
+      dteWarning,
     });
   }
 
