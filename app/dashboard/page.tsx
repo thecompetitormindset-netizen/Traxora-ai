@@ -1482,6 +1482,12 @@ function DashboardContent() {
                 <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
               </div>
               <div className="flex items-center gap-3">
+                <Link
+                  href="/futures-tutorial"
+                  className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                >
+                  Learn futures →
+                </Link>
                 <button
                   type="button"
                   onClick={() => { setEditFutures((v) => !v); setAddFuturesInput(""); setAddFuturesError(null); }}

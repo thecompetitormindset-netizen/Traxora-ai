@@ -563,6 +563,24 @@ export default function GuidePage() {
             </div>
           </div>
 
+          {/* Futures interactive tutorial CTA */}
+          <Link
+            href="/futures-tutorial"
+            className="reveal reveal-d3 mt-4 flex items-center gap-4 bg-violet-600/10 border border-violet-500/25 rounded-2xl p-5 hover:bg-violet-600/15 hover:border-violet-500/40 transition-colors group"
+          >
+            <span className="text-3xl shrink-0">📈</span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-sm font-bold text-violet-300">Futures Interactive Tutorial</p>
+                <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-400 border border-violet-500/30 uppercase tracking-widest">8 steps · quiz each step</span>
+              </div>
+              <p className="text-[11px] text-[#4B5675] mt-0.5">Step-by-step interactive guide with quizzes. Learn by doing — designed for complete beginners with a $300 account.</p>
+            </div>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-violet-400 group-hover:text-violet-300 shrink-0 transition-colors">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </Link>
+
           {/* Futures quick reference */}
           <div className="reveal reveal-d3 mt-4 border border-violet-500/20 bg-violet-500/5 rounded-2xl p-5">
             <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Futures quick reference — micro contracts for small accounts</p>
