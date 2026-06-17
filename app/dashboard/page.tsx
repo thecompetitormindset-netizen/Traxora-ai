@@ -345,7 +345,7 @@ function OptionsPlaysSection() {
       <div className="flex items-start justify-between gap-2 mb-4">
         <div>
           <h2 className="text-base font-semibold">Top Options Plays</h2>
-          <p className="text-[9px] text-[#4B5675] mt-0.5">High confidence · real IV · 14+ DTE only</p>
+          <p className="text-[9px] text-[#4B5675] mt-0.5">High confidence · real IV · 14+ DTE · count varies with market conditions</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono text-[#4B5675]">

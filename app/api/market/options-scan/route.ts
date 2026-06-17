@@ -277,15 +277,16 @@ export async function runOptionsScan() {
     });
   }
 
-  // Hard gates — only surface plays that meet all three criteria:
-  // 1. High confidence (score ≥ 7 in smartMoneyScore — trend + day + volume all aligned)
-  // 2. Real CBOE IV data available (no price-based estimates)
-  // 3. At least 14 DTE so theta decay doesn't wipe the premium
+  // Hard gates — only surface plays that meet all three criteria.
+  // No count cap: some days there are 0, some days 6, depends on the market.
+  // 1. High confidence (smartMoneyScore ≥ 7 — trend + day + volume all aligned)
+  // 2. Real CBOE IV data (no price-based estimates)
+  // 3. At least 14 DTE (near-expiry options decay too fast for directional plays)
   const premium = results.filter(r =>
     r.confidence === "High" &&
     r.hasOptions &&
     r.dte !== null && r.dte >= 14
-  ).sort((a, b) => b.score - a.score).slice(0, 10);
+  ).sort((a, b) => b.score - a.score);
 
   return { plays: premium, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length };
 }
