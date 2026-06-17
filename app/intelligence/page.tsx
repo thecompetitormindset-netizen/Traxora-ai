@@ -194,17 +194,18 @@ function OptionsPlaysPanel() {
           </div>
 
           {/* Play cards */}
-          <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-3">
-            {plays.map((p) => {
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+            {plays.map((p, idx) => {
               const isCalls   = p.play === "CALLS";
               const borderCls = isCalls ? "border-l-emerald-500/40" : "border-l-rose-500/40";
               const badgeCls  = isCalls
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
                 : "bg-rose-500/10 text-rose-400 border-rose-500/25";
               const isSelected = selected === p.symbol;
+              const isOrphan = idx === plays.length - 1 && plays.length % 3 === 1;
 
               return (
-                <div key={p.symbol} className={`bg-[#13112A] rounded-2xl border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
+                <div key={p.symbol} className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} bg-[#13112A] rounded-2xl border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
                   <div className="p-5">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">

@@ -409,12 +409,14 @@ function OptionsPlaysSection() {
       )}
 
       {loaded && plays.length > 0 && (
-        <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] gap-3">
-          {plays.map((p, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {plays.map((p, i) => {
+            const isOrphan = i === plays.length - 1 && plays.length % 3 === 1;
+            return (
             <Link
               key={p.symbol}
               href={`/intelligence?section=analyze&sym=${encodeURIComponent(p.symbol)}`}
-              className={`group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
+              className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
                 p.play === "CALLS" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
               }`}
             >
@@ -491,7 +493,8 @@ function OptionsPlaysSection() {
                 </button>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>
@@ -1133,7 +1136,7 @@ function DashboardContent() {
             </div>{/* /Stats col-span-3 */}
 
             {/* Watchlist — 2/3 */}
-            <div className="lg:col-span-2">
+            <div className="order-4 lg:order-none lg:col-span-2">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
                   <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Watchlist</h2>
@@ -1370,7 +1373,7 @@ function DashboardContent() {
             </div>{/* /watchlist lg:col-span-2 */}
 
             {/* Right sidebar — 1/3 */}
-            <div className="lg:col-span-1 flex flex-col gap-3">
+            <div className="order-3 lg:order-none lg:col-span-1 flex flex-col gap-3">
 
               {/* Sentiment */}
               <SentimentWidget />
@@ -1447,7 +1450,7 @@ function DashboardContent() {
             </div>{/* /right sidebar */}
 
             {/* Futures — full width */}
-            <div className="lg:col-span-3">
+            <div className="order-5 lg:order-none lg:col-span-3">
             <section>
             <div className="flex items-center justify-between gap-2 mb-4">
               <div className="flex items-center gap-2">
@@ -1595,12 +1598,12 @@ function DashboardContent() {
           </div>{/* /futures lg:col-span-3 */}
 
           {/* Options Plays — full width */}
-          <div className="lg:col-span-3">
+          <div className="order-6 lg:order-none lg:col-span-3">
             <OptionsPlaysSection />
           </div>
 
           {/* Risk Rules + Exchange CTA — full width */}
-          <div className="lg:col-span-3">
+          <div className="order-7 lg:order-none lg:col-span-3">
           <section>
             {/* Risk rules */}
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
