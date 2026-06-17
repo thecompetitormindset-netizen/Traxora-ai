@@ -302,6 +302,63 @@ const SECTIONS: Section[] = [
     ],
   },
   {
+    id: "futures",
+    icon: "📈",
+    title: "Futures — Beginner's Complete Guide",
+    subtitle: "What futures are, how they work, and exactly how to trade with $300 using micro contracts.",
+    color: "text-violet-400",
+    border: "border-violet-500/20",
+    bg: "bg-violet-500/5",
+    badge: "START HERE",
+    steps: [
+      {
+        step: "What is a futures contract? (Plain English)",
+        detail: "A futures contract is a deal to buy or sell something at a fixed price on a future date. In trading, nobody actually delivers anything — you just enter a trade, then exit it before expiry to capture the price difference. Example: if ES (S&P 500 futures) is at 5,400 and you think it's going up, you buy 1 contract. If it goes to 5,420, you sell and pocket the difference. If it drops to 5,380, you've lost. That's it. No stock ownership, no shares — just the price movement.",
+      },
+      {
+        step: "The big difference: leverage",
+        detail: "When you buy 1 share of AAPL at $200, you risk $200. When you trade 1 ES contract, you control $270,000 worth of exposure — but only need about $12,000 in margin (deposit). That's 22x leverage. One point in ES = $50. A typical 10-point move = $500 profit or loss on 1 contract. Leverage magnifies everything — wins AND losses. This is why futures can grow a small account fast, but also destroy it just as fast without strict rules.",
+      },
+      {
+        step: "Standard contracts are too large for $300 — use Micro contracts",
+        detail: "Standard ES contract: $50/point, ~$12,000 margin needed. Way too big. Micro E-mini S&P 500 (MES): exactly 1/10th the size — $5/point, ~$40–100 margin intraday. A 10-point move on 1 MES = $50 profit or loss. That's the right scale for a $300 account. All major futures have a micro version: MES (S&P 500), MNQ (Nasdaq), MYM (Dow Jones), M2K (Russell 2000). Always trade the micro version until your account is over $5,000.",
+      },
+      {
+        step: "The 4 micro contracts — which one to start with",
+        detail: "MES — Micro E-mini S&P 500: $5/point. Tracks the S&P 500. Most liquid, tightest spreads, most predictable. Best for beginners. MNQ — Micro E-mini Nasdaq-100: $2/point. Tracks tech stocks. Moves more aggressively than MES. MYM — Micro Dow Jones: $0.50/point. Slowest and smallest. M2K — Micro Russell 2000: $5/point. Most volatile. Start with MES only. It behaves exactly like SPY but with leverage. Once you're consistently profitable on MES, try MNQ.",
+      },
+      {
+        step: "Margin: how much you need to hold a position",
+        detail: "Margin is a deposit your broker holds while you have an open trade. For 1 MES contract: intraday margin (9:30 AM–4 PM ET) = approximately $40–100 depending on the broker. Overnight margin (if you keep the position past 4 PM) = approximately $500–650. With $300, you have enough for 2–3 MES contracts intraday — but only ever trade 1 contract while you're learning. One contract, strict stop, close by 4 PM every day.",
+      },
+      {
+        step: "Which broker to use with $300",
+        detail: "Tastytrade: the best option for small accounts. Intraday micro margin as low as $40 per MES contract. No platform fee. Easy to open online. Webull: also supports micro futures, low minimums. TradeStation: good platform, supports micros. Avoid TD Ameritrade / Schwab for a $300 account — their margin requirements are higher. Search 'Tastytrade micro futures account' and you can open one in 1–2 days. Deposit your $300 and you're ready.",
+      },
+      {
+        step: "How to use Traxora's futures signals with your broker",
+        detail: "The Dashboard shows 8 futures with live prices and BUY/HOLD/SELL signals: ES, NQ, YM, RTY (indices), GC (Gold), SI (Silver), CL (Oil), NG (Natural Gas). Step-by-step: (1) See ES showing High confidence BUY in the dashboard. (2) Open Tastytrade, search MES (the micro version of ES). (3) Buy 1 MES contract. (4) Set a stop loss order at the Stop price shown in the trade plan. (5) Target is the Target price. (6) Close before 4 PM ET no matter what.",
+      },
+      {
+        step: "Risk management with $300 — the exact numbers",
+        detail: "Rule: never risk more than $25 per trade (about 8% of $300). On MES ($5/point), $25 = 5 points stop distance. So if you enter MES at 5,400, your stop goes at 5,395 (buying) or 5,405 (selling). Target should be at least 10 points away for 2:1 R:R. If the trade plan shows a stop 30+ points away, skip that trade — it risks $150+ which is half your account. Discipline here is the entire game.",
+      },
+      {
+        step: "The one rule that will save your $300 account",
+        detail: "Close before 4 PM ET, every single day, no exceptions. With $300, overnight margin requirements (~$500 per MES) will generate an immediate margin call that closes your position at the worst possible price and may leave your account in the negative. Set a phone alarm for 3:45 PM ET labeled 'CLOSE FUTURES'. If you're in profit — great, close it. If you're at a loss — close it anyway. Never let a futures position run overnight on a $300 account.",
+      },
+      {
+        step: "Realistic growth path from $300",
+        detail: "Week 1–2: paper trade futures on the app (Intelligence page → Futures) without real money. Learn how MES moves. Week 3+: open 1 real MES contract, 1 trade per day max, strict 5-point stop. Goal: reach $500 before increasing to 2 contracts. $300 → $500 → $1,000 → $2,500. At $2,500 you can run 2 MES contracts comfortably. At $5,000 you can consider 1 standard ES contract. Rushing any stage kills accounts.",
+      },
+    ],
+    tips: [
+      "Never trade without a hard stop loss order already placed. Futures can move 20+ points in seconds on news events — a mental stop is not fast enough. The moment you enter, place the stop.",
+      "Only trade during the NY Kill Zone (9:30–10:30 AM ET). This is when volume and follow-through are highest. Avoid trading between 12–2 PM ET — that's the lunch chop zone where price moves randomly and signals fail.",
+      "A 'point' in ES/MES is 1.00 in price. ES moves in 0.25 increments called ticks. 1 tick on MES = $1.25. 4 ticks = 1 point = $5 on MES. When the dashboard trade plan says 'Target $5,415', count the distance in points from your entry — that's your dollar profit at $5/point on MES.",
+    ],
+  },
+  {
     id: "portfolio",
     icon: "💼",
     title: "Portfolio & History",
@@ -501,6 +558,41 @@ export default function GuidePage() {
                     <p className="text-[10px] font-semibold text-[#F1F5F9]">{c.label}</p>
                     <p className="text-[9px] text-[#4B5675] leading-relaxed">{c.desc}</p>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Futures quick reference */}
+          <div className="reveal reveal-d3 mt-4 border border-violet-500/20 bg-violet-500/5 rounded-2xl p-5">
+            <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Futures quick reference — micro contracts for small accounts</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              {[
+                { sym: "MES", full: "Micro E-mini S&P 500", per: "$5 / point",  margin: "~$50 intraday", note: "Best for beginners — most liquid" },
+                { sym: "MNQ", full: "Micro E-mini Nasdaq-100", per: "$2 / point", margin: "~$50 intraday", note: "More volatile, tracks tech" },
+                { sym: "MYM", full: "Micro Dow Jones",       per: "$0.50 / point", margin: "~$50 intraday", note: "Slowest, smallest moves" },
+                { sym: "M2K", full: "Micro Russell 2000",    per: "$5 / point",  margin: "~$50 intraday", note: "Most volatile, small-caps" },
+              ].map(c => (
+                <div key={c.sym} className="flex gap-3 items-start bg-violet-500/5 border border-violet-500/15 rounded-xl p-3">
+                  <span className="text-[10px] font-black text-violet-300 bg-violet-500/15 border border-violet-500/25 px-2 py-1 rounded-lg shrink-0 mt-0.5 font-mono">{c.sym}</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-[#F1F5F9]">{c.full}</p>
+                    <p className="text-[9px] text-violet-400 font-mono mt-0.5">{c.per} · {c.margin}</p>
+                    <p className="text-[9px] text-[#4B5675] mt-0.5">{c.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-3 gap-2 border-t border-violet-500/15 pt-3">
+              {[
+                { label: "1 point MES",   value: "$5.00",  sub: "smallest standard move" },
+                { label: "1 tick MES",    value: "$1.25",  sub: "0.25 of a point" },
+                { label: "$300 max risk", value: "5 pts",  sub: "$25/trade max stop" },
+              ].map(s => (
+                <div key={s.label} className="text-center">
+                  <p className="text-sm font-black font-mono text-violet-300">{s.value}</p>
+                  <p className="text-[9px] font-semibold text-[#F1F5F9] mt-0.5">{s.label}</p>
+                  <p className="text-[9px] text-[#4B5675]">{s.sub}</p>
                 </div>
               ))}
             </div>
