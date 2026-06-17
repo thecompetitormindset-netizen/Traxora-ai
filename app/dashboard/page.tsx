@@ -343,10 +343,13 @@ function OptionsPlaysSection() {
   return (
     <section>
       <div className="flex items-start justify-between gap-2 mb-4">
-        <h2 className="text-base font-semibold">Top Options Plays</h2>
+        <div>
+          <h2 className="text-base font-semibold">Top Options Plays</h2>
+          <p className="text-[9px] text-[#4B5675] mt-0.5">High confidence · real IV · 14+ DTE only</p>
+        </div>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[10px] font-mono text-[#4B5675]">
-            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
+            {loaded ? `${plays.length} premium setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
           </span>
           {lastScan && (
             <span className="text-[9px] font-mono text-[#333368]">
@@ -409,7 +412,8 @@ function OptionsPlaysSection() {
 
       {loaded && plays.length === 0 && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
-          <p className="text-[#4B5675] text-sm">No clear setups right now. Try again during market hours.</p>
+          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
+          <p className="text-[11px] text-[#4B5675] leading-snug">All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE.<br/>This keeps quality high — check back when the market gives a clear directional move.</p>
         </div>
       )}
 

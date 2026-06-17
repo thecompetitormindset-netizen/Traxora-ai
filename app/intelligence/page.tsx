@@ -174,7 +174,8 @@ function OptionsPlaysPanel() {
 
       {loaded && plays.length === 0 && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
-          <p className="text-[#4B5675]">No clear setups right now. Try again during market hours.</p>
+          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
+          <p className="text-[11px] text-[#4B5675] leading-snug">All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE. Check back when the market gives a clear directional move.</p>
         </div>
       )}
 

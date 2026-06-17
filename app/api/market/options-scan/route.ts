@@ -277,9 +277,17 @@ export async function runOptionsScan() {
     });
   }
 
-  const top20 = results.sort((a, b) => b.score - a.score).slice(0, 20);
+  // Hard gates — only surface plays that meet all three criteria:
+  // 1. High confidence (score ≥ 7 in smartMoneyScore — trend + day + volume all aligned)
+  // 2. Real CBOE IV data available (no price-based estimates)
+  // 3. At least 14 DTE so theta decay doesn't wipe the premium
+  const premium = results.filter(r =>
+    r.confidence === "High" &&
+    r.hasOptions &&
+    r.dte !== null && r.dte >= 14
+  ).sort((a, b) => b.score - a.score).slice(0, 10);
 
-  return { plays: top20, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length };
+  return { plays: premium, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length };
 }
 
 export async function GET(req: Request) {
