@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dashboard — Traxora AI",
-  description: "Your live signal dashboard. Monitor your watchlist, open positions, and futures in real time.",
+  title: "Dashboard",
+  description: "Your live trading dashboard. AI signals, watchlist, futures, options plays, and portfolio — all in one view.",
+  robots: { index: false, follow: false },
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

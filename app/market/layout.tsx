@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Markets — Traxora AI",
+  title: "Markets",
   description: "Real-time market overview: indices, futures, forex, bonds, and commodities with live prices.",
+  robots: { index: false, follow: false },
 };
 
 export default function MarketLayout({ children }: { children: React.ReactNode }) {

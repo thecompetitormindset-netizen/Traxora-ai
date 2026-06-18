@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Trade History — Traxora AI",
-  description: "Your closed trade history, AI signal track record, and performance analytics.",
+  title: "Trade History",
+  description: "Closed trade history, AI signal track record, and performance analytics.",
+  robots: { index: false, follow: false },
 };
 
 export default function HistoryLayout({ children }: { children: React.ReactNode }) {

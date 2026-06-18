@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Paper Trading — Traxora AI",
-  description: "Practice trading risk-free with a $10,000 simulated account. Track open positions, P&L, and equity curve.",
+  title: "Paper Trading",
+  description: "Practice trading risk-free with a simulated account. Track open positions, P&L, and equity curve.",
+  robots: { index: false, follow: false },
 };
 
 export default function PaperLayout({ children }: { children: React.ReactNode }) {

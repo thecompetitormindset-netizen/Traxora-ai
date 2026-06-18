@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Market Sentiment — Traxora AI",
-  description: "AI-synthesized Fear & Greed index, sector sentiment, and macro market conditions in real time.",
+  title: "Market Sentiment",
+  description: "AI-synthesized Fear and Greed index, sector sentiment, and macro market conditions in real time.",
+  robots: { index: false, follow: false },
 };
 
-export default function MarketSentimentLayout({ children }: { children: React.ReactNode }) {
+export default function MarketsentimentLayout({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }

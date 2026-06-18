@@ -34,25 +34,35 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Traxora AI — AI-Powered Smart Money Trading Signals",
+  metadataBase: new URL("https://traxora-ai.vercel.app"),
+  title: {
+    default:  "Traxora AI — AI-Powered Smart Money Trading Signals",
+    template: "%s | Traxora AI",
+  },
   description:
-    "AI trading platform powered by Claude. Get real-time BUY/SELL/HOLD signals, volume profile analysis, options analysis, morning briefings, and a full trade journal. $5/mo.",
+    "AI trading platform powered by Claude. Get real-time BUY/SELL/HOLD signals, Smart Money analysis (Order Blocks, FVGs, Liquidity), options plays, morning briefings, and an AI trade journal. From $5/mo.",
   keywords: [
-    "AI trading signals", "smart money signals", "order blocks", "fair value gap",
-    "volume profile", "market structure", "trading AI", "stock signals", "futures signals",
-    "options analysis", "paper trading", "Claude AI trading", "Traxora", "Traxora AI",
+    "AI trading signals", "smart money trading", "smart money signals",
+    "order blocks trading", "fair value gap", "ICT trading concepts",
+    "volume profile", "market structure analysis", "AI stock signals",
+    "futures signals", "micro futures trading", "options analysis",
+    "paper trading simulator", "trading journal AI", "BUY SELL signals",
+    "Traxora AI", "trading platform AI", "stock market AI",
+    "institutional trading signals", "price action trading",
   ],
   manifest: "/manifest.webmanifest",
+  alternates: {
+    canonical: "https://traxora-ai.vercel.app",
+  },
   openGraph: {
-    title: "Traxora AI — Trade Like Smart Money",
-    description:
-      "AI reads Order Blocks, FVGs, Liquidity, Volume Profile & Market Structure in seconds. Real-time signals for stocks, futures & options. $5/mo.",
-    type:   "website",
-    locale: "en_US",
-    url:    "https://traxora-ai.vercel.app",
-    siteName: "Traxora AI",
+    title:       "Traxora AI — Trade Like Smart Money",
+    description: "AI reads Order Blocks, FVGs, Liquidity & Market Structure in seconds. Real-time BUY/SELL/HOLD signals for stocks, futures & options. $5/mo.",
+    type:        "website",
+    locale:      "en_US",
+    url:         "https://traxora-ai.vercel.app",
+    siteName:    "Traxora AI",
     images: [{
-      url:    "https://traxora-ai.vercel.app/opengraph-image",
+      url:    "/opengraph-image",
       width:  1200,
       height: 630,
       alt:    "Traxora AI — AI-Powered Smart Money Trading Signals",
@@ -61,13 +71,23 @@ export const metadata: Metadata = {
   twitter: {
     card:        "summary_large_image",
     title:       "Traxora AI — Smart Money Trading Platform",
-    description: "AI-powered BUY/SELL/HOLD signals with volume profile analysis, options flow, morning briefings, and trade journal. $5/mo.",
-    images:      ["https://traxora-ai.vercel.app/opengraph-image"],
+    description: "AI-powered BUY/SELL/HOLD signals. Order Blocks, FVGs, Liquidity sweeps, options plays, morning briefings & AI trade journal. $5/mo.",
+    images:      ["/opengraph-image"],
+  },
+  robots: {
+    index:             true,
+    follow:            true,
+    googleBot: {
+      index:               true,
+      follow:              true,
+      "max-image-preview": "large",
+      "max-snippet":       -1,
+    },
   },
   appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Traxora AI",
+    capable:         true,
+    statusBarStyle:  "black-translucent",
+    title:           "Traxora AI",
   },
   icons: {
     apple: "/icon-192.png",
