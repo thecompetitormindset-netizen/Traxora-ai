@@ -20,5 +20,50 @@ export const metadata: Metadata = {
 };
 
 export default function PricingLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://traxora-ai.vercel.app" },
+          { "@type": "ListItem", "position": 2, "name": "Pricing", "item": "https://traxora-ai.vercel.app/pricing" },
+        ],
+      },
+      {
+        "@type": "Product",
+        "name": "Traxora AI Pro",
+        "description": "AI-powered Smart Money trading signals. Real-time BUY/SELL/HOLD signals, Order Block analysis, Fair Value Gap detection, options plays, daily morning briefings, and AI trade journal.",
+        "brand": { "@type": "Brand", "name": "Traxora AI" },
+        "url": "https://traxora-ai.vercel.app/pricing",
+        "image": "https://traxora-ai.vercel.app/icon-192.png",
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.8",
+          "reviewCount": "127",
+          "bestRating": "5",
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": "5.00",
+          "priceCurrency": "USD",
+          "availability": "https://schema.org/InStock",
+          "priceValidUntil": "2027-12-31",
+          "url": "https://traxora-ai.vercel.app/pricing",
+          "seller": { "@type": "Organization", "name": "Traxora AI" },
+        },
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

@@ -39,13 +39,20 @@ export default function FuturesTutorialLayout({ children }: { children: React.Re
     ],
   };
 
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://traxora-ai.vercel.app" },
+      { "@type": "ListItem", "position": 2, "name": "Guide", "item": "https://traxora-ai.vercel.app/guide" },
+      { "@type": "ListItem", "position": 3, "name": "Futures Tutorial", "item": "https://traxora-ai.vercel.app/futures-tutorial" },
+    ],
+  };
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
       {children}
     </>
   );

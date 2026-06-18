@@ -49,13 +49,37 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     ],
   };
 
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://traxora-ai.vercel.app" },
+      { "@type": "ListItem", "position": 2, "name": "Trading Guide", "item": "https://traxora-ai.vercel.app/guide" },
+    ],
+  };
+
+  const article = {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "How to Trade with Smart Money Signals — Complete Guide",
+    "description": "Learn Order Blocks, Fair Value Gaps, Liquidity Sweeps, Kill Zones, and how to use AI trading signals. Free step-by-step guide for all levels.",
+    "url": "https://traxora-ai.vercel.app/guide",
+    "image": "https://traxora-ai.vercel.app/icon-192.png",
+    "author": { "@type": "Organization", "name": "Traxora AI" },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Traxora AI",
+      "logo": { "@type": "ImageObject", "url": "https://traxora-ai.vercel.app/icon-192.png" },
+    },
+    "datePublished": "2026-06-01",
+    "dateModified": new Date().toISOString().split("T")[0],
+  };
+
   return (
     <>
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(article) }} />
       {children}
     </>
   );

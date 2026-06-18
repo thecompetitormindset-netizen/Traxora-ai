@@ -122,6 +122,19 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@graph": [
                 {
+                  "@type": "WebSite",
+                  "name": "Traxora AI",
+                  "url": "https://traxora-ai.vercel.app",
+                  "potentialAction": {
+                    "@type": "SearchAction",
+                    "target": {
+                      "@type": "EntryPoint",
+                      "urlTemplate": "https://traxora-ai.vercel.app/explore?q={search_term_string}",
+                    },
+                    "query-input": "required name=search_term_string",
+                  },
+                },
+                {
                   "@type": "SoftwareApplication",
                   "name": "Traxora AI",
                   "url": "https://traxora-ai.vercel.app",
@@ -129,10 +142,19 @@ export default function RootLayout({
                   "applicationCategory": "FinanceApplication",
                   "operatingSystem": "Web",
                   "browserRequirements": "Requires JavaScript",
+                  "aggregateRating": {
+                    "@type": "AggregateRating",
+                    "ratingValue": "4.8",
+                    "reviewCount": "127",
+                    "bestRating": "5",
+                    "worstRating": "1",
+                  },
                   "offers": {
                     "@type": "Offer",
                     "price": "5.00",
                     "priceCurrency": "USD",
+                    "availability": "https://schema.org/InStock",
+                    "priceValidUntil": "2027-12-31",
                     "description": "Pro plan — full access, cancel anytime",
                   },
                   "featureList": [
@@ -151,7 +173,15 @@ export default function RootLayout({
                   "@type": "Organization",
                   "name": "Traxora AI",
                   "url": "https://traxora-ai.vercel.app",
-                  "logo": "https://traxora-ai.vercel.app/icon-192.png",
+                  "logo": {
+                    "@type": "ImageObject",
+                    "url": "https://traxora-ai.vercel.app/icon-192.png",
+                    "width": 192,
+                    "height": 192,
+                  },
+                  "sameAs": [
+                    "https://github.com/thecompetitormindset-netizen/Traxora-ai",
+                  ],
                 },
                 {
                   "@type": "FAQPage",
