@@ -55,7 +55,7 @@ export const metadata: Metadata = {
     canonical: "https://traxora-ai.vercel.app",
   },
   verification: {
-    google: "ca987f33213fdf01",
+    google: "c2zs0562p9pjCdx7U_BK126zxcKqKKeSjjcXzNL0IO8",
   },
   openGraph: {
     title:       "Traxora AI — Trade Like Smart Money",
