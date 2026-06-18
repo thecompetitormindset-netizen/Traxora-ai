@@ -36,19 +36,19 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://traxora-ai.vercel.app"),
   title: {
-    default:  "Traxora AI — AI-Powered Smart Money Trading Signals",
+    default:  "Traxora AI — Know Exactly When to Buy & Sell Stocks",
     template: "%s | Traxora AI",
   },
   description:
-    "AI trading platform powered by Claude. Get real-time BUY/SELL/HOLD signals, Smart Money analysis (Order Blocks, FVGs, Liquidity), options plays, morning briefings, and an AI trade journal. From $5/mo.",
+    "AI scans the market and fires clear BUY/SELL signals using Smart Money analysis. Order Blocks, FVGs, options plays & daily briefings. 500+ traders. From $5/mo.",
   keywords: [
-    "AI trading signals", "smart money trading", "smart money signals",
-    "order blocks trading", "fair value gap", "ICT trading concepts",
-    "volume profile", "market structure analysis", "AI stock signals",
-    "futures signals", "micro futures trading", "options analysis",
-    "paper trading simulator", "trading journal AI", "BUY SELL signals",
-    "Traxora AI", "trading platform AI", "stock market AI",
-    "institutional trading signals", "price action trading",
+    "AI trading signals", "best AI trading app", "smart money trading",
+    "when to buy stocks", "stock buy sell signals", "order blocks trading",
+    "fair value gap", "ICT trading concepts", "AI stock market signals",
+    "futures trading signals", "micro futures trading", "options analysis AI",
+    "trading journal AI", "BUY SELL HOLD signals", "Traxora AI",
+    "trading platform AI", "institutional trading signals", "stock alerts AI",
+    "smart money signals free", "AI stock picker",
   ],
   manifest: "/manifest.webmanifest",
   alternates: {
@@ -58,8 +58,8 @@ export const metadata: Metadata = {
     google: "yKYR9JdmvGbAjhHrn_3pX4sZUi5NsiG2ElxEPkPI7tc",
   },
   openGraph: {
-    title:       "Traxora AI — Trade Like Smart Money",
-    description: "AI reads Order Blocks, FVGs, Liquidity & Market Structure in seconds. Real-time BUY/SELL/HOLD signals for stocks, futures & options. $5/mo.",
+    title:       "Traxora AI — Know Exactly When to Buy & Sell",
+    description: "AI fires clear BUY/SELL signals using Smart Money patterns. Order Blocks, FVGs, options plays & daily briefings. 500+ traders trust it. $5/mo.",
     type:        "website",
     locale:      "en_US",
     url:         "https://traxora-ai.vercel.app",
@@ -158,18 +158,23 @@ export default function RootLayout({
                   "mainEntity": [
                     {
                       "@type": "Question",
-                      "name": "What is Traxora AI?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal platform that uses Smart Money methodology to generate real-time BUY/SELL/HOLD signals for stocks, futures, and options. It analyzes Order Blocks, Fair Value Gaps, Liquidity Sweeps, and other institutional patterns." },
+                      "name": "What is the best AI app for stock trading signals?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal app that gives you clear BUY, SELL, or HOLD signals in real time. It uses Smart Money methodology — Order Blocks, Fair Value Gaps, and Liquidity Sweeps — to tell you exactly where to enter, where to set your stop loss, and where price is headed. It covers stocks, futures, and options. Plans start at $5/month." },
+                    },
+                    {
+                      "@type": "Question",
+                      "name": "How do I know when to buy or sell a stock?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI scans 50+ tickers every morning and fires a clear BUY or SELL signal when institutional Smart Money patterns align — Order Blocks, Fair Value Gaps, volume spikes, and market structure all in agreement. You get the exact entry price, stop loss level, and profit target. No guessing required." },
                     },
                     {
                       "@type": "Question",
                       "name": "How much does Traxora AI cost?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI costs $5 per month for the Pro plan, which includes all features. There is also a free tier with limited access." },
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI Pro costs $5 per month — less than a coffee. It includes real-time BUY/SELL signals, Smart Money analysis, options plays, a daily AI morning briefing at 8:30am ET, and an AI-powered trade journal. Cancel anytime, no contracts." },
                     },
                     {
                       "@type": "Question",
-                      "name": "Can I cancel anytime?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Yes, you can cancel your Pro subscription anytime from the Settings page with one click. No contracts or commitments required." },
+                      "name": "Can beginners use Traxora AI?",
+                      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Traxora AI is built for all experience levels. The dashboard gives plain-English explanations of every signal. There is also a free interactive futures tutorial that teaches you how to trade micro futures with as little as $300, step by step." },
                     },
                   ],
                 },

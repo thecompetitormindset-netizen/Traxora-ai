@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "How to Use Traxora AI — Smart Money Trading Guide",
+  title: "Trading Guide — Order Blocks, FVGs & Smart Money Explained",
   description:
-    "Complete step-by-step guide to AI-powered Smart Money trading. Learn Order Blocks, Fair Value Gaps, Liquidity Sweeps, Kill Zones, options analysis, futures signals, and how to use every Traxora AI feature.",
+    "Free guide: learn Order Blocks, Fair Value Gaps, Liquidity Sweeps, Kill Zones & how to read AI trading signals. Covers stocks, futures & options for all levels.",
   keywords: [
     "smart money trading guide", "order blocks tutorial", "fair value gap explained",
     "ICT trading guide", "how to trade futures beginners", "AI trading signals guide",

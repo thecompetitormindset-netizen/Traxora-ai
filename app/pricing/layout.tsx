@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Pricing — AI Trading Signals from $5/mo",
+  title: "Pricing — Full AI Trading Signals for $5/mo",
   description:
-    "Traxora AI Pro gives you unlimited AI trading signals, Smart Money analysis (Order Blocks, FVGs, Liquidity), options plays, daily morning briefings, and a full AI trade journal — for $5/month. Cancel anytime.",
+    "Get unlimited BUY/SELL signals, Smart Money analysis, options plays & daily AI briefings for $5/mo. 80–90% cheaper than competitors. Cancel anytime, no contracts.",
   keywords: [
     "AI trading signals price", "cheap trading signals", "smart money signals subscription",
     "affordable trading platform", "Traxora AI pricing", "trading signals monthly",
