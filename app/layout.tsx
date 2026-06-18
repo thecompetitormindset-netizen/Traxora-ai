@@ -54,6 +54,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://traxora-ai.vercel.app",
   },
+  verification: {
+    google: "ca987f33213fdf01",
+  },
   openGraph: {
     title:       "Traxora AI — Trade Like Smart Money",
     description: "AI reads Order Blocks, FVGs, Liquidity & Market Structure in seconds. Real-time BUY/SELL/HOLD signals for stocks, futures & options. $5/mo.",
