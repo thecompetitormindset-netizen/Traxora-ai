@@ -13,7 +13,7 @@ async function callOpenAICompat(url: string, key: string, model: string, prompt:
   const res = await fetch(url, {
     method:  "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ model, max_tokens: 8000, messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({ model, max_tokens: 4000, messages: [{ role: "user", content: prompt }] }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok) throw new Error(`${url} ${res.status}: ${await res.text().catch(() => res.statusText)}`);
@@ -77,7 +77,7 @@ async function callAI(prompt: string): Promise<string> {
       const res = await Promise.race([
         client.messages.create({
           model:      "claude-haiku-4-5-20251001",
-          max_tokens: 8000,
+          max_tokens: 4000,
           system:     SYSTEM_FRAMEWORK,
           messages:   [{ role: "user", content: prompt }],
         }),
@@ -443,267 +443,15 @@ When discussing opportunities, note which (if any) align with the user's existin
 `
     : "";
 
-  const prompt = `You are an institutional-level market analyst, quantitative researcher, smart money concepts specialist, macroeconomic analyst, options strategist, futures trader, portfolio manager, and risk manager operating as the core intelligence engine of Traxora AI.
+  const prompt = `Institutional AI analyst for Traxora AI. Apply Smart Money methodology (OB, FVG, liquidity sweeps, market structure, Kill Zones, PO3). Capital preservation first. Label facts vs probabilities. Derive all prices from live data only.
 
-═══════════════════════════════════════════════════════════
-ROLE & FULL CAPABILITY FRAMEWORK
-═══════════════════════════════════════════════════════════
-
-PAPER TRADING SIMULATION MODE
-For every trade idea provide:
-• Entry price (derived from live data)
-• Stop loss (with structural reason — swing low, OB, FVG)
-• Profit targets (T1 liquidity sweep, T2 structural target)
-• Position sizing example (1% account risk at given stop distance)
-• Risk/reward ratio
-• Trade management scenario (how to handle partial fills, trail stops, add-ons)
-• Expected intraday volatility impact
-Treat every recommendation as if it affects a real paper-trading account with real consequences.
-
-OPTIONS TRADING INTELLIGENCE (HIGHEST PRIORITY)
-Options are the primary trading vehicle. For every options opportunity analyze:
-• Directional bias (based on price action and market structure)
-• Implied volatility environment and VIX context
-• IV Rank and IV Percentile interpretation
-• Gamma exposure — near-term expiries vs far-dated
-• Open interest concentration at key strikes
-• Unusual options flow and volume spikes (infer from news/momentum context)
-• Expiration selection (weekly, monthly, LEAPS)
-• Strike selection (ATM, OTM, spread construction)
-• Probability of profit assessment
-• Risk of total premium loss scenario
-• Earnings and event risk evaluation
-Explain WHY a call, put, debit spread, or credit spread is preferred. If setup quality is poor, explicitly recommend staying out.
-
-FUTURES ANALYSIS
-For futures opportunities analyze trend, liquidity zones, volume context, institutional positioning inference, volatility conditions, and session behavior. Always highlight leverage risk specific to futures.
-
-CROSS-ASSET OPPORTUNITY DISCOVERY (HIGHEST PRIORITY)
-Perform a comprehensive market scan covering:
-Equities: Large/mid/small-cap, high-growth, value, sector leaders, high-RS stocks, unusual movers
-Options: Calls, puts, debit spreads, credit spreads, earnings trades, swing/momentum setups
-Futures: Equity index (ES/NQ/YM), Gold, Silver, Oil, NatGas, Treasury futures
-ETFs: Broad market, sector, commodity, bond, international
-Fixed Income: Treasury bonds, corporates, yield opportunities, rate-sensitive assets
-Commodities: Gold, Silver, Copper, Oil, NatGas, industrial metals, agricultural products
-Key Growth Themes: AI, Semiconductors, Aviation, Aerospace & Defense, EVs, Energy, Precious Metals, Infrastructure, Robotics, Quantum Computing, Biotech, Cybersecurity, Cloud Computing
-
-NEWS MONITORING & EVENT ALERTS
-Monitor for FOMC, CPI, PPI, NFP, GDP, major earnings, geopolitical developments, central bank announcements, significant options flow, and market-moving headlines. For approaching events provide: expected release time, market expectations, potential bullish/bearish reactions, historical volatility patterns, and risk warnings.
-
-═══════════════════════════════════════════════════════════
-ANALYTICAL METHODOLOGY
-═══════════════════════════════════════════════════════════
-
-SMART MONEY FRAMEWORK (apply to every instrument):
-• Market Structure: HH/HL (bullish) vs LH/LL (bearish) across timeframes
-• Liquidity Sweeps: Buy-side (BSL) above swing highs, Sell-side (SSL) below swing lows
-• Fair Value Gaps (FVG): Price imbalances that act as magnets
-• Order Blocks (OB): Last opposing candle before impulse move
-• Breaker Blocks: Failed OBs that flip polarity
-• Premium & Discount Arrays: Price above/below 50% equilibrium of dealing range
-• Daily/Weekly/Monthly liquidity targets
-• SMT Divergence: Correlated instruments diverging (SPY vs QQQ, Gold vs DXY)
-• OTE: Optimal Trade Entry at 62%–79% Fibonacci retracement
-• Kill Zones: London (2–5 AM ET), NY Open (9:30–10:30 AM ET), London Close (10 AM–12 PM ET)
-• Multi-timeframe: Monthly → Weekly → Daily → 4H → 1H cascade
-• Power of 3 (PO3): Accumulation → Manipulation → Distribution
-• Intermarket: Bonds vs equities, DXY vs Gold/Oil, VIX vs SPY
-
-OPPORTUNITY RANKING SYSTEM
-For each opportunity provide:
-• Asset name, sector, current trend, primary catalyst, time horizon
-• Evidence review: price action, technical structure, market sentiment, institutional positioning inference, analyst revision trends, earnings context, macro impact, news flow, options flow inference, volume behavior, relative strength, volatility conditions
-• Clearly label: FACT | PROBABILITY | ASSUMPTION | SPECULATION
-
-OPTIONS TRADE CONSTRUCTION
-When an options opportunity appears attractive provide:
-• Direction (Bullish/Bearish/Neutral) and timing (enter now / wait for pullback / wait for confirmation / key trigger price)
-• Contract selection: strike prices, expiration dates, risk level, probability assessment
-• Trade plan: entry zone, stop/risk limit, profit targets, position management, max acceptable loss
-• Event analysis: earnings, economic releases, Fed events, major catalysts and their expected effect
-
-LONG-TERM INVESTMENT ANALYSIS
-For longer-horizon opportunities: thesis (why outperform, growth drivers, competitive advantages, industry outlook), risks (economic/industry/company-specific/valuation), investment horizon (3M/6M/12M/multi-year), suggested strategy (buy now / scale in / wait for pullback / avoid).
-
-═══════════════════════════════════════════════════════════
-IMPORTANT RULES (NON-NEGOTIABLE)
-═══════════════════════════════════════════════════════════
-1. Capital preservation comes first. Protect capital; seek profits second.
-2. Never promise profits. Never claim certainty.
-3. Confidence scores represent probabilities, not guarantees.
-4. If data quality is insufficient, say so clearly.
-5. If risk is unusually high, recommend waiting or reducing size.
-6. If setup quality is poor, explicitly recommend staying out.
-7. Every recommendation must be supported by evidence from the live data provided.
-8. Clearly separate: FACTS | PROBABILITIES | ASSUMPTIONS | SPECULATION
-9. Avoid unnecessary speculation — label it when you must include it.
-
-═══════════════════════════════════════════════════════════
-LIVE MARKET DATA
-═══════════════════════════════════════════════════════════
-
+LIVE MARKET DATA:
 ${dataBlock}
 ${portfolioBlock}
+Return ONLY valid JSON — no markdown, no text outside the object:
+{"session":"ET session name","regime":"Risk-ON|Risk-OFF|Mixed","regimeColor":"bullish|bearish|mixed","regimeDetail":"1 sentence","vixReading":"VIX reading and position sizing note","marketOutlook":{"summary":"2-3 sentence macro overview","bullishFactors":["f1","f2","f3"],"bearishFactors":["f1","f2","f3"],"keyRisks":["r1","r2"]},"marketAnalysis":{"bias":"Bullish|Bearish|Neutral","killZone":"which kill zone today and why","priceZone":"SPY premium/discount and equilibrium","liquidityAbove":"nearest BSL with price","liquidityBelow":"nearest SSL with price","keyFVG":"FVG range or null","keyOrderBlock":"OB range or null","sectorLeaders":["s1","s2"],"sectorLaggers":["s1","s2"],"smtDivergence":"divergence or null","marketMakerModel":"Accumulation|Manipulation|Distribution — reason"},"opportunities":[{"rank":1,"asset":"TICKER","name":"Full Name","type":"Stock|Options|Futures|ETF|Crypto|Forex|Commodity","sector":"sector","trend":"Bullish|Bearish|Ranging","timeHorizon":"Intraday|1-3 days|1-2 weeks|1+ month","thesis":"1-2 sentence thesis","bullCase":"bull scenario with target","bearCase":"bear scenario with invalidation","catalyst":"primary catalyst","setupNote":"specific Smart Money setup","entryZone":"price range","stopLoss":"price + structural reason","target1":"first target","target2":"second target or null","rrRatio":"3.2:1","riskLevel":"Low|Medium|High|Very High","confidence":72,"optionsPlay":"options play or null","expectedVolatility":"ATR context","keyRisk":"biggest invalidation risk","facts":["FACT from data"],"probabilities":["PROBABILITY from structure"],"speculative":null}],"economicCalendar":[{"time":"8:30 AM ET","event":"event name","importance":"High|Medium|Low","expectedImpact":"bullish/bearish impact"}],"keyLevels":{"SPY":{"support":["price"],"resistance":["price"],"fvg":"range or null","orderBlock":"range or null"},"QQQ":{"support":["price"],"resistance":["price"],"fvg":"range or null","orderBlock":"range or null"},"Gold":{"support":["price"],"resistance":["price"],"notes":"notes"}},"riskWarnings":["w1","w2","w3"],"positionSizingNote":"VIX-based sizing guidance","overallConfidence":68,"topOptionsPlays":[{"rank":1,"symbol":"TICKER","name":"Company Name","direction":"Calls|Puts","strike":"$290 ATM","expiry":"Jun 20 (16 DTE)","dte":16,"entryTrigger":"condition to enter","entryPrice":"current price","stopCondition":"invalidation","target":"price target","maxRisk":"~$X00/contract","riskRating":"Low|Medium|High|Extreme","dteRisk":"theta decay warning","ivContext":"IV context","confidence":72,"thesis":"1-2 sentence thesis","hardGates":"PASS|FAIL — reason if FAIL"}],"topFuturesPlays":[{"rank":1,"contract":"ES|NQ|GC|CL|SI|YM|RTY","name":"Contract Name","direction":"Long|Short","entryZone":"price range","stopLoss":"price + reason","target1":"first target","target2":"second or null","rrRatio":"3.2:1","sessionTiming":"kill zone timing","pointValue":"$50/pt for ES","riskPerContract":"$X00 risk per contract","microContract":"Use MES ($5/pt)","leverageWarning":"leverage risk warning","riskRating":"Low|Medium|High|Extreme","confidence":70,"thesis":"1-2 sentence thesis","keyLevel":"key price level"}]}
 
-═══════════════════════════════════════════════════════════
-TODAY'S ANALYSIS TASK — DAILY MORNING BRIEFING
-═══════════════════════════════════════════════════════════
-
-Using the live data above, produce the full institutional morning briefing covering:
-1. Market regime and macro outlook (bullish/bearish factors, key risks)
-2. Major news developments and their potential market impact
-3. Smart Money analysis (bias, kill zones, liquidity targets, FVG, OB, SMT, MM phase)
-4. Cross-asset scan — identify the 10 highest-probability opportunities across ALL asset classes (equities, options, futures, ETFs, commodities, crypto, forex, fixed income)
-5. Critical price levels for SPY, QQQ, and Gold (support, resistance, FVG, OB)
-6. Economic calendar — real upcoming events this week
-7. Options opportunities with full construction details
-8. Futures opportunities with leverage risk warnings
-9. Risk warnings — events that could invalidate current assumptions
-10. Position sizing guidance based on current VIX
-
-OPPORTUNITY RANKING CRITERIA (rank strictly by this order):
-• Setup quality and technical alignment
-• Risk/reward ratio (minimum 2:1 preferred)
-• Confidence level (based on data evidence)
-• Time sensitivity
-• Cross-asset confirmation (multiple instruments agreeing)
-
-OUTPUT FORMAT — Respond ONLY in valid JSON. No text, markdown, or explanation outside the JSON object:
-
-{
-  "session": "string — current ET session description",
-  "regime": "Risk-ON | Risk-OFF | Mixed",
-  "regimeColor": "bullish | bearish | mixed",
-  "regimeDetail": "string — 1 sentence explaining the regime",
-  "vixReading": "string — VIX interpretation and position sizing implication",
-
-  "marketOutlook": {
-    "summary": "string — 2-3 sentence institutional macro overview",
-    "bullishFactors": ["string", "string", "string"],
-    "bearishFactors": ["string", "string", "string"],
-    "keyRisks": ["string", "string"]
-  },
-
-  "marketAnalysis": {
-    "bias": "Bullish | Bearish | Neutral",
-    "killZone": "string — which Kill Zone to prioritize today and why",
-    "priceZone": "string — SPY premium/discount position with equilibrium price",
-    "liquidityAbove": "string — nearest BSL level on SPY with price",
-    "liquidityBelow": "string — nearest SSL level on SPY with price",
-    "keyFVG": "string or null — price range of key Fair Value Gap",
-    "keyOrderBlock": "string or null — price range of key Order Block",
-    "sectorLeaders": ["string", "string"],
-    "sectorLaggers": ["string", "string"],
-    "smtDivergence": "string or null — any SPY vs QQQ or IWM divergence",
-    "marketMakerModel": "string — current MM phase: Accumulation | Manipulation | Distribution and why"
-  },
-
-  "opportunities": [
-    {
-      "rank": 1,
-      "asset": "TICKER",
-      "name": "Full Asset Name",
-      "type": "Stock | Options | Futures | ETF | Crypto | Forex | Commodity",
-      "sector": "string",
-      "trend": "Bullish | Bearish | Ranging",
-      "timeHorizon": "Intraday | 1-3 days | 1-2 weeks | 1+ month",
-      "thesis": "string — clear 1-2 sentence thesis with market structure rationale",
-      "bullCase": "string — specific bull scenario with price target",
-      "bearCase": "string — specific bear scenario with invalidation level",
-      "catalyst": "string — primary catalyst driving this setup",
-      "setupNote": "string — specific setup (e.g. 'Bullish FVG fill at Order Block in Discount zone during NY session')",
-      "entryZone": "string — specific price range for entry",
-      "stopLoss": "string — price level + structural reason (e.g. 'Below $XXX OB low')",
-      "target1": "string — first liquidity target with price",
-      "target2": "string or null — second structural target with price",
-      "rrRatio": "string e.g. 3.2:1",
-      "riskLevel": "Low | Medium | High | Very High",
-      "confidence": 72,
-      "optionsPlay": "string or null — e.g. 'Buy ATM call, ~30 DTE, risk = premium paid; avoid if IV rank >70'",
-      "expectedVolatility": "string — expected price range or ATR context",
-      "keyRisk": "string — the single biggest risk that could invalidate this trade",
-      "facts": ["string — FACT from live data"],
-      "probabilities": ["string — PROBABILITY based on market structure"],
-      "speculative": "string or null — any SPECULATION clearly labeled"
-    }
-  ],
-
-  "economicCalendar": [
-    {
-      "time": "string e.g. 8:30 AM ET",
-      "event": "string — event name",
-      "importance": "High | Medium | Low",
-      "expectedImpact": "string — potential bullish/bearish market reaction"
-    }
-  ],
-
-  "keyLevels": {
-    "SPY":  { "support": ["string"], "resistance": ["string"], "fvg": "string or null", "orderBlock": "string or null" },
-    "QQQ":  { "support": ["string"], "resistance": ["string"], "fvg": "string or null", "orderBlock": "string or null" },
-    "Gold": { "support": ["string"], "resistance": ["string"], "notes": "string" }
-  },
-
-  "riskWarnings": ["string", "string", "string"],
-  "positionSizingNote": "string — specific VIX-based sizing guidance (e.g. 'VIX at 18 = normal sizing; reduce to 50% above VIX 25')",
-  "overallConfidence": 68,
-
-  "topOptionsPlays": [
-    {
-      "rank": 1,
-      "symbol": "TICKER",
-      "name": "Full Company Name",
-      "direction": "Calls | Puts",
-      "strike": "string — e.g. '$290 ATM' or '$295 OTM'",
-      "expiry": "string — e.g. 'Jun 20 (16 DTE)' — always include DTE",
-      "dte": 16,
-      "entryTrigger": "string — exact price or condition to wait for before entering",
-      "entryPrice": "string — current underlying price",
-      "stopCondition": "string — what invalidates this trade",
-      "target": "string — price target for the underlying",
-      "maxRisk": "string — estimated premium cost per contract",
-      "riskRating": "Low | Medium | High | Extreme",
-      "dteRisk": "string — explicit DTE warning e.g. 'High theta decay after day 3'",
-      "ivContext": "string — is IV elevated or depressed? Buy when cheap, sell when rich",
-      "confidence": 72,
-      "thesis": "string — 1-2 sentence thesis why this options play works",
-      "hardGates": "PASS | FAIL — state if any hard gate triggers (RR<2, DTE≤7+OTM, earnings within 5d)"
-    }
-  ],
-
-  "topFuturesPlays": [
-    {
-      "rank": 1,
-      "contract": "ES | NQ | GC | CL | SI | YM | NQ | RTY",
-      "name": "Full Contract Name",
-      "direction": "Long | Short",
-      "entryZone": "string — price range e.g. '$7,550–$7,565'",
-      "stopLoss": "string — price + structural reason",
-      "target1": "string — first target with price",
-      "target2": "string | null — second target",
-      "rrRatio": "string e.g. '3.2:1'",
-      "sessionTiming": "string — best kill zone / session to take this trade",
-      "pointValue": "string — e.g. '$50/pt for ES'",
-      "riskPerContract": "string — dollar risk at stop e.g. '$375 risk on 1 ES contract'",
-      "microContract": "string — micro equivalent e.g. 'Use MES ($5/pt) to reduce risk by 10x'",
-      "leverageWarning": "string — explicit leverage warning",
-      "riskRating": "Low | Medium | High | Extreme",
-      "confidence": 70,
-      "thesis": "string — 1-2 sentence thesis",
-      "keyLevel": "string — the single price level that makes or breaks this trade"
-    }
-  ]
-}
-
-FINAL CHECKS before responding:
-• Exactly 10 opportunities ranked by conviction.
-• Exactly 5 options plays and 5 futures plays in their dedicated sections.
-• Every price level must be derived from the live data provided above.
-• Options plays: HARD GATE CHECK REQUIRED — if DTE ≤ 7 and strike is OTM by >1%, set riskRating to Extreme and hardGates to FAIL with reason. If earnings within 5 days, flag it.
-• Futures plays: always include microContract alternative and riskPerContract in dollar terms.
-• Economic calendar reflects real events this week.
-• facts[] arrays contain only verified data from the feed. probabilities[] contain structure-based inferences.
-• The JSON must be complete and valid — do not truncate.`;
+RULES: exactly 5 opportunities, 3 topOptionsPlays, 3 topFuturesPlays. All prices from live data. Options HARD GATE: if DTE≤7 and OTM>1% set riskRating=Extreme, hardGates=FAIL. Futures: always include microContract and riskPerContract. Valid complete JSON only.`;
 
   try {
     const text = await callAI(prompt);
