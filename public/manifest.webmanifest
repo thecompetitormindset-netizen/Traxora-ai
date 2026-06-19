@@ -6,31 +6,15 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "tabbed", "standalone", "minimal-ui"],
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "file_handlers": [
-    {
-      "action": "/journal",
-      "accept": {
-        "text/plain": [".txt"],
-        "text/csv": [".csv"]
-      }
-    }
-  ],
   "dir": "ltr",
   "lang": "en-US",
   "background_color": "#0D0B1A",
   "theme_color": "#0D0B1A",
   "orientation": "portrait-primary",
-  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
   "categories": ["finance", "business"],
   "prefer_related_applications": false,
   "related_applications": [],
-  "launch_handler": {
-    "client_mode": "focus-existing"
-  },
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
   "share_target": {
     "action": "/explore",
     "method": "GET",
@@ -40,12 +24,6 @@
       "url": "url"
     }
   },
-  "protocol_handlers": [
-    {
-      "protocol": "web+traxora",
-      "url": "/explore?q=%s"
-    }
-  ],
   "icons": [
     {
       "src": "/icon-192.png",
