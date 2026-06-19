@@ -104,10 +104,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${jakarta.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
-      <head>
-        {/* Declarative SW registration — detected by PWABuilder without JS execution */}
-        <link rel="serviceworker" href="/sw.js" scope="/" />
-      </head>
       <body>
         {/* Theme script runs before paint to prevent flash */}
         <script
