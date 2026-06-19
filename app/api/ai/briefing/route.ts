@@ -28,6 +28,12 @@ async function callAI(prompt: string): Promise<string> {
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
+  if (!groqKey && !anthropicKey && !deepseekKey) {
+    throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY, GROQ_API_KEY, or DEEPSEEK_API_KEY.");
+  }
+
+  const failures: string[] = [];
+
   // ── Groq first (fastest — 5-10s) ──────────────────────────────────────────
   if (groqKey) {
     try {
@@ -36,7 +42,9 @@ async function callAI(prompt: string): Promise<string> {
         groqKey, "llama-3.3-70b-versatile", prompt, 20_000,
       );
     } catch (err) {
-      console.error("Groq briefing error:", err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Groq briefing error:", msg);
+      failures.push(`Groq: ${msg}`);
     }
   }
 
@@ -58,7 +66,9 @@ async function callAI(prompt: string): Promise<string> {
         .map(b => (b as { type: "text"; text: string }).text)
         .join("").trim();
     } catch (err) {
-      console.error("Anthropic briefing error:", err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Anthropic briefing error:", msg);
+      failures.push(`Anthropic: ${msg}`);
     }
   }
 
@@ -70,11 +80,13 @@ async function callAI(prompt: string): Promise<string> {
         deepseekKey, "deepseek-chat", prompt, 20_000,
       );
     } catch (err) {
-      console.error("DeepSeek briefing error:", err instanceof Error ? err.message : err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("DeepSeek briefing error:", msg);
+      failures.push(`DeepSeek: ${msg}`);
     }
   }
 
-  throw new Error("No AI provider configured. Add ANTHROPIC_API_KEY, GROQ_API_KEY, or DEEPSEEK_API_KEY.");
+  throw new Error(`All AI providers failed — ${failures.join(" | ")}`);
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
