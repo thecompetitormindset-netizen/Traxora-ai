@@ -1,6 +1,6 @@
 // Traxora AI — Service Worker
-const CACHE = "traxora-v3";
-const STATIC = ["/", "/offline.html", "/icon-192.png", "/icon-512.png"];
+const CACHE = "traxora-v4";
+const STATIC = ["/", "/icon-192.png", "/icon-512.png", "/manifest.webmanifest"];
 
 self.addEventListener("install", (e) => {
   e.waitUntil(
@@ -30,7 +30,7 @@ self.addEventListener("fetch", (e) => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request).then((cached) => cached || caches.match("/offline.html")))
+      .catch(() => caches.match(e.request).then((cached) => cached || caches.match("/")))
   );
 });
 
