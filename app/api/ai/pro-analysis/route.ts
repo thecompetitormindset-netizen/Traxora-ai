@@ -669,11 +669,21 @@ If recommended_contracts = 0 → No Trade.
 
   const userMessage = `Analyse this market. Return ONLY the JSON schema — no text outside it.\n\n${marketData}`;
 
-  // ── Try Groq first (fastest — 5-8s) ──────────────────────────────────────
   let rawText: string | null = null;
 
+  // ── Gemini first (free — 1M TPM) ──────────────────────────────────────────
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    rawText = await callOpenAICompat(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      geminiKey, "gemini-2.0-flash",
+      systemPrompt, userMessage, 3000,
+    );
+  }
+
+  // ── Try Groq next (fastest — 5-8s) ────────────────────────────────────────
   const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
+  if (!rawText && groqKey) {
     rawText = await callOpenAICompat(
       "https://api.groq.com/openai/v1/chat/completions",
       groqKey, "llama-3.3-70b-versatile",

@@ -34,9 +34,22 @@ async function callAI(prompt: string): Promise<string> {
 
   const failures: string[] = [];
 
-  // ── Groq first (fastest — 5-10s) ──────────────────────────────────────────
-  // Free tier cap: 12,000 TPM. If the prompt exceeds that, fall back to the
-  // smaller 8B model (30,000 TPM). If that also fails, continue to Anthropic.
+  // ── Gemini (free tier — 1M TPM, no billing required) ─────────────────────
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    try {
+      return await callOpenAICompat(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        geminiKey, "gemini-2.0-flash", prompt, 40_000,
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("Gemini briefing error:", msg);
+      failures.push(`Gemini: ${msg}`);
+    }
+  }
+
+  // ── Groq (free tier — 12k TPM 70B, 30k TPM 8B) ───────────────────────────
   if (groqKey) {
     const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"] as const;
     for (const model of groqModels) {

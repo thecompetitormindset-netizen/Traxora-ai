@@ -751,9 +751,18 @@ Return ONLY valid JSON.`;
 
   let analysisText: string | null = null;
 
-  // ── Try Groq first (fastest — 5-8s) ──────────────────────────────────────────
+  // ── Gemini first (free — 1M TPM) ─────────────────────────────────────────────
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (geminiKey) {
+    analysisText = await callOpenAICompat(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      geminiKey, "gemini-2.0-flash", 3000,
+    );
+  }
+
+  // ── Try Groq next (fastest — 5-8s) ───────────────────────────────────────────
   const groqKey = process.env.GROQ_API_KEY;
-  if (groqKey) {
+  if (!analysisText && groqKey) {
     analysisText = await callOpenAICompat(
       "https://api.groq.com/openai/v1/chat/completions",
       groqKey, "llama-3.3-70b-versatile", 3000,

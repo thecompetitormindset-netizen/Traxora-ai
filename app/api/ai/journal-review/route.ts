@@ -24,9 +24,16 @@ async function callOpenAICompat(url: string, key: string, model: string, system:
 }
 
 async function callAI(prompt: string): Promise<string> {
+  const geminiKey    = process.env.GEMINI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const groqKey      = process.env.GROQ_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
+
+  if (geminiKey) {
+    try {
+      return await callOpenAICompat("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", geminiKey, "gemini-2.0-flash", SYSTEM_FRAMEWORK, prompt, 1500);
+    } catch (err) { console.error("Gemini journal-review error:", err instanceof Error ? err.message : err); }
+  }
 
   if (anthropicKey) {
     try {

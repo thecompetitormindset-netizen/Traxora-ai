@@ -80,11 +80,26 @@ async function callOpenAICompat(url: string, key: string, model: string, message
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-// Priority: Anthropic → Groq (free) → DeepSeek
+// Priority: Gemini (free) → Anthropic → Groq → DeepSeek
 async function getAIReply(messages: Msg[]): Promise<string> {
+  const geminiKey    = process.env.GEMINI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const groqKey      = process.env.GROQ_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
+
+  // ── Gemini (free — 1M TPM) ─────────────────────────────────────────────────
+  if (geminiKey) {
+    try {
+      return await callOpenAICompat(
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        geminiKey,
+        "gemini-2.0-flash",
+        messages,
+      );
+    } catch (err) {
+      console.error("Gemini chat error:", err instanceof Error ? err.message : err);
+    }
+  }
 
   // ── Anthropic ──────────────────────────────────────────────────────────────
   if (anthropicKey) {

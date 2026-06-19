@@ -128,22 +128,28 @@ export async function POST(req: NextRequest) {
     console.error("Anthropic trade-review error:", err);
   }
 
+  if (!text && process.env.GEMINI_API_KEY) {
+    try {
+      const gemRes = await fetch("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.GEMINI_API_KEY}` },
+        body: JSON.stringify({ model: "gemini-2.0-flash", max_tokens: 900, messages: [{ role: "user", content: buildPrompt(body) }] }),
+      });
+      const d = await gemRes.json();
+      text = d.choices?.[0]?.message?.content?.trim() ?? null;
+    } catch (err) { console.error("Gemini trade-review error:", err); }
+  }
+
   if (!text && process.env.GROQ_API_KEY) {
     try {
       const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          max_tokens: 900,
-          messages: [{ role: "user", content: buildPrompt(body) }],
-        }),
+        body: JSON.stringify({ model: "llama-3.3-70b-versatile", max_tokens: 900, messages: [{ role: "user", content: buildPrompt(body) }] }),
       });
       const d = await groqRes.json();
       text = d.choices?.[0]?.message?.content?.trim() ?? null;
-    } catch (err) {
-      console.error("Groq trade-review error:", err);
-    }
+    } catch (err) { console.error("Groq trade-review error:", err); }
   }
 
   if (!text) return Response.json({ error: "AI unavailable" }, { status: 503 });
