@@ -720,6 +720,9 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
 </html>`;
 }
 
+// ── Idempotency guard — prevents double-send if Vercel retries within same Lambda ──
+let _lastSentDay = "";
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 export async function GET(req: Request) {
   const cronSecret = process.env.CRON_SECRET;
@@ -733,8 +736,14 @@ export async function GET(req: Request) {
   }
 
   // Prefer an explicit email passed by the test-email route (session user's email).
-  // Otherwise send to all subscribers (file + CRON_EMAIL env var).
+  // Skip idempotency check for targeted test sends.
   const emailParam = new URL(req.url).searchParams.get("email");
+  if (!emailParam) {
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    if (_lastSentDay === todayUTC) {
+      return Response.json({ skipped: true, reason: "already sent today" });
+    }
+  }
   const recipients = emailParam ? [emailParam] : await getEmails();
   if (recipients.length === 0) {
     return Response.json({ error: "No subscribers — add CRON_EMAIL to Vercel env vars or subscribe in Settings" }, { status: 400 });
@@ -826,6 +835,7 @@ export async function GET(req: Request) {
   });
 
   const partialFail = errors.length > 0;
+  if (!partialFail && !emailParam) _lastSentDay = new Date().toISOString().slice(0, 10);
   return Response.json(
     { ok: !partialFail, to: recipients, date, analyzed: allQuotes.length, top20: top20.map(s => `${s.symbol} ${s.signal}`), errors },
     { status: partialFail ? 207 : 200 },

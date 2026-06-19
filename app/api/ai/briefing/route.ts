@@ -35,20 +35,29 @@ async function callAI(prompt: string): Promise<string> {
   const failures: string[] = [];
 
   // ── Groq first (fastest — 5-10s) ──────────────────────────────────────────
+  // Free tier cap: 12,000 TPM. If the prompt exceeds that, fall back to the
+  // smaller 8B model (30,000 TPM). If that also fails, continue to Anthropic.
   if (groqKey) {
-    try {
-      return await callOpenAICompat(
-        "https://api.groq.com/openai/v1/chat/completions",
-        groqKey, "llama-3.3-70b-versatile", prompt, 20_000,
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error("Groq briefing error:", msg);
-      failures.push(`Groq: ${msg}`);
+    const groqModels = ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"] as const;
+    for (const model of groqModels) {
+      try {
+        return await callOpenAICompat(
+          "https://api.groq.com/openai/v1/chat/completions",
+          groqKey, model, prompt, 20_000,
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        const isTokenLimit = msg.includes("413") || msg.includes("rate_limit_exceeded") || msg.includes("tokens per minute");
+        console.error(`Groq ${model} error:`, msg);
+        if (isTokenLimit && model !== "llama-3.1-8b-instant") continue;
+        failures.push(`Groq: ${msg}`);
+        break;
+      }
     }
   }
 
-  // ── Anthropic (fallback) ───────────────────────────────────────────────────
+  // ── Anthropic (primary fallback — higher quality, ~30-45s for large JSON) ──
+  // Timeout bumped to 45s: haiku generating 8k tokens of dense JSON needs it.
   if (anthropicKey) {
     try {
       const client = new Anthropic({ apiKey: anthropicKey });
@@ -59,7 +68,7 @@ async function callAI(prompt: string): Promise<string> {
           system:     SYSTEM_FRAMEWORK,
           messages:   [{ role: "user", content: prompt }],
         }),
-        new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 25_000)),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error("timeout")), 45_000)),
       ]);
       return res.content
         .filter(b => b.type === "text")
@@ -72,7 +81,7 @@ async function callAI(prompt: string): Promise<string> {
     }
   }
 
-  // ── DeepSeek (fallback) ────────────────────────────────────────────────────
+  // ── DeepSeek (last resort) ─────────────────────────────────────────────────
   if (deepseekKey) {
     try {
       return await callOpenAICompat(
