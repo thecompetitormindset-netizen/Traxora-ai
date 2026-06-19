@@ -1,4 +1,5 @@
 {
+  "id": "traxora-ai",
   "name": "Traxora AI",
   "short_name": "Traxora",
   "description": "AI-powered Smart Money trading signals — BUY/SELL/HOLD with Order Blocks, FVGs, volume profile, options analysis, and daily morning briefings.",
@@ -8,18 +9,31 @@
   "background_color": "#0D0B1A",
   "theme_color": "#0D0B1A",
   "orientation": "portrait-primary",
+  "lang": "en-US",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["finance", "business"],

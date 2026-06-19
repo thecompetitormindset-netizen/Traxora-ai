@@ -1,15 +1,40 @@
 // Traxora AI — Service Worker
-const CACHE = "traxora-v1";
+const CACHE = "traxora-v2";
+const STATIC = ["/", "/offline.html", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
-  self.skipWaiting();
+  e.waitUntil(
+    caches.open(CACHE).then((c) => c.addAll(STATIC)).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
-  e.waitUntil(clients.claim());
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+    ).then(() => clients.claim())
+  );
 });
 
-// Handle push notifications sent from the app
+// Required for PWA install prompt — network first, cache fallback
+self.addEventListener("fetch", (e) => {
+  if (e.request.method !== "GET") return;
+  const url = new URL(e.request.url);
+  if (!url.origin.includes(self.location.hostname)) return;
+  e.respondWith(
+    fetch(e.request)
+      .then((res) => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(e.request).then((cached) => cached || caches.match("/offline.html")))
+  );
+});
+
+// Push notifications
 self.addEventListener("push", (e) => {
   if (!e.data) return;
   const data = e.data.json();
@@ -26,7 +51,6 @@ self.addEventListener("push", (e) => {
   );
 });
 
-// Open the app when notification is clicked
 self.addEventListener("notificationclick", (e) => {
   e.notification.close();
   const targetUrl = e.notification.data?.url || "/dashboard";
