@@ -6,6 +6,7 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
   "dir": "ltr",
   "lang": "en-US",
   "background_color": "#0D0B1A",

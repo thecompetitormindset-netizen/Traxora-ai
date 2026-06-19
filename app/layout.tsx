@@ -105,12 +105,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${jakarta.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <body>
-        {/* Theme script runs before paint to prevent flash — suppressHydrationWarning because localStorage isn't available on server */}
+        {/* Theme script runs before paint to prevent flash */}
         <script
           suppressHydrationWarning
           // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='midnight')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();`,
+            __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='midnight')document.documentElement.setAttribute('data-theme',t);}catch(e){}})();if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js');`,
           }}
         />
         {/* JSON-LD structured data for search engines */}
