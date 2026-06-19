@@ -6,7 +6,19 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
-  "display_override": ["standalone", "minimal-ui", "browser"],
+  "display_override": ["window-controls-overlay", "tabbed", "standalone", "minimal-ui"],
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "file_handlers": [
+    {
+      "action": "/journal",
+      "accept": {
+        "text/plain": [".txt"],
+        "text/csv": [".csv"]
+      }
+    }
+  ],
   "dir": "ltr",
   "lang": "en-US",
   "background_color": "#0D0B1A",

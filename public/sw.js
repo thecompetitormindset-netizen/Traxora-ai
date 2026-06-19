@@ -1,5 +1,5 @@
 // Traxora AI — Service Worker
-const CACHE = "traxora-v2";
+const CACHE = "traxora-v3";
 const STATIC = ["/", "/offline.html", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (e) => {
@@ -16,7 +16,7 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Required for PWA install prompt — network first, cache fallback
+// Fetch — network first, cache fallback (required for PWA install prompt)
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;
   const url = new URL(e.request.url);
@@ -32,6 +32,26 @@ self.addEventListener("fetch", (e) => {
       })
       .catch(() => caches.match(e.request).then((cached) => cached || caches.match("/offline.html")))
   );
+});
+
+// Background Sync — retry failed trade journal saves when back online
+self.addEventListener("sync", (e) => {
+  if (e.tag === "sync-journal") {
+    e.waitUntil(
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: "SYNC_JOURNAL" }));
+      })
+    );
+  }
+});
+
+// Periodic Sync — refresh signals in background every hour
+self.addEventListener("periodicsync", (e) => {
+  if (e.tag === "refresh-signals") {
+    e.waitUntil(
+      fetch("/api/market/scan").catch(() => {})
+    );
+  }
 });
 
 // Push notifications
