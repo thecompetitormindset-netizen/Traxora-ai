@@ -6,10 +6,33 @@
   "start_url": "/dashboard",
   "scope": "/",
   "display": "standalone",
+  "dir": "ltr",
+  "lang": "en-US",
   "background_color": "#0D0B1A",
   "theme_color": "#0D0B1A",
   "orientation": "portrait-primary",
-  "lang": "en-US",
+  "iarc_rating_id": "e84b072d-71b3-4d3e-86ae-31a8ce4e53b7",
+  "categories": ["finance", "business"],
+  "prefer_related_applications": false,
+  "related_applications": [],
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "share_target": {
+    "action": "/explore",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+traxora",
+      "url": "/explore?q=%s"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -38,15 +61,20 @@
   ],
   "screenshots": [
     {
-      "src": "/icon-512.png",
+      "src": "https://traxora-ai.vercel.app/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Traxora AI Dashboard"
+    },
+    {
+      "src": "https://traxora-ai.vercel.app/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Traxora AI Signals"
     }
   ],
-  "iarc_rating_id": "",
-  "related_applications": [],
-  "prefer_related_applications": false,
-  "categories": ["finance", "business"],
   "shortcuts": [
     {
       "name": "Dashboard",
