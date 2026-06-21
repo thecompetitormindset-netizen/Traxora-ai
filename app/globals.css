@@ -997,12 +997,14 @@ a:not([class*="active:scale"]):active {
 }
 
 /* ══ PAGE ENTRANCE ANIMATION ═════════════════════════════════════════════════ */
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
+/* Defined once here — later duplicates removed to avoid cascade confusion */
+@keyframes page-spring {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
 .page-enter {
-  animation: page-fade-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
+  animation: page-spring 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 /* ══ CARD HOVER LIFT ══════════════════════════════════════════════════════════ */
@@ -1651,15 +1653,6 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 8px rgba(251,191,36,0.4);
 }
 
-/* ══ PAGE FADE OVERLAY (smoother page-enter) ══════════════════════════════════ */
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.page-enter {
-  animation: page-fade-in 0.35s cubic-bezier(0.4,0,0.2,1) both;
-}
-
 /* ══ AMBIENT SHIMMER ON GLASS CARDS ══════════════════════════════════════════ */
 @keyframes glass-shimmer {
   from { background-position: -200% center; }
@@ -1719,16 +1712,6 @@ input:focus, textarea:focus, select:focus {
 }
 
 /* ══ PAGE TRANSITION (spring) ════════════════════════════════════════════════ */
-/* scale() removed — translateY + opacity are compositor-only, no Paint step   */
-.page-enter {
-  will-change: opacity, transform;
-  animation: page-spring 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-@keyframes page-spring {
-  0%   { opacity: 0; transform: translateY(14px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
 /* ══ ONBOARDING SLIDE ANIMATIONS ════════════════════════════════════════════ */
 .onboard-slide { transition: opacity 0.18s ease, transform 0.18s ease; }
 .onboard-slide.exit-fwd { opacity: 0; transform: translateX(18px); }
@@ -1738,6 +1721,13 @@ input:focus, textarea:focus, select:focus {
 .nav-safe-area {
   padding-bottom: max(env(safe-area-inset-bottom), 14px);
   padding-top: 8px;
+}
+
+/* ══ CHAT PAGE LAYOUT ════════════════════════════════════════════════════════ */
+/* Uses svh so the fixed bottom nav (≈80px) is not covered by the chat input  */
+.chat-main-height {
+  height: calc(100svh - env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
 }
 
 /* ══ NEON LINE UNDERLINE ══════════════════════════════════════════════════════ */
@@ -1759,7 +1749,7 @@ input:focus, textarea:focus, select:focus {
 
 /* ══ PREFERS REDUCED MOTION ═══════════════════════════════════════════════════ */
 @media (prefers-reduced-motion: reduce) {
-  .hero-enter, .reveal, .reveal-left, .reveal-right, .reveal-scale,
+  .page-enter, .hero-enter, .reveal, .reveal-left, .reveal-right, .reveal-scale,
   .btn-shimmer::after, .ripple-wave, .animate-signal-float,
   .btn-cta-glow, .badge-pulse, .pricing-glow-border::before,
   .card-shine::after, .ping-live::before, .aurora-card::before,

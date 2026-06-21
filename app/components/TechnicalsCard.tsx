@@ -73,7 +73,14 @@ export default function TechnicalsCard({ symbol }: { symbol: string }) {
     );
   }
 
-  if (error || !data) return null;
+  if (error || !data) {
+    return (
+      <div className="rounded-2xl border border-[#252345] px-5 py-4 flex items-center gap-3 text-[11px] text-[#4B5675]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        Technical indicators unavailable for this symbol
+      </div>
+    );
+  }
 
   const rsiPct = data.rsi14 ?? 50;
 
