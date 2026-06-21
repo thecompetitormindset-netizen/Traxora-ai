@@ -61,7 +61,6 @@ function AnalysisContent() {
   const [news, setNews]           = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
 
-  // Current portfolio holding for this symbol
   const [holding, setHolding] = useState<{ quantity: number; avgPrice: number } | null>(null);
 
   useEffect(() => {
@@ -148,7 +147,6 @@ function AnalysisContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ symbol }),
       });
-      // Read as text first so a non-JSON error page doesn't obscure the real error
       const text = await res.text();
       let data: Record<string, unknown>;
       try { data = JSON.parse(text); }
@@ -182,15 +180,8 @@ function AnalysisContent() {
   useEffect(() => {
     setAnalysis(null);
     setVolumeProfile(null);
-    setQuoteData({
-      price: null,
-      previousClose: null,
-      open: null,
-      high: null,
-      low: null,
-    });
+    setQuoteData({ price: null, previousClose: null, open: null, high: null, low: null });
 
-    // Fetch volume profile in background
     fetch(`/api/volume-profile?symbol=${encodeURIComponent(symbol)}`)
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d && !d.error) setVolumeProfile(d as VolumeProfile); })
@@ -199,9 +190,7 @@ function AnalysisContent() {
     async function fetchAndAnalyze() {
       setLoadingAnalysis(true);
       try {
-        const res = await fetch(
-          `/api/quote?symbol=${encodeURIComponent(symbol)}`,
-        );
+        const res = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
         const data = await res.json();
 
         const price = data?.price ?? null;
@@ -210,9 +199,7 @@ function AnalysisContent() {
         const high = data?.high ?? null;
         const low = data?.low ?? null;
         const dayChangePercent =
-          price && previousClose
-            ? ((price - previousClose) / previousClose) * 100
-            : null;
+          price && previousClose ? ((price - previousClose) / previousClose) * 100 : null;
 
         setQuoteData({ price, previousClose, open, high, low });
 
@@ -220,20 +207,11 @@ function AnalysisContent() {
           const analyzeRes = await fetch("/api/ai/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              symbol,
-              price,
-              previousClose,
-              open,
-              high,
-              low,
-              dayChangePercent,
-            }),
+            body: JSON.stringify({ symbol, price, previousClose, open, high, low, dayChangePercent }),
           });
           const result = await analyzeRes.json();
           if (result?.signal) {
             setAnalysis(result);
-            // Auto-set entry zone price alert so user gets notified when price reaches their zone
             if (result.signal !== "HOLD" && result.trade?.entryZone && price) {
               try {
                 const ALERTS_KEY = "traxora_price_alerts";
@@ -243,10 +221,7 @@ function AnalysisContent() {
                 const nums = zoneStr.match(/\d+(\.\d+)?/g)?.map(Number) ?? [];
                 if (nums.length >= 1) {
                   const entryTarget = result.signal === "BUY" ? Math.min(...nums) : Math.max(...nums);
-                  alerts[symbol] = {
-                    ...alerts[symbol],
-                    [result.signal === "BUY" ? "below" : "above"]: entryTarget,
-                  };
+                  alerts[symbol] = { ...alerts[symbol], [result.signal === "BUY" ? "below" : "above"]: entryTarget };
                   localStorage.setItem(`traxora_${ALERTS_KEY}`, JSON.stringify(alerts));
                 }
               } catch { /* ignore */ }
@@ -265,20 +240,17 @@ function AnalysisContent() {
 
   const dayChange =
     quoteData.price && quoteData.previousClose
-      ? ((quoteData.price - quoteData.previousClose) /
-          quoteData.previousClose) *
-        100
+      ? ((quoteData.price - quoteData.previousClose) / quoteData.previousClose) * 100
       : null;
 
-  const [showGuide, setShowGuide] = useState(false); // initialized in effect after user is known
+  const [showGuide, setShowGuide] = useState(false);
 
-  // Show guide only for users who haven't run analysis yet — read after _userId is set by Topbar effect
   useEffect(() => {
     try {
       if (!localStorage.getItem(scopedKey("traxora_ran_analysis"))) setShowGuide(true);
     } catch { /* ignore */ }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // empty dep: runs once after mount, by which time Topbar's setCurrentUser effect has also run
+  }, []);
 
   useEffect(() => {
     if (analysis) {
@@ -287,79 +259,112 @@ function AnalysisContent() {
     }
   }, [analysis]);
 
+  // ── Derived values ──────────────────────────────────────────────────────────
+  const ticker = symbol.replace(".US", "").replace(".COMM", "");
+  const dollarChange = quoteData.price && quoteData.previousClose
+    ? quoteData.price - quoteData.previousClose : null;
+
+  function handlePostPlay() {
+    if (!analysis) return;
+    const signal = analysis.signal;
+    const dir = signal === "BUY" ? "LONG" : signal === "SELL" ? "SHORT" : "HOLD";
+    const emoji = signal === "BUY" ? "🟢" : signal === "SELL" ? "🔴" : "🟡";
+    const lines: string[] = [];
+    lines.push(`${emoji} **${ticker} — ${dir}** | Traxora AI`);
+    lines.push(`Confidence: **${analysis.confidence}** | Risk: **${analysis.risk}**`);
+    if (quoteData.price) lines.push(`Price: $${quoteData.price.toFixed(2)}`);
+    lines.push("");
+    if (analysis.trade && signal !== "HOLD") {
+      const t = analysis.trade as TradePlan;
+      lines.push("**Trade Setup**");
+      lines.push(`Entry:  ${t.entryZone}`);
+      lines.push(`Stop:   ${t.stopLoss}  (${t.stopReason})`);
+      lines.push(`Target: ${t.takeProfit}  (${t.tpReason})`);
+      lines.push(`R:R  →  ${t.rrRatio}`);
+      lines.push("");
+    }
+    if (deepAnalysis?.scenarioA) {
+      const s = deepAnalysis.scenarioA;
+      lines.push("**Smart Money Scenario**");
+      lines.push(`Entry zone: ${s.entryFrom} – ${s.entryTo}`);
+      lines.push(`Stop: ${s.stopLoss}  |  T1: ${s.target1}  |  T2: ${s.target2}`);
+      if (s.target3) lines.push(`T3: ${s.target3}`);
+      lines.push(`R:R: ${s.rrRatio}  |  Best time: ${s.bestEntryTime}`);
+      lines.push("");
+    }
+    lines.push(analysis.summary);
+    lines.push("");
+    lines.push(`📈 traxora.ai`);
+    navigator.clipboard.writeText(lines.join("\n")).then(() => {
+      const btn = document.getElementById("share-btn");
+      if (btn) { btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = "Post Play"; }, 2000); }
+    });
+  }
+
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-7xl mx-auto w-full">
-          <div className="mt-3 flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">
-                {symbol.replace(".US", "").replace(".COMM", "")}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <MarketStatus />
+
+          {/* ── Price Hero ── */}
+          <div className="mt-3">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-2xl font-black tracking-tight text-[#F1F5F9]">{ticker}</h1>
+                <MarketStatus />
+              </div>
               {analysis && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const ticker = symbol.replace(".US", "").replace(".COMM", "");
-                    const signal = analysis.signal;
-                    const dir = signal === "BUY" ? "LONG" : signal === "SELL" ? "SHORT" : "HOLD";
-                    const emoji = signal === "BUY" ? "🟢" : signal === "SELL" ? "🔴" : "🟡";
-
-                    const lines: string[] = [];
-                    lines.push(`${emoji} **${ticker} — ${dir}** | Traxora AI`);
-                    lines.push(`Confidence: **${analysis.confidence}** | Risk: **${analysis.risk}**`);
-                    if (quoteData.price) lines.push(`Price: $${quoteData.price.toFixed(2)}`);
-                    lines.push("");
-
-                    if (analysis.trade && signal !== "HOLD") {
-                      const t = analysis.trade as TradePlan;
-                      lines.push("**Trade Setup**");
-                      lines.push(`Entry:  ${t.entryZone}`);
-                      lines.push(`Stop:   ${t.stopLoss}  (${t.stopReason})`);
-                      lines.push(`Target: ${t.takeProfit}  (${t.tpReason})`);
-                      lines.push(`R:R  →  ${t.rrRatio}`);
-                      lines.push("");
-                    }
-
-                    if (deepAnalysis && deepAnalysis.scenarioA) {
-                      const s = deepAnalysis.scenarioA;
-                      lines.push("**Smart Money Scenario**");
-                      lines.push(`Entry zone: ${s.entryFrom} – ${s.entryTo}`);
-                      lines.push(`Stop: ${s.stopLoss}  |  T1: ${s.target1}  |  T2: ${s.target2}`);
-                      if (s.target3) lines.push(`T3: ${s.target3}`);
-                      lines.push(`R:R: ${s.rrRatio}  |  Best time: ${s.bestEntryTime}`);
-                      lines.push("");
-                    }
-
-                    lines.push(analysis.summary);
-                    lines.push("");
-                    lines.push(`📈 traxora.ai`);
-
-                    const text = lines.join("\n");
-                    navigator.clipboard.writeText(text).then(() => {
-                      const btn = document.getElementById("share-btn");
-                      if (btn) {
-                        btn.textContent = "Copied!";
-                        setTimeout(() => { btn.textContent = "Post Play"; }, 2000);
-                      }
-                    });
-                  }}
-                  id="share-btn"
-                  className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                >
+                <button type="button" onClick={handlePostPlay} id="share-btn"
+                  className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2 rounded-xl text-sm font-semibold transition-all">
                   Post Play
                 </button>
               )}
             </div>
+
+            {/* Big price */}
+            <div className="flex items-end gap-3 flex-wrap">
+              {quoteData.price ? (
+                <p className="text-5xl sm:text-6xl font-black tracking-tight text-[#F1F5F9] tabular-nums">
+                  ${quoteData.price.toFixed(2)}
+                </p>
+              ) : (
+                <div className="h-14 w-52 bg-[#1E1C42] rounded-2xl animate-pulse" />
+              )}
+              {dayChange !== null && dollarChange !== null && (
+                <div className={`flex items-center gap-2 mb-1 ${dayChange >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  <span className="text-xl font-bold tabular-nums">
+                    {dayChange >= 0 ? "+" : ""}${Math.abs(dollarChange).toFixed(2)}
+                  </span>
+                  <span className={`text-sm font-bold px-2.5 py-1 rounded-xl ${dayChange >= 0 ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+                    {dayChange >= 0 ? "+" : ""}{dayChange.toFixed(2)}%
+                  </span>
+                  <span className="text-[#4B5675] text-xs">today</span>
+                </div>
+              )}
+            </div>
+
+            {/* Stats strip */}
+            {quoteData.price && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {([
+                  { label: "Open",       value: quoteData.open         ? `$${quoteData.open.toFixed(2)}`         : null, color: ""                },
+                  { label: "High",       value: quoteData.high         ? `$${quoteData.high.toFixed(2)}`         : null, color: "text-emerald-400" },
+                  { label: "Low",        value: quoteData.low          ? `$${quoteData.low.toFixed(2)}`          : null, color: "text-rose-400"    },
+                  { label: "Prev Close", value: quoteData.previousClose ? `$${quoteData.previousClose.toFixed(2)}` : null, color: ""             },
+                ] as { label: string; value: string | null; color: string }[]).filter(r => r.value).map(r => (
+                  <div key={r.label} className="bg-[#13112A] border border-[#252345] rounded-xl px-3.5 py-2">
+                    <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{r.label}</p>
+                    <p className={`text-sm font-bold mt-0.5 ${r.color || "text-[#F1F5F9]"}`}>{r.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* ── Chart — always full width ── */}
-          <div className="mt-3">
+          {/* ── Chart ── */}
+          <div className="mt-4">
             <TraxoraChart
               symbol={symbol}
               height={chartHeight}
@@ -377,14 +382,14 @@ function AnalysisContent() {
             />
           </div>
 
-          {/* ── First-signal guide banner ── */}
+          {/* ── Banners ── */}
           {showGuide && !loadingAnalysis && !analysis && (
             <div className="mt-4 flex items-start gap-4 px-5 py-4 rounded-2xl border border-emerald-500/25 bg-emerald-500/5">
               <span className="text-2xl shrink-0">👋</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-emerald-300 mb-1">Your first analysis is loading</p>
                 <p className="text-xs text-[#7B8DB4] leading-relaxed">
-                  Traxora AI is fetching live data for <strong className="text-[#F1F5F9]">{symbol.replace(".US","").replace(".COMM","")}</strong>.
+                  Traxora AI is fetching live data for <strong className="text-[#F1F5F9]">{ticker}</strong>.
                   In a few seconds you&apos;ll see a <strong className="text-emerald-400">BUY</strong>, <strong className="text-amber-400">HOLD</strong>, or <strong className="text-rose-400">SELL</strong> signal with an exact entry zone, stop loss, and take profit.
                   Run <strong className="text-[#F1F5F9]">Deep Analysis</strong> below for the full institutional-grade breakdown.
                 </p>
@@ -394,24 +399,16 @@ function AnalysisContent() {
               </button>
             </div>
           )}
-
-          {/* ── Deep analysis signal override banner ── */}
           {overrideInfo && (
             <div className="mt-4 flex items-start gap-3 px-5 py-4 rounded-2xl border border-amber-500/30 bg-amber-500/8">
               <span className="text-xl shrink-0 mt-0.5">🔁</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-amber-300 mb-1">Signal updated by Deep Analysis</p>
                 <p className="text-xs text-[#7B8DB4] leading-relaxed">
-                  The quick scan showed <strong className="text-[#F1F5F9]">{overrideInfo.from}</strong>, but the full institutional analysis found{" "}
-                  <strong className="text-[#F1F5F9]">{overrideInfo.to}</strong>. Deep Analysis uses 6 Smart Money concepts, IV data, and multi-timeframe structure — it takes precedence.
+                  Quick scan: <strong className="text-[#F1F5F9]">{overrideInfo.from}</strong> → Deep analysis: <strong className="text-[#F1F5F9]">{overrideInfo.to}</strong>. Multi-timeframe Smart Money analysis takes precedence.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setOverrideInfo(null)}
-                aria-label="Dismiss"
-                className="text-[#4B5675] hover:text-[#7B8DB4] shrink-0"
-              >
+              <button type="button" onClick={() => setOverrideInfo(null)} aria-label="Dismiss" className="text-[#4B5675] hover:text-[#7B8DB4] shrink-0">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                 </svg>
@@ -419,24 +416,24 @@ function AnalysisContent() {
             </div>
           )}
 
-          {/* ── Info panels — always below chart in a grid ── */}
-          <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* ── Signal + Trade Plan (hero row) ── */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
 
             {/* Signal Card */}
-            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
+            <div className={`card-shine glass surface-sheen rounded-2xl p-5 border ${
+              analysis?.signal === "BUY"  ? "border-emerald-500/30 signal-card-buy"  :
+              analysis?.signal === "SELL" ? "border-rose-500/30    signal-card-sell" :
+              "border-[#252345]"
+            }`}>
               <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Traxora AI Signal</p>
 
-              {/* Current portfolio position for this symbol */}
               {holding && (
                 <div className="mb-3 flex items-center gap-2 bg-emerald-500/8 border border-emerald-500/20 rounded-xl px-3 py-2">
                   <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wide">Position</span>
                   <span className="text-[10px] font-mono text-[#F1F5F9]">{holding.quantity} sh @ ${holding.avgPrice.toFixed(2)}</span>
                   {quoteData.price && (
-                    <span className={`ml-auto text-[10px] font-black font-mono ${
-                      quoteData.price >= holding.avgPrice ? "text-emerald-400" : "text-rose-400"
-                    }`}>
-                      {quoteData.price >= holding.avgPrice ? "+" : ""}
-                      ${((quoteData.price - holding.avgPrice) * holding.quantity).toFixed(2)}
+                    <span className={`ml-auto text-[10px] font-black font-mono ${quoteData.price >= holding.avgPrice ? "text-emerald-400" : "text-rose-400"}`}>
+                      {quoteData.price >= holding.avgPrice ? "+" : ""}${((quoteData.price - holding.avgPrice) * holding.quantity).toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -444,7 +441,7 @@ function AnalysisContent() {
 
               {loadingAnalysis && (
                 <div className="space-y-3 animate-pulse">
-                  <div className="h-10 bg-[#1E1C42] rounded-xl" />
+                  <div className="h-14 bg-[#1E1C42] rounded-xl" />
                   <div className="h-3 bg-[#1E1C42] rounded w-3/4" />
                   <div className="h-3 bg-[#1E1C42] rounded w-1/2" />
                 </div>
@@ -452,215 +449,201 @@ function AnalysisContent() {
 
               {!loadingAnalysis && analysis && (
                 <>
-                  <span className={`inline-block text-xl font-bold px-4 py-2 rounded-xl border ${signalStyle(analysis.signal)}`}>
-                    {analysis.signal}
-                  </span>
-                  <div className="flex items-center gap-4 mt-3">
-                    <div>
-                      <p className="text-[10px] text-[#4B5675]">Confidence</p>
-                      <p className={`text-sm font-semibold mt-0.5 ${confidenceStyle(analysis.confidence)}`}>{analysis.confidence}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-[#4B5675]">Risk</p>
-                      <p className={`text-sm font-semibold mt-0.5 ${riskStyle(analysis.risk)}`}>{analysis.risk}</p>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className={`text-2xl font-black px-5 py-2.5 rounded-xl border ${signalStyle(analysis.signal)}`}>
+                      {analysis.signal}
+                    </span>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-[#4B5675] uppercase tracking-wider">Confidence</span>
+                        <span className={`text-xs font-bold ${confidenceStyle(analysis.confidence)}`}>{analysis.confidence}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] text-[#4B5675] uppercase tracking-wider">Risk</span>
+                        <span className={`text-xs font-bold ${riskStyle(analysis.risk)}`}>{analysis.risk}</span>
+                      </div>
                     </div>
                   </div>
-                  <p className="text-xs text-[#CBD5E1] mt-3 leading-relaxed">{analysis.summary}</p>
+
+                  <p className="text-xs text-[#CBD5E1] leading-relaxed mb-3">{analysis.summary}</p>
+
+                  {analysis.signal !== "HOLD" && analysis.trade?.entryZone && (
+                    <div className="mb-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                      <span className="text-[9px] text-amber-500/80 font-medium">Alert set for entry {analysis.trade.entryZone}</span>
+                    </div>
+                  )}
+
+                  {analysis.signal !== "HOLD" && (
+                    <a
+                      href={`/paper?symbol=${encodeURIComponent(symbol.replace(".US","").replace(".COMM",""))}&side=${analysis.signal === "BUY" ? "BUY" : "SELL"}`}
+                      className={`flex items-center justify-center gap-2 w-full py-3 rounded-xl text-sm font-bold transition-all ${
+                        analysis.signal === "BUY" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"
+                      }`}
+                    >
+                      {holding
+                        ? analysis.signal === "BUY" ? "Add to Position" : "Close / Sell Position"
+                        : analysis.signal === "BUY" ? "Buy Long on Paper" : "Sell Short on Paper"}
+                    </a>
+                  )}
                 </>
               )}
 
               {!loadingAnalysis && !analysis && (
                 <p className="text-sm text-[#4B5675]">Unable to generate signal. Market data may be unavailable.</p>
               )}
-
-              {/* Entry zone alert badge */}
-              {!loadingAnalysis && analysis && analysis.signal !== "HOLD" && analysis.trade?.entryZone && (
-                <div className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                  <span className="text-[9px] text-amber-500/80 font-medium">Price alert auto-set for entry zone {analysis.trade.entryZone}</span>
-                </div>
-              )}
-
-              {/* Paper Trade CTA */}
-              {!loadingAnalysis && analysis && analysis.signal !== "HOLD" && (
-                <a
-                  href={`/paper?symbol=${encodeURIComponent(symbol.replace(".US","").replace(".COMM",""))}&side=${analysis.signal === "BUY" ? "BUY" : "SELL"}`}
-                  className={`mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-bold transition-all ${
-                    analysis.signal === "BUY" ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-rose-600 hover:bg-rose-500 text-white"
-                  }`}
-                >
-                  {holding
-                    ? analysis.signal === "BUY" ? "Add to Position" : "Close / Sell Position"
-                    : analysis.signal === "BUY" ? "Buy Long on Paper" : "Sell Short on Paper"}
-                </a>
-              )}
             </div>
 
             {/* Trade Plan */}
-            {!loadingAnalysis && analysis?.trade && analysis.signal !== "HOLD" && (() => {
+            {!loadingAnalysis && analysis?.trade && analysis.signal !== "HOLD" ? (() => {
               const t = analysis.trade as TradePlan;
               const isBuy = analysis.signal === "BUY";
               return (
-                <div className={`card-shine glass surface-sheen gradient-border-card rounded-2xl p-5 border ${isBuy ? "border-emerald-500/25 signal-card-buy" : "border-rose-500/25 signal-card-sell"}`}>
-                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Trade Plan</p>
+                <div className={`card-shine glass surface-sheen gradient-border-card rounded-2xl p-5 border ${isBuy ? "border-emerald-500/25" : "border-rose-500/25"}`}>
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-4">Trade Plan</p>
 
                   <div className="grid grid-cols-3 gap-2 mb-4">
-                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
-                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Entry Zone</p>
-                      <p className="text-[11px] font-mono font-black text-amber-400 leading-tight">{t.entryZone}</p>
-                    </div>
-                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
-                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Stop Loss</p>
-                      <p className="text-sm font-mono font-black text-rose-400">{t.stopLoss}</p>
-                    </div>
-                    <div className="bg-[#0D0B1A] rounded-xl p-3 text-center">
-                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1">Take Profit</p>
-                      <p className="text-sm font-mono font-black text-emerald-400">{t.takeProfit}</p>
-                    </div>
+                    {[
+                      { label: "Entry Zone", value: t.entryZone,  color: "text-amber-400"   },
+                      { label: "Stop Loss",  value: t.stopLoss,   color: "text-rose-400"    },
+                      { label: "Take Profit",value: t.takeProfit, color: "text-emerald-400" },
+                    ].map(r => (
+                      <div key={r.label} className="bg-[#0D0B1A] rounded-xl p-3 text-center">
+                        <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mb-1.5">{r.label}</p>
+                        <p className={`text-[11px] font-mono font-black leading-tight ${r.color}`}>{r.value}</p>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="space-y-2 text-[10px] text-[#7B8DB4]">
-                    <div className="flex items-start gap-2">
-                      <span className="text-amber-400 font-bold shrink-0 mt-px">↳</span>
-                      <span><span className="text-[#4B5675] font-semibold">Entry: </span>{t.entryReason}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-rose-400 font-bold shrink-0 mt-px">↳</span>
-                      <span><span className="text-[#4B5675] font-semibold">Stop: </span>{t.stopReason}</span>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <span className="text-emerald-400 font-bold shrink-0 mt-px">↳</span>
-                      <span><span className="text-[#4B5675] font-semibold">Target: </span>{t.tpReason}</span>
-                    </div>
+                  <div className="space-y-2 text-[10px] text-[#7B8DB4] mb-4">
+                    {[
+                      { arrow: "text-amber-400",   label: "Entry",  reason: t.entryReason },
+                      { arrow: "text-rose-400",     label: "Stop",   reason: t.stopReason  },
+                      { arrow: "text-emerald-400",  label: "Target", reason: t.tpReason    },
+                    ].map(r => (
+                      <div key={r.label} className="flex items-start gap-2">
+                        <span className={`${r.arrow} font-bold shrink-0 mt-px`}>↳</span>
+                        <span><span className="text-[#4B5675] font-semibold">{r.label}: </span>{r.reason}</span>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className={`mt-3 pt-3 border-t border-white/5 flex items-center justify-between`}>
-                    <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">Risk/Reward</span>
-                    <span className={`text-sm font-black font-mono ${isBuy ? "text-emerald-400" : "text-rose-400"}`}>{t.rrRatio}</span>
+                  <div className="pt-3 border-t border-white/5 flex items-center justify-between">
+                    <span className="text-[9px] text-[#4B5675] uppercase tracking-widest">Risk / Reward</span>
+                    <span className={`text-lg font-black font-mono ${isBuy ? "text-emerald-400" : "text-rose-400"}`}>{t.rrRatio}</span>
                   </div>
                 </div>
               );
-            })()}
-
-            {/* Price Snapshot */}
-            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
-              <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Snapshot</p>
-              {quoteData.price ? (
-                <div className="space-y-2">
-                  {[
-                    { label: "Current",    value: `$${quoteData.price.toFixed(2)}`,        color: "text-white font-semibold" },
-                    dayChange !== null ? { label: "Day Change", value: `${dayChange >= 0 ? "+" : ""}${dayChange.toFixed(2)}%`, color: dayChange >= 0 ? "text-emerald-400" : "text-rose-400" } : null,
-                    quoteData.open   ? { label: "Open",       value: `$${quoteData.open.toFixed(2)}`,          color: "text-white" } : null,
-                    quoteData.high   ? { label: "High",       value: `$${quoteData.high.toFixed(2)}`,          color: "text-white" } : null,
-                    quoteData.low    ? { label: "Low",        value: `$${quoteData.low.toFixed(2)}`,           color: "text-white" } : null,
-                    quoteData.previousClose ? { label: "Prev. Close", value: `$${quoteData.previousClose.toFixed(2)}`, color: "text-white" } : null,
-                  ].filter(Boolean).map((row) => (
-                    <div key={row!.label} className="flex justify-between text-sm">
-                      <span className="text-[#7B8DB4]">{row!.label}</span>
-                      <span className={row!.color}>{row!.value}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-[#4B5675] animate-pulse">Loading…</p>
-              )}
-            </div>
-
-            {/* Key Observations */}
-            {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
-              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
-                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Key Observations</p>
-                <ul className="space-y-2">
-                  {analysis.keyPoints.map((point, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-[#CBD5E1]">
-                      <span className="text-blue-400 mt-0.5 shrink-0">•</span>
-                      {point}
-                    </li>
-                  ))}
-                </ul>
+            })() : (
+              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345] flex flex-col items-center justify-center gap-3 text-center min-h-[200px]">
+                {loadingAnalysis ? (
+                  <div className="space-y-3 w-full animate-pulse">
+                    <div className="h-20 bg-[#1E1C42] rounded-xl" />
+                    <div className="h-3 bg-[#1E1C42] rounded w-2/3 mx-auto" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-3xl">📋</p>
+                    <p className="text-xs text-[#4B5675]">Trade plan appears here after signal loads.</p>
+                  </>
+                )}
               </div>
             )}
+          </div>
 
-            {/* Smart Money Structure */}
-            {analysis?.signals && (
-              <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
-                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Structure</p>
-                <div className="flex gap-2 mb-3">
-                  {[
-                    { label: "Structure", val: analysis.signals.marketStructure },
-                    { label: "Bias",      val: analysis.signals.dailyBias       },
-                    { label: "Zone",      val: analysis.signals.priceZone       },
-                  ].map(({ label, val }) => (
-                    <div key={label} className="flex-1 bg-[#0D0B1A] rounded-xl p-2.5">
-                      <p className="text-[9px] text-[#4B5675] mb-1">{label}</p>
-                      <p className={`text-xs font-bold ${val === "Bullish" || val === "Discount" ? "text-emerald-400" : val === "Bearish" || val === "Premium" ? "text-rose-400" : "text-amber-400"}`}>{val}</p>
-                    </div>
-                  ))}
+          {/* ── Analysis detail cards ── */}
+          {(analysis?.keyPoints?.length || analysis?.signals || (quoteData.price && quoteData.high && quoteData.low)) ? (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+              {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
+                <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Key Observations</p>
+                  <ul className="space-y-2">
+                    {analysis.keyPoints.map((point, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-[#CBD5E1]">
+                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <div className="space-y-2">
-                  {[
-                    { tag: "Key Level", color: "text-teal-400", text: analysis.signals.orderBlock   },
-                    { tag: "Price Gap", color: "text-blue-400", text: analysis.signals.fairValueGap },
-                    { tag: "Best Entry",color: "text-cyan-400", text: analysis.signals.ote          },
-                  ].filter(r => r.text).map(({ tag, color, text }) => (
-                    <div key={tag} className="flex gap-2">
-                      <span className={`text-[10px] font-black shrink-0 mt-0.5 w-16 ${color}`}>{tag}</span>
-                      <p className="text-[11px] text-[#CBD5E1] leading-snug">{text}</p>
-                    </div>
-                  ))}
+              )}
 
-                  {/* Liquidity levels — shown as take-profit targets, not entry signals */}
-                  <div className="mt-1 rounded-xl bg-amber-500/5 border border-amber-500/20 p-2.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Take-Profit Targets</span>
-                      <span className="text-[7px] text-[#4B5675]">price draws to these levels</span>
+              {analysis?.signals && (
+                <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Price Structure</p>
+                  <div className="flex gap-2 mb-3">
+                    {[
+                      { label: "Structure", val: analysis.signals.marketStructure },
+                      { label: "Bias",      val: analysis.signals.dailyBias       },
+                      { label: "Zone",      val: analysis.signals.priceZone       },
+                    ].map(({ label, val }) => (
+                      <div key={label} className="flex-1 bg-[#0D0B1A] rounded-xl p-2.5">
+                        <p className="text-[9px] text-[#4B5675] mb-1">{label}</p>
+                        <p className={`text-xs font-bold ${val === "Bullish" || val === "Discount" ? "text-emerald-400" : val === "Bearish" || val === "Premium" ? "text-rose-400" : "text-amber-400"}`}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    {[
+                      { tag: "Key Level", color: "text-teal-400", text: analysis.signals.orderBlock   },
+                      { tag: "Price Gap", color: "text-blue-400", text: analysis.signals.fairValueGap },
+                      { tag: "Best Entry",color: "text-cyan-400", text: analysis.signals.ote          },
+                    ].filter(r => r.text).map(({ tag, color, text }) => (
+                      <div key={tag} className="flex gap-2">
+                        <span className={`text-[10px] font-black shrink-0 mt-0.5 w-16 ${color}`}>{tag}</span>
+                        <p className="text-[11px] text-[#CBD5E1] leading-snug">{text}</p>
+                      </div>
+                    ))}
+                    <div className="mt-1 rounded-xl bg-amber-500/5 border border-amber-500/20 p-2.5">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest">Take-Profit Targets</span>
+                        <span className="text-[7px] text-[#4B5675]">price draws to these</span>
+                      </div>
+                      <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.liquidity}</p>
+                      {analysis.signals.bslPrice != null && analysis.signals.sslPrice != null && (
+                        <div className="flex gap-2 mt-1.5">
+                          <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">↑ ${analysis.signals.bslPrice.toFixed(2)}</span>
+                          <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">↓ ${analysis.signals.sslPrice.toFixed(2)}</span>
+                        </div>
+                      )}
                     </div>
-                    <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.liquidity}</p>
-                    {analysis.signals.bslPrice != null && analysis.signals.sslPrice != null && (
-                      <div className="flex gap-2 mt-1.5">
-                        <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">↑ Target ${analysis.signals.bslPrice.toFixed(2)}</span>
-                        <span className="text-[9px] font-bold text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-0.5 rounded">↓ Support ${analysis.signals.sslPrice.toFixed(2)}</span>
+                    {analysis.signals.immediateRebalance && (
+                      <div className="rounded-xl bg-violet-500/5 border border-violet-500/20 p-2.5">
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">Session Gap</span>
+                          <span className="text-[7px] text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
+                        </div>
+                        <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.immediateRebalance}</p>
+                      </div>
+                    )}
+                    {analysis.signals.setup && (
+                      <div className="pt-2 border-t border-[#252345]">
+                        <p className="text-[9px] text-[#4B5675] mb-1">Confluence note</p>
+                        <p className="text-[11px] text-white leading-snug">{analysis.signals.setup}</p>
                       </div>
                     )}
                   </div>
-
-                  {/* Session gap / immediate rebalance */}
-                  {analysis.signals.immediateRebalance && (
-                    <div className="rounded-xl bg-violet-500/5 border border-violet-500/20 p-2.5">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="text-[8px] font-black text-violet-400 uppercase tracking-widest">Session Gap</span>
-                        <span className="text-[7px] text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-px rounded font-bold">ENTRY ZONE</span>
-                      </div>
-                      <p className="text-[11px] text-[#CBD5E1] leading-snug">{analysis.signals.immediateRebalance}</p>
-                    </div>
-                  )}
-
-                  {analysis.signals.setup && (
-                    <div className="mt-1 pt-2 border-t border-[#252345]">
-                      <p className="text-[9px] text-[#4B5675] mb-1">Confluence note</p>
-                      <p className="text-[11px] text-white leading-snug">{analysis.signals.setup}</p>
-                    </div>
-                  )}
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Order Depth */}
-            {quoteData.price && quoteData.high && quoteData.low && (
-              <MarketDepth price={quoteData.price} high={quoteData.high} low={quoteData.low} symbol={symbol} />
-            )}
+              {quoteData.price && quoteData.high && quoteData.low && (
+                <MarketDepth price={quoteData.price} high={quoteData.high} low={quoteData.low} symbol={symbol} />
+              )}
+            </div>
+          ) : null}
 
-            {/* Volume Profile */}
+          {/* ── Volume Profile + News ── */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+
             {volumeProfile && (
               <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
                 <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Volume Profile (60-day)</p>
-
-                {/* Key levels */}
                 <div className="grid grid-cols-3 gap-2 mb-4">
                   {[
-                    { label: "POC", value: `$${volumeProfile.poc.toFixed(2)}`, color: "text-yellow-400", desc: "Highest volume" },
-                    { label: "VAH", value: `$${volumeProfile.vah.toFixed(2)}`, color: "text-emerald-400", desc: "Value area top" },
-                    { label: "VAL", value: `$${volumeProfile.val.toFixed(2)}`, color: "text-rose-400",   desc: "Value area bottom" },
+                    { label: "POC", value: `$${volumeProfile.poc.toFixed(2)}`, color: "text-yellow-400", desc: "Highest volume"   },
+                    { label: "VAH", value: `$${volumeProfile.vah.toFixed(2)}`, color: "text-emerald-400", desc: "Value area top"   },
+                    { label: "VAL", value: `$${volumeProfile.val.toFixed(2)}`, color: "text-rose-400",    desc: "Value area bottom" },
                   ].map(({ label, value, color, desc }) => (
                     <div key={label} className="bg-[#0D0B1A] rounded-xl p-2.5 text-center">
                       <p className={`text-xs font-black ${color}`}>{label}</p>
@@ -669,133 +652,108 @@ function AnalysisContent() {
                     </div>
                   ))}
                 </div>
-
-                {/* Price position relative to value area */}
                 {quoteData.price && (
                   <div className="mb-4 p-3 rounded-xl bg-[#0D0B1A] border border-[#252345]">
-                    <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">Current Price Position</p>
+                    <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">Price Position</p>
                     <p className={`text-xs font-bold ${
                       quoteData.price > volumeProfile.vah ? "text-rose-400" :
                       quoteData.price < volumeProfile.val ? "text-emerald-400" : "text-amber-400"
                     }`}>
                       {quoteData.price > volumeProfile.vah
-                        ? `▲ Trading ABOVE value area — premium zone (${((quoteData.price - volumeProfile.vah) / volumeProfile.vah * 100).toFixed(1)}% above VAH)`
+                        ? `▲ Above value area — premium (${((quoteData.price - volumeProfile.vah) / volumeProfile.vah * 100).toFixed(1)}% above VAH)`
                         : quoteData.price < volumeProfile.val
-                        ? `▼ Trading BELOW value area — discount zone (${((volumeProfile.val - quoteData.price) / volumeProfile.val * 100).toFixed(1)}% below VAL)`
-                        : "◆ Trading INSIDE value area — balanced market"}
+                        ? `▼ Below value area — discount (${((volumeProfile.val - quoteData.price) / volumeProfile.val * 100).toFixed(1)}% below VAL)`
+                        : "◆ Inside value area — balanced market"}
                     </p>
                   </div>
                 )}
-
-                {/* HVN / LVN nodes */}
                 <div className="space-y-1.5">
                   <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-2">Key Volume Nodes</p>
-                  {volumeProfile.nodes
-                    .filter(n => n.type !== "normal")
-                    .sort((a, b) => b.price - a.price)
-                    .slice(0, 6)
-                    .map(node => (
-                      <div key={node.price} className="flex items-center gap-2">
-                        <span className={`text-[9px] font-black w-8 shrink-0 ${node.type === "HVN" ? "text-emerald-400" : "text-rose-400"}`}>
-                          {node.type}
-                        </span>
-                        <span className="text-[11px] text-[#F1F5F9] font-mono w-16 shrink-0">${node.price.toFixed(2)}</span>
-                        <div className="flex-1 flex gap-0.5">
-                          {Array.from({ length: 8 }).map((_, i) => {
-                            const maxVol = volumeProfile.nodes.reduce((m, n) => Math.max(m, n.volume), 1);
-                            const pct = node.volume / maxVol;
-                            const filled = Math.round(pct * 8) > i;
-                            return (
-                              <div key={i} className={`flex-1 h-1.5 rounded-sm ${filled ? node.type === "HVN" ? "bg-emerald-500/60" : "bg-rose-500/40" : "bg-[#0D0B1A]"}`} />
-                            );
-                          })}
-                        </div>
-                        <span className="text-[9px] text-[#4B5675] shrink-0">
-                          {node.type === "HVN" ? "Support/Resistance" : "Fast move zone"}
-                        </span>
+                  {volumeProfile.nodes.filter(n => n.type !== "normal").sort((a, b) => b.price - a.price).slice(0, 6).map(node => (
+                    <div key={node.price} className="flex items-center gap-2">
+                      <span className={`text-[9px] font-black w-8 shrink-0 ${node.type === "HVN" ? "text-emerald-400" : "text-rose-400"}`}>{node.type}</span>
+                      <span className="text-[11px] text-[#F1F5F9] font-mono w-16 shrink-0">${node.price.toFixed(2)}</span>
+                      <div className="flex-1 flex gap-0.5">
+                        {Array.from({ length: 8 }).map((_, i) => {
+                          const maxVol = volumeProfile.nodes.reduce((m, n) => Math.max(m, n.volume), 1);
+                          const filled = Math.round(node.volume / maxVol * 8) > i;
+                          return <div key={i} className={`flex-1 h-1.5 rounded-sm ${filled ? node.type === "HVN" ? "bg-emerald-500/60" : "bg-rose-500/40" : "bg-[#0D0B1A]"}`} />;
+                        })}
                       </div>
-                    ))}
+                      <span className="text-[9px] text-[#4B5675] shrink-0">{node.type === "HVN" ? "S/R" : "Fast move"}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* News feed */}
+            {/* News — card style */}
             <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
-              <p className="text-sm font-semibold mb-3">Latest News</p>
+              <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Latest News</p>
               {newsLoading ? (
                 <div className="space-y-2">
-                  {[1,2,3].map((i) => (
-                    <div key={i} className="animate-pulse">
-                      <div className="h-3 bg-[#252345] rounded w-full mb-1" />
-                      <div className="h-2.5 bg-[#252345] rounded w-2/3" />
-                    </div>
+                  {[1,2,3].map(i => (
+                    <div key={i} className="animate-pulse rounded-xl bg-[#0D0B1A] h-16" />
                   ))}
                 </div>
               ) : news.length === 0 ? (
                 <p className="text-xs text-[#4B5675]">No recent news found.</p>
               ) : (
-                <ul className="space-y-3">
+                <div className="space-y-2">
                   {news.map((item, i) => (
-                    <li key={i}>
-                      <a
-                        href={item.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group block"
-                      >
-                        <p className="text-xs text-[#F1F5F9] leading-snug group-hover:text-emerald-400 transition-colors line-clamp-2">{item.title}</p>
-                        <p className="text-[10px] text-[#4B5675] mt-0.5">
-                          {item.source}
-                          {item.pubDate ? ` · ${new Date(item.pubDate).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}
+                    <a key={i} href={item.link} target="_blank" rel="noopener noreferrer"
+                      className="group flex items-start justify-between gap-3 rounded-xl bg-[#0D0B1A] hover:bg-[#13112A] border border-[#252345] hover:border-emerald-500/20 p-3.5 transition-all">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-[#F1F5F9] group-hover:text-emerald-300 transition-colors line-clamp-2 leading-snug">{item.title}</p>
+                        <p className="text-[10px] text-[#4B5675] mt-1.5">
+                          {item.source}{item.pubDate ? ` · ${new Date(item.pubDate).toLocaleDateString([], { month: "short", day: "numeric" })}` : ""}
                         </p>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* AI Deep Dive */}
-            <div className="card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345] space-y-3">
-              <div className="flex items-center gap-2">
-                <span>🔍</span>
-                <p className="text-sm font-bold text-[#F1F5F9]">AI Deep Dive</p>
-              </div>
-
-              {/* Standard deep analysis */}
-              <button
-                type="button"
-                onClick={runDeepAnalysis}
-                disabled={loadingDeep}
-                className="w-full py-2.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white"
-              >
-                {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "↺ Run Again" : "Run Deep Analysis"}
-              </button>
-              {loadingDeep && (
-                <div className="space-y-1.5">
-                  {DEEP_STEPS.map((s, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < deepStep ? "bg-emerald-500" : i === deepStep ? "bg-emerald-400 animate-pulse" : "bg-[#252345]"}`} />
-                      <span className={`text-[9px] transition-all ${i < deepStep ? "text-emerald-600 line-through" : i === deepStep ? "text-[#CBD5E1]" : "text-[#252345]"}`}>{s}</span>
-                    </div>
+                      </div>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+                        className="shrink-0 mt-0.5 text-[#4B5675] group-hover:text-emerald-400 transition-colors">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                      </svg>
+                    </a>
                   ))}
                 </div>
               )}
-              {deepError && <p className="text-xs text-rose-400 text-center">{deepError}</p>}
+            </div>
+          </div>
 
-              {/* Advanced check — runs additional risk gates */}
-              <div className="pt-2 border-t border-[#1C1933]">
-                <p className="text-[10px] text-[#4B5675] mb-2">Advanced — checks risk gates, volatility, and position sizing before you enter</p>
-                <button
-                  type="button"
-                  onClick={runProAnalysis}
-                  disabled={loadingPro}
-                  className="w-full py-2 rounded-xl text-xs font-bold bg-[#1C1933] hover:bg-[#252345] border border-[#252345] disabled:opacity-50 transition-all text-[#7B8DB4] hover:text-[#F1F5F9]"
-                >
-                  {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "↺ Re-run Advanced Check" : "Run Advanced Check"}
+          {/* ── AI Deep Dive ── */}
+          <div className="mt-4 card-shine glass surface-sheen rounded-2xl p-5 border border-[#252345]">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-2.5">
+                <span className="text-lg">🔍</span>
+                <p className="text-sm font-bold text-[#F1F5F9]">AI Deep Dive</p>
+                <span className="text-[9px] text-[#4B5675] bg-[#0D0B1A] border border-[#252345] px-2 py-0.5 rounded-full">6 Smart Money concepts</span>
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <button type="button" onClick={runDeepAnalysis} disabled={loadingDeep}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-all text-white">
+                  {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "↺ Re-run" : "Deep Analysis"}
                 </button>
+                <button type="button" onClick={runProAnalysis} disabled={loadingPro}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-[#1C1933] hover:bg-[#252345] border border-[#252345] disabled:opacity-50 transition-all text-[#7B8DB4] hover:text-[#F1F5F9]">
+                  {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "↺ Re-run" : "Advanced Check"}
+                </button>
+              </div>
+            </div>
+
+            {(loadingDeep || loadingPro) && (
+              <div className="mt-4 flex gap-8 flex-wrap">
+                {loadingDeep && (
+                  <div className="space-y-1.5">
+                    {DEEP_STEPS.map((s, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < deepStep ? "bg-emerald-500" : i === deepStep ? "bg-emerald-400 animate-pulse" : "bg-[#252345]"}`} />
+                        <span className={`text-[9px] transition-all ${i < deepStep ? "text-emerald-600 line-through" : i === deepStep ? "text-[#CBD5E1]" : "text-[#252345]"}`}>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {loadingPro && (
-                  <div className="mt-2 space-y-1.5">
+                  <div className="space-y-1.5">
                     {PRO_STEPS.map((s, i) => (
                       <div key={i} className="flex items-center gap-2">
                         <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${i < proStep ? "bg-violet-500" : i === proStep ? "bg-violet-400 animate-pulse" : "bg-[#252345]"}`} />
@@ -804,16 +762,15 @@ function AnalysisContent() {
                     ))}
                   </div>
                 )}
-                {proError && <p className="text-xs text-rose-400 text-center">{proError}</p>}
               </div>
-            </div>
+            )}
+            {deepError && <p className="mt-3 text-xs text-rose-400">{deepError}</p>}
+            {proError  && <p className="mt-3 text-xs text-rose-400">{proError}</p>}
           </div>
 
-          {/* ── Deep Market Analysis Results (full width) ── */}
+          {/* ── Deep Market + Pro Analysis Results (full width) ── */}
           {deepAnalysis && <DeepMarketPanel data={deepAnalysis} symbol={symbol} />}
-
-          {/* ── Pro Analysis Results (full width) ── */}
-          {proAnalysis && <ProAnalysisPanel data={proAnalysis} symbol={symbol} />}
+          {proAnalysis  && <ProAnalysisPanel data={proAnalysis} symbol={symbol} />}
         </div>
       </main>
     </div>
