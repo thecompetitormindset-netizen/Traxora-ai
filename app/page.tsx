@@ -163,8 +163,8 @@ export default function HomePage() {
             AI-powered signals built on Smart Money methodology. Enter any ticker — get a clear BUY, HOLD, or SELL with a full trade plan in seconds.
           </p>
 
-          <div className="hero-enter hero-enter-4 flex items-center justify-center gap-3 flex-wrap mb-4">
-            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-emerald-600 hover:bg-emerald-500 transition-all px-7 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
+          <div className="hero-enter hero-enter-4 flex items-center justify-center mb-4">
+            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
               {!session && (
                 <svg width="16" height="16" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
@@ -175,9 +175,6 @@ export default function HomePage() {
               )}
               {session ? "Open Dashboard →" : "Sign in with Google — free"}
             </button>
-            <Link href="/pricing" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-sm font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
-              View pricing →
-            </Link>
           </div>
           {!session && <p className="text-xs text-[#4B5675]">No credit card required · Pro plan $5/mo · Cancel anytime</p>}
         </div>
