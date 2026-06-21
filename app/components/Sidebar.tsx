@@ -42,9 +42,9 @@ const Icon = {
 // ── Sub-item data ─────────────────────────────────────────────────────────────
 
 const SIGNALS_ITEMS = [
+  { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
   { name: "Analyse",   desc: "Deep AI signal for any ticker", href: "/analysis",          emoji: "⚡",  event: null },
   { name: "Markets",   desc: "Futures, options & plays",      href: "/intelligence",      emoji: "📊",  event: null },
-  { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
   { name: "IPO",       desc: "New listings & outlook",        href: "/ipo",               emoji: "🚀",  event: null },
   { name: "Brief",     desc: "Morning market briefing",       href: null,                 emoji: "🌅",  event: "traxora-show-briefing" },
 ];
