@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Link from "next/link";
 
 type NewsItem = { title: string; publisher: string; age: string };
@@ -118,6 +119,7 @@ function YearBar({ pct }: { pct: number | null | undefined }) {
 }
 
 export default function AutoScanner() {
+  const pathname = usePathname();
   const [open, setOpen]       = useState(false);
   const [scanning, setScanning] = useState(false);
   const [step, setStep]       = useState("");
@@ -194,6 +196,8 @@ export default function AutoScanner() {
       setDone(true);
     }
   }
+
+  if (pathname === "/" || pathname === "/login" || pathname === "/pricing") return null;
 
   return (
     <>
