@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { THEME_KEY } from "../lib/theme";
 import { useRouter } from "next/navigation";
 import { setCurrentUser, scopedKey } from "../lib/userState";
+import type { IndexRow } from "@/app/api/market/indices/route";
 
 type SearchItem = {
   code: string;
@@ -18,6 +19,80 @@ type SearchItem = {
   symbol: string;
   sector?: string;
 };
+
+const INDICES_CACHE_KEY = "traxora_indices_cache";
+const INDICES_TTL_MS    = 60_000; // 1 minute
+
+type IndexCache = { rows: IndexRow[]; ts: number };
+
+function loadCachedIndices(): IndexRow[] | null {
+  try {
+    const raw = sessionStorage.getItem(INDICES_CACHE_KEY);
+    if (!raw) return null;
+    const c: IndexCache = JSON.parse(raw);
+    if (Date.now() - c.ts > INDICES_TTL_MS) return null;
+    return c.rows;
+  } catch { return null; }
+}
+
+function cacheIndices(rows: IndexRow[]) {
+  try { sessionStorage.setItem(INDICES_CACHE_KEY, JSON.stringify({ rows, ts: Date.now() })); } catch { /* ignore */ }
+}
+
+function fmtIdx(price: number | null, symbol: string): string {
+  if (price === null) return "—";
+  if (symbol === "BTC-USD") return price >= 1000 ? `$${(price / 1000).toFixed(1)}k` : `$${price.toFixed(0)}`;
+  return `$${price.toFixed(2)}`;
+}
+
+// ── Market Indices Bar ────────────────────────────────────────────────────────
+
+function IndicesBar({ session }: { session: { user?: unknown } | null }) {
+  const [rows, setRows] = useState<IndexRow[]>(() => loadCachedIndices() ?? []);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  async function fetchIndices() {
+    if (!session?.user) return;
+    try {
+      const res = await fetch("/api/market/indices", { cache: "no-store" });
+      if (!res.ok) return;
+      const data: IndexRow[] = await res.json();
+      if (Array.isArray(data)) { setRows(data); cacheIndices(data); }
+    } catch { /* silently ignore */ }
+  }
+
+  useEffect(() => {
+    if (!session?.user) return;
+    if (!loadCachedIndices()) fetchIndices();
+    timerRef.current = setInterval(fetchIndices, INDICES_TTL_MS);
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user]);
+
+  if (!session?.user || rows.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide border-t border-white/[0.04] px-4 py-1">
+      {rows.map(r => {
+        const up = (r.change ?? 0) >= 0;
+        return (
+          <div key={r.symbol} className="shrink-0 flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#0D0B1A]/60">
+            <span className="text-[10px] text-[#4B5675] font-medium">{r.label}</span>
+            <span className="text-[10px] font-mono font-bold text-[#CBD5E1]">{fmtIdx(r.price, r.symbol)}</span>
+            {r.change !== null && (
+              <span className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                {up ? "+" : ""}{r.change.toFixed(2)}%
+              </span>
+            )}
+          </div>
+        );
+      })}
+      <span className="ml-auto shrink-0 text-[8px] text-[#333368] pr-1">15-min delay</span>
+    </div>
+  );
+}
+
+// ── Main Topbar ───────────────────────────────────────────────────────────────
 
 type TopbarProps = {
   onSearch?: (symbol: string) => void;
@@ -107,7 +182,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
   }
 
   return (
-    <div className="topbar-glass h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 shrink-0 relative sticky top-0 z-30">
+    <div className="topbar-glass flex flex-col shrink-0 sticky top-0 z-30">
+    <div className="h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
       {/* Logo — links back to landing page */}
       <Link href="/" className="flex items-center gap-2 shrink-0 group">
         <div className="w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
@@ -272,6 +348,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
           </button>
         )}
       </div>
+    </div>
+    <IndicesBar session={session} />
     </div>
   );
 }
