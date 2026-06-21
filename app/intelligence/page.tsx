@@ -9,6 +9,7 @@ import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsTab from "@/app/components/paper/OptionsTab";
 import OptionsChainViewer from "@/app/components/OptionsChainViewer";
+import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
 import { signalBadgeCls } from "@/app/lib/signalBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -392,9 +393,9 @@ function FuturesPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section = "options" | "futures" | "analyze" | "chain";
+type Section = "options" | "futures" | "analyze" | "chain" | "calculator";
 
-const SECTION_TABS = ["options", "futures", "chain", "analyze"] as const satisfies readonly Section[];
+const SECTION_TABS = ["options", "futures", "chain", "calculator", "analyze"] as const satisfies readonly Section[];
 
 function IntelligenceContent() {
   const params  = useSearchParams();
@@ -420,10 +421,11 @@ function IntelligenceContent() {
         {/* Section tabs */}
         <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs mb-6 w-fit">
           {([
-            ["options",  "📊 Options Plays"],
-            ["futures",  "⚡ Futures Markets"],
-            ["chain",    "⛓️ Options Chain"],
-            ["analyze",  "🔍 Analyze Any Ticker"],
+            ["options",     "📊 Options Plays"],
+            ["futures",     "⚡ Futures Markets"],
+            ["chain",       "⛓️ Options Chain"],
+            ["calculator",  "💹 P&L Calc"],
+            ["analyze",     "🔍 Analyze Ticker"],
           ] as [Section, string][]).map(([id, label]) => (
             <button key={id} type="button" onClick={() => setSection(id)}
               className={`px-4 py-2 rounded-lg font-semibold transition-colors ${section === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
@@ -437,6 +439,11 @@ function IntelligenceContent() {
         {section === "chain"    && (
           <div className="max-w-7xl mx-auto">
             <OptionsChainViewer initialSymbol={initSym} />
+          </div>
+        )}
+        {section === "calculator" && (
+          <div className="max-w-4xl mx-auto">
+            <OptionsPLCalculator />
           </div>
         )}
         {section === "analyze"  && (
