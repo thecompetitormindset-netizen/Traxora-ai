@@ -10,6 +10,7 @@ import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsTab from "@/app/components/paper/OptionsTab";
 import OptionsChainViewer from "@/app/components/OptionsChainViewer";
 import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
+import OptionsFlow from "@/app/components/OptionsFlow";
 import { signalBadgeCls } from "@/app/lib/signalBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -393,16 +394,16 @@ function FuturesPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section = "options" | "futures" | "analyze" | "chain" | "calculator";
+type Section = "options" | "futures" | "analyze" | "chain" | "calculator" | "flow";
 
-const SECTION_TABS = ["options", "futures", "chain", "calculator", "analyze"] as const satisfies readonly Section[];
+const SECTION_TABS = ["options", "futures", "flow", "chain", "calculator", "analyze"] as const satisfies readonly Section[];
 
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
   const [section, setSection] = useState<Section>(() => {
     const s = params.get("section");
-    return (s === "futures" || s === "analyze" || s === "options" || s === "chain") ? s : "options";
+    return (s === "futures" || s === "analyze" || s === "options" || s === "chain" || s === "flow" || s === "calculator") ? s as Section : "options";
   });
 
   useSwipeTabs(SECTION_TABS, section, setSection);
@@ -422,10 +423,11 @@ function IntelligenceContent() {
         <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs mb-6 w-fit">
           {([
             ["options",     "📊 Options Plays"],
-            ["futures",     "⚡ Futures Markets"],
-            ["chain",       "⛓️ Options Chain"],
-            ["calculator",  "💹 P&L Calc"],
-            ["analyze",     "🔍 Analyze Ticker"],
+            ["futures",     "⚡ Futures"],
+            ["flow",        "🌊 Flow"],
+            ["chain",       "⛓️ Chain"],
+            ["calculator",  "💹 P&L"],
+            ["analyze",     "🔍 Analyze"],
           ] as [Section, string][]).map(([id, label]) => (
             <button key={id} type="button" onClick={() => setSection(id)}
               className={`px-4 py-2 rounded-lg font-semibold transition-colors ${section === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
@@ -436,6 +438,11 @@ function IntelligenceContent() {
 
         {section === "options"  && <OptionsPlaysPanel />}
         {section === "futures"  && <FuturesPanel />}
+        {section === "flow"     && (
+          <div className="max-w-6xl mx-auto">
+            <OptionsFlow />
+          </div>
+        )}
         {section === "chain"    && (
           <div className="max-w-7xl mx-auto">
             <OptionsChainViewer initialSymbol={initSym} />
