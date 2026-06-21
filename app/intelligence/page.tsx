@@ -7,6 +7,7 @@ import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsTab from "@/app/components/paper/OptionsTab";
+import OptionsChainViewer from "@/app/components/OptionsChainViewer";
 import { signalBadgeCls } from "@/app/lib/signalBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -389,14 +390,14 @@ function FuturesPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section = "options" | "futures" | "analyze";
+type Section = "options" | "futures" | "analyze" | "chain";
 
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
   const [section, setSection] = useState<Section>(() => {
     const s = params.get("section");
-    return (s === "futures" || s === "analyze" || s === "options") ? s : "options";
+    return (s === "futures" || s === "analyze" || s === "options" || s === "chain") ? s : "options";
   });
 
   return (
@@ -415,6 +416,7 @@ function IntelligenceContent() {
           {([
             ["options",  "📊 Options Plays"],
             ["futures",  "⚡ Futures Markets"],
+            ["chain",    "⛓️ Options Chain"],
             ["analyze",  "🔍 Analyze Any Ticker"],
           ] as [Section, string][]).map(([id, label]) => (
             <button key={id} type="button" onClick={() => setSection(id)}
@@ -426,6 +428,11 @@ function IntelligenceContent() {
 
         {section === "options"  && <OptionsPlaysPanel />}
         {section === "futures"  && <FuturesPanel />}
+        {section === "chain"    && (
+          <div className="max-w-7xl mx-auto">
+            <OptionsChainViewer initialSymbol={initSym} />
+          </div>
+        )}
         {section === "analyze"  && (
           <div className="max-w-7xl mx-auto">
             <OptionsTab initialSymbol={initSym} />

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
+import StockScreener from "../components/StockScreener";
 
 type SearchResult = {
   symbol: string;
@@ -225,11 +226,14 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
   },
 };
 
+type ExploreView = "markets" | "screener";
+
 export default function ExplorePage() {
   useEffect(() => {
   }, []);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [view, setView]         = useState<ExploreView>("markets");
+  const [query, setQuery]       = useState("");
+  const [results, setResults]   = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const [selectedExchange, setSelectedExchange] = useState<string | null>(null);
@@ -265,9 +269,30 @@ export default function ExplorePage() {
         <div className="max-w-6xl mx-auto w-full">
 
         {/* ── Header ── */}
-        <div className="mt-3">
-          <h1 className="reveal section-header text-4xl font-bold text-gradient-green">Explore Markets</h1>
+        <div className="mt-3 flex items-end justify-between gap-4 flex-wrap">
+          <h1 className="reveal section-header text-2xl font-black tracking-tight text-gradient-green">Explore Markets</h1>
+          <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
+            {([
+              ["markets",  "🌍 Markets"],
+              ["screener", "🔍 Screener"],
+            ] as [ExploreView, string][]).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setView(id)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${view === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* ── Screener view ── */}
+        {view === "screener" && (
+          <div className="mt-5">
+            <StockScreener />
+          </div>
+        )}
+
+        {/* ── Markets view ── */}
+        {view === "markets" && (<>
 
         {/* ── Exchange Tabs ── */}
         <div className="mt-3">
@@ -488,6 +513,7 @@ export default function ExplorePage() {
             </div>
           </>
         )}
+        </>) /* end markets view */}
         </div>
       </main>
     </div>
