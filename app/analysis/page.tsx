@@ -20,6 +20,7 @@ import type { VolumeProfile } from "@/app/api/volume-profile/route";
 import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import AnalystRatings from "@/app/components/AnalystRatings";
+import TechnicalsCard from "@/app/components/TechnicalsCard";
 import type { QuoteStats } from "@/app/api/market/quote-stats/route";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
@@ -617,6 +618,11 @@ function AnalysisContent() {
           {/* ── Analyst Ratings ── */}
           <div className="mt-4">
             <AnalystRatings symbol={symbol} currentPrice={quoteData.price} />
+          </div>
+
+          {/* ── Technical Indicators ── */}
+          <div className="mt-4">
+            <TechnicalsCard symbol={symbol} />
           </div>
 
           {/* ── Analysis detail cards ── */}
