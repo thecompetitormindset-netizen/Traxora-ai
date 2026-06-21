@@ -1681,6 +1681,12 @@ input:focus, textarea:focus, select:focus {
 .onboard-slide.exit-fwd { opacity: 0; transform: translateX(18px); }
 .onboard-slide.exit-bwd { opacity: 0; transform: translateX(-18px); }
 
+/* ══ SAFE-AREA NAV ═══════════════════════════════════════════════════════════ */
+.nav-safe-area {
+  padding-bottom: max(env(safe-area-inset-bottom), 14px);
+  padding-top: 8px;
+}
+
 /* ══ NEON LINE UNDERLINE ══════════════════════════════════════════════════════ */
 .neon-underline {
   position: relative;

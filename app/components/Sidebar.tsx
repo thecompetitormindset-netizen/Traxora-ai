@@ -45,6 +45,7 @@ const SIGNALS_ITEMS = [
   { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
   { name: "Analyse",   desc: "Deep AI signal for any ticker", href: "/analysis",          emoji: "⚡",  event: null },
   { name: "Markets",   desc: "Futures, options & plays",      href: "/intelligence",      emoji: "📊",  event: null },
+  { name: "Earnings",  desc: "Upcoming earnings calendar",    href: "/earnings",          emoji: "📅",  event: null },
   { name: "IPO",       desc: "New listings & outlook",        href: "/ipo",               emoji: "🚀",  event: null },
   { name: "Brief",     desc: "Morning market briefing",       href: null,                 emoji: "🌅",  event: "traxora-show-briefing" },
 ];
@@ -144,7 +145,7 @@ export default function Sidebar() {
 
   function toggle(id: PanelId) { haptic.tap(); setOpen(prev => prev === id ? null : id); }
 
-  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment"].some(p => pathname?.startsWith(p));
+  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment","/earnings"].some(p => pathname?.startsWith(p));
   const tradeActive    = ["/paper","/journal","/history","/strategy"].some(p => pathname?.startsWith(p));
   const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
   const dashActive     = pathname === "/dashboard";
@@ -167,10 +168,9 @@ export default function Sidebar() {
 
       {/* ── Sub-panel ── */}
       <div
-        className={`pointer-events-auto w-full max-w-sm px-3 transition-all duration-300 ease-out ${
-          open ? "mb-2 opacity-100 translate-y-0" : "mb-0 opacity-0 translate-y-4 pointer-events-none"
+        className={`pointer-events-auto w-full max-w-sm px-3 transition-all duration-300 ease-out overflow-hidden ${
+          open ? "mb-2 opacity-100 translate-y-0 max-h-[300px]" : "mb-0 opacity-0 translate-y-4 pointer-events-none max-h-0"
         }`}
-        style={{ maxHeight: open ? 300 : 0, overflow: "hidden" }}
       >
         <div className="sidebar-sub-panel panel-enter glass-strong rounded-2xl border border-white/[0.08] shadow-2xl p-3">
           <div className="flex items-center justify-between mb-2.5 px-1 subpanel-fade">
@@ -192,8 +192,7 @@ export default function Sidebar() {
 
       {/* ── Floating pill nav ── */}
       <div
-        className="pointer-events-auto flex justify-center px-4 w-full"
-        style={{ paddingBottom: "max(env(safe-area-inset-bottom), 14px)", paddingTop: "8px" }}
+        className="pointer-events-auto flex justify-center px-4 w-full nav-safe-area"
       >
         <nav
           className="sidebar-nav-pill sidebar-nav-glow glass-strong flex items-center gap-0.5 rounded-2xl border border-white/[0.10] px-1.5 py-1.5"
