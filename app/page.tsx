@@ -48,6 +48,7 @@ export default function HomePage() {
   const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [showSticky, setShowSticky] = useState(false);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -62,7 +63,7 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    const fn = () => setNavScrolled(window.scrollY > 20);
+    const fn = () => { setNavScrolled(window.scrollY > 20); setShowSticky(window.scrollY > 600); };
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
@@ -121,7 +122,7 @@ export default function HomePage() {
           <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-lg text-sm font-semibold">
             {session ? "Dashboard →" : "Get started →"}
           </button>
-          <button type="button" aria-label="Menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(o => !o)} className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors">
+          <button type="button" aria-label="Menu" aria-expanded={mobileMenuOpen ? "true" : "false"} onClick={() => setMobileMenuOpen(o => !o)} className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors">
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "opacity-0" : ""}`} />
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
@@ -130,7 +131,7 @@ export default function HomePage() {
       </nav>
 
       {/* ══ MOBILE MENU ══ */}
-      <div className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/98 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-64" : "max-h-0"}`} aria-hidden={!mobileMenuOpen}>
+      <div className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/98 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-64" : "max-h-0"}`} aria-hidden={mobileMenuOpen ? "false" : "true"}>
         <div className="px-6 py-4 flex flex-col gap-1">
           {NAV_LINKS.map(l => (
             <Link key={l.href} href={l.href} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#CBD5E1] hover:text-[#F1F5F9] py-3 border-b border-[#252345]/40 last:border-0 transition-colors">{l.label}</Link>
@@ -177,6 +178,10 @@ export default function HomePage() {
             </button>
           </div>
           {!session && <p className="text-xs text-[#4B5675]">No credit card required · Pro plan $5/mo · Cancel anytime</p>}
+          <p className="text-xs text-[#4B5675] mt-2">
+            Not sure yet?{" "}
+            <Link href="/guide" className="text-emerald-500 hover:text-emerald-400 transition-colors underline underline-offset-2">See how it works →</Link>
+          </p>
         </div>
 
         {/* Live signal card */}
@@ -216,10 +221,10 @@ export default function HomePage() {
       <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-6 px-6 sm:px-10">
         <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
-            { value:"500+",  label:"Active traders" },
-            { value:"6",     label:"Smart Money concepts per signal" },
-            { value:"8:30",  label:"AM ET daily market briefing" },
-            { value:"$5",    label:"Per month — full access" },
+            { value:"< 5s", label:"AI analysis per ticker" },
+            { value:"6",    label:"Smart Money concepts per signal" },
+            { value:"8:30", label:"AM ET daily market briefing" },
+            { value:"$5",   label:"Per month, full Pro access" },
           ].map(s => (
             <div key={s.label}>
               <p className="text-2xl font-black text-[#F1F5F9]">{s.value}</p>
@@ -285,7 +290,8 @@ export default function HomePage() {
           <div className="lg:w-[38%]">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-4">Methodology</p>
             <h2 className="text-3xl font-black tracking-tight mb-4">Built on 6 core Smart Money concepts.</h2>
-            <p className="text-[#7B8DB4] text-sm leading-relaxed mb-6">Every signal checks all six. The AI only fires high-confidence verdicts when multiple concepts align — reducing noise and increasing precision.</p>
+            <p className="text-[#7B8DB4] text-sm leading-relaxed mb-4">Smart Money (or ICT) is how institutional banks and funds — JP Morgan, Goldman Sachs — actually move markets. They hunt retail stop-losses, fill orders at specific price levels, and only act during specific sessions.</p>
+            <p className="text-[#7B8DB4] text-sm leading-relaxed mb-6">Traxora decodes these six signals for you automatically. Every analysis checks all six — the AI only fires when multiple concepts align, reducing noise and increasing precision.</p>
             <Link href="/guide" className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">
               Learn the methodology →
             </Link>
@@ -333,7 +339,7 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-          <p className="text-center text-[10px] text-[#333368] mt-6">Representative quotes from early users · not independently verified</p>
+          <p className="text-center text-[10px] text-[#333368] mt-6">Feedback from early beta users</p>
         </div>
       </section>
 
@@ -367,18 +373,14 @@ export default function HomePage() {
 
           <div className="px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-8">
             {[
-              "Unlimited AI analysis on every signal",
-              "Morning briefing email at 8:30am ET",
+              "Unlimited AI signal analysis",
+              "Morning briefing at 8:30am ET",
               "Deep scanner — 50+ tickers ranked",
-              "Options analysis with Greeks & IV context",
-              "AI trade journal — auto-written after each trade",
-              "AI coaching after every 10 closed trades",
-              "Futures signals — ES, NQ, GC, CL + more",
-              "Paper trading simulator — $10K account",
-              "Risk Guard — automatic stop monitoring",
-              "Wheeling Hub — CSP scanner with live IV",
+              "Options analysis with Greeks & IV",
+              "AI trade journal — auto-written",
+              "Futures signals — ES, NQ, GC, CL",
+              "Paper trading simulator — $10K",
               "Push notifications during Kill Zones",
-              "Signal track record — T+3 win-rate",
             ].map(f => (
               <div key={f} className="flex items-center gap-2.5 text-sm text-[#CBD5E1] py-0.5">
                 <svg className="shrink-0 text-emerald-500" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -439,7 +441,7 @@ export default function HomePage() {
                     <td key={ci} className={`py-3.5 px-4 text-center ${cell.h ? "bg-emerald-600/8 border-x border-emerald-500/15" : ""}`}>
                       {cell.val
                         ? <svg className="inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        : <span className="text-[#252345]">—</span>
+                        : <svg className="inline opacity-30" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                       }
                     </td>
                   ))}
@@ -498,6 +500,21 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ══ STICKY MOBILE CTA ══ */}
+      {!session && (
+        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-5 pt-3 bg-gradient-to-t from-[#0D0B1A] to-[#0D0B1A]/0 transition-all duration-300 ${showSticky ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-emerald-600 hover:bg-emerald-500 transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30 flex items-center justify-center gap-2">
+            <svg width="15" height="15" viewBox="0 0 24 24">
+              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
+              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+            </svg>
+            Sign in with Google — free
+          </button>
+        </div>
+      )}
 
       {/* ══ FOOTER ══ */}
       <footer className="border-t border-[#252345] px-6 sm:px-10 py-8 bg-[#0D0B1A]/60">
