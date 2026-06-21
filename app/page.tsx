@@ -5,115 +5,6 @@ import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-/* ── Smart Money concept diagrams ────────────────────────────────────────── */
-function OBDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      {[0,1,2,3].map((i) => (
-        <g key={i}>
-          <line x1={18+i*22} y1={10+i*4} x2={18+i*22} y2={58+i*2} stroke="#F43F5E" strokeWidth="1"/>
-          <rect x={13+i*22} y={22+i*5} width="10" height="14" fill="#F43F5E" rx="1"/>
-        </g>
-      ))}
-      <rect x="75" y="36" width="16" height="20" fill="#A855F7" fillOpacity="0.25" rx="2" stroke="#A855F7" strokeWidth="1"/>
-      <text x="76" y="33" fill="#A855F7" fontSize="7" fontWeight="bold">OB</text>
-      {[0,1,2].map((i) => (
-        <g key={i}>
-          <line x1={101+i*20} y1={60-i*14} x2={101+i*20} y2={75} stroke="#10B981" strokeWidth="1"/>
-          <rect x={96+i*20} y={60-i*13} width="10" height="13" fill="#10B981" rx="1"/>
-        </g>
-      ))}
-      <line x1="83" y1="56" x2="160" y2="56" stroke="#A855F7" strokeWidth="0.5" strokeDasharray="3 2"/>
-      <line x1="83" y1="42" x2="160" y2="42" stroke="#A855F7" strokeWidth="0.5" strokeDasharray="3 2"/>
-    </svg>
-  );
-}
-function FVGDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      <line x1="25" y1="65" x2="25" y2="30" stroke="#10B981" strokeWidth="1"/>
-      <rect x="19" y="45" width="12" height="15" fill="#10B981" rx="1"/>
-      <line x1="60" y1="62" x2="60" y2="10" stroke="#10B981" strokeWidth="1"/>
-      <rect x="54" y="18" width="12" height="38" fill="#10B981" rx="1"/>
-      <rect x="43" y="30" width="70" height="18" fill="#3B82F6" fillOpacity="0.18" rx="2"/>
-      <text x="55" y="41" fill="#60A5FA" fontSize="7" fontWeight="bold">FVG</text>
-      <line x1="95" y1="28" x2="95" y2="10" stroke="#10B981" strokeWidth="1"/>
-      <rect x="89" y="14" width="12" height="12" fill="#10B981" rx="1"/>
-      <line x1="38" y1="30" x2="160" y2="30" stroke="#3B82F6" strokeWidth="0.6" strokeDasharray="3 2"/>
-      <line x1="38" y1="48" x2="160" y2="48" stroke="#3B82F6" strokeWidth="0.6" strokeDasharray="3 2"/>
-      <line x1="125" y1="20" x2="125" y2="8" stroke="#10B981" strokeWidth="1"/>
-      <rect x="119" y="10" width="12" height="10" fill="#10B981" rx="1"/>
-      <line x1="148" y1="14" x2="148" y2="5" stroke="#10B981" strokeWidth="1"/>
-      <rect x="142" y="6" width="12" height="8" fill="#10B981" rx="1"/>
-    </svg>
-  );
-}
-function LiqDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      <line x1="10" y1="28" x2="150" y2="28" stroke="#FBBF24" strokeWidth="0.8" strokeDasharray="4 3"/>
-      <text x="10" y="24" fill="#FBBF24" fontSize="7" fontWeight="bold">BSL</text>
-      <polyline points="10,70 35,58 55,48 75,36" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <polyline points="75,36 90,18 100,16 108,22" stroke="#F43F5E" strokeWidth="1.5" fill="none"/>
-      <line x1="95" y1="28" x2="95" y2="16" stroke="#F43F5E" strokeWidth="0.8"/>
-      <text x="98" y="20" fill="#F43F5E" fontSize="6">sweep</text>
-      <polyline points="108,22 118,35 130,52 148,68" stroke="#10B981" strokeWidth="1.5" fill="none"/>
-      <polyline points="126,46 130,52 124,51" fill="#10B981" stroke="#10B981" strokeWidth="0.8"/>
-    </svg>
-  );
-}
-function MssDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      <polyline points="10,20 30,35 50,28 70,48 90,40 108,58" stroke="#F43F5E" strokeWidth="1.5" fill="none"/>
-      <text x="47" y="25" fill="#F43F5E" fontSize="6">LH</text>
-      <text x="87" y="37" fill="#F43F5E" fontSize="6">LH</text>
-      <text x="67" y="56" fill="#F43F5E" fontSize="6">LL</text>
-      <line x1="90" y1="40" x2="160" y2="40" stroke="#94A3B8" strokeWidth="0.6" strokeDasharray="3 2"/>
-      <polyline points="108,58 120,45 132,30 148,18" stroke="#10B981" strokeWidth="2" fill="none"/>
-      <text x="134" y="37" fill="#10B981" fontSize="7" fontWeight="bold">MSS</text>
-    </svg>
-  );
-}
-function OteDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      <polyline points="15,78 55,10" stroke="#94A3B8" strokeWidth="1.5" fill="none"/>
-      <line x1="55" y1="10" x2="140" y2="10" stroke="#94A3B8" strokeWidth="0.5" strokeDasharray="2 2"/>
-      <line x1="55" y1="78" x2="140" y2="78" stroke="#94A3B8" strokeWidth="0.5" strokeDasharray="2 2"/>
-      <rect x="55" y="38" width="85" height="8" fill="#10B981" fillOpacity="0.2" rx="1"/>
-      <line x1="55" y1="38" x2="140" y2="38" stroke="#10B981" strokeWidth="0.6" strokeDasharray="2 2"/>
-      <line x1="55" y1="46" x2="140" y2="46" stroke="#10B981" strokeWidth="0.6" strokeDasharray="2 2"/>
-      <text x="8" y="41" fill="#10B981" fontSize="6.5">61.8</text>
-      <text x="8" y="49" fill="#10B981" fontSize="6.5">78.6</text>
-      <text x="100" y="44" fill="#34D399" fontSize="7" fontWeight="bold">OTE</text>
-      <polyline points="55,10 80,42 95,42 130,5" stroke="#10B981" strokeWidth="1.5" fill="none"/>
-    </svg>
-  );
-}
-function KzDiagram() {
-  return (
-    <svg viewBox="0 0 160 90" fill="none" className="w-full h-full">
-      <line x1="10" y1="75" x2="155" y2="75" stroke="#4B5675" strokeWidth="0.8"/>
-      <rect x="38" y="20" width="30" height="55" fill="#10B981" fillOpacity="0.12" rx="2"/>
-      <text x="42" y="17" fill="#34D399" fontSize="6.5" fontWeight="bold">London</text>
-      <polyline points="38,53 46,40 52,28 62,35 68,22" stroke="#10B981" strokeWidth="1.5" fill="none"/>
-      <rect x="90" y="20" width="30" height="55" fill="#10B981" fillOpacity="0.12" rx="2"/>
-      <text x="97" y="17" fill="#10B981" fontSize="6.5" fontWeight="bold">NY</text>
-      <polyline points="90,45 98,30 106,20 112,28 118,15" stroke="#10B981" strokeWidth="1.5" fill="none"/>
-      <polyline points="68,22 80,25 90,28" stroke="#94A3B8" strokeWidth="1" strokeDasharray="2 1" fill="none"/>
-    </svg>
-  );
-}
-
-const CONCEPTS = [
-  { tag:"OB",  title:"Order Blocks",          diagram:<OBDiagram />,  gradient:"from-teal-950 to-emerald-950",  accent:"text-teal-400", border:"border-teal-500/20",  tagBg:"bg-teal-500/10 border-teal-500/25", desc:"The last opposing candle before a strong move. Smart money leaves orders here — price returns to this zone before continuing.", search:"Order Blocks institutional trading" },
-  { tag:"FVG", title:"Fair Value Gap",         diagram:<FVGDiagram />, gradient:"from-emerald-950 to-cyan-950",      accent:"text-emerald-400",   border:"border-emerald-500/20",    tagBg:"bg-emerald-500/10 border-emerald-500/25",     desc:"A price imbalance where the market moved too fast. Institutions send price back to fill these gaps before the next leg.",   search:"Fair Value Gap FVG price imbalance trading" },
-  { tag:"LIQ", title:"Liquidity Sweep",        diagram:<LiqDiagram />, gradient:"from-amber-950 to-orange-950",  accent:"text-amber-400",  border:"border-amber-500/20",   tagBg:"bg-amber-500/10 border-amber-500/25",   desc:"Stops cluster above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard.",       search:"Liquidity sweep stop hunt institutional trading" },
-  { tag:"MSS", title:"Market Structure Shift", diagram:<MssDiagram />, gradient:"from-cyan-950 to-teal-950",     accent:"text-cyan-400",   border:"border-cyan-500/20",    tagBg:"bg-cyan-500/10 border-cyan-500/25",     desc:"When a downtrend breaks above its last lower high — or an uptrend below its last higher low — the trend is changing.",      search:"Market Structure Shift CHoCH BOS break of structure" },
-  { tag:"OTE", title:"Optimal Trade Entry",    diagram:<OteDiagram />, gradient:"from-emerald-950 to-teal-950", accent:"text-emerald-400", border:"border-emerald-500/20",  tagBg:"bg-emerald-500/10 border-emerald-500/25", desc:"The 61.8%–78.6% Fibonacci retracement of a swing. Highest-probability zone to enter after a pullback before continuation.", search:"Optimal Trade Entry Fibonacci retracement zone" },
-  { tag:"KZ",  title:"Kill Zones",             diagram:<KzDiagram />,  gradient:"from-rose-950 to-pink-950",     accent:"text-rose-400",   border:"border-rose-500/20",    tagBg:"bg-rose-500/10 border-rose-500/25",     desc:"London (2–5 am ET) and NY (9:30–11 am ET) are when 80% of institutional moves happen. Outside these windows, price drifts.",   search:"Kill Zones London New York trading sessions" },
-];
 
 const TICKER_POOL = [
   { sym:"NVDA",  price:"—",  chg:"—",  up:true  },
@@ -146,11 +37,6 @@ const LIVE_SIGNALS = [
   { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",  liq:"BSL at $420",    kz:"NY session"   },
 ];
 
-const QUOTES = [
-  { text: "The market doesn't move randomly.", highlight: "Smart money leaves footprints.", end: "Traxora reads them." },
-  { text: "Institutions don't buy at random.", highlight: "They accumulate at key levels.", end: "Now you can see them too." },
-  { text: "Most traders react to price.", highlight: "Smart money creates the move.", end: "Know the difference." },
-];
 
 type LivePrice = { price: string; chg: string; up: boolean };
 
@@ -204,8 +90,7 @@ export default function HomePage() {
 
   const [signalIdx,  setSignalIdx]  = useState(0);
   const [signalFade, setSignalFade] = useState(true);
-  const [quoteIdx,   setQuoteIdx]   = useState(0);
-  const [conceptIdx, setConceptIdx] = useState(0);
+
   const [tickOffset, setTickOffset] = useState(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
@@ -225,15 +110,6 @@ export default function HomePage() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    const id = setInterval(() => setQuoteIdx(i => (i + 1) % QUOTES.length), 5000);
-    return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    const id = setInterval(() => setConceptIdx(i => (i + 1) % CONCEPTS.length), 4000);
-    return () => clearInterval(id);
-  }, []);
 
   useEffect(() => {
     tickRef.current = setInterval(() => setTickOffset(o => (o + 1) % (displayTicker.length * 120)), 30);
@@ -351,7 +227,7 @@ export default function HomePage() {
           <button
             type="button"
             aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileMenuOpen}
+            aria-expanded={mobileMenuOpen ? "true" : "false"}
             onClick={() => setMobileMenuOpen(o => !o)}
             className="md:hidden flex flex-col items-center justify-center w-9 h-9 gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors"
           >
@@ -365,7 +241,7 @@ export default function HomePage() {
       {/* ══ MOBILE MENU DRAWER ══ */}
       <div
         className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/95 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-72 opacity-100" : "max-h-0 opacity-0"}`}
-        aria-hidden={!mobileMenuOpen}
+        aria-hidden={mobileMenuOpen ? "false" : "true"}
       >
         <div className="px-6 py-4 flex flex-col gap-1">
           {NAV_LINKS.map(l => (
@@ -693,27 +569,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ ROTATING QUOTE ══ */}
-      <section className="relative px-6 sm:px-8 py-20 overflow-hidden bg-[#0D0B1A]/40">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-r from-emerald-600/3 via-transparent to-teal-600/3" />
-        </div>
-        <div className="relative z-10 max-w-2xl mx-auto text-center">
-          <div className="min-h-[100px] flex flex-col items-center justify-center">
-            <p className="text-2xl sm:text-3xl font-black leading-snug text-[#F1F5F9] transition-all duration-700">
-              &ldquo;{quote.text}<br />
-              <span className="text-emerald-400">{quote.highlight}</span><br />
-              <span className="text-[#4B5675]">{quote.end}&rdquo;</span>
-            </p>
-          </div>
-          <div className="flex justify-center gap-2 mt-6">
-            {QUOTES.map((_, i) => (
-              <button type="button" key={i} onClick={() => setQuoteIdx(i)} aria-label={`Quote ${i + 1}`} className={`w-1.5 h-1.5 rounded-full transition-all ${i === quoteIdx ? "bg-emerald-400 w-4" : "bg-[#333368]"}`} />
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* ══ HOW TO USE IT ══ */}
       <section className="px-6 sm:px-8 py-12 max-w-6xl mx-auto w-full space-y-10">
         <div className="text-center mb-2">
@@ -803,201 +658,6 @@ export default function HomePage() {
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ DASHBOARD PREVIEW ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
-        <div className="text-center mb-10">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Inside the app</p>
-          <h2 className="text-3xl font-black tracking-tight">This is what you see after signing in</h2>
-          <p className="text-sm text-[#7B8DB4] mt-2 max-w-md mx-auto">Live signals load automatically. Every card has a full trade plan — entry, stop, and target.</p>
-        </div>
-
-        <div className="rounded-2xl border border-[#252345] overflow-hidden shadow-2xl shadow-black/40">
-          <div className="bg-[#0D0B1A] border-b border-[#252345] px-4 py-3 flex items-center gap-3">
-            <div className="flex gap-1.5">
-              <div className="w-3 h-3 rounded-full bg-[#252345]" />
-              <div className="w-3 h-3 rounded-full bg-[#252345]" />
-              <div className="w-3 h-3 rounded-full bg-[#252345]" />
-            </div>
-            <div className="flex-1 bg-[#13112A] border border-[#252345] rounded-lg px-3 py-1.5 flex items-center gap-2 max-w-xs mx-auto">
-              <div className="w-3 h-3 rounded-full bg-emerald-500/40 flex items-center justify-center shrink-0">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              </div>
-              <span className="text-[10px] text-[#4B5675] font-mono">traxora-ai.vercel.app/dashboard</span>
-            </div>
-          </div>
-
-          <div className="flex bg-[#0D0B1A] min-h-[420px]">
-            <div className="w-14 border-r border-[#252345] flex flex-col items-center py-4 gap-5 shrink-0">
-              <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
-              </div>
-              <div className="w-px flex-1 bg-[#252345]" />
-              {[
-                <svg key="dash" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>,
-                <svg key="sig" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-                <svg key="jnl" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>,
-              ].map((icon, i) => (
-                <div key={i} className={`w-8 h-8 rounded-lg flex items-center justify-center ${i === 0 ? "bg-[#13112A] border border-[#252345]" : ""}`}>{icon}</div>
-              ))}
-            </div>
-
-            <div className="flex-1 p-5 overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-black text-[#F1F5F9]">Dashboard</p>
-                  <p className="text-[10px] text-[#4B5675]">Live signals · 9 stocks + futures</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">● MARKET OPEN</span>
-                  <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20">NY KILL ZONE</span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                {[
-                  { sym:"NVDA", name:"NVIDIA Corp.", price:"$211.16", chg:"-1.44%", up:false, sig:"BUY",  conf:"High",   entry:"$208.40 – $209.80", sl:"$198.00", tp:"$226.60", rr:"2.1:1", border:"border-l-emerald-500/50", badge:"bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-                  { sym:"AAPL", name:"Apple Inc.",   price:"$312.08", chg:"-0.14%", up:false, sig:"HOLD", conf:"Medium", entry:"—",                 sl:"—",       tp:"—",       rr:"—",    border:"border-l-amber-500/30",  badge:"bg-amber-500/10 text-amber-400 border-amber-500/20"   },
-                  { sym:"TSLA", name:"Tesla Inc.",   price:"$435.79", chg:"-1.43%", up:false, sig:"SELL", conf:"High",   entry:"$438.20 – $440.50", sl:"$462.00", tp:"$415.00", rr:"2.2:1", border:"border-l-rose-500/50",    badge:"bg-rose-500/10 text-rose-400 border-rose-500/20"      },
-                ].map((c) => (
-                  <div key={c.sym} className={`bg-[#13112A] border border-[#252345] border-l-4 ${c.border} rounded-xl px-4 py-3 flex items-center gap-4`}>
-                    <div className="min-w-[80px]">
-                      <p className="text-xs font-black text-[#F1F5F9]">{c.sym}</p>
-                      <p className="text-[9px] text-[#4B5675]">{c.name}</p>
-                    </div>
-                    <div className="min-w-[70px]">
-                      <p className="text-xs font-mono font-bold text-[#F1F5F9]">{c.price}</p>
-                      <p className={`text-[9px] font-mono ${c.up ? "text-emerald-400" : "text-rose-400"}`}>{c.chg}</p>
-                    </div>
-                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-lg border shrink-0 ${c.badge}`}>{c.sig}</span>
-                    <span className="text-[9px] text-[#4B5675] shrink-0">{c.conf} confidence</span>
-                    {c.sig !== "HOLD" && (
-                      <div className="flex items-center gap-3 ml-auto text-[9px]">
-                        <div className="text-center"><p className="text-[#4B5675]">Entry</p><p className="text-[#CBD5E1] font-mono">{c.entry}</p></div>
-                        <div className="text-center"><p className="text-rose-400/60">Stop</p><p className="text-rose-400 font-mono font-bold">{c.sl}</p></div>
-                        <div className="text-center"><p className="text-emerald-400/60">Target</p><p className="text-emerald-400 font-mono font-bold">{c.tp}</p></div>
-                        <div className="text-center"><p className="text-[#4B5675]">R:R</p><p className="text-[#F1F5F9] font-bold">{c.rr}</p></div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-                <div className="bg-[#13112A] border border-[#252345] rounded-xl px-4 py-3 flex items-center gap-3">
-                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                  <p className="text-[10px] text-[#4B5675]">Analyzing AMZN · fetching live quote…</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <p className="text-center text-[10px] text-[#333368] mt-3">Signals load automatically on page open · Trade plans update with live prices</p>
-      </section>
-
-      {/* ══ DAILY ROUTINE ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col lg:flex-row-reverse gap-16 items-start">
-          <div className="lg:w-[55%]">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-amber-400 mb-5">Daily Trading Routine</p>
-            <h2 className="text-3xl font-black tracking-tight mb-8">What to do every single trading day</h2>
-            <div className="space-y-6">
-              {[
-                { time:"Before 9:30 AM ET", icon:"🌅", title:"Check overnight futures", desc:"Look at ES, NQ, GC on the Dashboard. Up or down from yesterday's close tells you institutional bias for the day." },
-                { time:"9:30 – 10:30 AM ET", icon:"🎯", title:"NY Kill Zone — your prime window", desc:"The majority of institutional moves happen here. High confidence BUY + active Kill Zone = best setup." },
-                { time:"During the day", icon:"📡", title:"Let push alerts do the work", desc:"Enable notifications. When Traxora fires a signal during a Kill Zone, your phone buzzes. You decide." },
-                { time:"After market close", icon:"📊", title:"Review your portfolio", desc:"Which signals worked? Study the market structure behind each trade. This builds intuition before real money." },
-              ].map((r) => (
-                <div key={r.title} className="flex gap-4">
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <span className="text-xl">{r.icon}</span>
-                    <div className="w-px flex-1 bg-[#252345] min-h-[24px]" />
-                  </div>
-                  <div className="pb-2">
-                    <p className="text-[10px] text-amber-400 font-semibold uppercase tracking-wider mb-1">{r.time}</p>
-                    <p className="font-bold text-[#F1F5F9] text-sm mb-1">{r.title}</p>
-                    <p className="text-xs text-[#7B8DB4] leading-relaxed">{r.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="lg:w-[45%] lg:sticky lg:top-24">
-            <div className="bg-[#13112A]/80 border border-[#252345] rounded-2xl p-6">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-5">6 Risk Rules to Live By</p>
-              <div className="space-y-4">
-                {[
-                  { n:"01", rule:"Never risk more than 1–2% of your account on one trade." },
-                  { n:"02", rule:"Always set a stop-loss the moment your order fills." },
-                  { n:"03", rule:"Only trade BUY signals during NY or London Kill Zones." },
-                  { n:"04", rule:"If confidence is Low — skip the trade. Wait for High." },
-                  { n:"05", rule:"Simulate every strategy for 2 weeks before going live." },
-                  { n:"06", rule:"This tool is for research only — not financial advice." },
-                ].map((r) => (
-                  <div key={r.n} className="flex gap-3">
-                    <span className="text-[10px] font-black text-emerald-400/40 shrink-0 w-6 pt-0.5">{r.n}</span>
-                    <p className="text-sm text-[#7B8DB4] leading-relaxed">{r.rule}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ SMART MONEY CONCEPTS ══ */}
-      <section className="relative px-6 sm:px-8 py-24 overflow-hidden bg-[#0D0B1A]/40">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-600/3 to-transparent pointer-events-none" />
-        <div className="relative z-10 max-w-6xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Smart Money Concepts</p>
-            <h2 className="text-3xl font-black tracking-tight mb-3">The 6 concepts powering every signal</h2>
-            <p className="text-sm text-[#7B8DB4] max-w-md mx-auto">Click any card to watch a free tutorial. The spotlight rotates automatically.</p>
-          </div>
-
-          <div className="flex justify-center gap-2 mb-8">
-            {CONCEPTS.map((c, i) => (
-              <button type="button" key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`transition-all text-[9px] font-bold px-2.5 py-1 rounded-full border ${i === conceptIdx ? `${c.tagBg} ${c.accent} scale-110` : "border-[#252345] text-[#4B5675] bg-transparent"}`}>
-                {c.tag}
-              </button>
-            ))}
-          </div>
-
-          <div className="mb-6 max-w-2xl mx-auto">
-            {CONCEPTS.map((c, i) => {
-              const isActive = i === conceptIdx;
-              return (
-                <div key={c.tag}
-                  className={`transition-all duration-500 ${isActive ? "opacity-100 scale-100 relative pointer-events-auto" : "opacity-0 scale-[0.98] absolute inset-0 pointer-events-none"}`}
-                  aria-hidden={!isActive}>
-                  <a href={`https://www.youtube.com/results?search_query=${encodeURIComponent(c.search)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    className={`block bg-[#13112A] border ${c.border} rounded-2xl overflow-hidden hover:border-opacity-60 transition-all`}
-                    tabIndex={isActive ? 0 : -1}>
-                    <div className={`bg-gradient-to-br ${c.gradient} px-6 pt-6 pb-4 h-56 flex items-center`}>{c.diagram}</div>
-                    <div className="p-6">
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
-                        <p className="font-bold text-base text-[#F1F5F9]">{c.title}</p>
-                      </div>
-                      <p className="text-sm text-[#7B8DB4] leading-relaxed">{c.desc}</p>
-                      <p className={`mt-4 text-xs font-semibold ${c.accent}`}>Watch tutorial on YouTube →</p>
-                    </div>
-                  </a>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {CONCEPTS.map((c, i) => (
-              <button type="button" key={c.tag} onClick={() => setConceptIdx(i)}
-                className={`bg-[#13112A] border rounded-xl p-3 text-left transition-all hover:scale-105 ${i === conceptIdx ? `${c.border} ring-1 ring-inset` : "border-[#252345]"}`}>
-                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${c.tagBg} ${c.accent}`}>{c.tag}</span>
-                <p className="text-[10px] text-[#7B8DB4] mt-1.5 leading-snug">{c.title}</p>
-              </button>
-            ))}
           </div>
         </div>
       </section>
