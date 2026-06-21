@@ -57,6 +57,7 @@ const TRADE_ITEMS = [
   { name: "Stats",    desc: "Your performance",         href: "/strategy", emoji: "📈" },
   { name: "Planner",  desc: "Size your positions",      href: "/paper",    emoji: "🎯" },
   { name: "History",  desc: "Closed trades & signals",  href: "/history",  emoji: "🗂️" },
+  { name: "AI Chat",  desc: "Ask the AI anything",      href: "/chat",     emoji: "💬" },
 ];
 
 const SETTINGS_ITEMS = [
