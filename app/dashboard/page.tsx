@@ -279,6 +279,7 @@ function OptionsPlaysSection() {
   const [err,       setErr]       = useState<string | null>(null);
   const [lastScan,  setLastScan]  = useState<Date | null>(null);
   const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
+  const [showAll,   setShowAll]   = useState(false);
 
   function copyClaudePrompt(p: OptionsPlay) {
     const side = p.play === "CALLS" ? "buy calls on" : "buy puts on";
@@ -342,43 +343,29 @@ function OptionsPlaysSection() {
 
   return (
     <section>
-      <div className="flex items-start justify-between gap-2 mb-4">
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <div>
-          <h2 className="text-base font-semibold">Top Options Plays</h2>
-          <p className="text-[9px] text-[#4B5675] mt-0.5">High confidence · real IV · 14+ DTE · count varies with market conditions</p>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
+          <p className="text-[9px] text-[#4B5675] mt-0.5">
+            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning…" : "High confidence · 14+ DTE"}
+            {lastScan && <span> · as of {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+          </p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-mono text-[#4B5675]">
-            {loaded ? `${plays.length} premium setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning 30 stocks…" : "30 stocks"}
-          </span>
-          {lastScan && (
-            <span className="text-[9px] font-mono text-[#333368]">
-              · as of {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
+        <div className="flex items-center gap-3">
+          {loaded && plays.length > 3 && (
+            <button type="button" onClick={() => setShowAll(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
+              {showAll ? "Show less ↑" : `See all ${plays.length} ↓`}
+            </button>
           )}
           {marketClosed && loaded && (
-            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">
-              Market closed · pre/after-hours prices
-            </span>
+            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">Market closed</span>
+          )}
+          {loaded && (
+            <button type="button" onClick={scan} disabled={loading} className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
+              {loading ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Scanning…</> : "Rescan →"}
+            </button>
           )}
         </div>
-        {loaded && (
-          <button
-            type="button"
-            onClick={scan}
-            disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50"
-          >
-            {loading ? (
-              <>
-                <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                </svg>
-                Scanning…
-              </>
-            ) : "Rescan →"}
-          </button>
-        )}
       </div>
 
       {err && (
@@ -426,8 +413,9 @@ function OptionsPlaysSection() {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {plays.map((p, i) => {
-            const isOrphan = i === plays.length - 1 && plays.length % 3 === 1;
+          {(showAll ? plays : plays.slice(0, 3)).map((p, i) => {
+            const visiblePlays = showAll ? plays : plays.slice(0, 3);
+            const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
             return (
             <Link
               key={p.symbol}
@@ -551,6 +539,8 @@ function DashboardContent() {
 
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [alertsPaused, setAlertsPaused] = useState(false);
+  const [showAllStocks, setShowAllStocks] = useState(false);
+  const [showAllFutures, setShowAllFutures] = useState(false);
 
   useEffect(() => {
     const key     = scopedKey(PAPER_KEY);
@@ -1150,17 +1140,29 @@ function DashboardContent() {
             </div>
             </div>{/* /Stats col-span-3 */}
 
+            {/* ── Section divider: Market ── */}
+            <div className="lg:col-span-3 flex items-center gap-4 pt-2">
+              <div className="flex-1 h-px bg-[#252345]" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Market</span>
+              <div className="flex-1 h-px bg-[#252345]" />
+            </div>
+
             {/* Watchlist — 2/3 */}
             <div className="order-4 lg:order-none lg:col-span-2">
               <div className="flex items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2 min-w-0">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Watchlist</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
                   <span className="text-[10px] font-mono text-[#333368]">
                     {displayStocks.length}
                     {trendingStocks.length > 0 && <span className="text-teal-400/70"> +{trendingStocks.length}</span>}
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
+                  {displayStocks.length > 3 && (
+                    <button type="button" onClick={() => setShowAllStocks(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
+                      {showAllStocks ? "Show less ↑" : `See all ${displayStocks.length} ↓`}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => { setEditMode((v) => !v); setAddInput(""); setAddError(null); }}
@@ -1168,7 +1170,6 @@ function DashboardContent() {
                   >
                     {editMode ? "Done" : "Edit"}
                   </button>
-                  <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">All →</Link>
                 </div>
               </div>
 
@@ -1203,7 +1204,7 @@ function DashboardContent() {
               )}
 
               <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(340px,1fr))] gap-3">
-                {displayStocks.map((stock) => {
+                {(showAllStocks ? displayStocks : displayStocks.slice(0, 3)).map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
                   const animClass = stock.isNew
                     ? "animate-stock-arrive"
@@ -1462,6 +1463,13 @@ function DashboardContent() {
               })()}
             </div>{/* /right sidebar */}
 
+            {/* ── Section divider: Futures ── */}
+            <div className="order-5 lg:order-none lg:col-span-3 flex items-center gap-4 pt-2">
+              <div className="flex-1 h-px bg-[#252345]" />
+              <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Futures</span>
+              <div className="flex-1 h-px bg-[#252345]" />
+            </div>
+
             {/* Futures — full width */}
             <div className="order-5 lg:order-none lg:col-span-3">
             <section>
@@ -1471,6 +1479,11 @@ function DashboardContent() {
                 <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
               </div>
               <div className="flex items-center gap-3">
+                {futures.length > 3 && (
+                  <button type="button" onClick={() => setShowAllFutures(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
+                    {showAllFutures ? "Show less ↑" : `See all ${futures.length} ↓`}
+                  </button>
+                )}
                 <Link
                   href="/futures-tutorial"
                   className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors"
@@ -1517,7 +1530,7 @@ function DashboardContent() {
             )}
 
             <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(260px,1fr))] gap-3">
-              {futures.map((f) => {
+              {(showAllFutures ? futures : futures.slice(0, 3)).map((f) => {
                 const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
                 return (
                   <div
@@ -1615,6 +1628,13 @@ function DashboardContent() {
             </div>
           </section>
           </div>{/* /futures lg:col-span-3 */}
+
+          {/* ── Section divider: Options ── */}
+          <div className="order-6 lg:order-none lg:col-span-3 flex items-center gap-4 pt-2">
+            <div className="flex-1 h-px bg-[#252345]" />
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
+            <div className="flex-1 h-px bg-[#252345]" />
+          </div>
 
           {/* Options Plays — full width */}
           <div className="order-6 lg:order-none lg:col-span-3">
