@@ -1,33 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 
-const TICKER_POOL = [
-  { sym:"NVDA",  price:"—",  chg:"—",  up:true  },
-  { sym:"AAPL",  price:"—",  chg:"—",  up:true  },
-  { sym:"MSFT",  price:"—",  chg:"—",  up:true  },
-  { sym:"META",  price:"—",  chg:"—",  up:true  },
-  { sym:"AMZN",  price:"—",  chg:"—",  up:true  },
-  { sym:"GOOGL", price:"—",  chg:"—",  up:true  },
-  { sym:"TSLA",  price:"—",  chg:"—",  up:true  },
-  { sym:"AMD",   price:"—",  chg:"—",  up:true  },
-  { sym:"NFLX",  price:"—",  chg:"—",  up:true  },
-  { sym:"JPM",   price:"—",  chg:"—",  up:true  },
-  { sym:"GS",    price:"—",  chg:"—",  up:true  },
-  { sym:"V",     price:"—",  chg:"—",  up:true  },
-  { sym:"SPY",   price:"—",  chg:"—",  up:true  },
-  { sym:"QQQ",   price:"—",  chg:"—",  up:true  },
-  { sym:"XOM",   price:"—",  chg:"—",  up:true  },
-  { sym:"COIN",  price:"—",  chg:"—",  up:true  },
-  { sym:"ES",    price:"—",  chg:"—",  up:true  },
-  { sym:"NQ",    price:"—",  chg:"—",  up:true  },
-  { sym:"GC",    price:"—",  chg:"—",  up:true  },
-  { sym:"CL",    price:"—",  chg:"—",  up:true  },
-];
 
 const LIVE_SIGNALS = [
   { sym:"NVDA", name:"NVIDIA Corp.",    price:"$134.50", sig:"BUY",  conf:"High",   ob:"Bullish OB at $131.20", fvg:"FVG $132–134", liq:"BSL at $135.80", kz:"NY session" },
@@ -91,13 +69,7 @@ export default function HomePage() {
   const [signalIdx,  setSignalIdx]  = useState(0);
   const [signalFade, setSignalFade] = useState(true);
 
-  const [tickOffset, setTickOffset] = useState(0);
-  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
-  const [displayTicker, setDisplayTicker] = useState(TICKER_POOL.slice(0, 12));
-  useEffect(() => {
-    setDisplayTicker([...TICKER_POOL].sort(() => Math.random() - 0.5).slice(0, 12));
-  }, []);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -111,10 +83,6 @@ export default function HomePage() {
   }, []);
 
 
-  useEffect(() => {
-    tickRef.current = setInterval(() => setTickOffset(o => (o + 1) % (displayTicker.length * 120)), 30);
-    return () => { if (tickRef.current) clearInterval(tickRef.current); };
-  }, [displayTicker.length]);
 
   useEffect(() => {
     fetch("/api/market/tickers")
@@ -123,14 +91,6 @@ export default function HomePage() {
       .catch(() => {});
   }, []);
 
-  // Sticky CTA: appear when hero scrolls out of view
-  useEffect(() => {
-    const hero = document.querySelector("[data-hero]");
-    if (!hero) return;
-    const obs = new IntersectionObserver(([e]) => setShowSticky(!e.isIntersecting), { threshold: 0 });
-    obs.observe(hero);
-    return () => obs.disconnect();
-  }, []);
 
   // Nav scroll detection
   useEffect(() => {
@@ -161,16 +121,7 @@ export default function HomePage() {
     btn.appendChild(el);
     el.addEventListener("animationend", () => el.remove(), { once: true });
   }
-  function tilt(e: React.MouseEvent<HTMLDivElement>) {
-    const el = e.currentTarget;
-    const r = el.getBoundingClientRect();
-    const x = ((e.clientY - r.top) / r.height - 0.5) * 8;
-    const y = ((e.clientX - r.left) / r.width - 0.5) * -8;
-    el.style.transform = `perspective(800px) rotateX(${x}deg) rotateY(${y}deg) translateY(-2px)`;
-  }
-  function untilt(e: React.MouseEvent<HTMLDivElement>) {
-    e.currentTarget.style.transform = "";
-  }
+
   function handleSpot(e: React.MouseEvent<HTMLElement>) {
     const r = e.currentTarget.getBoundingClientRect();
     setSpotX(((e.clientX - r.left) / r.width) * 100);
@@ -178,9 +129,7 @@ export default function HomePage() {
   }
 
   const signal = LIVE_SIGNALS[signalIdx];
-  const quote  = QUOTES[quoteIdx];
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [showSticky, setShowSticky] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [spotX, setSpotX] = useState(50);
   const [spotY, setSpotY] = useState(50);
@@ -252,24 +201,6 @@ export default function HomePage() {
             className="mt-2 w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-3 rounded-xl text-sm font-bold text-white">
             {session ? "Open Dashboard →" : "Sign in with Google →"}
           </button>
-        </div>
-      </div>
-
-      {/* ══ TICKER BAR ══ */}
-      <div className="border-b border-[#252345]/60 bg-[#0D0B1A]/60 overflow-hidden py-2 relative">
-        <div className="flex gap-0 whitespace-nowrap"
-          style={{ transform: `translateX(-${tickOffset}px)`, transition: "transform 0.03s linear" }}>
-          {[...displayTicker, ...displayTicker, ...displayTicker].map((t, i) => {
-            const live = livePrices[t.sym];
-            return (
-              <span key={`${t.sym}-${i}`} className="inline-flex items-center gap-2 px-6 text-[11px] font-mono">
-                <span className="text-[#7B8DB4] font-bold">{t.sym}</span>
-                <span className="text-[#F1F5F9]">{live?.price ?? t.price}</span>
-                <span className={(live?.up ?? t.up) ? "text-emerald-400" : "text-rose-400"}>{live?.chg ?? t.chg}</span>
-                <span className="text-[#252345]">|</span>
-              </span>
-            );
-          })}
         </div>
       </div>
 
@@ -397,37 +328,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ PRODUCT FEATURES ══ */}
-      <section className="px-6 sm:px-8 py-16 max-w-5xl mx-auto w-full">
-        <p className="reveal text-center text-[10px] uppercase tracking-[0.2em] text-[#2D3A52] font-bold mb-8">Everything in one platform</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* ══ FEATURE STRIP ══ */}
+      <section className="px-6 sm:px-8 py-12 max-w-5xl mx-auto w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            { icon:"⚡", title:"Live Signal Watchlist", desc:"Track unlimited stocks with BUY / HOLD / SELL signals, entry zones, stop losses, and targets — updated every minute.", tag:"Free", tagColor:"text-[#4B5675] border-[#252345]", delay:"reveal-d1" },
-            { icon:"🔄", title:"Wheeling Hub",           desc:"Scan for high-premium cash-secured put candidates. Track your wheel positions end-to-end — CSP → assignment → covered call.", tag:"Free", tagColor:"text-[#4B5675] border-[#252345]", delay:"reveal-d2" },
-            { icon:"🌅", title:"Morning Briefing",        desc:"Full AI market brief at 8:30am ET — macro regime, top options plays, futures setups, VIX context, and the day's key levels.", tag:"Pro", tagColor:"text-emerald-400 border-emerald-500/30", delay:"reveal-d3" },
-            { icon:"💬", title:"AI Chat",                  desc:"Ask about any stock — earnings risk, options strategy, smart money levels, trade ideas. Get a sourced answer in seconds. Free tier: 25 questions/day.", tag:"Free", tagColor:"text-[#4B5675] border-[#252345]", delay:"reveal-d4" },
-            { icon:"📊", title:"Deep Market Scanner",      desc:"Scan 50+ tickers at once for high-conviction setups. Ranked by smart money score — biggest opportunities rise to the top.", tag:"Pro", tagColor:"text-emerald-400 border-emerald-500/30", delay:"reveal-d5" },
-            { icon:"📰", title:"Options Analysis",          desc:"Implied volatility, expected move, Greeks, and strike selection — all in one report. Know if IV is cheap or rich before you buy.", tag:"Pro", tagColor:"text-emerald-400 border-emerald-500/30", delay:"reveal-d6" },
+            { icon:"⚡", title:"BUY / HOLD / SELL signals", desc:"Enter any ticker. Claude AI checks 6 Smart Money concepts and returns a clear verdict with entry, stop, and target in seconds." },
+            { icon:"🌅", title:"Daily morning briefing",    desc:"Full AI market brief at 8:30am ET — macro regime, top options plays, futures setups, VIX context, and the day's key levels." },
+            { icon:"📡", title:"Deep market scanner",       desc:"Scan 50+ tickers at once. Ranked by smart money conviction score — highest-probability setups rise to the top automatically." },
           ].map(f => (
-            <div
-              key={f.title}
-              className={`reveal ${f.delay} tilt-card card-glow gradient-border-card glass surface-sheen border border-[#252345] rounded-2xl p-6 hover:border-[#333368]`}
-              onMouseMove={tilt}
-              onMouseLeave={untilt}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <span className="text-2xl">{f.icon}</span>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${f.tagColor}`}>{f.tag}</span>
-              </div>
-              <h3 className="text-base font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
+            <div key={f.title} className="reveal bg-[#13112A] border border-[#252345] rounded-2xl p-6 hover:border-[#333368] transition-colors">
+              <span className="text-2xl mb-3 block">{f.icon}</span>
+              <h3 className="font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
               <p className="text-sm text-[#7B8DB4] leading-relaxed">{f.desc}</p>
             </div>
           ))}
-        </div>
-        <div className="flex items-center justify-center mt-8">
-          <Link href="/pricing" className="text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">
-            See full feature list →
-          </Link>
         </div>
       </section>
 
@@ -492,18 +406,12 @@ export default function HomePage() {
 
           <div className="px-8 py-6 grid grid-cols-1 sm:grid-cols-2 gap-2">
             {[
-              "Everything in Free tier",
-              "Unlimited deep AI analysis per signal",
+              "Unlimited AI analysis — every signal",
               "Morning briefing email at 8:30am ET",
-              "Live market scanner — top options plays",
-              "Wheeling Hub CSP scanner with live IV data",
-              "Options analysis with expected move & Greeks",
-              "AI trade journal — auto-written after every trade",
-              "AI coaching after every 10 closed trades",
-              "Signal Track Record — T+3 win-rate backtest",
-              "Risk Guard — automatic stop monitoring",
+              "Deep market scanner — 50+ tickers",
+              "Options analysis with Greeks & IV context",
+              "AI trade journal + coaching",
               "Futures signals — ES, NQ, GC, CL + more",
-              "Priority signal alerts via browser notifications",
             ].map(f => (
               <div key={f} className="flex items-center gap-2 text-sm text-[#CBD5E1] py-1">
                 <span className="text-emerald-400 font-bold text-xs shrink-0">✓</span>
@@ -516,148 +424,6 @@ export default function HomePage() {
             <p className="text-[10px] text-[#4B5675]">
               Secure checkout via Ko-fi · Access activates instantly after payment
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ WHAT IS TRAXORA ══ */}
-      <section className="px-6 sm:px-8 py-20 max-w-6xl mx-auto w-full">
-        <div className="flex flex-col lg:flex-row gap-16 items-start">
-          <div className="lg:w-[55%]">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-5">What is Traxora AI?</p>
-            <h2 className="text-4xl font-black tracking-tight leading-tight mb-6">
-              Your AI co-pilot for<br />every trade decision.
-            </h2>
-            <div className="space-y-4 text-[#7B8DB4] text-[15px] leading-relaxed">
-              <p>
-                <strong className="text-[#F1F5F9]">Traxora</strong> is an AI signal platform built on{" "}
-                <strong className="text-[#F1F5F9]">Smart Money methodology</strong> — the framework institutional traders use.
-              </p>
-              <p>
-                Enter any ticker. Claude Sonnet 4.6 checks 6 Smart Money concepts and returns a clear{" "}
-                <span className="text-emerald-400 font-semibold">BUY</span>,{" "}
-                <span className="text-amber-400 font-semibold">HOLD</span>, or{" "}
-                <span className="text-rose-400 font-semibold">SELL</span>{" "}
-                in seconds.
-              </p>
-            </div>
-            <div className="flex items-center gap-4 mt-8">
-              <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-bold">
-                {session ? "Open Dashboard →" : "Get Started →"}
-              </button>
-              <Link href="/guide" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors underline underline-offset-4 decoration-[#333368]">
-                Read the Guide →
-              </Link>
-            </div>
-          </div>
-
-          <div className="lg:w-[45%] grid grid-cols-2 gap-3">
-            {[
-              { value:"6",          label:"Smart Money concepts analyzed on every ticker",              color:"text-emerald-400",  glow:"shadow-emerald-500/20", delay:"" },
-              { value:"20+",        label:"Stocks and futures tracked live on your dashboard",         color:"text-cyan-400",    glow:"shadow-cyan-500/20",   delay:"reveal-d1" },
-              { value:"Sonnet 4.6", label:"Anthropic's most capable AI model powers every signal",     color:"text-teal-400",    glow:"shadow-teal-500/20",   delay:"reveal-d2" },
-              { value:"Real-time",  label:"Push alerts when signals fire during Kill Zones",           color:"text-emerald-400", glow:"shadow-emerald-500/20", delay:"reveal-d2" },
-              { value:"$10K",       label:"Trade simulator — practice risk-free before going live",    color:"text-amber-400",   glow:"shadow-amber-500/20",  delay:"reveal-d3" },
-              { value:"8:30am",     label:"AI morning brief lands in your inbox before the open",     color:"text-rose-400",    glow:"shadow-rose-500/20",   delay:"reveal-d3" },
-            ].map((s) => (
-              <div key={s.label} className={`reveal-scale ${s.delay} tilt-card card-glow gradient-border-card glass surface-sheen border border-[#252345] rounded-2xl p-4 hover:border-[#333368]`} onMouseMove={tilt} onMouseLeave={untilt}>
-                <p className={`text-2xl font-black mb-1 ${s.color}`}>{s.value}</p>
-                <p className="text-xs text-[#4B5675] leading-relaxed">{s.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ HOW TO USE IT ══ */}
-      <section className="px-6 sm:px-8 py-12 max-w-6xl mx-auto w-full space-y-10">
-        <div className="text-center mb-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">How it works</p>
-          <h2 className="text-2xl font-black tracking-tight">Two steps to your next trade</h2>
-        </div>
-
-        {/* Step 1 */}
-        <div className="flex flex-col md:flex-row gap-8 items-center">
-          <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">Step 01 · Pick Your Market</p>
-            <h3 className="text-xl font-black mb-2">Search any stock or futures ticker</h3>
-            <p className="text-sm text-[#7B8DB4] leading-relaxed">
-              Type <strong className="text-[#F1F5F9]">AAPL, NVDA, ES, GC</strong> — or browse the live watchlist on the Dashboard. Color-coded signals update in real time.
-            </p>
-          </div>
-          <div className="md:w-1/2 bg-[#13112A]/80 border border-[#252345] rounded-2xl p-4">
-            <p className="text-[10px] text-[#4B5675] mb-2 uppercase tracking-widest font-semibold">Live Watchlist</p>
-            <div className="space-y-1.5">
-              {[
-                { sym:"NVDA", name:"NVIDIA Corp.",   price:"$134.50", chg:"+2.4%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-                { sym:"AAPL", name:"Apple Inc.",     price:"$189.20", chg:"-0.8%", sig:"HOLD", sc:"text-amber-400 bg-amber-500/10 border-amber-500/20"   },
-                { sym:"ES",   name:"E-mini S&P 500", price:"$5,920",  chg:"+0.6%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-                { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  sc:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-                { sym:"TSLA", name:"Tesla Inc.",     price:"$178.40", chg:"-3.2%", sig:"SELL", sc:"text-rose-400 bg-rose-500/10 border-rose-500/20"       },
-              ].map((r) => (
-                <div key={r.sym} className="flex items-center justify-between border-l-2 border-[#252345] pl-3 py-0.5 hover:border-emerald-500/40 transition-colors">
-                  <div>
-                    <p className="text-xs font-bold text-[#F1F5F9]">{r.sym}</p>
-                    <p className="text-[10px] text-[#4B5675]">{r.name}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="text-right">
-                      <p className="text-xs font-mono text-[#F1F5F9]">{r.price}</p>
-                      <p className={`text-[10px] font-mono ${r.chg.startsWith("+") ? "text-emerald-400" : "text-rose-400"}`}>{r.chg}</p>
-                    </div>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${r.sc}`}>{r.sig}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Step 2 */}
-        <div className="flex flex-col md:flex-row-reverse gap-8 items-center">
-          <div className="md:w-1/2">
-            <p className="text-[10px] font-bold text-teal-400 uppercase tracking-widest mb-2">Step 02 · Read Your Signal</p>
-            <h3 className="text-xl font-black mb-2">One tap — BUY, HOLD, or SELL</h3>
-            <p className="text-sm text-[#7B8DB4] leading-relaxed">
-              Tap <strong className="text-[#F1F5F9]">Analyze</strong>. The AI checks Order Blocks, FVGs, liquidity sweeps, and Kill Zone timing, then gives you a clear verdict with the reasoning.
-            </p>
-          </div>
-          <div className="md:w-1/2">
-            <div className={`bg-[#13112A]/80 border ${sigBorder} rounded-2xl overflow-hidden transition-all duration-350 shadow-xl`} style={{ opacity: signalFade ? 1 : 0 }}>
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
-                <div>
-                  <p className="font-bold text-[#F1F5F9]">{signal.sym}.US</p>
-                  <p className="text-xs text-[#4B5675]">{signal.name}</p>
-                </div>
-                <span className={`text-sm font-black px-3 py-1.5 rounded-lg border ${sigColor}`}>{signal.sig}</span>
-              </div>
-              <div className="px-5 py-3 flex flex-wrap gap-2 border-b border-[#252345]">
-                {[
-                  { l:"Price",      v:livePrices[signal.sym]?.price ?? signal.price,                    c:"text-[#F1F5F9] bg-[#1A1838] border-[#252345]"              },
-                  { l:"Confidence", v:signal.conf,                                                       c:signal.conf === "High" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" : "text-amber-400 bg-amber-500/10 border-amber-500/20" },
-                  { l:"Kill Zone",  v:signal.kz.includes("NY") ? "Active" : "Moderate",                  c:"text-emerald-400 bg-emerald-500/10 border-emerald-500/20"      },
-                ].map((b) => (
-                  <div key={b.l} className={`border rounded-lg px-2 py-1 ${b.c}`}>
-                    <p className="text-[9px] text-[#4B5675]">{b.l}</p>
-                    <p className="text-[11px] font-bold">{b.v}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="px-5 py-3 space-y-2">
-                {[
-                  { icon:"🟣", l:"Order Block", v:signal.ob  },
-                  { icon:"🔵", l:"Fair Value Gap", v:signal.fvg },
-                  { icon:"🟡", l:"Liquidity",   v:signal.liq },
-                  { icon:"🕐", l:"Kill Zone",   v:signal.kz  },
-                ].map((r) => (
-                  <div key={r.l} className="flex gap-2 text-xs">
-                    <span className="w-4 text-center shrink-0">{r.icon}</span>
-                    <span className="text-[#4B5675] w-[90px] shrink-0">{r.l}</span>
-                    <span className="text-[#7B8DB4]">{r.v}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
       </section>
@@ -760,60 +526,6 @@ export default function HomePage() {
           </div>
         </div>
       </section>
-
-      {/* ══ FINAL CTA ══ */}
-      <section className="relative px-6 sm:px-8 py-28 overflow-hidden">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[300px] bg-emerald-600/8 rounded-full blur-3xl animate-pulse" />
-        </div>
-        <div className="relative z-10 max-w-xl mx-auto text-center">
-          <div className="badge-pulse inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 text-xs text-amber-400 font-bold mb-6">
-            🔐 Early access pricing — $5/mo locked in forever
-          </div>
-          <h2 className="reveal text-4xl font-black tracking-tight mb-4">
-            Ready to read the market<br />like smart money?
-          </h2>
-          <p className="reveal reveal-d1 text-[#7B8DB4] text-base leading-relaxed mb-4">
-            Smart money signals, morning briefing, options analysis, real position insights — all for $5/mo.
-          </p>
-          <p className="reveal reveal-d2 text-xs text-[#4B5675] mb-10">No credit card to start · Cancel from Settings anytime · Access activates instantly</p>
-          <div className="reveal reveal-d3 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container btn-cta-glow bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-4 rounded-xl font-bold text-sm shadow-2xl shadow-emerald-500/25 hover:scale-105 active:scale-95">
-              {session ? "Open Dashboard →" : "Start Trading — $5/mo →"}
-            </button>
-            <Link href="/pricing" className="text-sm text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors">
-              See full pricing →
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ══ STICKY CTA BAR ══ */}
-      {showSticky && !session && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
-          <div className="bg-[#0D0B1A]/96 backdrop-blur-xl border-t border-[#252345] px-5 py-3.5 shadow-2xl shadow-black/60">
-            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
-              <div className="hidden sm:block">
-                <p className="text-sm font-bold text-[#F1F5F9]">Traxora AI — Smart Money Signals</p>
-                <p className="text-xs text-[#4B5675] mt-0.5">$5/mo · Cancel anytime</p>
-              </div>
-              <div className="flex items-center gap-3 ml-auto sm:ml-0">
-                <div className="flex items-center gap-1.5 text-xs text-[#4B5675] hidden sm:flex">
-                  <span className="text-emerald-400">✓</span> 500+ traders
-                  <span className="ml-2 text-emerald-400">✓</span> Instant access
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLaunch}
-                  className="bg-emerald-600 hover:bg-emerald-500 transition-all px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/25 hover:scale-105 active:scale-95 shrink-0 whitespace-nowrap"
-                >
-                  Get Started — $5/mo →
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ══ FOOTER ══ */}
       <footer className="border-t border-[#252345] px-6 sm:px-8 py-6 flex items-center justify-between gap-4 flex-wrap bg-[#0D0B1A]/60">
