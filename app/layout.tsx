@@ -4,20 +4,10 @@ import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import Providers from "./providers";
 import CookieBanner from "./components/CookieBanner";
-import WelcomeModal from "./components/WelcomeModal";
-import AIChatWidget from "./components/AIChatWidget";
 import ServiceWorkerRegistrar from "./components/ServiceWorkerRegistrar";
 import CosmicBackground from "./components/CosmicBackground";
-import AutoJournal from "./components/AutoJournal";
-import MorningBriefing from "./components/MorningBriefing";
-import RiskGuard from "./components/RiskGuard";
-import AutoScanner from "./components/AutoScanner";
-import AutoCoach from "./components/AutoCoach";
 import ThemeProvider from "./components/ThemeProvider";
-import SessionWatcher from "./components/SessionWatcher";
-import SignalToast from "./components/SignalToast";
-import PortfolioSync from "./components/PortfolioSync";
-import AnimationProvider from "./components/AnimationProvider";
+import AppShell from "./components/AppShell";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -218,18 +208,8 @@ export default function RootLayout({
         {/* All page content sits above the cosmic layer */}
         <div className="relative z-10">
           <Providers>
-            <AnimationProvider />
-            <SessionWatcher />
-            <WelcomeModal />
+            <AppShell />
             {children}
-            <AIChatWidget />
-            <AutoScanner />
-            <AutoJournal />
-            <MorningBriefing />
-            <RiskGuard />
-            <AutoCoach />
-            <SignalToast />
-            <PortfolioSync />
           </Providers>
           <ServiceWorkerRegistrar />
         </div>

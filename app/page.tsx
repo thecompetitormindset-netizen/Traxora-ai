@@ -13,7 +13,6 @@ const LIVE_SIGNALS = [
   { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",   liq:"BSL at $420",    kz:"NY session"   },
 ];
 
-type LivePrice = { price: string; chg: string; up: boolean };
 const PLAN_CACHE_KEY = "traxora_plan_cache";
 
 export default function HomePage() {
@@ -25,27 +24,24 @@ export default function HomePage() {
     else { signIn("google", { callbackUrl: "/dashboard" }); }
   }
 
-  const [checkingPlan, setCheckingPlan] = useState(false);
   useEffect(() => {
     if (status !== "authenticated") return;
     try {
       if (sessionStorage.getItem(PLAN_CACHE_KEY) === "pro") { router.replace("/dashboard"); return; }
     } catch { /* ignore */ }
-    setCheckingPlan(true);
     fetch("/api/user/plan")
       .then(r => r.json())
       .then(({ plan }) => {
         if (plan === "pro") {
           try { sessionStorage.setItem(PLAN_CACHE_KEY, "pro"); } catch { /* ignore */ }
           router.replace("/dashboard");
-        } else { setCheckingPlan(false); }
+        }
       })
-      .catch(() => setCheckingPlan(false));
+      .catch(() => {});
   }, [status, router]);
 
   const [signalIdx, setSignalIdx] = useState(0);
   const [signalFade, setSignalFade] = useState(true);
-  const [livePrices, setLivePrices] = useState<Record<string, LivePrice>>({});
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
   const [showSticky, setShowSticky] = useState(false);
@@ -56,10 +52,6 @@ export default function HomePage() {
       setTimeout(() => { setSignalIdx(i => (i + 1) % LIVE_SIGNALS.length); setSignalFade(true); }, 350);
     }, 4000);
     return () => clearInterval(id);
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/market/tickers").then(r => r.json()).then((d: Record<string, LivePrice>) => setLivePrices(d)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -93,14 +85,6 @@ export default function HomePage() {
     { href:"/pricing",      label:"Pricing" },
     { href:"/guide",        label:"Guide"   },
   ];
-
-  if (checkingPlan) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-        <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-      </svg>
-    </div>
-  );
 
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col">
@@ -210,7 +194,7 @@ export default function HomePage() {
             </div>
             <div className="px-4 pb-3 flex items-center justify-between border-t border-[#252345] pt-2.5">
               <span className="text-[10px] text-[#4B5675]">Confidence: <span className={signal.conf === "High" ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{signal.conf}</span></span>
-              <span className="text-[10px] font-mono text-[#CBD5E1]">{livePrices[signal.sym]?.price ?? signal.price}</span>
+              <span className="text-[10px] font-mono text-[#CBD5E1]">{signal.price}</span>
             </div>
           </div>
           <p className="text-center text-[10px] text-[#333368] mt-2">Demo signal · Not financial advice</p>
