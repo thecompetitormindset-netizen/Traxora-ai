@@ -14,6 +14,8 @@ import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
 import { haptic } from "../lib/haptics";
 import { signalBadgeCls } from "../lib/signalBadge";
+import { loadTrades, STARTING_CAPITAL, calcPL } from "../lib/paperTrades";
+import type { PaperTrade } from "../lib/paperTrades";
 
 type TradeLevels = {
   entryZone:   string;
@@ -505,6 +507,7 @@ function DashboardContent() {
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
+  const [portfolioTrades, setPortfolioTrades] = useState<PaperTrade[]>([]);
 
   const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(DEFAULT_WATCHLIST);
   const watchlistInitialized                = useRef(false);
@@ -540,7 +543,10 @@ function DashboardContent() {
 
   useEffect(() => {
     const key     = scopedKey(PAPER_KEY);
-    const refresh = () => setPaperStats(loadPaperStats(key));
+    const refresh = () => {
+      setPaperStats(loadPaperStats(key));
+      setPortfolioTrades(loadTrades());
+    };
     refresh();
     window.addEventListener("storage", refresh);
     return () => window.removeEventListener("storage", refresh);
@@ -1084,6 +1090,100 @@ function DashboardContent() {
             </div>
             </div>
 
+            {/* ── PORTFOLIO HERO ── */}
+            {(() => {
+              const closed = portfolioTrades
+                .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
+                .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+
+              // Build equity curve: cumulative account value after each closed trade
+              const curve: number[] = [STARTING_CAPITAL];
+              let running = STARTING_CAPITAL;
+              for (const t of closed) {
+                running += calcPL(t, t.exitPrice!);
+                curve.push(running);
+              }
+
+              const totalPL = paperStats.realizedPL;
+              const totalPct = (totalPL / STARTING_CAPITAL) * 100;
+              const isUp = totalPL >= 0;
+
+              return (
+                <Link href="/strategy" className="block group mb-4">
+                  <div className={`card-shine glass surface-sheen rounded-2xl p-5 border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      {/* Left: value */}
+                      <div>
+                        <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-2">Paper Portfolio</p>
+                        <p className="text-4xl font-black tracking-tight text-[#F1F5F9] tabular-nums">
+                          ${paperStats.accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
+                          <span className="text-base font-bold tabular-nums">
+                            {isUp ? "+" : ""}{totalPL.toFixed(2)}
+                          </span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded-xl ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+                            {isUp ? "+" : ""}{totalPct.toFixed(2)}%
+                          </span>
+                          <span className="text-[#4B5675] text-xs">all time</span>
+                        </div>
+                      </div>
+
+                      {/* Right: equity curve */}
+                      {curve.length >= 2 && (
+                        <div className="shrink-0">
+                          {(() => {
+                            const min = Math.min(...curve);
+                            const max = Math.max(...curve);
+                            const range = max - min || 1;
+                            const w = 120, h = 48;
+                            const pts = curve.map((v, i) => {
+                              const x = (i / (curve.length - 1)) * w;
+                              const y = h - 4 - ((v - min) / range) * (h - 8);
+                              return `${x.toFixed(1)},${y.toFixed(1)}`;
+                            }).join(" ");
+                            const color = isUp ? "#34D399" : "#F87171";
+                            const areaId = isUp ? "port-up" : "port-dn";
+                            const area = `0,${h} ${pts} ${w},${h}`;
+                            return (
+                              <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>
+                                <defs>
+                                  <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={color} stopOpacity="0.25"/>
+                                    <stop offset="100%" stopColor={color} stopOpacity="0"/>
+                                  </linearGradient>
+                                </defs>
+                                <polygon points={area} fill={`url(#${areaId})`} />
+                                <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx={pts.split(" ").at(-1)?.split(",")[0] ?? w} cy={pts.split(" ").at(-1)?.split(",")[1] ?? 0} r="3" fill={color} />
+                              </svg>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="mt-4 grid grid-cols-4 gap-3 pt-4 border-t border-white/[0.05]">
+                      {[
+                        { label: "Open",     value: String(paperStats.openCount),                                                         color: "text-[#F1F5F9]" },
+                        { label: "Closed",   value: String(paperStats.closedCount),                                                       color: "text-[#F1F5F9]" },
+                        { label: "Win Rate", value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",                          color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
+                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`,                        color: isUp ? "text-emerald-400" : "text-rose-400" },
+                      ].map(s => (
+                        <div key={s.label}>
+                          <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-0.5">{s.label}</p>
+                          <p className={`text-sm font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View performance →</p>
+                  </div>
+                </Link>
+              );
+            })()}
+
             {/* ── BENTO GRID ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
@@ -1387,32 +1487,6 @@ function DashboardContent() {
 
               {/* Sentiment */}
               <SentimentWidget />
-
-              {/* Paper Portfolio */}
-              <Link href="/strategy" className="block group">
-                <div className="card-shine card-premium surface-sheen rounded-2xl px-4 py-4 transition-all hover:border-emerald-500/20">
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-sm font-bold text-[#F1F5F9]">Paper Portfolio</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${paperStats.realizedPL >= 0 ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400" : "bg-rose-500/10 border-rose-500/20 text-rose-400"}`}>
-                      {paperStats.realizedPL >= 0 ? "+" : ""}{paperStats.realizedPL.toFixed(2)} P&amp;L
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { label: "Value",      value: `$${paperStats.accountValue.toFixed(0)}`,                                                                                    color: "text-[#F1F5F9]" },
-                      { label: "Realized",   value: `${paperStats.realizedPL >= 0 ? "+" : ""}$${paperStats.realizedPL.toFixed(2)}`,                                             color: paperStats.realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
-                      { label: "Open",       value: paperStats.openCount.toString(),                                                                                              color: "text-[#F1F5F9]" },
-                      { label: "Win Rate",   value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",                                                                 color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
-                    ].map((s) => (
-                      <div key={s.label}>
-                        <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-0.5">{s.label}</p>
-                        <p className={`num-reveal text-base font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View stats →</p>
-                </div>
-              </Link>
 
               {/* Signal Track Record */}
               <SignalPerformance />
