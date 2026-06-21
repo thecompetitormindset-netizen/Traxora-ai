@@ -181,7 +181,7 @@ export default function OptionsChainViewer({ initialSymbol }: { initialSymbol?: 
 
   async function load(sym: string, expiry: string | null) {
     const s = sym.trim().toUpperCase();
-    if (!s || loading) return;
+    if (!s) return;
     abortRef.current?.abort();
     abortRef.current = new AbortController();
     setLoading(true);

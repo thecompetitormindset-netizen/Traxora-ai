@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useId, useState, useCallback, Suspense } from "react";
 import { useSwipeTabs } from "@/app/lib/useSwipeTabs";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -52,6 +52,7 @@ function changeColor(v: number | null) {
 
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
   if (closes.length < 2) return null;
+  const uid    = useId().replace(/:/g, "");
   const min = Math.min(...closes), max = Math.max(...closes), range = max - min || 1;
   const W = 56, H = 22;
   const pts = closes.map((c, i) => ({
@@ -60,7 +61,7 @@ function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }
   }));
   const ptsStr = pts.map(p => `${p.x},${p.y}`).join(" ");
   const color  = positive ? "#34D399" : "#F87171";
-  const gradId = positive ? "intel-spark-up" : "intel-spark-dn";
+  const gradId = `spark-${uid}`;
   return (
     <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} className="overflow-visible" aria-hidden>
       <defs>
@@ -451,7 +452,13 @@ function IntelligenceContent() {
 export default function IntelligencePage() {
   return (
     <PaywallGuard>
-      <IntelligenceContent />
+      <Suspense fallback={
+        <div className="flex min-h-screen items-center justify-center text-[#4B5675] text-sm animate-pulse">
+          Loading…
+        </div>
+      }>
+        <IntelligenceContent />
+      </Suspense>
     </PaywallGuard>
   );
 }
