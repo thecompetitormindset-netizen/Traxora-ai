@@ -1929,6 +1929,12 @@ hr.gradient-hr {
   margin: 16px 0;
 }
 
+/* ── Dynamic range marker (CSS var set via React style prop) ─────────────────
+   Use className="range-pin" + style={{"--pin-pct":"42%"} as React.CSSProperties}
+   to position a marker along a range bar without a per-element inline style. */
+.range-pin    { left: calc(var(--pin-pct, 50%) - 7px); }
+.range-pin-sm { left: calc(var(--pin-pct, 50%) - 6px); }
+
 /* ══ BODY DEPTH NOISE (subtle grain for premium feel) ════════════════════════ */
 body::before {
   content: '';

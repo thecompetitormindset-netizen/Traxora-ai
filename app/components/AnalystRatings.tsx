@@ -151,15 +151,15 @@ export default function AnalystRatings({ symbol, currentPrice }: { symbol: strin
                 <div className="absolute inset-0 bg-gradient-to-r from-rose-500/30 via-amber-400/30 to-emerald-500/30 rounded-full" />
                 {/* Mean marker */}
                 {meanPct !== null && (
-                  <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-violet-400 border-2 border-[#0A0815] rounded-full z-10"
-                    style={{ left: `calc(${meanPct}% - 6px)` }}
+                  <div className="range-pin-sm absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-violet-400 border-2 border-[#0A0815] rounded-full z-10"
+                    style={{ "--pin-pct": `${meanPct}%` } as React.CSSProperties}
                     title={`Target: $${data.targetMean.toFixed(2)}`}
                   />
                 )}
                 {/* Current price marker */}
                 {currentPct !== null && (
-                  <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-[#0A0815] rounded-full z-20"
-                    style={{ left: `calc(${currentPct}% - 6px)` }}
+                  <div className="range-pin-sm absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white border-2 border-[#0A0815] rounded-full z-20"
+                    style={{ "--pin-pct": `${currentPct}%` } as React.CSSProperties}
                     title={`Current: $${currentPrice?.toFixed(2)}`}
                   />
                 )}

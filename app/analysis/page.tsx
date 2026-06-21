@@ -20,6 +20,7 @@ import type { VolumeProfile } from "@/app/api/volume-profile/route";
 import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import AnalystRatings from "@/app/components/AnalystRatings";
+import type { QuoteStats } from "@/app/api/market/quote-stats/route";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
 
@@ -178,10 +179,18 @@ function AnalysisContent() {
     low: number | null;
   }>({ price: null, previousClose: null, open: null, high: null, low: null });
 
+  const [quoteStats, setQuoteStats] = useState<QuoteStats | null>(null);
+
   useEffect(() => {
     setAnalysis(null);
     setVolumeProfile(null);
     setQuoteData({ price: null, previousClose: null, open: null, high: null, low: null });
+    setQuoteStats(null);
+
+    fetch(`/api/market/quote-stats?symbol=${encodeURIComponent(symbol)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d && !d.error) setQuoteStats(d as QuoteStats); })
+      .catch(() => {});
 
     fetch(`/api/volume-profile?symbol=${encodeURIComponent(symbol)}`)
       .then(r => r.ok ? r.json() : null)
@@ -360,6 +369,59 @@ function AnalysisContent() {
                     <p className={`text-sm font-bold mt-0.5 ${r.color || "text-[#F1F5F9]"}`}>{r.value}</p>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* 52-week range bar + key stats */}
+            {quoteStats && quoteData.price && quoteStats.yearHigh && quoteStats.yearLow && (
+              <div className="mt-4 bg-[#13112A] border border-[#252345] rounded-2xl p-4 space-y-4">
+                {/* 52-week range */}
+                <div>
+                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-2">52-Week Range</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-mono text-rose-400 shrink-0">${quoteStats.yearLow.toFixed(2)}</span>
+                    <div className="flex-1 relative h-2 bg-[#1A1838] rounded-full overflow-visible">
+                      {/* Gradient fill */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-rose-500/30 via-amber-400/20 to-emerald-500/30 rounded-full" />
+                      {/* Current price marker */}
+                      {(() => {
+                        const pct = Math.max(0, Math.min(100,
+                          ((quoteData.price! - quoteStats.yearLow!) / (quoteStats.yearHigh! - quoteStats.yearLow!)) * 100
+                        ));
+                        return (
+                          <div
+                            className="range-pin absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white border-2 border-[#0A0815] rounded-full z-10 shadow-lg"
+                            style={{ "--pin-pct": `${pct}%` } as React.CSSProperties}
+                            title={`$${quoteData.price!.toFixed(2)} — ${pct.toFixed(0)}% of 52-week range`}
+                          />
+                        );
+                      })()}
+                    </div>
+                    <span className="text-[10px] font-mono text-emerald-400 shrink-0">${quoteStats.yearHigh.toFixed(2)}</span>
+                  </div>
+                  <p className="text-[9px] text-[#4B5675] mt-1 text-center">
+                    {(((quoteData.price - quoteStats.yearLow) / (quoteStats.yearHigh - quoteStats.yearLow)) * 100).toFixed(0)}% of 52-week range
+                    {quoteData.price >= quoteStats.yearHigh * 0.95 && <span className="text-amber-400 ml-1">· Near 52w high</span>}
+                    {quoteData.price <= quoteStats.yearLow * 1.05  && <span className="text-rose-400 ml-1">· Near 52w low</span>}
+                  </p>
+                </div>
+
+                {/* Key fundamentals */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-[#1A1838]">
+                  {[
+                    { label: "Market Cap",  value: quoteStats.marketCap    ? quoteStats.marketCap >= 1e12 ? `$${(quoteStats.marketCap/1e12).toFixed(2)}T` : quoteStats.marketCap >= 1e9 ? `$${(quoteStats.marketCap/1e9).toFixed(1)}B` : `$${(quoteStats.marketCap/1e6).toFixed(0)}M` : null },
+                    { label: "P/E Ratio",   value: quoteStats.pe           ? quoteStats.pe.toFixed(1) : null },
+                    { label: "EPS (TTM)",   value: quoteStats.eps          ? `$${quoteStats.eps.toFixed(2)}` : null },
+                    { label: "Beta",        value: quoteStats.beta         ? quoteStats.beta.toFixed(2) : null },
+                    { label: "Avg Volume",  value: quoteStats.avgVolume    ? quoteStats.avgVolume >= 1e6 ? `${(quoteStats.avgVolume/1e6).toFixed(1)}M` : `${(quoteStats.avgVolume/1e3).toFixed(0)}K` : null },
+                    { label: "Div Yield",   value: quoteStats.dividendYield ? `${quoteStats.dividendYield.toFixed(2)}%` : null },
+                  ].filter(s => s.value).map(s => (
+                    <div key={s.label}>
+                      <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">{s.label}</p>
+                      <p className="text-sm font-bold text-[#F1F5F9] mt-0.5">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
