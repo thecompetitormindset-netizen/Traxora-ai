@@ -44,6 +44,7 @@ const Icon = {
 const SIGNALS_ITEMS = [
   { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
   { name: "Analyse",   desc: "Deep AI signal for any ticker", href: "/analysis",          emoji: "⚡",  event: null },
+  { name: "Compare",   desc: "Compare two stocks side by side", href: "/compare",         emoji: "⚖️",  event: null },
   { name: "Markets",   desc: "Futures, options & plays",      href: "/intelligence",      emoji: "📊",  event: null },
   { name: "Earnings",  desc: "Upcoming earnings calendar",    href: "/earnings",          emoji: "📅",  event: null },
   { name: "News",      desc: "Filterable market news feed",   href: "/news",              emoji: "📰",  event: null },
