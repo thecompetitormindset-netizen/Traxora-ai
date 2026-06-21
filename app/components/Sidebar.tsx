@@ -172,7 +172,7 @@ export default function Sidebar() {
       {/* ── Sub-panel ── */}
       <div
         className={`pointer-events-auto w-full max-w-sm px-3 transition-all duration-300 ease-out overflow-hidden ${
-          open ? "mb-2 opacity-100 translate-y-0 max-h-[300px]" : "mb-0 opacity-0 translate-y-4 pointer-events-none max-h-0"
+          open ? "mb-2 opacity-100 translate-y-0 max-h-[420px]" : "mb-0 opacity-0 translate-y-4 pointer-events-none max-h-0"
         }`}
       >
         <div className="sidebar-sub-panel panel-enter glass-strong rounded-2xl border border-white/[0.08] shadow-2xl p-3">
