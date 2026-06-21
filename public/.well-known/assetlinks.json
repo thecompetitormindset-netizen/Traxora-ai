@@ -1,1 +1,8 @@
-[]
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.traxoraai.app",
+    "sha256_cert_fingerprints": ["96:F5:E4:85:D3:CA:4E:9A:26:BB:B9:A3:97:44:05:8C:CC:44:DD:EA:AC:D2:4E:FD:21:50:FF:3E:3B:42:5C:D0"]
+  }
+}]
