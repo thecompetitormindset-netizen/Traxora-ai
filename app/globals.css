@@ -1676,6 +1676,11 @@ input:focus, textarea:focus, select:focus {
   animation: glass-shimmer 3.5s linear infinite;
 }
 
+/* ══ ONBOARDING SLIDE ANIMATIONS ════════════════════════════════════════════ */
+.onboard-slide { transition: opacity 0.18s ease, transform 0.18s ease; }
+.onboard-slide.exit-fwd { opacity: 0; transform: translateX(18px); }
+.onboard-slide.exit-bwd { opacity: 0; transform: translateX(-18px); }
+
 /* ══ NEON LINE UNDERLINE ══════════════════════════════════════════════════════ */
 .neon-underline {
   position: relative;
