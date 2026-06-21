@@ -6,6 +6,8 @@ import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import StockScreener from "../components/StockScreener";
+import TopMovers from "../components/TopMovers";
+import EconomicCalendar from "../components/EconomicCalendar";
 
 type SearchResult = {
   symbol: string;
@@ -226,7 +228,7 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
   },
 };
 
-type ExploreView = "markets" | "screener";
+type ExploreView = "markets" | "screener" | "movers" | "calendar";
 
 export default function ExplorePage() {
   useEffect(() => {
@@ -271,13 +273,15 @@ export default function ExplorePage() {
         {/* ── Header ── */}
         <div className="mt-3 flex items-end justify-between gap-4 flex-wrap">
           <h1 className="reveal section-header text-2xl font-black tracking-tight text-gradient-green">Explore Markets</h1>
-          <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
+          <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs overflow-x-auto scrollbar-hide">
             {([
               ["markets",  "🌍 Markets"],
+              ["movers",   "🔥 Movers"],
               ["screener", "🔍 Screener"],
+              ["calendar", "📅 Calendar"],
             ] as [ExploreView, string][]).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setView(id)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${view === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
+                className={`shrink-0 px-4 py-2 rounded-lg font-semibold transition-colors ${view === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
                 {label}
               </button>
             ))}
@@ -288,6 +292,20 @@ export default function ExplorePage() {
         {view === "screener" && (
           <div className="mt-5">
             <StockScreener />
+          </div>
+        )}
+
+        {/* ── Movers view ── */}
+        {view === "movers" && (
+          <div className="mt-5">
+            <TopMovers />
+          </div>
+        )}
+
+        {/* ── Economic Calendar view ── */}
+        {view === "calendar" && (
+          <div className="mt-5 max-w-2xl">
+            <EconomicCalendar />
           </div>
         )}
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useId, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import PaywallGuard from "../components/PaywallGuard";
@@ -135,8 +135,9 @@ function saveFuturesList(list: Array<{ symbol: string; name: string }>) {
 
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
   if (closes.length < 2) return null;
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
+  const uid   = useId().replace(/:/g, "");
+  const min   = Math.min(...closes);
+  const max   = Math.max(...closes);
   const range = max - min || 1;
   const w = 56, h = 22;
   const pts = closes.map((c, i) => {
@@ -144,9 +145,9 @@ function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }
     const y = h - 2 - ((c - min) / range) * (h - 4);
     return `${x},${y}`;
   });
-  const ptsStr = pts.join(" ");
-  const color = positive ? "#34D399" : "#F87171";
-  const gradId = positive ? "spark-up" : "spark-dn";
+  const ptsStr     = pts.join(" ");
+  const color      = positive ? "#34D399" : "#F87171";
+  const gradId     = `dash-spark-${uid}`;
   const areaPoints = `0,${h} ${ptsStr} ${w},${h}`;
   return (
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>

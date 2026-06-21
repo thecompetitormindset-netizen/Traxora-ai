@@ -109,6 +109,20 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const [alertCount, setAlertCount] = useState(0);
   const [bellShake, setBellShake] = useState(false);
   const [recentSymbols, setRecentSymbols] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // ⌘K / Ctrl+K focuses search
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   // Keep module-level _userId in sync with session so scopedKey works in this component
   useEffect(() => {
@@ -203,6 +217,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             <path d="m21 21-4.35-4.35" />
           </svg>
           <input
+            ref={inputRef}
             type="text"
             placeholder="Search any symbol or company…"
             value={query}
