@@ -9,6 +9,7 @@ import StockScreener from "../components/StockScreener";
 import TopMovers from "../components/TopMovers";
 import EconomicCalendar from "../components/EconomicCalendar";
 import SectorHeatmap from "../components/SectorHeatmap";
+import CryptoDashboard from "../components/CryptoDashboard";
 
 type SearchResult = {
   symbol: string;
@@ -229,7 +230,7 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
   },
 };
 
-type ExploreView = "markets" | "screener" | "movers" | "calendar";
+type ExploreView = "markets" | "screener" | "movers" | "calendar" | "crypto";
 
 export default function ExplorePage() {
   useEffect(() => {
@@ -279,6 +280,7 @@ export default function ExplorePage() {
               ["markets",  "🌍 Markets"],
               ["movers",   "🔥 Movers"],
               ["screener", "🔍 Screener"],
+              ["crypto",   "₿ Crypto"],
               ["calendar", "📅 Calendar"],
             ] as [ExploreView, string][]).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setView(id)}
@@ -300,6 +302,13 @@ export default function ExplorePage() {
         {view === "movers" && (
           <div className="mt-5">
             <TopMovers />
+          </div>
+        )}
+
+        {/* ── Crypto view ── */}
+        {view === "crypto" && (
+          <div className="mt-5">
+            <CryptoDashboard />
           </div>
         )}
 
