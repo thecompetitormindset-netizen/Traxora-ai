@@ -419,10 +419,10 @@ function OptionsPlaysSection() {
 
       {loaded && plays.length > 0 && (
         <>
-        <div className="mb-3 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-start gap-2">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 mt-0.5 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <p className="text-[11px] text-amber-300/80 leading-snug">
-            <span className="font-semibold text-amber-300">Educational signals only — not financial advice.</span> Options can lose 100% of their value. Always verify DTE, IV environment, and earnings dates before trading. Never risk more than you can afford to lose entirely.
+        <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-center gap-2">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <p className="text-[10px] text-amber-300/70 leading-snug">
+            <span className="font-semibold text-amber-300">Educational only — not financial advice.</span> Verify DTE, IV and earnings before trading. Options can lose 100% of value.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
@@ -473,35 +473,26 @@ function OptionsPlaysSection() {
                 {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
               </p>
 
-              {/* Trade details box — identical layout to watchlist */}
-              <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${
+              {/* Trade details */}
+              <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono space-y-1.5 ${
                 p.play === "CALLS" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
               }`}>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Strike</span>
-                  <span className="text-[10px] font-mono font-bold text-amber-400">{p.strike}</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Strike</span>
+                  <span className="font-bold text-amber-400">{p.strike}</span>
+                  <span className="text-[#1C1A3A] shrink-0">·</span>
+                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                  <span className="font-bold text-[#F1F5F9]">{p.entryZone}</span>
+                  {p.premiumEst && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="font-bold text-violet-400">{p.premiumEst}</span></>}
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Entry</span>
-                  <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">{p.entryZone}</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                  <span className="font-bold text-emerald-400">{p.target}</span>
+                  <span className="text-[#1C1A3A] shrink-0">·</span>
+                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                  <span className="font-bold text-rose-400">{p.stop}</span>
+                  <span className="ml-auto text-[8px] text-[#4B5675]">{p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}</span>
                 </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Target</span>
-                  <span className="text-[10px] font-mono font-bold text-emerald-400">{p.target}</span>
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
-                  <span className="text-[10px] font-mono font-bold text-rose-400">{p.stop}</span>
-                </div>
-                {p.premiumEst && (
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Premium</span>
-                    <span className="text-[10px] font-mono font-bold text-violet-400">{p.premiumEst}</span>
-                  </div>
-                )}
-                <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">
-                  {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
-                </p>
               </div>
 
               <div className="mt-3 flex items-center gap-3">
@@ -1269,23 +1260,21 @@ function DashboardContent() {
                       </div>
 
                       {stock.trade && stock.signal !== "HOLD" ? (
-                        <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
-                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
-                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Entry</span>
-                            <span className="text-[10px] font-mono font-bold text-amber-400 text-right">{stock.trade.entryZone}</span>
+                        <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                            <span className="font-bold text-amber-400">{stock.trade.entryZone}</span>
+                            <span className="text-[#1C1A3A] shrink-0">·</span>
+                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                            <span className="font-bold text-rose-400">{stock.trade.stopLoss}</span>
+                            <span className="text-[#1C1A3A] shrink-0">·</span>
+                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                            <span className="font-bold text-emerald-400">{stock.trade.takeProfit}</span>
+                            <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{stock.trade.rrRatio}</span>
                           </div>
-                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
-                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Stop</span>
-                            <span className="text-[10px] font-mono font-bold text-rose-400">{stock.trade.stopLoss}</span>
-                          </div>
-                          <div className="data-row flex items-center justify-between gap-2 px-1 py-0.5">
-                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">Target</span>
-                            <span className="text-[10px] font-mono font-bold text-emerald-400">{stock.trade.takeProfit}</span>
-                          </div>
-                          <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">{stock.trade.rrRatio} R:R · {stock.trade.entryReason}</p>
                         </div>
                       ) : stock.signal === "HOLD" ? (
-                        <p className="text-[10px] text-[#4B5675] mt-3">No clear setup — wait for direction</p>
+                        <p className="text-[10px] text-[#4B5675] mt-2">Wait for clearer direction</p>
                       ) : null}
 
                       {stock.earningsDate && (
@@ -1582,21 +1571,21 @@ function DashboardContent() {
                     </div>
                     {/* Trade plan */}
                     {f.trade && f.signal !== "HOLD" ? (
-                      <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
-                        {[
-                          { label: "Entry", value: f.trade.entryZone, color: "text-amber-400" },
-                          { label: "Stop",  value: f.trade.stopLoss,  color: "text-rose-400"  },
-                          { label: "Target",value: f.trade.takeProfit,color: "text-emerald-400"},
-                        ].map(({ label, value, color }) => (
-                          <div key={label} className="flex items-center justify-between gap-2">
-                            <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">{label}</span>
-                            <span className={`text-[10px] font-mono font-bold ${color} text-right`}>{value}</span>
-                          </div>
-                        ))}
-                        <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5 leading-snug">{f.trade.rrRatio} R:R · {f.trade.entryReason}</p>
+                      <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                          <span className="font-bold text-amber-400">{f.trade.entryZone}</span>
+                          <span className="text-[#1C1A3A] shrink-0">·</span>
+                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                          <span className="font-bold text-rose-400">{f.trade.stopLoss}</span>
+                          <span className="text-[#1C1A3A] shrink-0">·</span>
+                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                          <span className="font-bold text-emerald-400">{f.trade.takeProfit}</span>
+                          <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{f.trade.rrRatio}</span>
+                        </div>
                       </div>
                     ) : f.signal === "HOLD" ? (
-                      <p className="text-[10px] text-[#4B5675] mt-3">No clear setup — wait for direction</p>
+                      <p className="text-[10px] text-[#4B5675] mt-2">Wait for clearer direction</p>
                     ) : null}
                     {/* Footer link */}
                     {!editFutures && (
@@ -1634,38 +1623,35 @@ function DashboardContent() {
 
           {/* Risk Rules + Exchange CTA — full width */}
           <div className="order-7 lg:order-none lg:col-span-3">
-          <section>
+          <section className="space-y-3">
             {/* Risk rules */}
-            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-6">
-              <p className="text-sm font-semibold mb-4 text-center">5 rules to protect your money</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#4B5675] mb-3">Risk Rules</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
                 {[
-                  { icon: "💰", rule: "Never risk more than 5–10% per trade", detail: "If you have $500, max $25–$50 per signal." },
-                  { icon: "🛡️", rule: "Always set a stop-loss", detail: "4–5% below your buy price on Robinhood. Non-negotiable." },
-                  { icon: "🧠", rule: "Understand before you act", detail: "Read the market analysis. Know why the signal fired." },
-                  { icon: "⏳", rule: "Patience beats FOMO", detail: "Not every signal is worth taking. Wait for high confidence." },
-                  { icon: "📓", rule: "Keep a trade journal", detail: "Note why you entered, what happened, what you learned." },
-                  { icon: "⚠️", rule: "AI is not 100% right", detail: "No tool is. This is a starting point, not a guarantee." },
-                ].map((r) => (
-                  <div key={r.rule} className="flex gap-3 bg-[#0D0B1A] border border-[#252345] rounded-xl p-3">
-                    <span className="text-base shrink-0">{r.icon}</span>
-                    <div>
-                      <p className="text-xs font-semibold text-[#F1F5F9]">{r.rule}</p>
-                      <p className="text-[11px] text-[#4B5675] mt-0.5">{r.detail}</p>
-                    </div>
+                  "Never risk more than 5–10% of capital per trade",
+                  "Set your stop-loss before entering — non-negotiable",
+                  "Read the analysis before acting on a signal",
+                  "Wait for high-confidence setups only",
+                  "Log every trade: reason, outcome, lesson",
+                  "AI signals are a starting point, not a guarantee",
+                ].map((rule, i) => (
+                  <div key={rule} className="flex items-start gap-2.5 py-2 border-b border-[#252345]/30 last:border-0">
+                    <span className="text-[9px] font-black text-emerald-500/30 shrink-0 mt-px">{i + 1}</span>
+                    <p className="text-[11px] text-[#7B8DB4] leading-snug">{rule}</p>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Exchange CTA */}
-            <div className="mt-4 rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 p-6 flex flex-col items-center gap-4 text-center">
+            <div className="rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 px-5 py-4 flex items-center justify-between gap-4">
               <div>
-                <h3 className="font-semibold">Explore all exchanges</h3>
-                <p className="text-sm text-[#7B8DB4] mt-1">CBOE, CBOT, CME, KCBT, MGE, NYBOT &amp; NYMEX — instant AI analysis on every contract.</p>
+                <p className="text-sm font-semibold">Explore all exchanges</p>
+                <p className="text-xs text-[#7B8DB4] mt-0.5">CBOE, CBOT, CME, KCBT, MGE, NYBOT &amp; NYMEX — instant AI analysis.</p>
               </div>
-              <Link href="/explore" className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-5 py-2.5 rounded-xl text-sm font-semibold text-white">
-                Open Explorer
+              <Link href="/explore" className="shrink-0 bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white">
+                Open →
               </Link>
             </div>
           </section>
