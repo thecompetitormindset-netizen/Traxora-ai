@@ -8,6 +8,7 @@ import Topbar from "../components/Topbar";
 import StockScreener from "../components/StockScreener";
 import TopMovers from "../components/TopMovers";
 import EconomicCalendar from "../components/EconomicCalendar";
+import SectorHeatmap from "../components/SectorHeatmap";
 
 type SearchResult = {
   symbol: string;
@@ -311,6 +312,14 @@ export default function ExplorePage() {
 
         {/* ── Markets view ── */}
         {view === "markets" && (<>
+
+        {/* ── Sector heatmap ── */}
+        <div className="mt-5 mb-6">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675] mb-3">Market Heatmap</p>
+          <SectorHeatmap />
+        </div>
+
+        <div className="border-t border-[#1A1838] mb-6" />
 
         {/* ── Exchange Tabs ── */}
         <div className="mt-3">
