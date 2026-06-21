@@ -5,12 +5,7 @@ import Link from "next/link";
 import type { ScanSnapshot, DayTrade } from "./AutoTrader";
 import { getDayTrades, getLastScan } from "./AutoTrader";
 import { getPortfolio, PORTFOLIO_UPDATED_EVENT, type Portfolio } from "../lib/trading";
-
-function signalBadge(signal: string | null) {
-  if (signal === "BUY")  return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (signal === "SELL") return "bg-rose-500/10 text-rose-400 border-rose-500/20";
-  return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-}
+import { signalBadgeCls } from "../lib/signalBadge";
 
 function signalBorderL(signal: string | null) {
   if (signal === "BUY")  return "border-l-emerald-500/40";
@@ -163,7 +158,7 @@ export default function LiveTradingRoom() {
                   <p className="text-[10px] text-[#4B5675] mt-px truncate max-w-[72px]">{r.name}</p>
                 </div>
                 {r.signal
-                  ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg border ${signalBadge(r.signal)}`}>{r.signal}</span>
+                  ? <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg border ${signalBadgeCls(r.signal, false)}`}>{r.signal}</span>
                   : <span className="text-[10px] text-[#4B5675]">—</span>}
               </div>
 

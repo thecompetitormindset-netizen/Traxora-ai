@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { fetchSentiment } from "../lib/sentimentCache";
 
 export default function MiniSentiment() {
   const [score,  setScore]  = useState<number | null>(null);
   const [regime, setRegime] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/sentiment")
-      .then(r => r.json())
+    fetchSentiment()
       .then(d => {
-        if (!d?.error) {
-          setScore(d.overallScore ?? null);
-          setRegime(d.regime ?? null);
+        const sd = d as { overallScore?: number; regime?: string } | null;
+        if (sd) {
+          setScore(sd.overallScore ?? null);
+          setRegime(sd.regime ?? null);
         }
       })
       .catch(() => {});

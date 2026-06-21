@@ -171,7 +171,6 @@ export default function SettingsPage() {
           {/* Header */}
           <div className="mb-8">
             <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Settings</h1>
-            <p className="text-sm text-[#7B8DB4] mt-1">Manage your account, alerts, and preferences.</p>
           </div>
 
           <div className="space-y-6">
@@ -203,7 +202,6 @@ export default function SettingsPage() {
                       </svg>
                     }
                     label="Sign out"
-                    sublabel="You'll need to sign in again to access your dashboard"
                     danger
                     onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login?signedOut=1" }); }}
                   />
@@ -413,18 +411,6 @@ export default function SettingsPage() {
                 label="Currency"
                 sublabel="All prices displayed in US dollars"
                 value={<Badge>USD</Badge>}
-              />
-              <Row
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="2" y="3" width="20" height="14" rx="2" />
-                    <line x1="8" y1="21" x2="16" y2="21" />
-                    <line x1="12" y1="17" x2="12" y2="21" />
-                  </svg>
-                }
-                label="AI model"
-                sublabel="Signals powered by Claude Sonnet 4.6 with Smart Money analysis"
-                value={<Badge color="emerald">Sonnet 4.6</Badge>}
               />
             </Section>
 

@@ -265,7 +265,6 @@ function TradePlannerContent() {
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h1 className="reveal section-header text-3xl font-black tracking-tight text-gradient-green">Trade Planner</h1>
-              <p className="text-sm text-[#7B8DB4] mt-1">Turn signals into real position sizes — know exactly how many shares before you enter</p>
             </div>
             <div className="flex items-center gap-2">
               <Link href="/journal" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-3 py-2 rounded-xl transition-all">Journal →</Link>

@@ -42,11 +42,11 @@ const Icon = {
 // ── Sub-item data ─────────────────────────────────────────────────────────────
 
 const SIGNALS_ITEMS = [
-  { name: "Signals",  desc: "AI signal + entry plan",   href: "/analysis",     emoji: "⚡",  event: null },
-  { name: "Scanner",  desc: "Futures & options plays",  href: "/intelligence", emoji: "📊",  event: null },
-  { name: "IPO",      desc: "New listings & outlook",   href: "/ipo",          emoji: "🚀",  event: null },
-  { name: "Brief",    desc: "Morning market briefing",  href: null,            emoji: "🌅",  event: "traxora-show-briefing" },
-  { name: "AI Chat",  desc: "Ask the AI anything",      href: null,            emoji: "💬",  event: "traxora-open-chat" },
+  { name: "Analyse",   desc: "Deep AI signal for any ticker", href: "/analysis",          emoji: "⚡",  event: null },
+  { name: "Markets",   desc: "Futures, options & plays",      href: "/intelligence",      emoji: "📊",  event: null },
+  { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
+  { name: "IPO",       desc: "New listings & outlook",        href: "/ipo",               emoji: "🚀",  event: null },
+  { name: "Brief",     desc: "Morning market briefing",       href: null,                 emoji: "🌅",  event: "traxora-show-briefing" },
 ];
 
 const TRADE_ITEMS = [
@@ -144,8 +144,8 @@ export default function Sidebar() {
 
   function toggle(id: PanelId) { haptic.tap(); setOpen(prev => prev === id ? null : id); }
 
-  const signalsActive  = ["/analysis","/intelligence","/strategy","/explore","/ipo","/market-sentiment"].some(p => pathname?.startsWith(p));
-  const tradeActive    = ["/paper","/journal","/history"].some(p => pathname?.startsWith(p));
+  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment"].some(p => pathname?.startsWith(p));
+  const tradeActive    = ["/paper","/journal","/history","/strategy"].some(p => pathname?.startsWith(p));
   const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
   const dashActive     = pathname === "/dashboard";
   const wheelActive    = pathname?.startsWith("/wheel") ?? false;
@@ -175,7 +175,7 @@ export default function Sidebar() {
         <div className="sidebar-sub-panel panel-enter glass-strong rounded-2xl border border-white/[0.08] shadow-2xl p-3">
           <div className="flex items-center justify-between mb-2.5 px-1 subpanel-fade">
             <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
-              {open === "signals" ? "Signals & Markets" : open === "trade" ? "Journal & Tools" : "Account & Help"}
+              {open === "signals" ? "Markets & Analysis" : open === "trade" ? "Journal & Tools" : "Account & Help"}
             </p>
             <button type="button" onClick={() => { haptic.tick(); setOpen(null); }} aria-label="Close"
               className="press-scale w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[#4B5675] hover:text-[#7B8DB4] transition-colors">

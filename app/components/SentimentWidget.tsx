@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { fetchSentiment } from "../lib/sentimentCache";
 
 type SentimentData = {
   overallScore: number;
@@ -257,9 +258,8 @@ export default function SentimentWidget() {
   const isDark = useIsDark();
 
   useEffect(() => {
-    fetch("/api/sentiment")
-      .then(r => r.json())
-      .then(d => setData(d?.error ? null : d))
+    fetchSentiment()
+      .then(d => setData((d as SentimentData | null)))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);

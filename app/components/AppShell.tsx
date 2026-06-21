@@ -6,7 +6,7 @@ import AnimationProvider from "./AnimationProvider";
 import SessionWatcher from "./SessionWatcher";
 
 // Marketing pages — only AnimationProvider + SessionWatcher needed
-const MARKETING = new Set(["/", "/login", "/pricing", "/guide"]);
+const MARKETING = new Set(["/", "/login", "/pricing", "/guide", "/privacy", "/terms"]);
 
 // Lazy-load heavy components so they never block the initial paint
 const WelcomeModal   = dynamic(() => import("./WelcomeModal"),   { ssr: false });

@@ -146,9 +146,6 @@ export default function HistoryPage() {
           <div className="mt-3 flex items-end justify-between flex-wrap gap-4">
             <div>
               <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Trade History</h1>
-              <p className="text-[#7B8DB4] mt-1 text-sm">
-                Round-trip analysis — entry reasoning vs actual outcome.
-              </p>
             </div>
             {/* View toggle */}
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">

@@ -1,6 +1,7 @@
 "use client";
 import PaywallGuard from "@/app/components/PaywallGuard";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -152,9 +153,6 @@ export default function JournalPage() {
           <div className="mt-3 flex items-end justify-between gap-4 flex-wrap">
             <div>
               <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Trade Journal</h1>
-              <p className="reveal reveal-d1 text-[#7B8DB4] mt-1 text-sm">
-                AI-written analysis for every trade — mistakes, lessons, and coaching.
-              </p>
             </div>
             {entries.length > 0 && (
               <div className="flex items-center gap-3">
@@ -469,6 +467,22 @@ export default function JournalPage() {
                             )}
                           </div>
                         )}
+
+                        {/* Re-analyse link */}
+                        <div className="pt-2 flex items-center gap-3">
+                          <Link
+                            href={`/analysis?symbol=${encodeURIComponent(clean)}`}
+                            className="text-[11px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors"
+                          >
+                            Re-analyse {clean} →
+                          </Link>
+                          <Link
+                            href={`/paper?symbol=${encodeURIComponent(clean)}`}
+                            className="text-[11px] font-semibold text-[#4B5675] hover:text-[#94A3B8] transition-colors"
+                          >
+                            Size a new trade →
+                          </Link>
+                        </div>
                       </div>
                     )}
                   </div>

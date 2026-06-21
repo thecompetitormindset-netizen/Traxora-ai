@@ -178,7 +178,15 @@ function StrategyContent() {
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
               <p className="text-4xl mb-3">📊</p>
               <p className="text-sm font-semibold mb-1">No closed trades yet</p>
-              <p className="text-xs text-[#4B5675]">Close some paper trades to see your performance analytics here.</p>
+              <p className="text-xs text-[#4B5675] mb-6">Get a signal from the dashboard, log it in the planner, then close it to see your analytics here.</p>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <a href="/dashboard" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors border border-emerald-500/20 bg-emerald-500/8 px-4 py-2 rounded-xl">
+                  Get signals →
+                </a>
+                <a href="/paper" className="text-xs font-semibold text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors border border-[#252345] px-4 py-2 rounded-xl">
+                  Trade planner →
+                </a>
+              </div>
             </div>
           </div>
         </main>

@@ -391,9 +391,6 @@ export default function MarketSentimentPage() {
           <div className="mt-6 flex items-start justify-between gap-4 flex-wrap">
             <div>
               <h1 className="reveal section-header text-4xl font-black text-gradient-green">Market Sentiment</h1>
-              <p className="text-[#7B8DB4] mt-2 text-sm">
-                Institutional-grade analysis powered by Claude AI — Haiku for classification, Sonnet for synthesis, Opus for deep reports.
-              </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
               {lastRefresh && (
@@ -412,21 +409,6 @@ export default function MarketSentimentPage() {
             </div>
           </div>
 
-          {/* Model routing badge strip */}
-          <div className="flex gap-2 mt-4 flex-wrap">
-            {[
-              { model: "Haiku",  task: "Classify",      color: "sky",    tokens: "~150 tok/call" },
-              { model: "Sonnet", task: "Synthesize",     color: "teal", tokens: "~512 tok/call" },
-              { model: "Opus",   task: "Master Report",  color: "amber",  tokens: "~1500 tok/call" },
-            ].map(b => (
-              <div key={b.model} className={`flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded-lg bg-${b.color}-500/10 border border-${b.color}-500/20 text-${b.color}-400`}>
-                <span className="font-black">{b.model}</span>
-                <span className="text-[#4B5675]">·</span>
-                <span>{b.task}</span>
-                <span className="text-[#4B5675]">{b.tokens}</span>
-              </div>
-            ))}
-          </div>
 
           {mdError && (
             <div className="mt-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-sm text-rose-400">
@@ -574,7 +556,7 @@ export default function MarketSentimentPage() {
 
           {/* ── SECTION 2: Smart Money Panel ────────────────────────────── */}
           <h2 className="text-xs font-bold uppercase tracking-widest text-[#4B5675] mt-8 mb-4">Smart Money Signals</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
             {/* Institutional Flow */}
             <MetricCard
@@ -615,42 +597,6 @@ export default function MarketSentimentPage() {
               ) : <p className="text-[#4B5675] text-sm">Unavailable</p>}
             </MetricCard>
 
-            {/* COT Positioning */}
-            <MetricCard
-              label="COT Positioning"
-              sublabel="CFTC Commitments of Traders"
-              whyContent="COT data is published weekly by the CFTC. It shows net long/short positioning by commercial hedgers and large speculators across futures markets. Real data requires CFTC.gov API integration."
-            >
-              <div className="text-center py-2">
-                <p className="text-xs text-[#4B5675]">Weekly data · CFTC</p>
-                <a
-                  href="https://www.cftc.gov/MarketReports/CommitmentsofTraders/index.htm"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-400 hover:text-emerald-300 text-xs transition-colors mt-1 block"
-                >
-                  View latest COT report →
-                </a>
-              </div>
-            </MetricCard>
-
-            {/* Insider Activity */}
-            <MetricCard
-              label="Insider Activity"
-              sublabel="SEC Form 4 net flow (news-derived)"
-              whyContent="Tracks mentions of insider buying/selling in news headlines. True Form 4 data requires SEC EDGAR API. Insider buying is a strong bullish signal; selling is often tax/diversification."
-            >
-              {classLoading ? <Skeleton h="h-12" /> : classified ? (
-                <div>
-                  <p className={`text-lg font-black ${bullishPct != null && bullishPct > 55 ? "text-emerald-400" : bullishPct != null && bullishPct < 40 ? "text-rose-400" : "text-amber-400"}`}>
-                    {bullishPct != null ? `${bullishPct}% Bullish News` : "—"}
-                  </p>
-                  <p className="text-xs text-[#4B5675] mt-1">
-                    {classified.length} headlines classified by Haiku
-                  </p>
-                </div>
-              ) : <p className="text-[#4B5675] text-xs">Awaiting classification</p>}
-            </MetricCard>
           </div>
 
           {/* ── SECTION 3: User-Specific ─────────────────────────────────── */}

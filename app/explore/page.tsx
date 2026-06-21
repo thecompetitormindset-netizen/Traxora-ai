@@ -267,9 +267,6 @@ export default function ExplorePage() {
         {/* ── Header ── */}
         <div className="mt-3">
           <h1 className="reveal section-header text-4xl font-bold text-gradient-green">Explore Markets</h1>
-          <p className="text-[#7B8DB4] mt-2">
-            Search any instrument or browse by exchange — stocks, futures, commodities & more.
-          </p>
         </div>
 
         {/* ── Exchange Tabs ── */}
@@ -446,10 +443,7 @@ export default function ExplorePage() {
 
             {/* Exchange Overview Grid */}
             <div className="mt-10">
-              <h2 className="text-2xl font-semibold mb-1">Futures Exchanges</h2>
-              <p className="text-[#7B8DB4] text-sm mb-6">
-                Click any exchange tab above to browse its listed contracts
-              </p>
+              <h2 className="text-2xl font-semibold mb-4">Futures Exchanges</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {EXCHANGES.map((ex) => {
                   const c = COLOR[ex.color];

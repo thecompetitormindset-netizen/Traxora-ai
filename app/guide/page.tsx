@@ -499,9 +499,6 @@ export default function GuidePage() {
           <div className="mt-6">
             <p className="reveal text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-2">Documentation</p>
             <h1 className="reveal reveal-d1 section-header text-4xl font-black tracking-tight text-gradient-green">How to Use Traxora AI</h1>
-            <p className="text-[#7B8DB4] mt-2 text-sm leading-relaxed">
-              Step-by-step guides for every feature. Tap any section to expand.
-            </p>
           </div>
 
           {/* Quick start */}

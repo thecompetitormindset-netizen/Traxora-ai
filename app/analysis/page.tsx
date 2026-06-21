@@ -298,9 +298,6 @@ function AnalysisContent() {
               <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">
                 {symbol.replace(".US", "").replace(".COMM", "")}
               </h1>
-              <p className="reveal reveal-d1 text-[#7B8DB4] mt-2">
-                AI-powered market signal for {symbol}
-              </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <MarketStatus />
@@ -764,9 +761,6 @@ function AnalysisContent() {
                 <span>🔍</span>
                 <p className="text-sm font-bold text-[#F1F5F9]">AI Deep Dive</p>
               </div>
-              <p className="text-xs text-[#4B5675] leading-relaxed">
-                Full breakdown across all timeframes — key levels, price gaps, entry zone, stop, and two complete trade setups.
-              </p>
 
               {/* Standard deep analysis */}
               <button

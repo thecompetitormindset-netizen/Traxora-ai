@@ -13,6 +13,7 @@ import SignalPerformance from "../components/SignalPerformance";
 import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
 import { haptic } from "../lib/haptics";
+import { signalBadgeCls } from "../lib/signalBadge";
 
 type TradeLevels = {
   entryZone:   string;
@@ -159,11 +160,6 @@ function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }
   );
 }
 
-function signalBadge(signal: string | null) {
-  if (signal === "BUY")  return "badge-buy  bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (signal === "SELL") return "badge-sell bg-rose-500/10    text-rose-400    border-rose-500/20";
-  return "badge-hold bg-amber-500/10 text-amber-400 border-amber-500/20";
-}
 
 function signalBorder(signal: string | null) {
   if (signal === "BUY")  return "border-l-emerald-500/40";
@@ -352,6 +348,7 @@ function OptionsPlaysSection() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <Link href="/intelligence?section=options" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
           {loaded && plays.length > 3 && (
             <button type="button" onClick={() => setShowAll(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
               {showAll ? "Show less ↑" : `See all ${plays.length} ↓`}
@@ -413,8 +410,7 @@ function OptionsPlaysSection() {
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {(showAll ? plays : plays.slice(0, 3)).map((p, i) => {
-            const visiblePlays = showAll ? plays : plays.slice(0, 3);
+          {(() => { const visiblePlays = showAll ? plays : plays.slice(0, 3); return visiblePlays.map((p, i) => {
             const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
             return (
             <Link
@@ -496,7 +492,7 @@ function OptionsPlaysSection() {
               </div>
             </Link>
             );
-          })}
+          }); })()}
         </div>
         </>
       )}
@@ -1237,7 +1233,7 @@ function DashboardContent() {
                           : stock.signal
                           ? (
                             <div className="flex flex-col items-end gap-1">
-                              <span className={`signal-pop text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadge(stock.signal)}`}>{stock.signal}</span>
+                              <span className={`signal-pop text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadgeCls(stock.signal)}`}>{stock.signal}</span>
                               {stock.confidence && (
                                 <span className={`text-[9px] font-semibold ${stock.confidence === "High" ? "text-emerald-400" : stock.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
                                   {stock.confidence}
@@ -1393,7 +1389,7 @@ function DashboardContent() {
               <SentimentWidget />
 
               {/* Paper Portfolio */}
-              <Link href="/paper" className="block group">
+              <Link href="/strategy" className="block group">
                 <div className="card-shine card-premium surface-sheen rounded-2xl px-4 py-4 transition-all hover:border-emerald-500/20">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-sm font-bold text-[#F1F5F9]">Paper Portfolio</span>
@@ -1414,7 +1410,7 @@ function DashboardContent() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View trades →</p>
+                  <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View stats →</p>
                 </div>
               </Link>
 
@@ -1484,11 +1480,12 @@ function DashboardContent() {
                     {showAllFutures ? "Show less ↑" : `See all ${futures.length} ↓`}
                   </button>
                 )}
+                <Link href="/intelligence?section=futures" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">View all →</Link>
                 <Link
                   href="/futures-tutorial"
-                  className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+                  className="text-[10px] font-semibold text-[#4B5675] hover:text-[#94A3B8] transition-colors"
                 >
-                  Learn futures →
+                  Learn →
                 </Link>
                 <button
                   type="button"
@@ -1561,7 +1558,7 @@ function DashboardContent() {
                         : f.signal
                         ? (
                           <div className="flex flex-col items-end gap-1">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadge(f.signal)}`}>{f.signal}</span>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadgeCls(f.signal)}`}>{f.signal}</span>
                             {f.confidence && (
                               <span className={`text-[9px] font-semibold ${f.confidence === "High" ? "text-emerald-400" : f.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
                                 {f.confidence}

@@ -7,6 +7,7 @@ import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsTab from "@/app/components/paper/OptionsTab";
+import { signalBadgeCls } from "@/app/lib/signalBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -41,11 +42,6 @@ const FUTURES_LIST = [
   { symbol: "NG.COMM",  name: "Natural Gas"         },
 ];
 
-function signalBadgeCls(signal: string | null) {
-  if (signal === "BUY")  return "badge-buy  bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-  if (signal === "SELL") return "badge-sell bg-rose-500/10    text-rose-400    border-rose-500/20";
-  return "badge-hold bg-amber-500/10 text-amber-400 border-amber-500/20";
-}
 
 function changeColor(v: number | null) {
   if (v === null) return "text-[#4B5675]";
@@ -412,7 +408,6 @@ function IntelligenceContent() {
         {/* Header */}
         <div className="mt-3 mb-6">
           <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Markets</h1>
-          <p className="reveal reveal-d1 text-[#7B8DB4] mt-1 text-sm">Live signals and plays across futures and options markets.</p>
         </div>
 
         {/* Section tabs */}
@@ -433,7 +428,6 @@ function IntelligenceContent() {
         {section === "futures"  && <FuturesPanel />}
         {section === "analyze"  && (
           <div className="max-w-7xl mx-auto">
-            <p className="text-sm text-[#7B8DB4] mb-4">Enter any optionable ticker for a full AI options analysis — expected move, IV context, entry trigger, and risk rating.</p>
             <OptionsTab initialSymbol={initSym} />
           </div>
         )}

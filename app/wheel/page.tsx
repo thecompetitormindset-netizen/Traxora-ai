@@ -522,7 +522,6 @@ export default function WheelPage() {
               </svg>
               <h1 className="text-2xl font-black tracking-tight text-gradient-green">Wheeling Hub</h1>
             </div>
-            <p className="text-sm text-[#4B5675]">Scanner finds high-premium put candidates — track every wheel position end-to-end.</p>
           </div>
 
           {/* Stats bar */}
@@ -567,8 +566,7 @@ export default function WheelPage() {
                   <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="1.75" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
                   </div>
-                  <p className="text-sm font-bold text-[#F1F5F9] mb-1">Scanner is a Pro feature</p>
-                  <p className="text-xs text-[#4B5675] mb-5 max-w-xs mx-auto">Live IV, IV−HV spread, 30Δ put strikes, and premium estimates. Available on Pro.</p>
+                  <p className="text-sm font-bold text-[#F1F5F9] mb-5">Scanner is a Pro feature</p>
                   <a href="/pricing" className="inline-block px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20">
                     Upgrade to Pro — $5/mo →
                   </a>

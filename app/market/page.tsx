@@ -133,16 +133,7 @@ function MarketContent() {
         <div className="mt-3 flex items-start justify-between gap-4">
           <div>
             <h1 className="reveal section-header text-4xl font-bold text-gradient-green">{symbol}</h1>
-            <p className="text-[#7B8DB4] mt-2">
-              {quote?.exchange
-                ? `Exchange: ${quote.exchange}`
-                : "Live market view"}
-            </p>
-            {quote?.provider ? (
-              <p className="text-xs text-gray-500 mt-1">
-                Data provider: {quote.provider}
-              </p>
-            ) : null}
+            {quote?.exchange && <p className="text-[#7B8DB4] mt-1 text-sm">{quote.exchange}</p>}
           </div>
 
           <div className="flex gap-3">
@@ -179,12 +170,7 @@ function MarketContent() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-3">
           <div className="xl:col-span-2 card-shine glass surface-sheen rounded-3xl p-6 border border-[#252345]">
             <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-semibold">{symbol} Chart</h2>
-                <p className="text-sm text-[#7B8DB4] mt-1">
-                  Earliest available data from provider
-                </p>
-              </div>
+              <h2 className="text-2xl font-semibold">{symbol} Chart</h2>
             </div>
 
             <StockChart symbol={symbol} height={440} />

@@ -421,9 +421,6 @@ export default function IPOPage() {
           {/* Header */}
           <div className="mt-3 mb-3">
             <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">IPO Tracker</h1>
-            <p className="text-[#7B8DB4] mt-2 text-sm">
-              Upcoming and recent IPOs — tap any card to expand, then run an AI deep dive for price targets, 5-year outlook, thesis, risks, and catalysts.
-            </p>
           </div>
 
           {/* Summary strip */}
@@ -466,19 +463,6 @@ export default function IPOPage() {
             ))}
           </div>
 
-          {/* Rating legend */}
-          <div className="flex gap-3 mb-5 flex-wrap">
-            {[
-              { label: "Strong",      desc: "Major exchange + $200M+ raise",    color: "emerald" },
-              { label: "Watch",       desc: "Major exchange or $50M+ raise",    color: "amber"   },
-              { label: "Speculative", desc: "SPAC / small raise / no exchange", color: "rose"    },
-            ].map(r => (
-              <div key={r.label} className={`flex items-center gap-2 text-[10px] px-3 py-1.5 rounded-lg bg-${r.color}-500/5 border border-${r.color}-500/20`}>
-                <span className={`font-bold text-${r.color}-400`}>{r.label}</span>
-                <span className="text-[#4B5675]">{r.desc}</span>
-              </div>
-            ))}
-          </div>
 
           {/* Error */}
           {error && (
