@@ -19,6 +19,7 @@ import MarketDepth from "@/app/components/analysis/MarketDepth";
 import type { VolumeProfile } from "@/app/api/volume-profile/route";
 import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
 import PaywallGuard from "@/app/components/PaywallGuard";
+import AnalystRatings from "@/app/components/AnalystRatings";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
 
@@ -549,6 +550,11 @@ function AnalysisContent() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* ── Analyst Ratings ── */}
+          <div className="mt-4">
+            <AnalystRatings symbol={symbol} currentPrice={quoteData.price} />
           </div>
 
           {/* ── Analysis detail cards ── */}

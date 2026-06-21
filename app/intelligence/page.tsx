@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useSwipeTabs } from "@/app/lib/useSwipeTabs";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
@@ -392,6 +393,8 @@ function FuturesPanel() {
 
 type Section = "options" | "futures" | "analyze" | "chain";
 
+const SECTION_TABS = ["options", "futures", "chain", "analyze"] as const satisfies readonly Section[];
+
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
@@ -399,6 +402,8 @@ function IntelligenceContent() {
     const s = params.get("section");
     return (s === "futures" || s === "analyze" || s === "options" || s === "chain") ? s : "options";
   });
+
+  useSwipeTabs(SECTION_TABS, section, setSection);
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">

@@ -1676,6 +1676,59 @@ input:focus, textarea:focus, select:focus {
   animation: glass-shimmer 3.5s linear infinite;
 }
 
+/* ══ SKELETON SHIMMER ════════════════════════════════════════════════════════ */
+@keyframes skeleton-sweep {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #13112A 25%,
+    #1E1C42 50%,
+    #13112A 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-sweep 1.6s ease-in-out infinite;
+}
+/* Override animate-pulse children inside shimmer containers */
+.skeleton-shimmer .bg-\[\#252345\] { background: rgba(37,35,69,0.7); }
+
+/* ══ SPRING CARD PRESS (mobile-first) ═══════════════════════════════════════ */
+.press-scale {
+  transition: transform 0.08s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.press-scale:active { transform: scale(0.95); }
+
+/* ══ SWIPE TAB INDICATOR ═════════════════════════════════════════════════════ */
+.tab-slide-enter {
+  will-change: opacity, transform;
+  animation: tab-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.tab-slide-exit {
+  will-change: opacity, transform;
+  animation: tab-out 0.18s ease-in both;
+}
+@keyframes tab-in  {
+  0%   { opacity: 0; transform: translateX(18px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+@keyframes tab-out {
+  0%   { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(-18px); }
+}
+
+/* ══ PAGE TRANSITION (spring) ════════════════════════════════════════════════ */
+/* scale() removed — translateY + opacity are compositor-only, no Paint step   */
+.page-enter {
+  will-change: opacity, transform;
+  animation: page-spring 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-spring {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
 /* ══ ONBOARDING SLIDE ANIMATIONS ════════════════════════════════════════════ */
 .onboard-slide { transition: opacity 0.18s ease, transform 0.18s ease; }
 .onboard-slide.exit-fwd { opacity: 0; transform: translateX(18px); }

@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import { loadTrades, calcPL, STARTING_CAPITAL, type PaperTrade } from "@/app/lib/paperTrades";
+import PortfolioAllocationChart from "@/app/components/PortfolioAllocationChart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -219,6 +220,9 @@ function StrategyContent() {
 
           {tab === "overview" && (
             <>
+              {/* Portfolio allocation */}
+              <PortfolioAllocationChart />
+
               {/* Equity curve */}
               <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
