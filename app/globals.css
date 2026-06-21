@@ -263,6 +263,10 @@ body {
   animation: ict-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
+/* Hero signal card fade transition */
+.signal-fade-in  { opacity: 1; transform: translateY(0);   transition: opacity 0.3s, transform 0.3s; }
+.signal-fade-out { opacity: 0; transform: translateY(6px); transition: opacity 0.3s, transform 0.3s; }
+
 /* Stock card signal-arrival pop */
 @keyframes stock-pop {
   0%   { transform: scale(0.93); opacity: 0.4; }
