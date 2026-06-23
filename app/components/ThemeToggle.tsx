@@ -3,13 +3,13 @@
 import { useEffect, useState } from "react";
 import { THEME_EVENT, getTheme, setTheme, type Theme } from "../lib/theme";
 
-const CYCLE: Theme[] = ["clean", "ember", "dark"];
+const CYCLE: Theme[] = ["clean", "dark"];
 
 const LABELS: Record<string, string> = {
-  clean: "Clean",
-  ember: "Ember",
-  dark:  "Dark",
+  clean: "Light",
   light: "Light",
+  ember: "Light",
+  dark:  "Dark",
 };
 
 function SunIcon() {
@@ -39,9 +39,9 @@ function MoonIcon() {
 
 const ICONS: Record<string, React.ReactNode> = {
   clean: <SunIcon />,
-  ember: <FlameIcon />,
-  dark:  <MoonIcon />,
   light: <SunIcon />,
+  ember: <SunIcon />,
+  dark:  <MoonIcon />,
 };
 
 export default function ThemeToggle() {
@@ -70,7 +70,7 @@ export default function ThemeToggle() {
     <button
       onClick={cycle}
       title={`Theme: ${label} — click to cycle`}
-      className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[#252345] hover:border-[#333368] bg-[#0D0B1A] hover:bg-[#1A1838] text-[#7B8DB4] hover:text-[#F1F5F9] transition-all duration-100"
+      className="flex items-center gap-1.5 h-9 px-2.5 rounded-lg border border-[var(--border)] hover:border-[var(--border-hover)] bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-100"
     >
       {icon}
       <span className="hidden sm:block text-[11px] font-medium">{label}</span>
