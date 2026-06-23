@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { smartMoneyScore } from "@/app/lib/smartMoney";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -50,9 +51,17 @@ function bsGreeks(S: number, K: number, T: number, sigma: number, isCall: boolea
   return { delta, gamma, thetaPerDay: theta };
 }
 
+function calcClosesEMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let i = period; i < closes.length; i++) ema = closes[i] * k + ema * (1 - k);
+  return ema;
+}
+
 async function fetchQuote(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=30d`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=60d`;
     const r   = await fetch(url, {
       cache:   "no-store",
       headers: { "User-Agent": "Mozilla/5.0" },
@@ -205,6 +214,39 @@ export async function POST(req: Request) {
   }
 
   const price = quote.price;
+
+  // ── Smart Money signal — locks directional bias for the AI ─────────────────
+  // Identical computation to options-scan and ai/analyze so all three agree.
+  const closes60    = quote.closes.filter(Boolean);
+  const base5d      = closes60.length >= 6 ? closes60.at(-6)! : null;
+  const trend5dPct  = base5d && base5d > 0 ? ((price - base5d) / base5d) * 100 : null;
+  const ema20val    = calcClosesEMA(closes60, 20);
+  const ema50val    = calcClosesEMA(closes60, 50);
+  const emaAlignment: "bullish" | "bearish" | "neutral" | null =
+    ema20val != null && ema50val != null
+      ? (price > ema20val && ema20val > ema50val ? "bullish"
+        : price < ema20val && ema20val < ema50val ? "bearish"
+        : "neutral")
+      : null;
+  const changePctSm = ((price - quote.prev) / quote.prev) * 100;
+  const sm = smartMoneyScore(
+    {
+      price,
+      previousClose: quote.prev,
+      open:          null,
+      high:          quote.high,
+      low:           quote.low,
+      volume:        quote.volume,
+      avgVolume:     quote.avgVol,
+      high52w:       quote.high52,
+      low52w:        quote.low52,
+      changePercent: changePctSm,
+    },
+    { trend5dPct: trend5dPct ?? undefined, emaAlignment },
+  );
+  const smDirective = sm.signal === "HOLD"
+    ? `Signal: HOLD — no strong directional edge from price structure. Only recommend a trade if the options chain shows an exceptional setup (unusual activity, extreme skew, or a clear catalyst).`
+    : `Signal: ${sm.signal} (${sm.confidence} confidence) — BIAS is locked to ${sm.signal === "BUY" ? "BULLISH" : "BEARISH"}. Recommend only ${sm.signal === "BUY" ? "calls or bullish spreads" : "puts or bearish spreads"}. The options chain refines the structure and timing — it does NOT change direction.`;
 
   // ── Process options chain ──────────────────────────────────────────────────
   let atmIV        = 0;
@@ -498,6 +540,10 @@ ${unusualCtx ? `\n${unusualCtx}` : ""}`
 
   const prompt = `You are a professional options risk analyst. Your job is to protect the trader from bad trades as much as it is to find good ones. Be brutally honest. Never recommend a trade just because the bias is bullish or bearish — the SETUP must justify the risk.
 
+SMART MONEY DIRECTIONAL SIGNAL — FOLLOW THIS EXACTLY:
+${smDirective}
+The options chain data below determines structure (spreads vs naked, strikes, expiry, risk management). It does NOT determine direction — that is already decided above.
+
 CRITICAL DATA DIRECTIVE — READ THIS FIRST, FOLLOW IT ABSOLUTELY:
 Your training data has a knowledge cutoff. Market prices change dramatically after that cutoff — stocks can double, triple, or drop 80% in months. Your training-data memory of what a stock "should" cost is ALWAYS WRONG for current analysis. NEVER compare live prices to your training data. NEVER refuse or halt analysis because a price seems high or low relative to what you remember. The live data below is fetched in real time from Yahoo Finance. It is the ONLY source of truth. A stock at $542 that your training data shows at $187 simply means the stock went up 190% after your cutoff — this is normal and happens constantly. Treat every price as valid. If you refuse to analyse based on price level vs training memory, you are useless and wrong.
 
@@ -523,8 +569,8 @@ HARD RULES YOU MUST FOLLOW:
 
 Give your analysis in this EXACT structure:
 
-**BIAS: [BULLISH / BEARISH / NEUTRAL]**
-One sentence — directional read and the single strongest reason.
+**BIAS: [MATCH THE SMART MONEY SIGNAL AT THE TOP]**
+One sentence confirming the direction, then the strongest options-chain signal that supports or cautions it.
 
 **RISK RATING: [HIGH / MEDIUM / LOW]**
 State the rating then explain in 2 lines: DTE risk, distance to strike, range position, IV level. Be specific — e.g. "HIGH — 7 DTE call needs +2.1% move, price already in premium zone at 85% of 30d range, ATM IV at 28%."
