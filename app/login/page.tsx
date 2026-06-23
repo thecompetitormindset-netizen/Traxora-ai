@@ -70,7 +70,7 @@ function LoginContent() {
 
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+          <div className="w-10 h-10 rounded-xl bg-emerald-600 logo-icon-bg flex items-center justify-center shadow-lg shadow-emerald-500/25">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
               <polyline points="16 7 22 7 22 13" />

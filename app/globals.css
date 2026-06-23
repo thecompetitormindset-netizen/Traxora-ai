@@ -423,7 +423,7 @@ html[data-theme="clean"] {
   --buy:  #16A34A;
   --sell: #DC2626;
   --hold: #D97706;
-  --dot-color:      #D6D3D1;
+  --dot-color:      #E4E1DE;
   --glow-buy:    rgba(22,163,74,0.18);
   --glow-sell:   rgba(220,38,38,0.18);
   --glow-hold:   rgba(217,119,6,0.15);
@@ -842,7 +842,7 @@ html[data-theme="ember"] {
    ══════════════════════════════════════════════════════════════════════════════ */
 html[data-theme="clean"] body {
   background-color: #FAFAF9;
-  background-image: radial-gradient(circle, #D6D3D1 1px, transparent 1px);
+  background-image: radial-gradient(circle, #E4E1DE 1px, transparent 1px);
   background-size: 24px 24px;
 }
 html[data-theme="ember"] body {
@@ -899,6 +899,61 @@ html[data-theme="ember"] *[class~="border-white/[0.06]"]      { border-color: rg
 html[data-theme="ember"] *[class~="border-white/[0.07]"]      { border-color: rgba(180,168,155,0.28) !important; }
 html[data-theme="ember"] *[class~="border-white/[0.08]"]      { border-color: rgba(180,168,155,0.32) !important; }
 html[data-theme="ember"] *[class~="border-white/[0.12]"]      { border-color: rgba(180,168,155,0.40) !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CLEAN THEME — Light background corrections (mirrors ember block above)
+   ══════════════════════════════════════════════════════════════════════════════ */
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0B091A]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0B0F19]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0F0D1C]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0F172A]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#080614]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0D1420]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0F1623]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#080E1B]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]"]    { background-color: #FFFFFF !important; }
+html[data-theme="clean"] *[class~="bg-[#1C1933]"]    { background-color: #FFFFFF !important; }
+html[data-theme="clean"] *[class~="bg-[#1E1C42]"]    { background-color: #F5F4F2 !important; }
+html[data-theme="clean"] *[class~="bg-[#1A1838]"]    { background-color: #F0EDE7 !important; }
+html[data-theme="clean"] *[class~="bg-[#232F46]"]    { background-color: #F0EDE7 !important; }
+html[data-theme="clean"] *[class~="bg-[#252345]"]    { background-color: #F0EDE7 !important; }
+html[data-theme="clean"] *[class~="bg-[#333368]"]    { background-color: #E7E5E4 !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/40"] { background-color: rgba(250,250,249,0.60) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/50"] { background-color: rgba(250,250,249,0.72) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/60"] { background-color: rgba(250,250,249,0.82) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/70"] { background-color: rgba(250,250,249,0.88) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/80"] { background-color: rgba(250,250,249,0.93) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/90"] { background-color: rgba(250,250,249,0.93) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/95"] { background-color: rgba(250,250,249,0.97) !important; }
+html[data-theme="clean"] *[class~="bg-[#0D0B1A]/98"] { background-color: rgba(250,250,249,0.98) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/20"] { background-color: rgba(255,255,255,0.40) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/30"] { background-color: rgba(255,255,255,0.70) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/40"] { background-color: rgba(255,255,255,0.60) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/60"] { background-color: rgba(255,255,255,0.80) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/80"] { background-color: rgba(255,255,255,0.93) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/90"] { background-color: rgba(255,255,255,0.95) !important; }
+html[data-theme="clean"] *[class~="bg-[#13112A]/95"] { background-color: rgba(255,255,255,0.97) !important; }
+html[data-theme="clean"] *[class~="border-[#252345]"]         { border-color: #E7E5E4 !important; }
+html[data-theme="clean"] *[class~="border-[#333368]"]         { border-color: #D6D3D1 !important; }
+html[data-theme="clean"] *[class~="border-[#13112A]"]         { border-color: #E7E5E4 !important; }
+html[data-theme="clean"] *[class~="border-[#1A1838]"]         { border-color: #EDE9E3 !important; }
+html[data-theme="clean"] *[class~="border-[#1C1933]"]         { border-color: #E7E5E4 !important; }
+html[data-theme="clean"] *[class~="border-white/[0.06]"]      { border-color: rgba(180,168,155,0.25) !important; }
+html[data-theme="clean"] *[class~="border-white/[0.07]"]      { border-color: rgba(180,168,155,0.28) !important; }
+html[data-theme="clean"] *[class~="border-white/[0.08]"]      { border-color: rgba(180,168,155,0.32) !important; }
+html[data-theme="clean"] *[class~="border-white/[0.12]"]      { border-color: rgba(180,168,155,0.40) !important; }
+html[data-theme="clean"] .sidebar-nav-pill {
+  background: rgba(255,255,255,0.97) !important;
+  border-color: rgba(210,198,185,0.70) !important;
+  box-shadow: 0 4px 24px rgba(50,35,20,0.10), 0 0 0 1px rgba(210,198,185,0.40) !important;
+}
+html[data-theme="clean"] .topbar-glass {
+  background: rgba(250,250,249,0.92) !important;
+  border-bottom: 1px solid rgba(210,198,185,0.50) !important;
+  box-shadow: 0 1px 0 rgba(210,198,185,0.40), 0 4px 16px rgba(50,35,20,0.06) !important;
+}
+
 html[data-theme="ember"] .sidebar-nav-pill {
   background: rgba(253,252,250,0.97) !important;
   border-color: rgba(201,194,184,0.70) !important;

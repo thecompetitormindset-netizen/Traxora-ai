@@ -92,7 +92,7 @@ export default function HomePage() {
       {/* ══ NAV ══ */}
       <nav className={`relative z-20 border-b border-[#252345]/60 px-6 sm:px-10 h-16 flex items-center justify-between backdrop-blur-sm bg-[#0D0B1A]/90 sticky top-0 transition-all duration-300 ${navScrolled ? "shadow-lg shadow-black/20" : ""}`}>
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center">
+          <div className="w-7 h-7 rounded-lg bg-emerald-600 logo-icon-bg flex items-center justify-center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
             </svg>
@@ -103,7 +103,7 @@ export default function HomePage() {
           {NAV_LINKS.map(l => (
             <Link key={l.href} href={l.href} className="text-sm text-[#4B5675] hover:text-[#F1F5F9] transition-colors hidden md:block">{l.label}</Link>
           ))}
-          <button type="button" onClick={handleLaunch} className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-lg text-sm font-semibold">
+          <button type="button" onClick={handleLaunch} className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors px-4 py-2 rounded-lg text-sm font-semibold">
             {session ? "Dashboard →" : "Get started →"}
           </button>
           <button type="button" aria-label="Menu" aria-expanded={mobileMenuOpen ? "true" : "false"} onClick={() => setMobileMenuOpen(o => !o)} className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors">
@@ -120,7 +120,7 @@ export default function HomePage() {
           {NAV_LINKS.map(l => (
             <Link key={l.href} href={l.href} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#CBD5E1] hover:text-[#F1F5F9] py-3 border-b border-[#252345]/40 last:border-0 transition-colors">{l.label}</Link>
           ))}
-          <button type="button" onClick={() => { setMobileMenuOpen(false); handleLaunch(); }} className="mt-3 w-full bg-emerald-600 hover:bg-emerald-500 transition-colors py-3 rounded-xl text-sm font-bold">
+          <button type="button" onClick={() => { setMobileMenuOpen(false); handleLaunch(); }} className="mt-3 w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors py-3 rounded-xl text-sm font-bold">
             {session ? "Open Dashboard →" : "Sign in with Google →"}
           </button>
         </div>
@@ -149,7 +149,7 @@ export default function HomePage() {
           </p>
 
           <div className="hero-enter hero-enter-4 flex items-center justify-center mb-4">
-            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
+            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
               {!session && (
                 <svg width="16" height="16" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
@@ -350,7 +350,7 @@ export default function HomePage() {
               <p className="text-4xl font-black">$5<span className="text-base font-normal text-[#4B5675]">/month</span></p>
               <p className="text-xs text-[#4B5675] mt-1">Billed monthly · cancel anytime · no hidden fees</p>
             </div>
-            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container shrink-0 bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
+            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container shrink-0 bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
               {session ? "Open Dashboard →" : "Get started — $5/mo →"}
             </button>
           </div>
@@ -435,7 +435,7 @@ export default function HomePage() {
           </table>
         </div>
         <div className="text-center mt-10">
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-emerald-600 hover:bg-emerald-500 transition-all px-10 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-10 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
             {session ? "Open Dashboard →" : "Get started — sign in with Google →"}
           </button>
         </div>
@@ -476,7 +476,7 @@ export default function HomePage() {
         </h2>
         <p className="text-[#7B8DB4] text-sm mb-8 max-w-sm mx-auto">No credit card required to start. Upgrade to Pro whenever you&apos;re ready.</p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-emerald-600 hover:bg-emerald-500 transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
             {session ? "Open Dashboard →" : "Sign in with Google →"}
           </button>
           <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-sm font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
@@ -488,7 +488,7 @@ export default function HomePage() {
       {/* ══ STICKY MOBILE CTA ══ */}
       {!session && (
         <div className={`md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-5 pt-3 bg-gradient-to-t from-[#0D0B1A] to-[#0D0B1A]/0 transition-all duration-300 ${showSticky ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-emerald-600 hover:bg-emerald-500 transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30 flex items-center justify-center gap-2">
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30 flex items-center justify-center gap-2">
             <svg width="15" height="15" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
@@ -505,7 +505,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-6 flex-wrap">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-5 h-5 rounded bg-emerald-600 flex items-center justify-center">
+              <div className="w-5 h-5 rounded bg-emerald-600 logo-icon-bg flex items-center justify-center">
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
                 </svg>
