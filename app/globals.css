@@ -2287,6 +2287,20 @@ hr.gradient-hr {
 
 /* ══ DESKTOP RESPONSIVE LAYOUT ═══════════════════════════════════════════════ */
 
+/* Sidebar visibility — driven by CSS media queries, not Tailwind responsive classes */
+.sidebar-desktop {
+  display: none;
+  flex-direction: column;
+}
+.sidebar-mobile {
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 1024px) {
+  .sidebar-desktop { display: flex; }
+  .sidebar-mobile  { display: none !important; }
+}
+
 /* Nav active token — adapts to dark/light accent color */
 :root {
   --nav-active-bg: rgba(16, 185, 129, 0.10);

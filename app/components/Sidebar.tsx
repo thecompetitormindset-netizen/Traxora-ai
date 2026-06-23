@@ -238,7 +238,7 @@ export default function Sidebar() {
   return (
     <>
       {/* ── Desktop persistent sidebar (hidden on mobile) ── */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-50 bg-[var(--bg-surface)] border-r border-[var(--border)]">
+      <aside className="sidebar-desktop fixed left-0 top-0 bottom-0 w-60 flex-col z-50 bg-[var(--bg-surface)] border-r border-[var(--border)]">
 
         {/* Brand */}
         <div className="h-16 flex items-center px-4 border-b border-[var(--border)] shrink-0">
@@ -299,7 +299,7 @@ export default function Sidebar() {
       </aside>
 
       {/* ── Mobile bottom nav — EXACTLY as before, just hidden on lg+ ── */}
-      <div ref={navRef} className="lg:hidden fixed bottom-0 left-0 right-0 z-50 flex flex-col items-center pointer-events-none">
+      <div ref={navRef} className="sidebar-mobile fixed bottom-0 left-0 right-0 z-50 flex-col items-center pointer-events-none">
 
         {/* Sub-panel */}
         <div
