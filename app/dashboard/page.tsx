@@ -1119,6 +1119,9 @@ function DashboardContent() {
             </div>
             </div>
 
+            {/* ── BENTO GRID ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+
             {/* ── PORTFOLIO HERO ── */}
             {(() => {
               const closed = portfolioTrades
@@ -1138,9 +1141,11 @@ function DashboardContent() {
               const isUp = totalPL >= 0;
 
               return (
-                <Link href="/strategy" className="block group mb-4">
-                  <div className={`card-shine glass surface-sheen rounded-2xl p-5 border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                <>
+                <div className="lg:col-span-2">
+                <Link href="/strategy" className="block group h-full">
+                  <div className={`card-shine glass surface-sheen rounded-2xl p-5 border transition-all hover:border-emerald-500/20 h-full ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
+                    <div className="flex items-start gap-8 flex-wrap">
                       {/* Left: value */}
                       <div>
                         <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-2">Paper Portfolio</p>
@@ -1210,11 +1215,13 @@ function DashboardContent() {
                     <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View performance →</p>
                   </div>
                 </Link>
+                </div>
+                <div className="lg:col-span-1 hidden lg:block">
+                  <SentimentWidget />
+                </div>
+                </>
               );
             })()}
-
-            {/* ── BENTO GRID ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
             {/* Morning Brief — full width */}
             <div className="lg:col-span-3">
@@ -1225,7 +1232,7 @@ function DashboardContent() {
                 <div className="hover-float w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
                   <span className="text-xl">🌅</span>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="min-w-0">
                   <p className="text-sm font-bold text-[#F1F5F9]">Today's Market Brief</p>
                   <p className="text-xs text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
                 </div>
@@ -1514,9 +1521,10 @@ function DashboardContent() {
             {/* Right sidebar — 1/3 */}
             <div className="order-3 lg:order-none lg:col-span-1 flex flex-col gap-3">
 
-              {/* Sentiment */}
-              <SentimentWidget />
-
+              {/* Sentiment — mobile only (desktop shows next to Portfolio Hero) */}
+              <div className="lg:hidden">
+                <SentimentWidget />
+              </div>
               {/* Signal Track Record */}
               <SignalPerformance />
 
