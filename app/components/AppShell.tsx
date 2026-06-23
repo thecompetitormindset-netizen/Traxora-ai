@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import AnimationProvider from "./AnimationProvider";
 import SessionWatcher from "./SessionWatcher";
@@ -22,6 +23,11 @@ const PortfolioSync  = dynamic(() => import("./PortfolioSync"),  { ssr: false })
 export default function AppShell() {
   const pathname = usePathname();
   const isMarketing = MARKETING.has(pathname);
+
+  useEffect(() => {
+    document.body.classList.toggle("app-mode", !isMarketing);
+    return () => { document.body.classList.remove("app-mode"); };
+  }, [isMarketing]);
 
   return (
     <>

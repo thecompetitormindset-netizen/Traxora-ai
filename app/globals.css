@@ -2285,6 +2285,68 @@ hr.gradient-hr {
 .range-pin    { left: calc(var(--pin-pct, 50%) - 7px); }
 .range-pin-sm { left: calc(var(--pin-pct, 50%) - 6px); }
 
+/* ══ DESKTOP RESPONSIVE LAYOUT ═══════════════════════════════════════════════ */
+
+/* Nav active token — adapts to dark/light accent color */
+:root {
+  --nav-active-bg: rgba(16, 185, 129, 0.10);
+}
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) {
+  --nav-active-bg: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+/* Desktop sidebar nav item base */
+.d-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: color 0.15s, background 0.15s;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+.d-nav-item:hover {
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+.d-nav-item-active {
+  color: var(--accent) !important;
+  background: var(--nav-active-bg) !important;
+}
+
+/* Sub-items (indented) */
+.d-nav-sub {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  padding-left: 32px;
+  padding-right: 10px;
+  font-size: 12px;
+  font-weight: 400;
+}
+.d-nav-sub-active {
+  color: var(--accent) !important;
+  font-weight: 500;
+}
+
+/* Body offset — shifts ALL in-flow content right of the fixed sidebar */
+@media (min-width: 1024px) {
+  body.app-mode {
+    padding-left: 240px;
+  }
+  /* Remove bottom-nav padding — no floating bottom bar on desktop */
+  body.app-mode main {
+    padding-bottom: 1.25rem !important;
+  }
+}
+
 /* ══ BODY DEPTH NOISE (subtle grain for premium feel) ════════════════════════ */
 body::before {
   content: '';
