@@ -244,7 +244,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ HOW IT WORKS ══ */}
-      <section className="px-6 sm:px-10 py-20 bg-[#0A0818]/60 border-y border-[#252345]/40">
+      <section className="px-6 sm:px-10 py-20 landing-stripe">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">How it works</p>
@@ -300,7 +300,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ TESTIMONIALS ══ */}
-      <section className="px-6 sm:px-10 py-20 bg-[#0A0818]/60 border-y border-[#252345]/40">
+      <section className="px-6 sm:px-10 py-20 landing-stripe">
         <div className="max-w-5xl mx-auto">
           <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-10">What traders are saying</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
@@ -442,7 +442,7 @@ export default function HomePage() {
       </section>
 
       {/* ══ FAQ ══ */}
-      <section className="px-6 sm:px-10 py-20 bg-[#0A0818]/60 border-y border-[#252345]/40">
+      <section className="px-6 sm:px-10 py-20 landing-stripe">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-12">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">FAQ</p>

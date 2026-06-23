@@ -840,6 +840,19 @@ html[data-theme="ember"] {
    Layered on top of --bg-canvas; solid card surfaces hide dots naturally.
    Each theme gets its own dot color via --dot-color.
    ══════════════════════════════════════════════════════════════════════════════ */
+/* Landing page alternating section stripes */
+.landing-stripe {
+  background-color: rgb(10 8 24 / 0.6);
+  border-top: 1px solid rgb(37 35 69 / 0.4);
+  border-bottom: 1px solid rgb(37 35 69 / 0.4);
+}
+html[data-theme="light"] .landing-stripe,
+html[data-theme="clean"] .landing-stripe,
+html[data-theme="ember"] .landing-stripe {
+  background-color: transparent;
+  border-color: rgba(231, 229, 228, 0.5);
+}
+
 html[data-theme="clean"] body {
   background-color: #FAFAF9;
   background-image: radial-gradient(circle, #E4E1DE 1px, transparent 1px);
