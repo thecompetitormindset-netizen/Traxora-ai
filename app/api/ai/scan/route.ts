@@ -1,4 +1,4 @@
-import { smartMoneyScore } from "@/app/lib/smartMoney";
+import { smartMoneyScore, computeCanonicalTrade } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
@@ -59,7 +59,10 @@ function scoreStock(s: StockInput) {
   );
 
   const { signal, confidence, score, priceZone, marketStructure,
-          yearPct, dayH, dayL, dayMid, daySpan } = sm;
+          yearPct, dayH, dayL, dayMid } = sm;
+
+  // Canonical trade levels — shared with analyze() so card and breakdown match
+  const canonTrade = computeCanonicalTrade(sm, s.price);
 
   // Fall back to the pre-computed ratio when smartMoneyScore returns null (avgVolume === 0 from data source)
   const volRatio = sm.volRatio ?? s.volumeRatio;
@@ -92,10 +95,9 @@ function scoreStock(s: StockInput) {
     signal === "SELL" ? `$${fmtPrice(dayH)} — resistance / stop above day high` :
                         `$${fmtPrice(dayMid)} — equilibrium`;
 
-  const target =
-    signal === "BUY"  ? `$${fmtPrice(s.price + (s.price - dayL) * 2)} — 2:1 R:R target` :
-    signal === "SELL" ? `$${fmtPrice(s.price - (dayH - s.price) * 2)} — 2:1 R:R target` :
-                        "—";
+  const target = canonTrade
+    ? `${canonTrade.targetFmt} — ${canonTrade.rrNum}:1 R:R target`
+    : "—";
 
   const power3Phase =
     s.changePercent > 1 && highVol ? "Distribution" :
@@ -113,37 +115,30 @@ function scoreStock(s: StockInput) {
       ? s.news[0].title.slice(0, 80)
       : `${s.changePercent >= 0 ? "Technical" : "Bearish"} price action — no major catalyst`;
 
-  // Trade levels
-  let entryZone: string | null = null;
-  let stopLoss:  string | null = null;
-  let takeProfit: string | null = null;
-  let entryReason: string | null = null;
-  let stopReason:  string | null = null;
-  let tpReason:    string | null = null;
-
-  if (signal !== "HOLD" && dayH && dayL) {
-    const span      = (daySpan && daySpan > 0.01) ? daySpan : s.price * 0.01;
-    const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
-    const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
-    const entryMid  = (entryLow + entryHigh) / 2;
-    // Structural stop beyond session extreme with a small buffer
-    const buf       = Math.max(span * 0.03, s.price * 0.001);
-    const stopVal   = signal === "BUY" ? dayL - buf : dayH + buf;
-    const riskDist  = Math.abs(entryMid - stopVal);
-    const tpVal     = signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2;
-    entryZone   = `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`;
-    stopLoss    = `$${fmtPrice(stopVal)}`;
-    takeProfit  = `$${fmtPrice(tpVal)}`;
-    entryReason = signal === "BUY"
-      ? `Discount zone — lower 30% of day range (${priceZone})`
-      : `Premium zone — upper 30% of day range (${priceZone})`;
-    stopReason  = signal === "BUY"
-      ? "5% below entry zone — structural stop below day low"
-      : "5% above entry zone — structural stop above day high";
-    tpReason    = signal === "BUY"
-      ? "2:1 R:R — targeting BSL / buy-side liquidity above"
-      : "2:1 R:R — targeting SSL / sell-side liquidity below";
-  }
+  // Trade levels — use the canonical shared computation (same as analyze())
+  // so scan card and full breakdown always show identical levels for any ticker.
+  const entryZone:  string | null = canonTrade?.entryZone  ?? null;
+  const stopLoss:   string | null = canonTrade?.stopFmt    ?? null;
+  const takeProfit: string | null = canonTrade?.targetFmt  ?? null;
+  const entryReason: string | null = canonTrade
+    ? (signal === "BUY"
+        ? `Discount zone — lower 30% of day range (${priceZone})`
+        : `Premium zone — upper 30% of day range (${priceZone})`)
+    : null;
+  const stopReason: string | null = canonTrade
+    ? (signal === "BUY"
+        ? "Structural stop below session low"
+        : "Structural stop above session high")
+    : null;
+  const tpReason: string | null = canonTrade
+    ? (canonTrade.liqRR >= 1
+        ? (signal === "BUY"
+            ? "Targeting BSL / buy-side liquidity above prior session high"
+            : "Targeting SSL / sell-side liquidity below prior session low")
+        : (signal === "BUY"
+            ? `${canonTrade.rrNum}:1 R:R — targeting liquidity above`
+            : `${canonTrade.rrNum}:1 R:R — targeting liquidity below`))
+    : null;
 
   return {
     symbol: s.symbol, signal, confidence, setupNote, catalyst,

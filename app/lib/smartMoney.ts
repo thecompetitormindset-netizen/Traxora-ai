@@ -325,3 +325,76 @@ export function smartMoneyScore(
     immediateRebalance,
   };
 }
+
+// ─── Canonical trade levels ────────────────────────────────────────────────────
+// The single authoritative entry/stop/target computation shared by every route
+// (analyze, options-scan, AI scan).  No route may compute these fields locally;
+// all must call this function so every card and every breakdown show identical
+// numbers for the same ticker at the same moment.
+
+function fmtCanon(p: number): string {
+  const d = p < 1 ? 4 : p < 10 ? 3 : 2;
+  return p.toFixed(d);
+}
+
+export interface CanonicalTrade {
+  // Raw numbers — for invariant checks and further math in callers
+  entryLow:  number;
+  entryHigh: number;
+  entryMid:  number;
+  stopRaw:   number;
+  targetRaw: number;
+  riskDist:  number;
+  liqRR:     number;
+  // Ratio only (no suffix) — callers append ":1" or ":1 R:R" as needed
+  rrNum:     string;
+  // Pre-formatted price strings
+  entryZone: string;  // "$X.XX – $Y.YY"
+  stopFmt:   string;  // "$X.XX"
+  targetFmt: string;  // "$X.XX"
+}
+
+/**
+ * Compute canonical trade levels from a SmScore.
+ * Returns null when signal is HOLD or day high/low data is unavailable.
+ * Every route that surfaces entry / stop / target MUST call this — never
+ * compute those fields independently.
+ */
+export function computeCanonicalTrade(
+  sm: Pick<SmScore, "signal" | "dayH" | "dayL" | "daySpan" | "bslPrice" | "sslPrice">,
+  price: number,
+): CanonicalTrade | null {
+  const { signal, dayH, dayL, daySpan, bslPrice, sslPrice } = sm;
+  if (signal === "HOLD" || !(dayH > 0) || !(dayL > 0)) return null;
+
+  const span      = daySpan > 0.01 ? daySpan : price * 0.01;
+  const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
+  const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
+  const entryMid  = (entryLow + entryHigh) / 2;
+  // Structural stop: just beyond the session extreme.
+  // Buffer = larger of 3% of day span or 0.1% of price.
+  const buf       = Math.max(span * 0.03, price * 0.001);
+  const stopRaw   = signal === "BUY" ? dayL - buf : dayH + buf;
+  const riskDist  = Math.abs(entryMid - stopRaw);
+
+  // Target the actual BSL/SSL liquidity level — that's where price is drawn.
+  // Fall back to 2:1 R:R when the liquidity level is closer than 1:1.
+  const liquidityTP = signal === "BUY" ? bslPrice : sslPrice;
+  const liqRR       = riskDist > 0 ? Math.abs(liquidityTP - entryMid) / riskDist : 0;
+  const targetRaw   = liqRR >= 1
+    ? liquidityTP
+    : (signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2);
+  const rrNum       = riskDist > 0
+    ? (Math.abs(targetRaw - entryMid) / riskDist).toFixed(1)
+    : "2.0";
+
+  return {
+    entryLow, entryHigh, entryMid,
+    stopRaw, targetRaw,
+    riskDist, liqRR,
+    rrNum,
+    entryZone: `$${fmtCanon(entryLow)} – $${fmtCanon(entryHigh)}`,
+    stopFmt:   `$${fmtCanon(stopRaw)}`,
+    targetFmt: `$${fmtCanon(targetRaw)}`,
+  };
+}

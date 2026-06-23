@@ -269,6 +269,28 @@ type OptionsPlay = {
   dte: number | null; dteWarning: boolean;
 };
 
+/**
+ * Runtime invariant for every options play card.
+ * The scan/ranking pipeline must never compute direction locally; it must
+ * always derive `play` directly from the signal returned by computeCanonicalTrade().
+ * This guard is the last line of defense — the bug should be impossible at the
+ * source now, but we still verify before rendering any card.
+ *
+ * Dev: throws so the contradiction is immediately visible.
+ * Prod: suppresses the card and logs — never ship a contradictory card.
+ */
+function assertOptionPlayIntegrity(p: OptionsPlay): boolean {
+  const expectedPlay = p.signal === "BUY" ? "CALLS" : "PUTS";
+  if (p.play !== expectedPlay) {
+    const msg = `[Options invariant] ${p.symbol}: card.play=${p.play} but signal=${p.signal}. ` +
+                `The scan path must not compute direction independently.`;
+    if (process.env.NODE_ENV === "development") throw new Error(msg);
+    console.error(msg);
+    return false;
+  }
+  return true;
+}
+
 function OptionsPlaysSection() {
   const [plays,     setPlays]     = useState<OptionsPlay[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -307,7 +329,10 @@ function OptionsPlaysSection() {
       const res  = await fetch("/api/market/options-scan", { cache: "no-store" });
       if (!res.ok) { setErr(`Server error ${res.status}`); return; }
       const data = await res.json();
-      setPlays(data.plays ?? []);
+      // Enforce direction invariant: suppress any card where play ≠ signal direction.
+      // This should never trigger after the canonical-trade fix, but guards regressions.
+      const validated = (data.plays ?? []).filter(assertOptionPlayIntegrity);
+      setPlays(validated);
       setScanned(data.scanned ?? 0);
       setWithIV(data.withIV ?? 0);
       setLoaded(true);
@@ -400,7 +425,10 @@ function OptionsPlaysSection() {
       {loaded && plays.length === 0 && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
           <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
-          <p className="text-[11px] text-[#4B5675] leading-snug">All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE.<br/>This keeps quality high — check back when the market gives a clear directional move.</p>
+          <p className="text-[11px] text-[#4B5675] leading-snug">
+            All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE.<br/>
+            This keeps quality high — check back when the market gives a clear directional move.
+          </p>
         </div>
       )}
 

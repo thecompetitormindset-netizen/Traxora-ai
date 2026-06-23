@@ -2,12 +2,20 @@ export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
 export const maxDuration = 45;
 
-import { smartMoneyScore } from "@/app/lib/smartMoney";
+import { smartMoneyScore, computeCanonicalTrade } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 
 function fmtPrice(p: number): string {
   const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
   return p.toFixed(decimals);
+}
+
+function calcClosesEMA(closes: number[], period: number): number | null {
+  if (closes.length < period) return null;
+  const k = 2 / (period + 1);
+  let ema = closes.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let i = period; i < closes.length; i++) ema = closes[i] * k + ema * (1 - k);
+  return ema;
 }
 
 const UNIVERSE = [
@@ -22,7 +30,7 @@ const UNIVERSE = [
 async function fetchQuote(symbol: string) {
   try {
     const res  = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=30d`,
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=60d`,
       { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) },
     );
     if (!res.ok) return null;
@@ -49,7 +57,17 @@ async function fetchQuote(symbol: string) {
     const base5d   = closes.length >= 6 ? closes.at(-6)! : null;
     const trend5d  = base5d && base5d > 0 ? ((price - base5d) / base5d) * 100 : null;
 
-    return { symbol, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d };
+    // EMA alignment — identical computation to ai/analyze so both routes score identically
+    const ema20val = calcClosesEMA(closes, 20);
+    const ema50val = calcClosesEMA(closes, 50);
+    const emaAlignment: "bullish" | "bearish" | "neutral" | null =
+      ema20val != null && ema50val != null
+        ? (price > ema20val && ema20val > ema50val ? "bullish"
+          : price < ema20val && ema20val < ema50val ? "bearish"
+          : "neutral")
+        : null;
+
+    return { symbol, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment };
   } catch { return null; }
 }
 
@@ -195,7 +213,7 @@ export async function runOptionsScan() {
         low52w:        q.low52,
         changePercent: changePct,
       },
-      { trend5dPct: q.trend5d ?? undefined },
+      { trend5dPct: q.trend5d ?? undefined, emaAlignment: q.emaAlignment },
     );
 
     if (sm.signal === "HOLD") continue;
@@ -203,32 +221,21 @@ export async function runOptionsScan() {
     const ivPct        = opt?.iv ? opt.iv * 100 : null;
     const dailyMove    = ivPct
       ? q.price * (ivPct / 100) * Math.sqrt(1 / 252)
-      : q.price * 0.015; // fallback: 1.5% daily move estimate
-    const weeklyMove   = dailyMove * Math.sqrt(5);
+      : q.price * 0.015; // fallback: 1.5% daily move estimate (display only)
     const expectedMove = parseFloat(((dailyMove / q.price) * 100).toFixed(2));
 
-    // ── Trade levels ────────────────────────────────────────
-    const isBull      = sm.signal === "BUY";
-    const finalSignal = sm.signal as "BUY" | "SELL";
+    const finalSignal     = sm.signal as "BUY" | "SELL";
     const finalConfidence = sm.confidence;
 
-    // Entry zone: 0.3% band around current price
-    const entryLow  = q.price * (isBull ? 0.997 : 1.001);
-    const entryHigh = q.price * (isBull ? 1.003 : 0.999);
-    const entryZone = `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`;
+    // ── Canonical trade levels — same computation as analyze(); no local math ──
+    // Both this card path and the full breakdown use computeCanonicalTrade() so
+    // direction, entry, target, and stop are always identical for any ticker.
+    const canonTrade = computeCanonicalTrade(sm, q.price);
+    // signal !== "HOLD" is already enforced above; guard for missing dayH/dayL edge cases
+    if (!canonTrade) continue;
 
-    // Target: 2× weekly move in signal direction
-    const targetPrice = isBull ? q.price + weeklyMove * 2 : q.price - weeklyMove * 2;
-    const target      = `$${fmtPrice(targetPrice)}`;
-
-    // Stop: 1× weekly move against signal direction
-    const stopPrice = isBull ? q.price - weeklyMove : q.price + weeklyMove;
-    const stop      = `$${fmtPrice(stopPrice)}`;
-
-    // R:R ratio
-    const reward = Math.abs(targetPrice - q.price);
-    const risk   = Math.abs(stopPrice   - q.price);
-    const rrRatio = `${(reward / risk).toFixed(1)}:1 R:R`;
+    // Direction derived from signal — never computed independently
+    const isBull = finalSignal === "BUY";
 
     // Strike: use actual ATM strike from CBOE chain, fall back to nearest round number
     const strikeIncrement = q.price > 500 ? 5 : q.price > 100 ? 5 : q.price > 20 ? 2.5 : 1;
@@ -251,23 +258,33 @@ export async function runOptionsScan() {
     const confScore  = finalConfidence === "High" ? 10 : finalConfidence === "Medium" ? 5 : 0;
     const score      = normalizedScore + ivScore + momScore + confScore;
 
+    // Runtime invariant: direction must match signal — never diverge.
+    // This is guaranteed structurally (play derived from finalSignal), but assert
+    // explicitly so any future regression throws in dev and logs in prod.
+    const play = finalSignal === "BUY" ? "CALLS" : "PUTS";
+    if (process.env.NODE_ENV !== "production") {
+      if ((play === "CALLS") !== (finalSignal === "BUY")) {
+        throw new Error(`[options-scan] Invariant: ${q.symbol} play=${play} signal=${finalSignal}`);
+      }
+    }
+
     results.push({
       symbol:       q.symbol,
       price:        q.price,
       changePct,
       signal:       finalSignal,
       confidence:   finalConfidence,
-      play:         isBull ? "CALLS" : "PUTS",
+      play,
       iv:           ivPct ? parseFloat(ivPct.toFixed(1)) : null,
       expiry:       opt?.expiry ?? null,
       callWall:     opt?.callWall ?? null,
       putWall:      opt?.putWall ?? null,
       expectedMove,
       strike,
-      entryZone,
-      target,
-      stop,
-      rrRatio,
+      entryZone:    canonTrade.entryZone,
+      target:       canonTrade.targetFmt,
+      stop:         canonTrade.stopFmt,
+      rrRatio:      `${canonTrade.rrNum}:1 R:R`,
       premiumEst,
       pcVolRatio:   opt?.pcVolRatio ?? null,
       score,

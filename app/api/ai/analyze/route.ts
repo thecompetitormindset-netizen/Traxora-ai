@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { smartMoneyScore, detectOrderBlocks, detectFVG } from "@/app/lib/smartMoney";
+import { smartMoneyScore, detectOrderBlocks, detectFVG, computeCanonicalTrade } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { getVolumeProfile } from "@/app/lib/volumeProfile";
@@ -239,43 +239,27 @@ export async function POST(req: Request) {
     const orderBlock   = signal === "BUY" ? obs.bullish : signal === "SELL" ? obs.bearish : obs.bullish ?? obs.bearish;
     const fairValueGap = realFVG;
 
-    // Trade levels: BUY enters discount (5–30% above day low), SELL enters premium (5–30% below day high)
-    // Take-profit targets the nearest liquidity pool (BSL for longs, SSL for shorts) rather than a fixed R:R.
+    // Trade levels — use the single shared computation so this breakdown and
+    // every card always show the same entry/stop/target for the same ticker.
+    const canonTrade = computeCanonicalTrade(sm, price);
     let trade: { entryZone: string; stopLoss: string; takeProfit: string; entryReason: string; stopReason: string; tpReason: string; rrRatio: string } | null = null;
-    if (signal !== "HOLD" && dayH && dayL) {
-      const span      = (daySpan && daySpan > 0.01) ? daySpan : price * 0.01;
-      const entryLow  = signal === "BUY" ? dayL + span * 0.05 : dayH - span * 0.30;
-      const entryHigh = signal === "BUY" ? dayL + span * 0.30 : dayH - span * 0.05;
-      const entryMid  = (entryLow + entryHigh) / 2;
-      // Structural stop: just beyond the session extreme.
-      // Buffer = larger of 3% of day span or 0.1% of price — avoids wick stop-outs.
-      const buf       = Math.max(span * 0.03, price * 0.001);
-      const stopVal   = signal === "BUY" ? dayL - buf : dayH + buf;
-      const riskDist  = Math.abs(entryMid - stopVal);
-
-      // Target the actual BSL/SSL liquidity level — that's where price is drawn to.
-      // Fall back to 2:1 R:R if the liquidity level is closer than 1:1 (would be a bad trade).
-      const liquidityTP = signal === "BUY" ? bslPrice : sslPrice;
-      const liqRR       = riskDist > 0 ? Math.abs(liquidityTP - entryMid) / riskDist : 0;
-      const tpVal       = liqRR >= 1 ? liquidityTP : (signal === "BUY" ? entryMid + riskDist * 2 : entryMid - riskDist * 2);
-      const actualRR    = riskDist > 0 ? (Math.abs(tpVal - entryMid) / riskDist).toFixed(1) : "2.0";
-
+    if (canonTrade) {
       trade = {
-        entryZone:   `$${fmtPrice(entryLow)} – $${fmtPrice(entryHigh)}`,
-        stopLoss:    `$${fmtPrice(stopVal)}`,
-        takeProfit:  `$${fmtPrice(tpVal)}`,
+        entryZone:   canonTrade.entryZone,
+        stopLoss:    canonTrade.stopFmt,
+        takeProfit:  canonTrade.targetFmt,
+        rrRatio:     `${canonTrade.rrNum}:1`,
         entryReason: signal === "BUY"
           ? `Discount zone — enter in lower 30% of day range${orderBlock ? " near Order Block" : ""}${immediateRebalance ? " · IR zone nearby" : ""}`
           : `Premium zone — enter in upper 30% of day range${orderBlock ? " near Order Block" : ""}${immediateRebalance ? " · IR zone nearby" : ""}`,
         stopReason:  signal === "BUY"
           ? `Structural stop below ${orderBlock ? "Order Block low" : "session low"}`
           : `Structural stop above ${orderBlock ? "Order Block high" : "session high"}`,
-        tpReason:    liqRR >= 1
+        tpReason:    canonTrade.liqRR >= 1
           ? (signal === "BUY"
               ? `Targeting BSL at $${fmtPrice(bslPrice)} — buy-side liquidity above prior session high`
               : `Targeting SSL at $${fmtPrice(sslPrice)} — sell-side liquidity below prior session low`)
-          : `2:1 R:R target at $${fmtPrice(tpVal)} — liquidity too close for direct targeting`,
-        rrRatio:     `${actualRR}:1`,
+          : `2:1 R:R target at $${fmtPrice(canonTrade.targetRaw)} — liquidity too close for direct targeting`,
       };
     }
 
@@ -415,7 +399,7 @@ export async function POST(req: Request) {
           anthropic.messages.create({
             model:      "claude-haiku-4-5-20251001",
             max_tokens: 320,
-            system: "You are a concise market analyst. Given price structure data, write exactly: 2 clear sentences of analysis (no bullet prefix), then exactly 3 bullet points starting with ·. Be specific with price levels. No methodology jargon.",
+            system: "You are a concise market analyst. Given price structure data, write exactly: 2 clear sentences of analysis (no bullet prefix), then exactly 3 bullet points starting with ·. Be specific with price levels. No methodology jargon. Do not mention option expiry dates, strike prices, contract types, or spread strategy names — those come from a separate live data source.",
             messages: [{ role: "user", content: prompt }],
           }),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error("AI timeout")), 12_000)),

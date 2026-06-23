@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { THEME_KEY } from "../lib/theme";
+import ThemeToggle from "./ThemeToggle";
 import { useRouter } from "next/navigation";
 import { setCurrentUser, scopedKey } from "../lib/userState";
 import type { IndexRow } from "@/app/api/market/indices/route";
@@ -200,7 +201,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
     <div className="h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
       {/* Logo — links back to landing page */}
       <Link href="/" className="flex items-center gap-2 shrink-0 group">
-        <div className="w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
+        <div className="logo-icon-bg w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
             <polyline points="16 7 22 7 22 13"/>
@@ -302,6 +303,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
       {/* Right side */}
       <div className="flex items-center gap-2">
+        {/* Theme toggle */}
+        <ThemeToggle />
         {/* Notifications */}
         <Link
           href="/notifications"

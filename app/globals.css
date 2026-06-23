@@ -3,15 +3,15 @@
 :root {
   --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
 
-  --bg-canvas:   #0D0B1A;
-  --bg-surface:  #13112A;
-  --bg-elevated: #1A1838;
-  --border:      #252345;
-  --border-hover:#333368;
+  --bg-canvas:   #040F14;
+  --bg-surface:  #071C25;
+  --bg-elevated: #0C2A3A;
+  --border:      #0D3345;
+  --border-hover:#145068;
 
-  --text-primary:   #F1F5F9;
-  --text-secondary: #7B8DB4;
-  --text-muted:     #4B5675;
+  --text-primary:   #F0F8FA;
+  --text-secondary: #6BA8C0;
+  --text-muted:     #3D7A95;
 
   --accent:      #10B981;
   --accent-hover:#34D399;
@@ -27,13 +27,13 @@
   --glow-accent: rgba(52,211,153,0.18);
 
   /* Glass tokens */
-  --glass-bg:     rgba(13,11,26,0.60);
+  --glass-bg:     rgba(4,15,20,0.65);
   --glass-border: rgba(255,255,255,0.07);
 
   /* Gradient presets */
   --grad-buy:    linear-gradient(135deg,#10b981,#34d399);
   --grad-sell:   linear-gradient(135deg,#f43f5e,#fb7185);
-  --grad-purple: linear-gradient(135deg,#8b5cf6,#a78bfa);
+  --grad-purple: linear-gradient(135deg,#06b6d4,#22d3ee);
   --grad-gold:   linear-gradient(135deg,#f59e0b,#fbbf24);
   --grad-cyan:   linear-gradient(135deg,#22d3ee,#67e8f9);
 }
@@ -57,6 +57,9 @@ html {
   color-scheme: dark;
   overscroll-behavior-y: none;
 }
+html[data-theme="clean"],
+html[data-theme="ember"],
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) { color-scheme: light; }
 
 body {
   background: var(--bg-canvas);
@@ -73,10 +76,10 @@ body {
 ::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(to bottom, #10b981, #8b5cf6);
+  background: linear-gradient(to bottom, #10b981, #06b6d4);
   border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #34d399, #a78bfa); }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #34d399, #22d3ee); }
 
 /* Monospace for numbers — JetBrains Mono for prices/data */
 .font-mono, [data-price] {
@@ -296,11 +299,92 @@ body {
 .w-pct-90  { width:  90% } .w-pct-95  { width:  95% } .w-pct-100 { width: 100% }
 
 /* ══════════════════════════════════════════════════════════════════════════════
+   DARK MODE — OCEAN DEPTH TEAL
+   Remaps old purple-dark Tailwind arbitrary hex classes to teal palette.
+   Light theme rules below have higher specificity and override these.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── Canvas / very dark backgrounds ─────────────────────────────────────────── */
+*[class~="bg-[#0D0B1A]"] { background-color: #040F14 !important; }
+*[class~="bg-[#0B091A]"] { background-color: #030C10 !important; }
+*[class~="bg-[#0B0F19]"] { background-color: #040F14 !important; }
+*[class~="bg-[#0F0D1C]"] { background-color: #040F14 !important; }
+*[class~="bg-[#0F172A]"] { background-color: #040F14 !important; }
+*[class~="bg-[#080614]"] { background-color: #020B0F !important; }
+*[class~="bg-[#0D1420]"] { background-color: #040F14 !important; }
+*[class~="bg-[#0F1623]"] { background-color: #040F14 !important; }
+*[class~="bg-[#080E1B]"] { background-color: #040F14 !important; }
+
+/* ── Surface / card backgrounds ─────────────────────────────────────────────── */
+*[class~="bg-[#13112A]"] { background-color: #071C25 !important; }
+*[class~="bg-[#1C1933]"] { background-color: #071C25 !important; }
+*[class~="bg-[#1E1C42]"] { background-color: #0A2235 !important; }
+
+/* ── Elevated / hover backgrounds ───────────────────────────────────────────── */
+*[class~="bg-[#1A1838]"] { background-color: #0C2A3A !important; }
+*[class~="bg-[#232F46]"] { background-color: #0A2235 !important; }
+*[class~="bg-[#252345]"] { background-color: #0D3345 !important; }
+*[class~="bg-[#333368]"] { background-color: #145068 !important; }
+*[class~="bg-[#4B5675]"] { background-color: #3D7A95 !important; }
+*[class~="bg-[#7B8DB4]"] { background-color: #6BA8C0 !important; }
+
+/* ── Opacity variants — canvas ──────────────────────────────────────────────── */
+*[class~="bg-[#0D0B1A]/40"] { background-color: rgba(4,15,20,0.40) !important; }
+*[class~="bg-[#0D0B1A]/50"] { background-color: rgba(4,15,20,0.50) !important; }
+*[class~="bg-[#0D0B1A]/60"] { background-color: rgba(4,15,20,0.60) !important; }
+*[class~="bg-[#0D0B1A]/70"] { background-color: rgba(4,15,20,0.70) !important; }
+*[class~="bg-[#0D0B1A]/80"] { background-color: rgba(4,15,20,0.80) !important; }
+*[class~="bg-[#0D0B1A]/95"] { background-color: rgba(4,15,20,0.95) !important; }
+
+/* ── Opacity variants — surface ─────────────────────────────────────────────── */
+*[class~="bg-[#13112A]/20"] { background-color: rgba(7,28,37,0.20) !important; }
+*[class~="bg-[#13112A]/30"] { background-color: rgba(7,28,37,0.30) !important; }
+*[class~="bg-[#13112A]/40"] { background-color: rgba(7,28,37,0.40) !important; }
+*[class~="bg-[#13112A]/60"] { background-color: rgba(7,28,37,0.60) !important; }
+*[class~="bg-[#13112A]/80"] { background-color: rgba(7,28,37,0.80) !important; }
+*[class~="bg-[#13112A]/90"] { background-color: rgba(7,28,37,0.90) !important; }
+*[class~="bg-[#13112A]/95"] { background-color: rgba(7,28,37,0.95) !important; }
+
+/* ── Opacity variants — elevated ────────────────────────────────────────────── */
+*[class~="bg-[#1A1838]/50"] { background-color: rgba(12,42,58,0.50) !important; }
+*[class~="bg-[#1A1838]/80"] { background-color: rgba(12,42,58,0.80) !important; }
+*[class~="bg-[#1E1C42]/40"] { background-color: rgba(10,34,53,0.40) !important; }
+*[class~="bg-[#252345]/50"] { background-color: rgba(13,51,69,0.50) !important; }
+*[class~="bg-[#0B091A]/96"] { background-color: rgba(3,12,16,0.96) !important; }
+*[class~="bg-[#0F0D1C]/95"] { background-color: rgba(4,15,20,0.95) !important; }
+*[class~="bg-[#080614]/60"] { background-color: rgba(2,11,15,0.60) !important; }
+
+/* ── Borders ────────────────────────────────────────────────────────────────── */
+*[class~="border-[#252345]"]          { border-color: #0D3345 !important; }
+*[class~="border-[#333368]"]          { border-color: #145068 !important; }
+*[class~="border-[#13112A]"]          { border-color: #071C25 !important; }
+*[class~="border-[#1A1838]"]          { border-color: #0C2A3A !important; }
+*[class~="border-[#1C1933]"]          { border-color: #071C25 !important; }
+*[class~="border-[#1E1C42]"]          { border-color: #0A2235 !important; }
+*[class~="border-[#252345]/60"]       { border-color: rgba(13,51,69,0.60) !important; }
+*[class~="divide-[#252345]"] > * + * { border-color: #0D3345 !important; }
+
+/* ── Text ───────────────────────────────────────────────────────────────────── */
+*[class~="text-[#7B8DB4]"] { color: #6BA8C0 !important; }
+*[class~="text-[#4B5675]"] { color: #3D7A95 !important; }
+*[class~="text-[#333368]"] { color: #4A8099 !important; }
+*[class~="text-[#2D3A52]"] { color: #3D7A95 !important; }
+*[class~="text-[#3D4F6B]"] { color: #4A8099 !important; }
+
+/* ── Hover states ───────────────────────────────────────────────────────────── */
+*[class~="hover:border-[#333368]"]:hover { border-color: #145068 !important; }
+*[class~="hover:bg-[#1A1838]"]:hover     { background-color: #0C2A3A !important; }
+*[class~="hover:text-[#7B8DB4]"]:hover   { color: #6BA8C0 !important; }
+
+/* ── Placeholder ────────────────────────────────────────────────────────────── */
+*[class~="placeholder:text-[#4B5675]"]::placeholder { color: #3D7A95 !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════════
    PREMIUM LIGHT THEME — Linear / TradingView-inspired
    Cool blue-gray canvas · white cards · high-contrast text · soft elevation
    ══════════════════════════════════════════════════════════════════════════════ */
 
-html[data-theme="light"] {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) {
   color-scheme: light;
 
   /* ── Core tokens ─────────────────────────────────────────────────────────── */
@@ -322,156 +406,218 @@ html[data-theme="light"] {
   --hold: #F59E0B;
 }
 
-html[data-theme="light"] body {
+/* ══ CLEAN THEME — Fintech light (orange brand, Stripe/Mercury feel) ════════════
+   Base: #FAFAF9 warm-white · Accent: #EA580C orange · Semantic green/red intact
+   ══════════════════════════════════════════════════════════════════════════════ */
+html[data-theme="clean"] {
+  --bg-canvas:      #FAFAF9;
+  --bg-surface:     #FFFFFF;
+  --bg-elevated:    #F5F4F2;
+  --border:         #E7E5E4;
+  --border-hover:   #D6D3D1;
+  --text-primary:   #1C1917;
+  --text-secondary: #57534E;
+  --text-muted:     #A8A29E;
+  --accent:         #EA580C;
+  --accent-hover:   #C2410C;
+  --buy:  #16A34A;
+  --sell: #DC2626;
+  --hold: #D97706;
+  --dot-color:      #D6D3D1;
+  --glow-buy:    rgba(22,163,74,0.18);
+  --glow-sell:   rgba(220,38,38,0.18);
+  --glow-hold:   rgba(217,119,6,0.15);
+  --glow-accent: rgba(234,88,12,0.15);
+  --glass-bg:     rgba(255,255,255,0.82);
+  --glass-border: rgba(0,0,0,0.06);
+  --grad-buy:    linear-gradient(135deg,#16a34a,#22c55e);
+  --grad-sell:   linear-gradient(135deg,#dc2626,#ef4444);
+  --grad-purple: linear-gradient(135deg,#ea580c,#f97316);
+  --grad-gold:   linear-gradient(135deg,#d97706,#f59e0b);
+  --grad-cyan:   linear-gradient(135deg,#ea580c,#fb923c);
+}
+
+/* ══ EMBER THEME — Warm stone editorial (darker orange, antiquarian feel) ════════
+   Base: #F7F4F0 stone · Accent: #C2410C dark-orange · Semantic green/red intact
+   ══════════════════════════════════════════════════════════════════════════════ */
+html[data-theme="ember"] {
+  --bg-canvas:      #F7F4F0;
+  --bg-surface:     #FDFCFA;
+  --bg-elevated:    #EDE8E2;
+  --border:         #DED8D0;
+  --border-hover:   #C9C2B8;
+  --text-primary:   #292524;
+  --text-secondary: #57534E;
+  --text-muted:     #A8A29E;
+  --accent:         #C2410C;
+  --accent-hover:   #9A3412;
+  --buy:  #15803D;
+  --sell: #DC2626;
+  --hold: #B45309;
+  --dot-color:      #C9C2B8;
+  --glow-buy:    rgba(21,128,61,0.18);
+  --glow-sell:   rgba(220,38,38,0.18);
+  --glow-hold:   rgba(180,83,9,0.15);
+  --glow-accent: rgba(194,65,12,0.15);
+  --glass-bg:     rgba(253,252,250,0.82);
+  --glass-border: rgba(0,0,0,0.06);
+  --grad-buy:    linear-gradient(135deg,#15803d,#16a34a);
+  --grad-sell:   linear-gradient(135deg,#dc2626,#ef4444);
+  --grad-purple: linear-gradient(135deg,#c2410c,#ea580c);
+  --grad-gold:   linear-gradient(135deg,#b45309,#d97706);
+  --grad-cyan:   linear-gradient(135deg,#c2410c,#ea580c);
+}
+
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) body {
   background: var(--bg-canvas);
   color: var(--text-primary);
 }
 
 /* ── Very-dark canvas backgrounds ──────────────────────────────────────────── */
-html[data-theme="light"] *[class~="bg-[#080614]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0B091A]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0B0F19]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0D1420]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0F0D1C]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0F1623]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#0F172A]"]    { background-color: #FAFAF8 !important; }
-html[data-theme="light"] *[class~="bg-[#080E1B]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#080614]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0B091A]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0B0F19]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D1420]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F0D1C]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F1623]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F172A]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#080E1B]"]    { background-color: #FAFAF8 !important; }
 
 /* ── Surface backgrounds — white cards ─────────────────────────────────────── */
-html[data-theme="light"] *[class~="bg-[#13112A]"]    { background-color: #FFFFFF !important; }
-html[data-theme="light"] *[class~="bg-[#1C1933]"]    { background-color: #FFFFFF !important; }
-html[data-theme="light"] *[class~="bg-[#1E1C42]"]    { background-color: #F7F4EF !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]"]    { background-color: #FFFFFF !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1C1933]"]    { background-color: #FFFFFF !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1E1C42]"]    { background-color: #F7F4EF !important; }
 
 /* ── Elevated / hover backgrounds ──────────────────────────────────────────── */
-html[data-theme="light"] *[class~="bg-[#1A1838]"]    { background-color: #F0EDE7 !important; }
-html[data-theme="light"] *[class~="bg-[#232F46]"]    { background-color: #F0EDE7 !important; }
-html[data-theme="light"] *[class~="bg-[#252345]"]    { background-color: #F0EDE7 !important; }
-html[data-theme="light"] *[class~="bg-[#333368]"]    { background-color: #E5DDD5 !important; }
-html[data-theme="light"] *[class~="bg-[#4B5675]"]    { background-color: #D8D0C8 !important; }
-html[data-theme="light"] *[class~="bg-[#7B8DB4]"]    { background-color: #C0B5AA !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1A1838]"]    { background-color: #F0EDE7 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#232F46]"]    { background-color: #F0EDE7 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#252345]"]    { background-color: #F0EDE7 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#333368]"]    { background-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#4B5675]"]    { background-color: #D8D0C8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#7B8DB4]"]    { background-color: #C0B5AA !important; }
 
 /* ── Transparent / opacity variants of dark backgrounds ────────────────────── */
 /* #0D0B1A — page bg / topbar */
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/40"]  { background-color: rgba(250,250,248,0.60) !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/50"]  { background-color: rgba(250,250,248,0.72) !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/60"]  { background-color: rgba(250,250,248,0.82) !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/70"]  { background-color: rgba(250,250,248,0.88) !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/80"]  { background-color: rgba(250,250,248,0.93) !important; }
-html[data-theme="light"] *[class~="bg-[#0D0B1A]/95"]  { background-color: rgba(250,250,248,0.97) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/40"]  { background-color: rgba(250,250,248,0.60) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/50"]  { background-color: rgba(250,250,248,0.72) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/60"]  { background-color: rgba(250,250,248,0.82) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/70"]  { background-color: rgba(250,250,248,0.88) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/80"]  { background-color: rgba(250,250,248,0.93) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0D0B1A]/95"]  { background-color: rgba(250,250,248,0.97) !important; }
 
 /* #13112A — cards / panels */
-html[data-theme="light"] *[class~="bg-[#13112A]/20"]  { background-color: rgba(255,255,255,0.40) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/30"]  { background-color: rgba(250,248,244,0.80) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/40"]  { background-color: rgba(255,255,255,0.60) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/60"]  { background-color: rgba(255,255,255,0.80) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/80"]  { background-color: rgba(255,255,255,0.93) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/90"]  { background-color: rgba(255,255,255,0.95) !important; }
-html[data-theme="light"] *[class~="bg-[#13112A]/95"]  { background-color: rgba(255,255,255,0.97) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/20"]  { background-color: rgba(255,255,255,0.40) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/30"]  { background-color: rgba(250,248,244,0.80) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/40"]  { background-color: rgba(255,255,255,0.60) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/60"]  { background-color: rgba(255,255,255,0.80) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/80"]  { background-color: rgba(255,255,255,0.93) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/90"]  { background-color: rgba(255,255,255,0.95) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]/95"]  { background-color: rgba(255,255,255,0.97) !important; }
 
 /* #1A1838 — elevated */
-html[data-theme="light"] *[class~="bg-[#1A1838]/50"]  { background-color: rgba(240,237,231,0.65) !important; }
-html[data-theme="light"] *[class~="bg-[#1A1838]/80"]  { background-color: rgba(240,237,231,0.88) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1A1838]/50"]  { background-color: rgba(240,237,231,0.65) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1A1838]/80"]  { background-color: rgba(240,237,231,0.88) !important; }
 
 /* #1E1C42 — alternative surface */
-html[data-theme="light"] *[class~="bg-[#1E1C42]/40"]  { background-color: rgba(247,244,239,0.55) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#1E1C42]/40"]  { background-color: rgba(247,244,239,0.55) !important; }
 
 /* #252345 — border-weight bg */
-html[data-theme="light"] *[class~="bg-[#252345]/50"]  { background-color: rgba(240,237,231,0.55) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#252345]/50"]  { background-color: rgba(240,237,231,0.55) !important; }
 
 /* #0B091A — very dark canvas */
-html[data-theme="light"] *[class~="bg-[#0B091A]/96"]  { background-color: rgba(250,250,248,0.97) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0B091A]/96"]  { background-color: rgba(250,250,248,0.97) !important; }
 
 /* #0F0D1C — sidebar panel */
-html[data-theme="light"] *[class~="bg-[#0F0D1C]/95"]  { background-color: rgba(250,250,248,0.97) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F0D1C]/95"]  { background-color: rgba(250,250,248,0.97) !important; }
 
 /* #080614 — dark section (testimonials / feature strip) — differentiated tone */
-html[data-theme="light"] *[class~="bg-[#080614]/60"]  { background-color: rgba(235,230,221,0.75) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#080614]/60"]  { background-color: rgba(235,230,221,0.75) !important; }
 
 /* ── Borders ────────────────────────────────────────────────────────────────── */
-html[data-theme="light"] *[class~="border-[#252345]"]           { border-color: #E5DDD5 !important; }
-html[data-theme="light"] *[class~="border-[#333368]"]           { border-color: #D4C8BB !important; }
-html[data-theme="light"] *[class~="border-[#13112A]"]           { border-color: #E5DDD5 !important; }
-html[data-theme="light"] *[class~="border-[#1A1838]"]           { border-color: #EDE8E2 !important; }
-html[data-theme="light"] *[class~="border-[#1C1933]"]           { border-color: #E5DDD5 !important; }
-html[data-theme="light"] *[class~="border-[#1E1C42]"]           { border-color: #E5DDD5 !important; }
-html[data-theme="light"] *[class~="border-[#252345]/60"]        { border-color: rgba(229,221,213,0.70) !important; }
-html[data-theme="light"] *[class~="border-white/[0.06]"]        { border-color: rgba(190,178,165,0.25) !important; }
-html[data-theme="light"] *[class~="border-white/[0.07]"]        { border-color: rgba(190,178,165,0.28) !important; }
-html[data-theme="light"] *[class~="border-white/[0.08]"]        { border-color: rgba(190,178,165,0.32) !important; }
-html[data-theme="light"] *[class~="border-white/[0.12]"]        { border-color: rgba(190,178,165,0.40) !important; }
-html[data-theme="light"] *[class~="divide-[#252345]"] > * + *  { border-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#252345]"]           { border-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#333368]"]           { border-color: #D4C8BB !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#13112A]"]           { border-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#1A1838]"]           { border-color: #EDE8E2 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#1C1933]"]           { border-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#1E1C42]"]           { border-color: #E5DDD5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-[#252345]/60"]        { border-color: rgba(229,221,213,0.70) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-white/[0.06]"]        { border-color: rgba(190,178,165,0.25) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-white/[0.07]"]        { border-color: rgba(190,178,165,0.28) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-white/[0.08]"]        { border-color: rgba(190,178,165,0.32) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="border-white/[0.12]"]        { border-color: rgba(190,178,165,0.40) !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="divide-[#252345]"] > * + *  { border-color: #E5DDD5 !important; }
 
 /* ── Text ───────────────────────────────────────────────────────────────────── */
-html[data-theme="light"] *[class~="text-[#F1F5F9]"]   { color: #0F172A !important; }
-html[data-theme="light"] *[class~="text-[#7B8DB4]"]   { color: #475569 !important; }
-html[data-theme="light"] *[class~="text-[#4B5675]"]   { color: #8B9AB5 !important; }
-html[data-theme="light"] *[class~="text-[#CBD5E1]"]   { color: #475569 !important; }
-html[data-theme="light"] *[class~="text-[#94A3B8]"]   { color: #64748B !important; }
-html[data-theme="light"] *[class~="text-[#94a3b8]"]   { color: #64748B !important; }
-html[data-theme="light"] *[class~="text-[#E2E8F0]"]   { color: #475569 !important; }
-html[data-theme="light"] *[class~="text-[#333368]"]   { color: #9AA5BB !important; }
-html[data-theme="light"] *[class~="text-[#2D3A52]"]   { color: #8B9AB5 !important; }
-html[data-theme="light"] *[class~="text-[#3D4F6B]"]   { color: #475569 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#F1F5F9]"]   { color: #0F172A !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#7B8DB4]"]   { color: #475569 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#4B5675]"]   { color: #8B9AB5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#CBD5E1]"]   { color: #475569 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#94A3B8]"]   { color: #64748B !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#94a3b8]"]   { color: #64748B !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#E2E8F0]"]   { color: #475569 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#333368]"]   { color: #9AA5BB !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#2D3A52]"]   { color: #8B9AB5 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-[#3D4F6B]"]   { color: #475569 !important; }
 
 /* ── Hover states ───────────────────────────────────────────────────────────── */
-html[data-theme="light"] *[class~="hover:text-[#F1F5F9]"]:hover   { color: #0F172A !important; }
-html[data-theme="light"] *[class~="hover:text-[#7B8DB4]"]:hover   { color: #475569 !important; }
-html[data-theme="light"] *[class~="hover:border-[#333368]"]:hover { border-color: #D4C8BB !important; }
-html[data-theme="light"] *[class~="hover:bg-[#1A1838]"]:hover     { background-color: #F0EDE7 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-[#F1F5F9]"]:hover   { color: #0F172A !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-[#7B8DB4]"]:hover   { color: #475569 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:border-[#333368]"]:hover { border-color: #D4C8BB !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:bg-[#1A1838]"]:hover     { background-color: #F0EDE7 !important; }
 
 /* ── Placeholders ───────────────────────────────────────────────────────────── */
-html[data-theme="light"] *[class~="placeholder:text-[#4B5675]"]::placeholder { color: #9AA8BE !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="placeholder:text-[#4B5675]"]::placeholder { color: #9AA8BE !important; }
 
 /* ── Inputs / textareas ─────────────────────────────────────────────────────── */
-html[data-theme="light"] input,
-html[data-theme="light"] textarea {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) input,
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) textarea {
   background-color: #FFFFFF !important;
   color: #0F172A !important;
 }
 
 /* ── Floating pill nav bar ───────────────────────────────────────────────────── */
-html[data-theme="light"] .sidebar-nav-pill {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-nav-pill {
   background: rgba(255,255,255,0.97) !important;
   border-color: rgba(210,198,185,0.70) !important;
   box-shadow: 0 4px 24px rgba(50,35,20,0.08), 0 0 0 1px rgba(210,198,185,0.40) !important;
 }
 /* active item highlight in light mode */
-html[data-theme="light"] .sidebar-nav-pill [class*="bg-emerald-500/15"] {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-nav-pill [class*="bg-emerald-500/15"] {
   background-color: rgba(5,150,105,0.10) !important;
 }
 /* non-active icon/label color in light mode */
-html[data-theme="light"] .sidebar-nav-pill [class*="text-[#3D4F6B]"] {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-nav-pill [class*="text-[#3D4F6B]"] {
   color: #64748B !important;
 }
 /* ── Bottom navigation bar (Sidebar) — legacy class kept for safety ─────────── */
-html[data-theme="light"] .sidebar-main-nav {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-main-nav {
   background: rgba(252,250,246,0.97) !important;
   border-top-color: rgba(210,198,185,0.50) !important;
   box-shadow: 0 -4px 24px rgba(50,35,20,0.05) !important;
 }
 
 /* ── Sidebar sub-panel (floating menu above nav) ────────────────────────────── */
-html[data-theme="light"] .sidebar-sub-panel {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-sub-panel {
   background: rgba(252,250,246,0.98) !important;
   border-color: rgba(210,198,185,0.60) !important;
   box-shadow: 0 -8px 32px rgba(50,35,20,0.08), 0 0 0 1px rgba(210,198,185,0.60) !important;
 }
-html[data-theme="light"] .sidebar-sub-panel *[class~="bg-white/[0.03]"],
-html[data-theme="light"] .sidebar-sub-panel *[class~="bg-white/[0.05]"] {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-sub-panel *[class~="bg-white/[0.03]"],
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-sub-panel *[class~="bg-white/[0.05]"] {
   background-color: rgba(240,237,231,0.60) !important;
 }
-html[data-theme="light"] .sidebar-sub-panel *[class~="border-white/[0.06]"],
-html[data-theme="light"] .sidebar-sub-panel *[class~="border-white/[0.12]"] {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-sub-panel *[class~="border-white/[0.06]"],
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-sub-panel *[class~="border-white/[0.12]"] {
   border-color: rgba(190,178,165,0.40) !important;
 }
 
 /* ── Cosmic background ──────────────────────────────────────────────────────── */
-html[data-theme="light"] #cosmic-bg { opacity: 0 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) #cosmic-bg { opacity: 0 !important; }
 
 /* ── Scrollbar ──────────────────────────────────────────────────────────────── */
-html[data-theme="light"] ::-webkit-scrollbar-thumb       { background: linear-gradient(to bottom, #059669, #0ea5e9); }
-html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #047857, #0284c7); }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) ::-webkit-scrollbar-thumb       { background: linear-gradient(to bottom, #059669, #0ea5e9); }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #047857, #0284c7); }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    LIGHT THEME — PREMIUM CLASS OVERRIDES
@@ -479,13 +625,13 @@ html[data-theme="light"] ::-webkit-scrollbar-thumb:hover { background: linear-gr
    ══════════════════════════════════════════════════════════════════════════════ */
 
 /* Glass cards — white frosted instead of dark frosted */
-html[data-theme="light"] .glass {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .glass {
   background: rgba(255,255,255,0.75) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
   backdrop-filter: blur(24px) saturate(180%) !important;
   border: 1px solid rgba(190,178,165,0.45) !important;
 }
-html[data-theme="light"] .glass-strong {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .glass-strong {
   background: rgba(255,255,255,0.90) !important;
   -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
   backdrop-filter: blur(36px) saturate(200%) !important;
@@ -493,7 +639,7 @@ html[data-theme="light"] .glass-strong {
 }
 
 /* Topbar — crisp warm white on light */
-html[data-theme="light"] .topbar-glass {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .topbar-glass {
   background: rgba(252,250,246,0.90) !important;
   -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
   backdrop-filter: blur(24px) saturate(160%) !important;
@@ -502,22 +648,22 @@ html[data-theme="light"] .topbar-glass {
 }
 
 /* Ambient orbs — soft green/blue tint on light */
-html[data-theme="light"] .app-ambient::before {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .app-ambient::before {
   background: radial-gradient(ellipse, rgba(5,150,105,0.07) 0%, transparent 70%) !important;
 }
-html[data-theme="light"] .app-ambient::after {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .app-ambient::after {
   background: radial-gradient(ellipse, rgba(14,165,233,0.05) 0%, transparent 70%) !important;
 }
 
 /* Surface sheen — subtle white top edge on light */
-html[data-theme="light"] .surface-sheen {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .surface-sheen {
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,0.95),
     inset 0 -1px 0 rgba(0,0,0,0.04) !important;
 }
 
 /* Signal card glows — light pastel tint instead of dark glow */
-html[data-theme="light"] .signal-card-buy {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .signal-card-buy {
   background: rgba(240,253,249,0.85) !important;
   border-color: rgba(16,185,129,0.40) !important;
   box-shadow:
@@ -525,7 +671,7 @@ html[data-theme="light"] .signal-card-buy {
     0 4px 20px rgba(16,185,129,0.10),
     inset 0 1px 0 rgba(16,185,129,0.10) !important;
 }
-html[data-theme="light"] .signal-card-sell {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .signal-card-sell {
   background: rgba(255,241,242,0.85) !important;
   border-color: rgba(244,63,94,0.40) !important;
   box-shadow:
@@ -533,13 +679,13 @@ html[data-theme="light"] .signal-card-sell {
     0 4px 20px rgba(244,63,94,0.10),
     inset 0 1px 0 rgba(244,63,94,0.10) !important;
 }
-html[data-theme="light"] .signal-card-buy:hover {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .signal-card-buy:hover {
   box-shadow:
     0 0 0 1px rgba(16,185,129,0.30),
     0 8px 32px rgba(16,185,129,0.16),
     inset 0 1px 0 rgba(16,185,129,0.12) !important;
 }
-html[data-theme="light"] .signal-card-sell:hover {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .signal-card-sell:hover {
   box-shadow:
     0 0 0 1px rgba(244,63,94,0.30),
     0 8px 32px rgba(244,63,94,0.16),
@@ -547,7 +693,7 @@ html[data-theme="light"] .signal-card-sell:hover {
 }
 
 /* Card shine — brighter shimmer on light */
-html[data-theme="light"] .card-shine::after {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .card-shine::after {
   background: linear-gradient(
     105deg,
     transparent 30%,
@@ -557,7 +703,7 @@ html[data-theme="light"] .card-shine::after {
 }
 
 /* Card hover glow — warm shadow on light */
-html[data-theme="light"] .card-hover-glow:hover {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .card-hover-glow:hover {
   box-shadow:
     0 0 0 1px rgba(190,178,165,0.60),
     0 8px 32px rgba(50,35,20,0.10),
@@ -566,25 +712,25 @@ html[data-theme="light"] .card-hover-glow:hover {
 }
 
 /* Gradient text — deeper tones for light */
-html[data-theme="light"] .text-gradient-green {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .text-gradient-green {
   background: linear-gradient(135deg, #047857 0%, #0369a1 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
 }
-html[data-theme="light"] .text-gradient-gold {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .text-gradient-gold {
   background: linear-gradient(135deg, #b45309 0%, #d97706 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
 }
-html[data-theme="light"] .text-gradient-purple {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .text-gradient-purple {
   background: linear-gradient(135deg, #6d28d9 0%, #4f46e5 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
   -webkit-text-fill-color: transparent !important;
 }
-html[data-theme="light"] .text-gradient-rose {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .text-gradient-rose {
   background: linear-gradient(135deg, #be123c 0%, #e11d48 100%) !important;
   -webkit-background-clip: text !important;
   background-clip: text !important;
@@ -592,13 +738,13 @@ html[data-theme="light"] .text-gradient-rose {
 }
 
 /* Section header underline — brighter on light */
-html[data-theme="light"] .section-header::after {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .section-header::after {
   background: linear-gradient(90deg, #059669, #0ea5e9) !important;
   opacity: 0.8 !important;
 }
 
 /* Logo text — crisp on light */
-html[data-theme="light"] .logo-text {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .logo-text {
   background: linear-gradient(135deg, #047857 0%, #0284c7 60%, #047857 100%) !important;
   background-size: 200% !important;
   -webkit-background-clip: text !important;
@@ -607,31 +753,31 @@ html[data-theme="light"] .logo-text {
 }
 
 /* Sidebar nav — light mode colors */
-html[data-theme="light"] .sidebar-nav-glow {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-nav-glow {
   box-shadow:
     0 0 0 1px rgba(5,150,105,0.18),
     0 0 16px rgba(5,150,105,0.06),
     0 4px 20px rgba(50,35,20,0.08) !important;
 }
-html[data-theme="light"] .sidebar-active-glow {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .sidebar-active-glow {
   box-shadow:
     0 0 0 1px rgba(5,150,105,0.30) inset,
     0 0 10px rgba(5,150,105,0.10) !important;
 }
 
 /* Price glow — reduced on light (no dark glow halos needed) */
-html[data-theme="light"] .price-glow-up   { text-shadow: none !important; color: #047857 !important; }
-html[data-theme="light"] .price-glow-down { text-shadow: none !important; color: #be123c !important; }
-html[data-theme="light"] .price-display-up   { text-shadow: none !important; color: #047857 !important; }
-html[data-theme="light"] .price-display-down { text-shadow: none !important; color: #be123c !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .price-glow-up   { text-shadow: none !important; color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .price-glow-down { text-shadow: none !important; color: #be123c !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .price-display-up   { text-shadow: none !important; color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .price-display-down { text-shadow: none !important; color: #be123c !important; }
 
 /* Stat glow — no glow pulse on light */
-html[data-theme="light"] .stat-glow { animation: none !important; }
-html[data-theme="light"] .num-glow-green { animation: none !important; color: #047857 !important; }
-html[data-theme="light"] .num-glow-red   { animation: none !important; color: #be123c !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .stat-glow { animation: none !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .num-glow-green { animation: none !important; color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .num-glow-red   { animation: none !important; color: #be123c !important; }
 
 /* Modal glass */
-html[data-theme="light"] .modal-glass {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .modal-glass {
   background: rgba(255,255,255,0.94) !important;
   -webkit-backdrop-filter: blur(40px) saturate(180%) !important;
   backdrop-filter: blur(40px) saturate(180%) !important;
@@ -642,7 +788,7 @@ html[data-theme="light"] .modal-glass {
 }
 
 /* Badge premium */
-html[data-theme="light"] .badge-premium {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .badge-premium {
   border-color: rgba(5,150,105,0.50) !important;
   background: rgba(5,150,105,0.08) !important;
   color: #047857 !important;
@@ -650,43 +796,255 @@ html[data-theme="light"] .badge-premium {
 }
 
 /* Ping live dot — keep visible on light */
-html[data-theme="light"] .ping-live { background: #059669 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .ping-live { background: #059669 !important; }
 
 /* Gradient border card — more subtle on light */
-html[data-theme="light"] .gradient-border-card::before { opacity: 0 !important; }
-html[data-theme="light"] .gradient-border-card:hover::before { opacity: 0.25 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .gradient-border-card::before { opacity: 0 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .gradient-border-card:hover::before { opacity: 0.25 !important; }
 
 /* Body noise — reduce opacity on light */
-html[data-theme="light"] body::before { opacity: 0.012 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) body::before { opacity: 0.012 !important; }
 
 /* Chip colors on light */
-html[data-theme="light"] .chip-buy  { color: #047857; border-color: rgba(4,120,87,0.35); background: rgba(4,120,87,0.08); }
-html[data-theme="light"] .chip-sell { color: #be123c; border-color: rgba(190,18,60,0.35); background: rgba(190,18,60,0.08); }
-html[data-theme="light"] .chip-hold { color: #b45309; border-color: rgba(180,83,9,0.35);  background: rgba(180,83,9,0.08); }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .chip-buy  { color: #047857; border-color: rgba(4,120,87,0.35); background: rgba(4,120,87,0.08); }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .chip-sell { color: #be123c; border-color: rgba(190,18,60,0.35); background: rgba(190,18,60,0.08); }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .chip-hold { color: #b45309; border-color: rgba(180,83,9,0.35);  background: rgba(180,83,9,0.08); }
 
 /* Glow green hover text — light safe */
-html[data-theme="light"] .glow-green { color: #059669 !important; }
-html[data-theme="light"] .glow-green:hover { text-shadow: 0 0 12px rgba(5,150,105,0.30) !important; color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .glow-green { color: #059669 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .glow-green:hover { text-shadow: 0 0 12px rgba(5,150,105,0.30) !important; color: #047857 !important; }
 
 /* Scan panel scan-line — lighter on light */
-html[data-theme="light"] .scan-panel::after {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .scan-panel::after {
   background: linear-gradient(to bottom, transparent, rgba(5,150,105,0.025), transparent) !important;
 }
 
 /* Number reveal — works on light as-is but remove blur start on transparent bg */
-html[data-theme="light"] .num-reveal { animation: none !important; opacity: 1 !important; filter: none !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .num-reveal { animation: none !important; opacity: 1 !important; filter: none !important; }
 
 /* App ambient children z-index fix on light */
-html[data-theme="light"] .app-ambient > * { position: relative; z-index: 1; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .app-ambient > * { position: relative; z-index: 1; }
 
 /* Card premium — warm white gradient on light */
-html[data-theme="light"] .card-premium {
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .card-premium {
   background: linear-gradient(145deg, #ffffff 0%, #faf7f2 60%, #ffffff 100%) !important;
   border: 1px solid rgba(5,150,105,0.22) !important;
   box-shadow:
     0 1px 0 rgba(255,255,255,1) inset,
     0 -1px 0 rgba(0,0,0,0.03) inset,
     0 4px 24px rgba(50,35,20,0.07) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   DOT GRID BACKGROUND — light themes only
+   Layered on top of --bg-canvas; solid card surfaces hide dots naturally.
+   Each theme gets its own dot color via --dot-color.
+   ══════════════════════════════════════════════════════════════════════════════ */
+html[data-theme="clean"] body {
+  background-color: #FAFAF9;
+  background-image: radial-gradient(circle, #D6D3D1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+html[data-theme="ember"] body {
+  background-color: #F7F4F0;
+  background-image: radial-gradient(circle, #C9C2B8 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+html[data-theme="light"] body {
+  background-color: #FAFAF8;
+  background-image: radial-gradient(circle, #D6D3D1 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   EMBER THEME — Warmer background corrections
+   Overrides the `:is()` light-theme values for ember-specific surfaces.
+   Same specificity, later position wins.
+   ══════════════════════════════════════════════════════════════════════════════ */
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0B091A]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0B0F19]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0F0D1C]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0F172A]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#080614]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0D1420]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0F1623]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#080E1B]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]"]    { background-color: #FDFCFA !important; }
+html[data-theme="ember"] *[class~="bg-[#1C1933]"]    { background-color: #FDFCFA !important; }
+html[data-theme="ember"] *[class~="bg-[#1E1C42]"]    { background-color: #F3EEE8 !important; }
+html[data-theme="ember"] *[class~="bg-[#1A1838]"]    { background-color: #EDE8E2 !important; }
+html[data-theme="ember"] *[class~="bg-[#232F46]"]    { background-color: #EDE8E2 !important; }
+html[data-theme="ember"] *[class~="bg-[#252345]"]    { background-color: #EDE8E2 !important; }
+html[data-theme="ember"] *[class~="bg-[#333368]"]    { background-color: #DED8D0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/40"] { background-color: rgba(247,244,240,0.60) !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/50"] { background-color: rgba(247,244,240,0.72) !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/60"] { background-color: rgba(247,244,240,0.82) !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/70"] { background-color: rgba(247,244,240,0.88) !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/80"] { background-color: rgba(247,244,240,0.93) !important; }
+html[data-theme="ember"] *[class~="bg-[#0D0B1A]/95"] { background-color: rgba(247,244,240,0.97) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/20"] { background-color: rgba(253,252,250,0.40) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/30"] { background-color: rgba(253,252,250,0.70) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/40"] { background-color: rgba(253,252,250,0.60) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/60"] { background-color: rgba(253,252,250,0.80) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/80"] { background-color: rgba(253,252,250,0.93) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/90"] { background-color: rgba(253,252,250,0.95) !important; }
+html[data-theme="ember"] *[class~="bg-[#13112A]/95"] { background-color: rgba(253,252,250,0.97) !important; }
+html[data-theme="ember"] *[class~="border-[#252345]"]         { border-color: #DED8D0 !important; }
+html[data-theme="ember"] *[class~="border-[#333368]"]         { border-color: #C9C2B8 !important; }
+html[data-theme="ember"] *[class~="border-[#13112A]"]         { border-color: #DED8D0 !important; }
+html[data-theme="ember"] *[class~="border-[#1A1838]"]         { border-color: #E8E2DA !important; }
+html[data-theme="ember"] *[class~="border-[#1C1933]"]         { border-color: #DED8D0 !important; }
+html[data-theme="ember"] *[class~="border-white/[0.06]"]      { border-color: rgba(180,168,155,0.25) !important; }
+html[data-theme="ember"] *[class~="border-white/[0.07]"]      { border-color: rgba(180,168,155,0.28) !important; }
+html[data-theme="ember"] *[class~="border-white/[0.08]"]      { border-color: rgba(180,168,155,0.32) !important; }
+html[data-theme="ember"] *[class~="border-white/[0.12]"]      { border-color: rgba(180,168,155,0.40) !important; }
+html[data-theme="ember"] .sidebar-nav-pill {
+  background: rgba(253,252,250,0.97) !important;
+  border-color: rgba(201,194,184,0.70) !important;
+  box-shadow: 0 4px 24px rgba(60,40,20,0.10), 0 0 0 1px rgba(201,194,184,0.40) !important;
+}
+html[data-theme="ember"] .topbar-glass {
+  background: rgba(247,244,240,0.92) !important;
+  border-bottom: 1px solid rgba(201,194,184,0.50) !important;
+  box-shadow: 0 1px 0 rgba(201,194,184,0.40), 0 4px 16px rgba(60,40,20,0.06) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   CLEAN + EMBER — Orange brand accent overrides
+   Replaces emerald UI-brand elements with --accent (orange).
+   Semantic green (BUY signals, positive P&L) is intentionally preserved.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+/* Logo icon background */
+html[data-theme="clean"] .logo-icon-bg,
+html[data-theme="ember"]  .logo-icon-bg { background-color: var(--accent) !important; }
+
+/* Logo text gradient */
+html[data-theme="clean"] .logo-text,
+html[data-theme="ember"]  .logo-text {
+  background: linear-gradient(135deg, var(--accent) 0%, #F97316 50%, var(--accent) 100%) !important;
+  background-size: 200% !important;
+  -webkit-background-clip: text !important;
+  background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  animation: gradient-pan 4s linear infinite;
+}
+
+/* Section header underline */
+html[data-theme="clean"] .section-header::after,
+html[data-theme="ember"]  .section-header::after {
+  background: linear-gradient(90deg, var(--accent), transparent) !important;
+  opacity: 0.65 !important;
+}
+
+/* Neon underline hover */
+html[data-theme="clean"] .neon-underline::after,
+html[data-theme="ember"]  .neon-underline::after {
+  background: linear-gradient(90deg, var(--accent), #F97316) !important;
+  box-shadow: 0 0 6px rgba(234,88,12,0.45) !important;
+}
+
+/* Tab active indicator line */
+html[data-theme="clean"] .tab-active-indicator::after,
+html[data-theme="ember"]  .tab-active-indicator::after { background: var(--accent) !important; }
+
+/* Tab pill active state */
+html[data-theme="clean"] .tab-pill-active,
+html[data-theme="ember"]  .tab-pill-active {
+  background: rgba(234,88,12,0.08) !important;
+  border: 1px solid rgba(234,88,12,0.28) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 12px rgba(234,88,12,0.10), inset 0 1px 0 rgba(234,88,12,0.10) !important;
+}
+
+/* Focus ring */
+html[data-theme="clean"] .focus-ring:focus-within,
+html[data-theme="ember"]  .focus-ring:focus-within {
+  box-shadow: 0 0 0 3px rgba(234,88,12,0.12) !important;
+  border-color: rgba(234,88,12,0.40) !important;
+}
+
+/* Input glow */
+html[data-theme="clean"] .input-glow:focus,
+html[data-theme="ember"]  .input-glow:focus {
+  box-shadow: 0 0 0 1px rgba(234,88,12,0.4), 0 0 16px rgba(234,88,12,0.08) !important;
+}
+
+/* Data row hover */
+html[data-theme="clean"] .data-row:hover,
+html[data-theme="ember"]  .data-row:hover {
+  background: rgba(234,88,12,0.04) !important;
+  box-shadow: inset 2px 0 0 rgba(234,88,12,0.38) !important;
+}
+
+/* Card glow hover */
+html[data-theme="clean"] .card-glow:hover,
+html[data-theme="ember"]  .card-glow:hover {
+  box-shadow:
+    0 0 0 1px rgba(234,88,12,0.12),
+    0 4px 16px rgba(234,88,12,0.06) !important;
+}
+
+/* Scrollbar */
+html[data-theme="clean"] ::-webkit-scrollbar-thumb       { background: linear-gradient(to bottom, var(--accent), #F97316) !important; }
+html[data-theme="clean"] ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, var(--accent-hover), var(--accent)) !important; }
+html[data-theme="ember"] ::-webkit-scrollbar-thumb       { background: linear-gradient(to bottom, var(--accent), #EA580C) !important; }
+html[data-theme="ember"] ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, var(--accent-hover), var(--accent)) !important; }
+
+/* Progress gradient — orange for brand progress bars */
+html[data-theme="clean"] .progress-gradient,
+html[data-theme="ember"]  .progress-gradient {
+  background: linear-gradient(90deg, var(--accent), #F97316, var(--accent)) !important;
+  background-size: 200% !important;
+}
+
+/* Badge premium — orange ring */
+html[data-theme="clean"] .badge-premium,
+html[data-theme="ember"]  .badge-premium {
+  border-color: rgba(234,88,12,0.35) !important;
+  background: rgba(234,88,12,0.08) !important;
+  color: var(--accent) !important;
+  box-shadow: 0 0 10px rgba(234,88,12,0.12), inset 0 1px 0 rgba(234,88,12,0.10) !important;
+}
+
+/* Ping dot */
+html[data-theme="clean"] .ping-live,
+html[data-theme="ember"]  .ping-live { background: var(--accent) !important; }
+
+/* Ambient orbs — orange tint instead of emerald */
+html[data-theme="clean"] .app-ambient::before,
+html[data-theme="ember"]  .app-ambient::before {
+  background: radial-gradient(ellipse, rgba(234,88,12,0.04) 0%, transparent 70%) !important;
+}
+html[data-theme="clean"] .app-ambient::after,
+html[data-theme="ember"]  .app-ambient::after {
+  background: radial-gradient(ellipse, rgba(249,115,22,0.025) 0%, transparent 70%) !important;
+}
+
+/* Sidebar glows — orange tint */
+html[data-theme="clean"] .sidebar-nav-glow,
+html[data-theme="ember"]  .sidebar-nav-glow {
+  box-shadow:
+    0 0 0 1px rgba(234,88,12,0.12),
+    0 0 16px rgba(234,88,12,0.05),
+    0 4px 20px rgba(50,35,20,0.08) !important;
+}
+html[data-theme="clean"] .sidebar-active-glow,
+html[data-theme="ember"]  .sidebar-active-glow {
+  box-shadow:
+    0 0 0 1px rgba(234,88,12,0.25) inset,
+    0 0 10px rgba(234,88,12,0.08) !important;
+}
+
+/* Card hover glow — warm shadow */
+html[data-theme="clean"] .card-hover-glow:hover,
+html[data-theme="ember"]  .card-hover-glow:hover {
+  box-shadow:
+    0 0 0 1px rgba(190,178,165,0.60),
+    0 8px 32px rgba(50,35,20,0.10),
+    0 0 20px rgba(234,88,12,0.05) !important;
+  transform: translateY(-2px);
 }
 
 /* ── Scroll reveal ─────────────────────────────────────────────────────────── */
