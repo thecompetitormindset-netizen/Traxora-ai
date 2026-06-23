@@ -899,6 +899,13 @@ html[data-theme="ember"] *[class~="border-white/[0.06]"]      { border-color: rg
 html[data-theme="ember"] *[class~="border-white/[0.07]"]      { border-color: rgba(180,168,155,0.28) !important; }
 html[data-theme="ember"] *[class~="border-white/[0.08]"]      { border-color: rgba(180,168,155,0.32) !important; }
 html[data-theme="ember"] *[class~="border-white/[0.12]"]      { border-color: rgba(180,168,155,0.40) !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]/40"] { background-color: transparent !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]/50"] { background-color: transparent !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]/60"] { background-color: transparent !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]/70"] { background-color: transparent !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0818]/80"] { background-color: transparent !important; }
+html[data-theme="ember"] *[class~="border-[#252345]/40"] { border-color: rgba(222,216,208,0.50) !important; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    CLEAN THEME — Light background corrections (mirrors ember block above)
@@ -943,6 +950,13 @@ html[data-theme="clean"] *[class~="border-white/[0.06]"]      { border-color: rg
 html[data-theme="clean"] *[class~="border-white/[0.07]"]      { border-color: rgba(180,168,155,0.28) !important; }
 html[data-theme="clean"] *[class~="border-white/[0.08]"]      { border-color: rgba(180,168,155,0.32) !important; }
 html[data-theme="clean"] *[class~="border-white/[0.12]"]      { border-color: rgba(180,168,155,0.40) !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]/40"] { background-color: transparent !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]/50"] { background-color: transparent !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]/60"] { background-color: transparent !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]/70"] { background-color: transparent !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0818]/80"] { background-color: transparent !important; }
+html[data-theme="clean"] *[class~="border-[#252345]/40"] { border-color: rgba(231,229,228,0.50) !important; }
 html[data-theme="clean"] .sidebar-nav-pill {
   background: rgba(255,255,255,0.97) !important;
   border-color: rgba(210,198,185,0.70) !important;
