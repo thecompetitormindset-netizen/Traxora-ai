@@ -173,15 +173,28 @@ function DNavGroup({
         <div className="mt-0.5 ml-2 space-y-0.5">
           {items.filter(i => i.href !== null || i.event).map((item) => {
             const isActive = item.href && (pathname === item.href || pathname?.startsWith(item.href + "/"));
+            const cls = `d-nav-item d-nav-sub ${isActive ? "d-nav-sub-active" : ""}`;
+            const inner = (
+              <>
+                <span className="text-sm leading-none mr-1">{item.emoji}</span>
+                {item.name}
+              </>
+            );
+            if (item.href) {
+              return (
+                <Link key={item.name} href={item.href} className={cls}>
+                  {inner}
+                </Link>
+              );
+            }
             return (
               <button
                 key={item.name}
                 type="button"
                 onClick={() => handleSub(item)}
-                className={`d-nav-item d-nav-sub ${isActive ? "d-nav-sub-active" : ""}`}
+                className={cls}
               >
-                <span className="text-sm leading-none mr-1">{item.emoji}</span>
-                {item.name}
+                {inner}
               </button>
             );
           })}
@@ -207,10 +220,12 @@ export default function Sidebar() {
     function handle(e: MouseEvent | TouchEvent) {
       if (navRef.current && !navRef.current.contains(e.target as Node)) setOpen(null);
     }
-    document.addEventListener("mousedown", handle);
+    // Use "click" (not "mousedown") so the sub-item's onClick fires BEFORE we close.
+    // mousedown fires first and removes items from the DOM, preventing onClick from running.
+    document.addEventListener("click", handle);
     document.addEventListener("touchstart", handle);
     return () => {
-      document.removeEventListener("mousedown", handle);
+      document.removeEventListener("click", handle);
       document.removeEventListener("touchstart", handle);
     };
   }, [open]);
