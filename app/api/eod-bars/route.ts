@@ -78,5 +78,5 @@ export async function GET(req: Request) {
     // fall through
   }
 
-  return Response.json({ error: "Failed to fetch bars" }, { status: 500 });
+  return Response.json([]);
 }

@@ -203,6 +203,6 @@ export async function GET() {
       top: top15.slice(0, 12),
     });
   } catch {
-    return Response.json({ error: "Scan failed" }, { status: 500 });
+    return Response.json({ scanned: 0, trending: [], top: [] });
   }
 }

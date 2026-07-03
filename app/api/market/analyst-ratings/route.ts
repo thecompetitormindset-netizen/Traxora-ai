@@ -84,7 +84,7 @@ export async function GET(req: Request) {
     };
 
     return Response.json(data);
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "Request failed" }, { status: 500 });
+  } catch {
+    return Response.json(null);
   }
 }

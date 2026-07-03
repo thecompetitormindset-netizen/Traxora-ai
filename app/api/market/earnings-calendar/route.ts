@@ -132,7 +132,7 @@ export async function GET(req: Request) {
     const weekLabel = `${shortLabel(weekDates[0])} – ${shortLabel(weekDates[4])}`;
 
     return Response.json({ week: weekLabel, monday: isoDate(monday), days });
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
+  } catch {
+    return Response.json({ week: "", monday: "", days: {} });
   }
 }

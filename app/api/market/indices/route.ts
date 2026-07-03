@@ -49,7 +49,7 @@ export async function GET() {
     }));
 
     return Response.json(rows);
-  } catch (e) {
-    return Response.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 502 });
+  } catch {
+    return Response.json([]);
   }
 }

@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       },
     );
 
-    if (!r.ok) return Response.json({ error: `Yahoo ${r.status}` }, { status: 502 });
+    if (!r.ok) return Response.json({ bars: [] });
 
     const d      = await r.json();
     const result = d?.chart?.result?.[0];
@@ -45,7 +45,7 @@ export async function GET(req: Request) {
       .filter(b => b.open != null && b.high != null && b.low != null && b.close != null && b.close > 0);
 
     return Response.json({ bars, interval: fetchInterval });
-  } catch (err) {
-    return Response.json({ error: err instanceof Error ? err.message : "Fetch failed" }, { status: 500 });
+  } catch {
+    return Response.json({ bars: [] });
   }
 }
