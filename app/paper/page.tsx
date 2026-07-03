@@ -37,7 +37,7 @@ type TakenTrade = {
   potential:  number;
   time:       number;
   note:       string;
-  status?:    "OPEN" | "WIN" | "LOSS";
+  status?:    "PENDING" | "OPEN" | "WIN" | "LOSS";
   closePrice?: number;
   closedAt?:  number;
 };
@@ -425,7 +425,7 @@ function PositionSizer({
             bull  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
                   : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
           }`}>
-          {saved ? "✓ Trade Logged!" : `Log ${signal === "BUY" ? "Long" : "Short"} Trade →`}
+          {saved ? "✓ Order Placed!" : `Place ${signal === "BUY" ? "Long" : "Short"} Order →`}
         </button>
       </div>
 
@@ -503,9 +503,13 @@ function TradePlannerContent() {
   }
 
   const handleTaken = useCallback((t: TakenTrade) => {
-    const withStatus = { ...t, status: "OPEN" as const };
+    const withStatus = { ...t, status: "PENDING" as const };
     setTaken(prev => { const next = [withStatus, ...prev]; persistTaken(next); return next; });
   }, []);
+
+  function cancelPending(id: string) {
+    setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
+  }
 
   function removeTaken(id: string) {
     setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
@@ -526,8 +530,9 @@ function TradePlannerContent() {
   }
 
   // ── Derived stats ─────────────────────────────────────────────────────────
-  const open   = taken.filter(t => !t.status || t.status === "OPEN");
-  const closed = taken.filter(t => t.status === "WIN" || t.status === "LOSS");
+  const pending = taken.filter(t => t.status === "PENDING");
+  const open    = taken.filter(t => t.status === "OPEN" || !t.status); // !t.status = backward compat for legacy trades
+  const closed  = taken.filter(t => t.status === "WIN" || t.status === "LOSS");
   const wins   = closed.filter(t => t.status === "WIN");
   const losses = closed.filter(t => t.status === "LOSS");
   const winRate = closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : null;
@@ -545,9 +550,10 @@ function TradePlannerContent() {
   const equity = account.size + realizedPL;
 
   // Live price polling — every 60s during market hours, every 5min outside
-  const openSymbolKey = [...new Set(open.map(t => t.symbol))].sort().join(",");
+  // Polls both open AND pending so pending orders can auto-fill when price reaches entry
+  const activeSymbolKey = [...new Set([...open, ...pending].map(t => t.symbol))].sort().join(",");
   useEffect(() => {
-    const symbols = [...new Set(open.map(t => t.symbol))];
+    const symbols = [...new Set([...open, ...pending].map(t => t.symbol))];
     if (!symbols.length) return;
     async function fetchAll() {
       const updates: Record<string, number> = {};
@@ -561,13 +567,29 @@ function TradePlannerContent() {
       if (Object.keys(updates).length) {
         setLivePrices(prev => ({ ...prev, ...updates }));
         setPriceTs(Date.now());
+        // Auto-fill pending orders when price reaches entry (0.5% tolerance = "at your level")
+        setTaken(prev => {
+          let changed = false;
+          const next = prev.map(t => {
+            if (t.status !== "PENDING") return t;
+            const price = updates[t.symbol];
+            if (price == null) return t;
+            const filled = Math.abs(price - t.entry) / t.entry <= 0.005
+              || (t.signal === "BUY"  ? price <= t.entry : price >= t.entry);
+            if (!filled) return t;
+            changed = true;
+            return { ...t, status: "OPEN" as const };
+          });
+          if (changed) persistTaken(next);
+          return changed ? next : prev;
+        });
       }
     }
     fetchAll();
     const delay = isMarketHours() ? 60_000 : 300_000;
     const id = setInterval(fetchAll, delay);
     return () => clearInterval(id);
-  }, [openSymbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [activeSymbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unrealizedPL = open.reduce((s, t) => {
     const lp = livePrices[t.symbol];
@@ -683,7 +705,7 @@ function TradePlannerContent() {
           {/* ── Stats strip ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
             {[
-              { label: "Open Positions",  val: String(open.length),                                             color: open.length > 0 ? "text-sky-400" : "text-[#F1F5F9]" },
+              { label: "Open Positions",  val: pending.length > 0 ? `${open.length} (+${pending.length} pending)` : String(open.length), color: open.length > 0 ? "text-sky-400" : pending.length > 0 ? "text-amber-400" : "text-[#F1F5F9]" },
               { label: "Closed Trades",   val: String(closed.length),                                           color: "text-[#F1F5F9]" },
               { label: "Win Rate",        val: winRate != null ? `${winRate}%` : "—",                           color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]" },
               { label: "Wins / Losses",   val: `${wins.length}W · ${losses.length}L`,                          color: "text-[#F1F5F9]" },
@@ -801,6 +823,79 @@ function TradePlannerContent() {
           {chartSymbol && (
             <div className="rounded-2xl overflow-hidden">
               <TraxoraChart symbol={chartSymbol} height={440} />
+            </div>
+          )}
+
+          {/* ── Pending Orders ── */}
+          {pending.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Pending Orders ({pending.length})</p>
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-[9px] text-amber-400/70">Waiting for price to reach entry</span>
+              </div>
+              <div className="space-y-2">
+                {pending.map(t => {
+                  const livePrice = livePrices[t.symbol] ?? null;
+                  const gap = livePrice != null ? Math.abs(livePrice - t.entry) : null;
+                  const gapPct = gap != null ? (gap / t.entry) * 100 : null;
+                  const awayDir = livePrice != null
+                    ? (t.signal === "BUY"
+                        ? livePrice > t.entry ? `needs ↓ ${fmtD(livePrice - t.entry)}` : "at entry — filling soon"
+                        : livePrice < t.entry ? `needs ↑ ${fmtD(t.entry - livePrice)}` : "at entry — filling soon")
+                    : null;
+
+                  return (
+                    <div key={t.id} className="border border-amber-500/20 bg-amber-500/5 rounded-2xl px-5 py-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
+                          t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                        }`}>{t.signal}</span>
+                        <p className="text-sm font-bold flex-1">{t.symbol}</p>
+                        {livePrice != null && (
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-black font-mono text-[#F1F5F9]">${livePrice.toFixed(2)}</p>
+                            {gapPct != null && gapPct > 0.1 && (
+                              <p className="text-[10px] text-amber-400 font-mono">{awayDir}</p>
+                            )}
+                            {gapPct != null && gapPct <= 0.1 && (
+                              <p className="text-[10px] text-emerald-400 font-mono animate-pulse">filling…</p>
+                            )}
+                          </div>
+                        )}
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25 shrink-0">PENDING</span>
+                        <p className="text-[10px] text-[#4B5675] shrink-0">{ago(t.time)}</p>
+                      </div>
+
+                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
+                        {[
+                          { l: "Entry",  v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
+                          { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: "text-rose-400" },
+                          { l: "Target", v: `$${t.target.toFixed(2)}`, c: "text-emerald-400" },
+                          { l: "Shares", v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
+                          { l: "Risk",   v: fmtD(t.riskDollar),        c: "text-rose-400" },
+                          { l: "Upside", v: fmtD(t.potential),         c: "text-emerald-400" },
+                        ].map(r => (
+                          <div key={r.l} className="bg-[#0D0B1A] border border-[#1C1933] rounded-xl p-2 text-center">
+                            <p className={`text-xs font-black font-mono ${r.c}`}>{r.v}</p>
+                            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mt-0.5">{r.l}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {t.note && <p className="text-xs text-[#4B5675] mb-3 italic">&ldquo;{t.note}&rdquo;</p>}
+
+                      <button
+                        type="button"
+                        onClick={() => cancelPending(t.id)}
+                        className="text-xs font-semibold px-4 py-2 rounded-xl transition-all border text-[#4B5675] border-[#333368] hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/5"
+                      >
+                        Cancel Order ✕
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
 
@@ -967,7 +1062,7 @@ function TradePlannerContent() {
           )}
 
           {/* Empty state */}
-          {taken.length === 0 && (
+          {taken.length === 0 && pending.length === 0 && (
             <div className="border border-dashed border-[#252345] rounded-2xl px-6 py-14 text-center">
               <p className="text-4xl mb-4">📋</p>
               <p className="text-base font-bold text-[#7B8DB4] mb-2">No trades logged yet</p>
