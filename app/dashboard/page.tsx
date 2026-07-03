@@ -219,6 +219,7 @@ function markAlertFired(symbol: string, signal: "BUY" | "SELL") {
 
 
 const PAPER_KEY   = "paper_portfolio_v2";
+const ACCOUNT_KEY = "traxora_planner_account";
 const PAPER_START = 100_000;
 
 type PaperStats = {
@@ -229,8 +230,14 @@ type PaperStats = {
   winRate:      number | null;
 };
 
-function loadPaperStats(storageKey: string): PaperStats {
-  const empty: PaperStats = { accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null };
+function loadPaperStats(storageKey: string, accountKey: string): PaperStats {
+  let startBalance = PAPER_START;
+  try {
+    const acct = JSON.parse(localStorage.getItem(accountKey) ?? "null") as { size: number } | null;
+    if (acct?.size && acct.size > 0) startBalance = acct.size;
+  } catch { /* ignore */ }
+
+  const empty: PaperStats = { accountValue: startBalance, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null };
   try {
     const raw = localStorage.getItem(storageKey);
     if (!raw) return empty;
@@ -244,7 +251,7 @@ function loadPaperStats(storageKey: string): PaperStats {
     const realizedPL  = closed.reduce((s, t) => t.exitPrice != null ? s + pl(t, t.exitPrice) : s, 0);
     const wins        = closed.filter(t => t.exitPrice != null && pl(t, t.exitPrice) > 0).length;
     return {
-      accountValue: PAPER_START + realizedPL,
+      accountValue: startBalance + realizedPL,
       realizedPL,
       openCount:   open.length,
       closedCount: closed.length,
@@ -582,8 +589,9 @@ function DashboardContent() {
 
   useEffect(() => {
     const key     = scopedKey(PAPER_KEY);
+    const acctKey = scopedKey(ACCOUNT_KEY);
     const refresh = () => {
-      setPaperStats(loadPaperStats(key));
+      setPaperStats(loadPaperStats(key, acctKey));
       setPortfolioTrades(loadTrades());
     };
     refresh();
