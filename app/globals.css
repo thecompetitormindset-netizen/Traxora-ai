@@ -829,7 +829,7 @@ html[data-theme="ember"] {
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .num-reveal { animation: none !important; opacity: 1 !important; filter: none !important; }
 
 /* App ambient children z-index fix on light */
-:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .app-ambient > * { position: relative; z-index: 1; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .app-ambient > *:not(.topbar-glass) { position: relative; z-index: 1; }
 
 /* Card premium — warm white gradient on light */
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) .card-premium {
@@ -1801,7 +1801,7 @@ a:not([class*="active:scale"]):active {
   background: radial-gradient(ellipse, rgba(139,92,246,0.05) 0%, rgba(244,63,94,0.015) 50%, transparent 70%);
   animation: orb-float-b 22s ease-in-out infinite;
 }
-.app-ambient > * { position: relative; z-index: 1; }
+.app-ambient > *:not(.topbar-glass) { position: relative; z-index: 1; }
 
 /* ══ SIGNAL CARD FULL GLOW ════════════════════════════════════════════════════ */
 .signal-card-buy {
@@ -1953,11 +1953,13 @@ a:not([class*="active:scale"]):active {
 
 /* ══ TOPBAR GLASS UPGRADE ════════════════════════════════════════════════════ */
 .topbar-glass {
-  background: rgba(13,11,26,0.75) !important;
+  background: rgba(13,11,26,0.96) !important;
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   backdrop-filter: blur(24px) saturate(180%);
   border-bottom: 1px solid rgba(255,255,255,0.06) !important;
   box-shadow: 0 1px 0 rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.2);
+  /* Keep topbar stacking context above page content in all themes/layouts */
+  z-index: 200;
 }
 
 /* ══ SIDEBAR NAV UPGRADE ══════════════════════════════════════════════════════ */

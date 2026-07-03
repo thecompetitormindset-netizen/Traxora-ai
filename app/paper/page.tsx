@@ -8,8 +8,9 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
-import { scopedKey } from "../lib/userState";
+import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
+import { useSession } from "next-auth/react";
 
 const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
@@ -73,6 +74,14 @@ function loadTaken(): TakenTrade[] {
 function saveTaken(t: TakenTrade[]) {
   localStorage.setItem(scopedKey(TAKEN_KEY), JSON.stringify(t));
 }
+function persistTaken(t: TakenTrade[]) {
+  saveTaken(t);
+  fetch("/api/paper-trades", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ trades: t }),
+  }).catch(() => {});
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -95,6 +104,28 @@ function ago(ms: number) {
 function extractFirstPrice(s: string): string {
   const m = s.match(/[\d]+\.?\d*/);
   return m ? m[0] : s;
+}
+
+function isMarketHours(): boolean {
+  try {
+    const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const day  = d.getDay();
+    if (day === 0 || day === 6) return false;
+    const mins = d.getHours() * 60 + d.getMinutes();
+    return mins >= 570 && mins < 960; // 9:30am – 4:00pm ET
+  } catch { return false; }
+}
+function calcLivePL(t: TakenTrade, price: number): number {
+  return (t.signal === "BUY" ? 1 : -1) * (price - t.entry) * t.shares;
+}
+function calcLivePLPct(t: TakenTrade, price: number): number {
+  return (t.signal === "BUY" ? 1 : -1) * ((price / t.entry) - 1) * 100;
+}
+function isStopHit(t: TakenTrade, price: number): boolean {
+  return t.signal === "BUY" ? price <= t.stop : price >= t.stop;
+}
+function isTargetHit(t: TakenTrade, price: number): boolean {
+  return t.signal === "BUY" ? price >= t.target : price <= t.target;
 }
 
 function loadCachedPlays(): RecommendedPlay[] {
@@ -413,6 +444,8 @@ function PositionSizer({
 
 function TradePlannerContent() {
   const params = useSearchParams();
+  const { data: session } = useSession();
+  const userEmail = session?.user?.email ?? null;
 
   const [account, setAccount]           = useState<{ size: number; riskPct: number }>({ size: 100000, riskPct: 1 });
   const [editingAccount, setEditing]    = useState(false);
@@ -430,14 +463,25 @@ function TradePlannerContent() {
   const [playKey,      setPlayKey]      = useState(0);
   const [closingId,    setClosingId]    = useState<string | null>(null);
   const [closeInput,   setCloseInput]   = useState("");
+  const [livePrices,   setLivePrices]   = useState<Record<string, number>>({});
+  const [priceTs,      setPriceTs]      = useState<number | null>(null);
 
   useEffect(() => {
+    if (session === undefined) return; // wait for session to resolve before reading scoped keys
+    setCurrentUser(userEmail);         // ensure scopedKey uses the correct user hash
     const acc = loadAccount();
     if (acc) { setAccount(acc); setAccountInput(String(acc.size)); setRiskInput(String(acc.riskPct)); }
     const raw = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]") as Signal[];
     setSignals(raw.filter(s => s.signal === "BUY" || s.signal === "SELL").slice(0, 12));
     setTaken(loadTaken());
-  }, []);
+    // Fetch from server and update if server has data (cross-device sync)
+    fetch("/api/paper-trades").then(r => r.json()).then(data => {
+      if (Array.isArray(data.trades) && data.trades.length > 0) {
+        setTaken(data.trades);
+        saveTaken(data.trades);
+      }
+    }).catch(() => {});
+  }, [session, userEmail]); // re-run once session resolves (catches direct page load)
 
   function handleSelectPlay(p: RecommendedPlay) {
     setSelectedPlay(p);
@@ -460,11 +504,11 @@ function TradePlannerContent() {
 
   const handleTaken = useCallback((t: TakenTrade) => {
     const withStatus = { ...t, status: "OPEN" as const };
-    setTaken(prev => { const next = [withStatus, ...prev]; saveTaken(next); return next; });
+    setTaken(prev => { const next = [withStatus, ...prev]; persistTaken(next); return next; });
   }, []);
 
   function removeTaken(id: string) {
-    setTaken(prev => { const next = prev.filter(t => t.id !== id); saveTaken(next); return next; });
+    setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
   }
 
   function closeTrade(id: string, outcome: "WIN" | "LOSS") {
@@ -474,7 +518,7 @@ function TradePlannerContent() {
         ? { ...t, status: outcome, closePrice: isNaN(cp) ? undefined : cp, closedAt: Date.now() }
         : t
       );
-      saveTaken(next);
+      persistTaken(next);
       return next;
     });
     setClosingId(null);
@@ -499,6 +543,37 @@ function TradePlannerContent() {
     return s + dir * (t.closePrice - t.entry) * t.shares;
   }, 0);
   const equity = account.size + realizedPL;
+
+  // Live price polling — every 60s during market hours, every 5min outside
+  const openSymbolKey = [...new Set(open.map(t => t.symbol))].sort().join(",");
+  useEffect(() => {
+    const symbols = [...new Set(open.map(t => t.symbol))];
+    if (!symbols.length) return;
+    async function fetchAll() {
+      const updates: Record<string, number> = {};
+      await Promise.allSettled(symbols.map(async sym => {
+        try {
+          const r = await fetch(`/api/quote?symbol=${encodeURIComponent(sym)}`);
+          const d = await r.json();
+          if (typeof d.price === "number" && d.price > 0) updates[sym] = d.price;
+        } catch { /* ignore */ }
+      }));
+      if (Object.keys(updates).length) {
+        setLivePrices(prev => ({ ...prev, ...updates }));
+        setPriceTs(Date.now());
+      }
+    }
+    fetchAll();
+    const delay = isMarketHours() ? 60_000 : 300_000;
+    const id = setInterval(fetchAll, delay);
+    return () => clearInterval(id);
+  }, [openSymbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const unrealizedPL = open.reduce((s, t) => {
+    const lp = livePrices[t.symbol];
+    return lp != null ? s + calcLivePL(t, lp) : s;
+  }, 0);
+  const hasLiveData = Object.keys(livePrices).length > 0;
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -526,17 +601,24 @@ function TradePlannerContent() {
                 <div className="flex items-start justify-between flex-wrap gap-6">
                   <div>
                     <p className="text-[10px] lg:text-xs text-[#4B5675] uppercase tracking-widest mb-2">Portfolio Equity</p>
-                    <p className={`text-4xl lg:text-5xl font-black font-mono tabular-nums ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {fmtD(equity)}
+                    <p className={`text-4xl lg:text-5xl font-black font-mono tabular-nums ${(realizedPL + unrealizedPL) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {fmtD(equity + unrealizedPL)}
                     </p>
-                    <div className="flex items-center gap-2 mt-2">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
                       <span className={`text-sm font-bold tabular-nums ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                         {realizedPL >= 0 ? "+" : ""}{fmtD(realizedPL)}
                       </span>
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${realizedPL >= 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
-                        {realizedPL >= 0 ? "+" : ""}{((realizedPL / account.size) * 100).toFixed(2)}%
-                      </span>
-                      <span className="text-[#4B5675] text-xs">realized P&L</span>
+                      <span className="text-[#4B5675] text-xs">realized</span>
+                      {hasLiveData && open.length > 0 && (
+                        <>
+                          <span className="text-[#252345]">·</span>
+                          <span className={`text-sm font-bold tabular-nums ${unrealizedPL >= 0 ? "text-sky-400" : "text-rose-400"}`}>
+                            {unrealizedPL >= 0 ? "+" : ""}{fmtD(unrealizedPL)}
+                          </span>
+                          <span className="text-[#4B5675] text-xs">unrealized</span>
+                          {priceTs && <span className="text-[9px] text-[#333368] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />live</span>}
+                        </>
+                      )}
                     </div>
                   </div>
 
@@ -730,29 +812,71 @@ function TradePlannerContent() {
                 <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
               </div>
               <div className="space-y-2">
-                {open.map(t => (
-                  <div key={t.id} className="border border-sky-500/20 bg-sky-500/5 rounded-2xl px-5 py-4">
+                {open.map(t => {
+                  const livePrice  = livePrices[t.symbol] ?? null;
+                  const pl         = livePrice != null ? calcLivePL(t, livePrice)    : null;
+                  const plPct      = livePrice != null ? calcLivePLPct(t, livePrice) : null;
+                  const stopHit    = livePrice != null && isStopHit(t, livePrice);
+                  const targetHit  = livePrice != null && isTargetHit(t, livePrice);
+                  const breached   = stopHit || targetHit;
+
+                  const cardBorder = stopHit
+                    ? "border-rose-500/60 bg-rose-500/5 animate-pulse"
+                    : targetHit
+                      ? "border-emerald-500/60 bg-emerald-500/5 animate-pulse"
+                      : "border-sky-500/20 bg-sky-500/5";
+
+                  return (
+                  <div key={t.id} className={`border rounded-2xl px-5 py-4 ${cardBorder}`}>
+
+                    {/* Breach alert banner */}
+                    {breached && (
+                      <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-black ${
+                        targetHit ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
+                      }`}>
+                        <span className={`w-2 h-2 rounded-full animate-ping inline-block ${targetHit ? "bg-emerald-500" : "bg-rose-500"}`} />
+                        {targetHit ? "🎯 TARGET HIT — ready to close as WIN" : "⚠️ STOP HIT — ready to close as LOSS"}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-3 mb-3">
                       <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
                         t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
                       }`}>{t.signal}</span>
-                      <p className="text-sm font-bold flex-1">{t.symbol}</p>
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/25">OPEN</span>
-                      <p className="text-[10px] text-[#4B5675]">{ago(t.time)}</p>
-                      <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1">
+                      <p className="text-sm font-bold flex-1">{t.symbol.replace(".US","").replace(".COMM","")}</p>
+
+                      {/* Live price + P&L */}
+                      {livePrice != null && (
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-black font-mono text-[#F1F5F9]">${livePrice.toFixed(2)}</p>
+                          {pl != null && plPct != null && (
+                            <p className={`text-[10px] font-bold font-mono ${pl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                              {pl >= 0 ? "+" : ""}{fmtD(pl)} ({plPct >= 0 ? "+" : ""}{plPct.toFixed(2)}%)
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/25 shrink-0">OPEN</span>
+                      <p className="text-[10px] text-[#4B5675] shrink-0">{ago(t.time)}</p>
+                      <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1 shrink-0">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>
                     <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
                       {[
                         { l: "Entry",  v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
-                        { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: "text-rose-400" },
-                        { l: "Target", v: `$${t.target.toFixed(2)}`, c: "text-emerald-400" },
+                        { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: stopHit  ? "text-rose-400 font-black"    : "text-rose-400" },
+                        { l: "Target", v: `$${t.target.toFixed(2)}`, c: targetHit ? "text-emerald-400 font-black" : "text-emerald-400" },
                         { l: "Shares", v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
                         { l: "Risk",   v: fmtD(t.riskDollar),        c: "text-rose-400" },
                         { l: "Upside", v: fmtD(t.potential),         c: "text-emerald-400" },
                       ].map(r => (
-                        <div key={r.l} className="bg-[#0D0B1A] rounded-xl p-2 text-center border border-[#1C1933]">
+                        <div key={r.l} className={`rounded-xl p-2 text-center border ${
+                          (r.l === "Stop" && stopHit) ? "bg-rose-500/10 border-rose-500/30" :
+                          (r.l === "Target" && targetHit) ? "bg-emerald-500/10 border-emerald-500/30" :
+                          "bg-[#0D0B1A] border-[#1C1933]"
+                        }`}>
                           <p className={`text-xs font-black font-mono ${r.c}`}>{r.v}</p>
                           <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mt-0.5">{r.l}</p>
                         </div>
@@ -767,7 +891,7 @@ function TradePlannerContent() {
                           type="number"
                           value={closeInput}
                           onChange={e => setCloseInput(e.target.value)}
-                          placeholder="Close price (optional)"
+                          placeholder="Close price"
                           className="flex-1 min-w-0 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/40"
                         />
                         <button type="button" onClick={() => closeTrade(t.id, "WIN")}
@@ -778,13 +902,24 @@ function TradePlannerContent() {
                           className="text-xs text-[#4B5675] hover:text-[#94A3B8] px-2 py-2 transition-colors">Cancel</button>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => setClosingId(t.id)}
-                        className="text-xs font-semibold text-sky-400 hover:text-sky-300 border border-sky-500/25 hover:border-sky-500/50 px-4 py-2 rounded-xl transition-all">
-                        Close Position →
+                      <button type="button" onClick={() => {
+                        setClosingId(t.id);
+                        const lp = livePrices[t.symbol];
+                        if (lp) setCloseInput(lp.toFixed(2));
+                      }}
+                        className={`text-xs font-semibold px-4 py-2 rounded-xl transition-all border ${
+                          breached
+                            ? targetHit
+                              ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20"
+                              : "text-rose-400 border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20"
+                            : "text-sky-400 border-sky-500/25 hover:border-sky-500/50"
+                        }`}>
+                        {breached ? (targetHit ? "Close as Win →" : "Close as Loss →") : "Close Position →"}
                       </button>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

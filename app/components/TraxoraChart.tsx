@@ -11,7 +11,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Interval = "1H" | "1D" | "1W";
+type Interval = "5M" | "1M" | "1H" | "1D" | "1W";
 type RawBar   = { time: number; open: number; high: number; low: number; close: number; volume: number };
 type OhlcBar  = { time: Time; open: number; high: number; low: number; close: number };
 type LineBar  = { time: Time; value: number };
@@ -36,6 +36,8 @@ export type ChartSignal = {
 // ── Timeframes ────────────────────────────────────────────────────────────────
 
 const INTERVALS: { label: string; value: Interval; apiInterval: string; apiRange: string }[] = [
+  { label: "5M", value: "5M", apiInterval: "5m", apiRange: "5d"   },
+  { label: "1M", value: "1M", apiInterval: "1m", apiRange: "1d"   },
   { label: "1H", value: "1H", apiInterval: "1h", apiRange: "30d"  },
   { label: "1D", value: "1D", apiInterval: "1d", apiRange: "365d" },
   { label: "1W", value: "1W", apiInterval: "1w", apiRange: "730d" },
@@ -224,6 +226,8 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const targetLineRef = useRef<IPriceLine | null>(null);
 
   const [interval,    setIntervalState] = useState<Interval>("1D");
+  const [blinkDot,    setBlinkDot]      = useState<{ x: number; y: number } | null>(null);
+  const intervalRef                     = useRef<Interval>("1D");
   const [loading,     setLoading]       = useState(true);
   const [error,       setError]         = useState(false);
   const [lastPrice,   setLastPrice]     = useState<number | null>(null);
@@ -241,9 +245,15 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const [showBB,       setShowBB]       = useState(false);
   const [showSignals,  setShowSignals]  = useState(true);
 
-  const isIntraday = interval === "1H";
+  const isIntraday = interval === "1H" || interval === "5M" || interval === "1M";
   const clean      = symbol.replace(".US", "").replace(".COMM", "");
   const isFutures  = symbol.endsWith(".COMM");
+
+  // keep ref in sync with state so subscription callbacks can read current interval
+  useEffect(() => {
+    intervalRef.current = interval;
+    if (interval !== "5M" && interval !== "1M") setBlinkDot(null);
+  }, [interval]);
 
   // ESC exits fullscreen
   useEffect(() => {
@@ -353,6 +363,17 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       setTooltip({ x: param.point.x, y: param.point.y, time: timeLabel, open: bar.open, high: bar.high, low: bar.low, close: bar.close, volume: bar.volume, ema9: getLine(ema9Ref), ema50: getLine(ema50Ref), vwap: getLine(vwapRef), rsi: getLine(rsiRef) });
     });
 
+    // Update blink dot position when user scrolls / zooms
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
+      if (intervalRef.current !== "5M" && intervalRef.current !== "1M") return;
+      const bars = allBarsRef.current;
+      if (!bars.length || !candleRef.current) return;
+      const lastB = bars[bars.length - 1];
+      const x = chart.timeScale().timeToCoordinate(toTime(lastB.time));
+      const y = candleRef.current.priceToCoordinate(lastB.close);
+      setBlinkDot(x != null && y != null ? { x, y } : null);
+    });
+
     const ro = new ResizeObserver(() => chart.applyOptions({ width: containerRef.current?.clientWidth ?? 800 }));
     if (containerRef.current) ro.observe(containerRef.current);
 
@@ -378,8 +399,10 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
     try {
       let raw: RawBar[] = [];
-      if (interval === "1H") {
-        const res  = await fetch(`/api/intraday-bars?symbol=${encodeURIComponent(symbol)}&interval=1h&range=30d`);
+      if (interval === "5M" || interval === "1M" || interval === "1H") {
+        const ivStr  = interval === "1M" ? "1m" : interval === "5M" ? "5m" : "1h";
+        const rngStr = interval === "1M" ? "1d" : interval === "5M" ? "5d" : "30d";
+        const res  = await fetch(`/api/intraday-bars?symbol=${encodeURIComponent(symbol)}&interval=${ivStr}&range=${rngStr}`);
         const data = await res.json();
         raw = data.bars ?? [];
       } else {
@@ -430,6 +453,16 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       setLastPrice(last.close);
       setLastBar({ o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume });
       setLastChg(prev ? ((last.close - prev.close) / prev.close) * 100 : null);
+      // Compute blink dot position for short intervals (needs ~100ms for chart to settle after fitContent)
+      setTimeout(() => {
+        const iv = intervalRef.current;
+        if ((iv === "5M" || iv === "1M") && chartRef.current && candleRef.current && allBarsRef.current.length) {
+          const lb = allBarsRef.current[allBarsRef.current.length - 1];
+          const x  = chartRef.current.timeScale().timeToCoordinate(toTime(lb.time));
+          const y  = candleRef.current.priceToCoordinate(lb.close);
+          setBlinkDot(x != null && y != null ? { x, y } : null);
+        }
+      }, 120);
     } catch { setError(true); }
     finally { setLoading(false); }
   }, [symbol, interval, showTrend, showLongT, showFair, showMomentum, showBB, isIntraday, isDark]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -598,6 +631,21 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <span className="text-[28px] font-black tracking-[0.45em] uppercase" style={{ color: C.border }}>TRAXORA</span>
           </div>
+
+          {/* Live blinking dot — 5M / 1M only */}
+          {blinkDot && !tooltip && (
+            <div
+              className="absolute pointer-events-none z-[6]"
+              style={{ left: blinkDot.x - 5, top: blinkDot.y - 5 }}
+            >
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
+                  style={{ background: isBull ? C.bull : C.bear }} />
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5"
+                  style={{ background: isBull ? C.bull : C.bear }} />
+              </span>
+            </div>
+          )}
 
           {/* Floating tooltip */}
           {tooltip && (

@@ -239,7 +239,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
         {/* Dropdown */}
         {open && (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) && (
-          <div className="dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-50 overflow-hidden max-h-80 overflow-y-auto">
+          <div className="dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-[999] overflow-hidden max-h-80 overflow-y-auto">
             {/* Recent symbols — shown when query is empty */}
             {!query.trim() && recentSymbols.length > 0 && (
               <>
