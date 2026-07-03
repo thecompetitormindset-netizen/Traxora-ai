@@ -9,7 +9,6 @@ import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
 import MarketStatus from "../components/MarketStatus";
 import OnboardingModal from "../components/OnboardingModal";
-import SignalPerformance from "../components/SignalPerformance";
 import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
 import { haptic } from "../lib/haptics";
@@ -401,7 +400,7 @@ function OptionsPlaysSection() {
       )}
 
       {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 animate-pulse">
               <div className="flex items-start justify-between mb-4">
@@ -441,7 +440,7 @@ function OptionsPlaysSection() {
             <span className="font-semibold text-amber-300">Educational only — not financial advice.</span> Verify DTE, IV and earnings before trading. Options can lose 100% of value.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {(() => { const visiblePlays = showAll ? plays : plays.slice(0, 3); return visiblePlays.map((p, i) => {
             const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
             return (
@@ -1116,7 +1115,29 @@ function DashboardContent() {
             {/* ── BENTO GRID ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
-            {/* ── PORTFOLIO HERO + SENTIMENT side by side ── */}
+            {/* Morning Brief — very top */}
+            <div className="lg:col-span-3">
+              <div
+                className="reveal flex items-center gap-4 lg:gap-6 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 lg:px-7 py-4 lg:py-5 cursor-pointer hover:border-emerald-500/40 transition-all group"
+                onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
+              >
+                <div className="hover-float w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
+                  <span className="text-xl lg:text-2xl">🌅</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm lg:text-base font-bold text-[#F1F5F9]">Today&apos;s Market Brief</p>
+                  <p className="text-xs lg:text-sm text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
+                </div>
+                <span className="text-xs lg:text-sm text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
+              </div>
+            </div>
+
+            {/* Market Sentiment — second */}
+            <div className="lg:col-span-3">
+              <SentimentWidget horizontal />
+            </div>
+
+            {/* ── PORTFOLIO HERO ── */}
             {(() => {
               const closed = portfolioTrades
                 .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
@@ -1136,7 +1157,7 @@ function DashboardContent() {
               const color = isUp ? "#34D399" : "#F87171";
 
               return (
-                <div className="lg:col-span-2 self-start">
+                <div className="lg:col-span-3 self-start">
                 <Link href="/strategy" className="block group">
                   <div className={`card-shine glass surface-sheen rounded-2xl border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
 
@@ -1221,33 +1242,6 @@ function DashboardContent() {
               );
             })()}
 
-            {/* Signal Track Record — full width, top section */}
-            <div className="lg:col-span-3">
-              <SignalPerformance />
-            </div>
-
-            {/* Morning Brief — full width */}
-            <div className="lg:col-span-3">
-              <div
-                className="reveal flex items-center gap-4 lg:gap-6 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 lg:px-7 py-4 lg:py-5 cursor-pointer hover:border-emerald-500/40 transition-all group"
-                onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
-              >
-                <div className="hover-float w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
-                  <span className="text-xl lg:text-2xl">🌅</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm lg:text-base font-bold text-[#F1F5F9]">Today&apos;s Market Brief</p>
-                  <p className="text-xs lg:text-sm text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
-                </div>
-                <span className="text-xs lg:text-sm text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
-              </div>
-            </div>
-
-            {/* Market Sentiment — horizontal full-width bar */}
-            <div className="lg:col-span-3">
-              <SentimentWidget horizontal />
-            </div>
-
             {/* Stats — full width */}
             <div className="lg:col-span-3">
             <div className="reveal stagger-container grid grid-cols-3 gap-3 lg:gap-5">
@@ -1271,8 +1265,8 @@ function DashboardContent() {
               <div className="flex-1 h-px bg-[#252345]" />
             </div>
 
-            {/* Watchlist — 2/3 */}
-            <div className="order-4 lg:order-none lg:col-span-2">
+            {/* Watchlist — full width */}
+            <div className="order-4 lg:order-none lg:col-span-3">
               <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div className="flex items-center gap-2 min-w-0">
                   <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
@@ -1282,7 +1276,7 @@ function DashboardContent() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {displayStocks.length > 4 && (
+                  {displayStocks.length > 6 && (
                     <button type="button" onClick={() => setShowAllStocks(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
                       {showAllStocks ? "Show less ↑" : `See all ${displayStocks.length} ↓`}
                     </button>
@@ -1327,8 +1321,8 @@ function DashboardContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(showAllStocks ? displayStocks : displayStocks.slice(0, 4)).map((stock) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(showAllStocks ? displayStocks : displayStocks.slice(0, 6)).map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
                   const animClass = stock.isNew
                     ? "animate-stock-arrive"
@@ -1514,99 +1508,7 @@ function DashboardContent() {
                   );
                 })}
               </div>
-            </div>{/* /watchlist lg:col-span-2 */}
-
-            {/* Right sidebar — 1/3 */}
-            <div className="order-3 lg:order-none lg:col-span-1 flex flex-col gap-3">
-
-              {/* Trending Markets */}
-              {(() => {
-                const trending = displayStocks
-                  .filter(s => s.signal === "BUY" || s.signal === "SELL")
-                  .sort((a, b) => {
-                    const rank = (s: typeof a) =>
-                      s.confidence === "High" ? 0 : s.confidence === "Medium" ? 1 : 2;
-                    return rank(a) - rank(b);
-                  })
-                  .slice(0, 6);
-                return (
-                  <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Trending</h2>
-                      <span className="text-[10px] text-[#333368] font-mono">{trending.length}</span>
-                    </div>
-                    {trending.length === 0 ? (
-                      <p className="text-xs text-[#4B5675] py-3">No active signals yet — run analysis on your watchlist</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        {trending.map(s => (
-                          <div
-                            key={s.symbol}
-                            className="flex items-center justify-between gap-2 px-3 py-2 bg-[#0D0B1A] rounded-xl cursor-pointer hover:bg-[#1A1838] transition-colors"
-                            onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
-                          >
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-xs font-bold font-mono text-[#F1F5F9]">{s.symbol.replace(".US","").replace(".COMM","")}</p>
-                                {s.isNew && <span className="text-[7px] font-bold px-1 py-px rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">HOT</span>}
-                              </div>
-                              <p className={`text-[10px] font-mono tabular-nums ${(s.change ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                                {s.price !== null ? `$${s.price.toFixed(2)}` : "—"}
-                                {s.change !== null ? ` · ${s.change >= 0 ? "+" : ""}${s.change.toFixed(2)}%` : ""}
-                              </p>
-                            </div>
-                            <div className="flex flex-col items-end gap-0.5 shrink-0">
-                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${s.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"}`}>{s.signal}</span>
-                              <span className={`text-[8px] font-semibold ${s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>{s.confidence}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })()}
-              {/* Earnings compact */}
-              {(() => {
-                const upcoming = displayStocks
-                  .filter(s => s.earningsDate && !s.earningsDate.includes("—"))
-                  .sort((a, b) => {
-                    const order = (d: string) =>
-                      d.includes("Tomorrow") ? 0 :
-                      d.includes("in 1d") || d.includes("in 2d") || d.includes("in 3d") ? 1 :
-                      d.includes("in ") ? 2 : 3;
-                    return order(a.earningsDate!) - order(b.earningsDate!);
-                  })
-                  .slice(0, 5);
-                if (upcoming.length === 0) return null;
-                return (
-                  <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Earnings</h2>
-                      <span className="text-[10px] text-[#333368] font-mono">{upcoming.length}</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      {upcoming.map(s => (
-                        <div key={s.symbol}
-                          className="flex items-center justify-between gap-2 px-3 py-2 bg-[#0D0B1A] rounded-xl cursor-pointer hover:bg-[#1A1838] transition-colors"
-                          onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
-                        >
-                          <div className="min-w-0">
-                            <p className="text-xs font-bold font-mono text-[#F1F5F9]">{s.symbol.replace(".US","").replace(".COMM","")}</p>
-                            <p className="text-[10px] text-[#4B5675] truncate">{s.name}</p>
-                          </div>
-                          <span className={`shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full border ${
-                            s.earningsDate!.includes("Tomorrow") || s.earningsDate!.includes("in 1d") || s.earningsDate!.includes("in 2d") || s.earningsDate!.includes("in 3d")
-                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                              : "bg-amber-500/10 text-amber-400 border-amber-500/20"
-                          }`}>{s.earningsDate}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })()}
-            </div>{/* /right sidebar */}
+            </div>{/* /watchlist lg:col-span-3 */}
 
             {/* ── Section divider: Futures ── */}
             <div className="order-5 lg:order-none lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
@@ -1624,7 +1526,7 @@ function DashboardContent() {
                 <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
               </div>
               <div className="flex items-center gap-3">
-                {futures.length > 3 && (
+                {futures.length > 6 && (
                   <button type="button" onClick={() => setShowAllFutures(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
                     {showAllFutures ? "Show less ↑" : `See all ${futures.length} ↓`}
                   </button>
@@ -1675,8 +1577,8 @@ function DashboardContent() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(260px,1fr))] gap-3">
-              {(showAllFutures ? futures : futures.slice(0, 3)).map((f) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {(showAllFutures ? futures : futures.slice(0, 6)).map((f) => {
                 const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
                 return (
                   <div
