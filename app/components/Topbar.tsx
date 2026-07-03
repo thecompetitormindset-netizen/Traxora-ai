@@ -189,7 +189,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   }
 
   function handleSelect(symbol: string) {
-    setQuery(symbol);
+    setQuery("");
     setOpen(false);
     saveRecent(symbol);
     onSearch?.(symbol);
@@ -224,6 +224,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => { if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
+            onBlur={() => setTimeout(() => setOpen(false), 150)}
             className="flex-1 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
           {loading && (

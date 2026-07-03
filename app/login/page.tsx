@@ -47,13 +47,25 @@ function LoginContent() {
     setInAppBrowser(isInAppBrowser());
   }, []);
 
+  const justSignedOut = searchParams.get("signedOut");
+
   useEffect(() => {
-    const justSignedOut = searchParams.get("signedOut");
     if (session && !justSignedOut) {
-      // Full reload so all components re-mount with the new session's scoped data
       window.location.href = callbackUrl;
     }
-  }, [session, searchParams, callbackUrl]);
+  }, [session, justSignedOut, callbackUrl]);
+
+  // Already signed in — let them go to dashboard or switch account
+  if (session && !justSignedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center flex-col gap-4">
+        <svg className="animate-spin text-emerald-500" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+        </svg>
+        <p className="text-sm text-[#4B5675]">Redirecting…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col lg:flex-row">
@@ -194,7 +206,7 @@ function LoginContent() {
           <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 space-y-4">
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl })}
+              onClick={() => signIn("google", { callbackUrl }, { prompt: "select_account" })}
               disabled={inAppBrowser}
               className="w-full flex items-center justify-center gap-3 bg-white hover:bg-gray-100 transition-colors text-gray-900 font-semibold py-3 px-5 rounded-xl text-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >

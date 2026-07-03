@@ -14,8 +14,6 @@ type Company = {
 };
 
 export default function TopCompaniesPage() {
-  useEffect(() => {
-  }, []);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");

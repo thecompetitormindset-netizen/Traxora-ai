@@ -24,7 +24,7 @@ export type AddTradeInitial = { symbol?: string; direction?: Direction; entryPri
 
 export const STORAGE_KEY      = "paper_portfolio_v2";
 export const TRADES_TS_KEY    = "paper_portfolio_v2_ts";
-export const STARTING_CAPITAL = 10_000;
+export const STARTING_CAPITAL = 100_000;
 
 export function loadTrades(): PaperTrade[] {
   if (typeof window === "undefined") return [];

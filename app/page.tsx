@@ -13,29 +13,21 @@ const LIVE_SIGNALS = [
   { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",   liq:"BSL at $420",    kz:"NY session"   },
 ];
 
-const PLAN_CACHE_KEY = "traxora_plan_cache";
-
 export default function HomePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   function handleLaunch() {
     if (session) { router.push("/dashboard"); }
-    else { signIn("google", { callbackUrl: "/dashboard" }); }
+    else { signIn("google", { callbackUrl: "/dashboard" }, { prompt: "select_account" }); }
   }
 
   useEffect(() => {
     if (status !== "authenticated") return;
-    try {
-      if (sessionStorage.getItem(PLAN_CACHE_KEY) === "pro") { router.replace("/dashboard"); return; }
-    } catch { /* ignore */ }
     fetch("/api/user/plan")
       .then(r => r.json())
       .then(({ plan }) => {
-        if (plan === "pro") {
-          try { sessionStorage.setItem(PLAN_CACHE_KEY, "pro"); } catch { /* ignore */ }
-          router.replace("/dashboard");
-        }
+        if (plan === "pro") router.replace("/dashboard");
       })
       .catch(() => {});
   }, [status, router]);
@@ -106,7 +98,7 @@ export default function HomePage() {
           <button type="button" onClick={handleLaunch} className="bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors px-4 py-2 rounded-lg text-sm font-semibold">
             {session ? "Dashboard →" : "Get started →"}
           </button>
-          <button type="button" aria-label="Menu" aria-expanded={mobileMenuOpen ? "true" : "false"} onClick={() => setMobileMenuOpen(o => !o)} className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors">
+          <button type="button" aria-label="Menu" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(o => !o)} className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-[#1A1838] transition-colors">
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "rotate-45 translate-y-2" : ""}`} />
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "opacity-0" : ""}`} />
             <span className={`block w-5 h-0.5 bg-[#7B8DB4] transition-all ${mobileMenuOpen ? "-rotate-45 -translate-y-2" : ""}`} />
@@ -115,7 +107,7 @@ export default function HomePage() {
       </nav>
 
       {/* ══ MOBILE MENU ══ */}
-      <div className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/98 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-64" : "max-h-0"}`} aria-hidden={mobileMenuOpen ? "false" : "true"}>
+      <div className={`md:hidden overflow-hidden transition-all duration-300 bg-[#0D0B1A]/98 backdrop-blur-xl border-b border-[#252345]/60 ${mobileMenuOpen ? "max-h-64" : "max-h-0"}`} aria-hidden={!mobileMenuOpen}>
         <div className="px-6 py-4 flex flex-col gap-1">
           {NAV_LINKS.map(l => (
             <Link key={l.href} href={l.href} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#CBD5E1] hover:text-[#F1F5F9] py-3 border-b border-[#252345]/40 last:border-0 transition-colors">{l.label}</Link>
@@ -126,216 +118,456 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* ══ HERO ══ */}
-      <section data-hero className="relative flex flex-col items-center justify-center text-center px-6 sm:px-10 pt-20 pb-16 overflow-hidden">
+      {/* ══ HERO — split layout: text left, signal cards right ══ */}
+      <section data-hero className="relative px-6 sm:px-10 pt-20 pb-20 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[700px] h-[300px] bg-emerald-600/6 rounded-full blur-3xl" />
-          <div className="absolute inset-0 bg-dot-grid opacity-[0.12]" />
+          <div className="absolute top-0 right-0 w-[700px] h-[600px] bg-emerald-600/8 rounded-full blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-cyan-600/5 rounded-full blur-3xl" />
+          <div className="absolute inset-0 bg-dot-grid opacity-[0.10]" />
         </div>
 
-        <div className="relative z-10 max-w-3xl mx-auto">
-          <div className="hero-enter hero-enter-1 inline-flex items-center gap-2 bg-[#13112A] border border-[#252345] rounded-full px-4 py-1.5 text-xs text-[#7B8DB4] font-medium mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Powered by Claude Sonnet 4.6 · Live market data
-          </div>
-
-          <h1 className="hero-enter hero-enter-2 text-5xl sm:text-7xl font-black tracking-tight leading-[1.05] mb-5">
-            <span className="block">Know exactly</span>
-            <span className="block text-gradient-animate">when to trade.</span>
-          </h1>
-
-          <p className="hero-enter hero-enter-3 text-[#7B8DB4] text-lg leading-relaxed mb-8 max-w-xl mx-auto">
-            AI-powered signals built on Smart Money methodology. Enter any ticker — get a clear BUY, HOLD, or SELL with a full trade plan in seconds.
-          </p>
-
-          <div className="hero-enter hero-enter-4 flex items-center justify-center mb-4">
-            <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
-              {!session && (
-                <svg width="16" height="16" viewBox="0 0 24 24">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
-                </svg>
-              )}
-              {session ? "Open Dashboard →" : "Sign in with Google"}
-            </button>
-          </div>
-          {!session && <p className="text-xs text-[#4B5675]">No credit card required · Pro plan $5/mo · Cancel anytime</p>}
-          <p className="text-xs text-[#4B5675] mt-2">
-            Not sure yet?{" "}
-            <Link href="/guide" className="text-emerald-500 hover:text-emerald-400 transition-colors underline underline-offset-2">See how it works →</Link>
-          </p>
-        </div>
-
-        {/* Live signal card */}
-        <div className="animate-signal-float relative z-10 mt-14 w-full max-w-sm mx-auto">
-          <div className={`bg-[#13112A] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl ${signalFade ? "signal-fade-in" : "signal-fade-out"}`}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
-                <span className="font-bold text-sm">{signal.sym}</span>
-                <span className="text-[11px] text-[#4B5675]">{signal.name}</span>
-              </div>
-              <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${sigColor}`}>{signal.sig}</span>
+        <div className="relative z-10 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+          {/* Left: Text & CTAs — left aligned */}
+          <div>
+            <div className="hero-enter hero-enter-1 inline-flex items-center gap-2 bg-[#13112A] border border-[#252345] rounded-full px-4 py-1.5 text-xs text-[#7B8DB4] font-medium mb-8">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Powered by Claude Sonnet 4.6 · Live market data
             </div>
-            <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
+
+            <h1 className="hero-enter hero-enter-2 text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.02] mb-6">
+              <span className="block text-[#F1F5F9]">Know exactly</span>
+              <span className="block text-gradient-animate">when to trade.</span>
+            </h1>
+
+            <p className="hero-enter hero-enter-3 text-lg text-[#7B8DB4] leading-relaxed mb-8 max-w-lg">
+              AI-powered signals built on Smart Money methodology. Enter any ticker — get a clear BUY, HOLD, or SELL with a full trade plan in seconds. No trading experience required.
+            </p>
+
+            <div className="hero-enter hero-enter-4 flex items-center gap-4 flex-wrap mb-4">
+              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
+                {!session && (
+                  <svg width="16" height="16" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
+                  </svg>
+                )}
+                {session ? "Open Dashboard →" : "Sign in with Google"}
+              </button>
+              <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
+                See how it works →
+              </Link>
+            </div>
+
+            {!session && <p className="text-sm text-[#4B5675] mb-8">No credit card · Pro plan $5/mo · Cancel anytime</p>}
+
+            <div className="hero-enter hero-enter-4 flex items-center gap-6 flex-wrap mt-2">
               {[
-                { label:"Order Block",  value:signal.ob  },
-                { label:"Fair Value Gap", value:signal.fvg },
-                { label:"Liquidity",    value:signal.liq },
-                { label:"Kill Zone",    value:signal.kz  },
-              ].map(r => (
-                <div key={r.label}>
-                  <p className="text-[9px] text-[#4B5675] uppercase tracking-wider font-medium">{r.label}</p>
-                  <p className="text-[11px] text-[#CBD5E1] font-medium mt-0.5">{r.value}</p>
+                { label:"Under 5 seconds per analysis" },
+                { label:"6 Smart Money concepts" },
+                { label:"Kill Zone timing included" },
+              ].map(t => (
+                <div key={t.label} className="flex items-center gap-1.5 text-xs text-[#4B5675]">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  {t.label}
                 </div>
               ))}
             </div>
-            <div className="px-4 pb-3 flex items-center justify-between border-t border-[#252345] pt-2.5">
-              <span className="text-[10px] text-[#4B5675]">Confidence: <span className={signal.conf === "High" ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{signal.conf}</span></span>
-              <span className="text-[10px] font-mono text-[#CBD5E1]">{signal.price}</span>
+          </div>
+
+          {/* Right: Signal card stack */}
+          <div className="relative flex items-center justify-center lg:justify-end pt-10 lg:pt-0">
+            <div className="relative w-full max-w-[400px]">
+              {/* Ghost card 2 */}
+              <div className="absolute inset-x-6 top-8 rotate-3 opacity-20 pointer-events-none">
+                <div className="bg-[#13112A] border border-rose-500/20 rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-400 shrink-0" />
+                      <span className="font-bold text-sm">TSLA</span>
+                      <span className="text-[11px] text-[#4B5675]">Tesla Inc.</span>
+                    </div>
+                    <span className="text-xs font-black px-2.5 py-1 rounded-md border text-rose-400 bg-rose-500/10 border-rose-500/30">SELL</span>
+                  </div>
+                  <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                    {[{l:"Order Block",v:"Bearish OB $182"},{l:"Fair Value Gap",v:"FVG $179–181"},{l:"Liquidity",v:"BSL swept $183"},{l:"Kill Zone",v:"NY AM session"}].map(r=>(
+                      <div key={r.l}><p className="text-[9px] text-[#4B5675] uppercase tracking-wider">{r.l}</p><p className="text-[11px] text-[#CBD5E1] mt-0.5">{r.v}</p></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Ghost card 1 */}
+              <div className="absolute inset-x-3 top-4 -rotate-1 opacity-45 pointer-events-none">
+                <div className="bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden">
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="font-bold text-sm">NVDA</span>
+                      <span className="text-[11px] text-[#4B5675]">NVIDIA Corp.</span>
+                    </div>
+                    <span className="text-xs font-black px-2.5 py-1 rounded-md border text-emerald-400 bg-emerald-500/10 border-emerald-500/30">BUY</span>
+                  </div>
+                  <div className="px-4 py-3 grid grid-cols-2 gap-x-4 gap-y-2">
+                    {[{l:"Order Block",v:"Bullish OB $131.20"},{l:"Fair Value Gap",v:"FVG $132–134"},{l:"Liquidity",v:"BSL at $135.80"},{l:"Kill Zone",v:"NY session"}].map(r=>(
+                      <div key={r.l}><p className="text-[9px] text-[#4B5675] uppercase tracking-wider">{r.l}</p><p className="text-[11px] text-[#CBD5E1] mt-0.5">{r.v}</p></div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {/* Main live card */}
+              <div className={`animate-signal-float relative z-10 bg-[#13112A] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl shadow-black/40 ${signalFade ? "signal-fade-in" : "signal-fade-out"}`}>
+                <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+                    <span className="font-bold">{signal.sym}</span>
+                    <span className="text-[11px] text-[#4B5675]">{signal.name}</span>
+                  </div>
+                  <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${sigColor}`}>{signal.sig}</span>
+                </div>
+                <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3 text-left">
+                  {[
+                    { label:"Order Block",    value:signal.ob  },
+                    { label:"Fair Value Gap", value:signal.fvg },
+                    { label:"Liquidity",      value:signal.liq },
+                    { label:"Kill Zone",      value:signal.kz  },
+                  ].map(r => (
+                    <div key={r.label}>
+                      <p className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold mb-0.5">{r.label}</p>
+                      <p className="text-sm text-[#CBD5E1] font-medium">{r.value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-5 pb-4 flex items-center justify-between border-t border-[#252345] pt-3">
+                  <span className="text-xs text-[#4B5675]">Confidence: <span className={signal.conf === "High" ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{signal.conf}</span></span>
+                  <span className="text-xs font-mono font-bold text-[#CBD5E1]">{signal.price}</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-[#333368] mt-3 text-center">Demo signal · Not financial advice</p>
             </div>
           </div>
-          <p className="text-center text-[10px] text-[#333368] mt-2">Demo signal · Not financial advice</p>
         </div>
       </section>
 
-      {/* ══ METRICS STRIP ══ */}
-      <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-6 px-6 sm:px-10">
-        <div className="max-w-4xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
+      {/* ══ METRICS STRIP — colored left-border blocks ══ */}
+      <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-10 px-6 sm:px-10 overflow-x-auto">
+        <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8">
           {[
-            { value:"< 5s", label:"AI analysis per ticker" },
-            { value:"6",    label:"Smart Money concepts per signal" },
-            { value:"8:30", label:"AM ET daily market briefing" },
-            { value:"$5",   label:"Per month, full Pro access" },
+            { value:"< 5s",  label:"AI analysis per ticker",  border:"border-l-emerald-500", num:"text-emerald-400" },
+            { value:"6",     label:"Smart Money concepts",     border:"border-l-cyan-500",    num:"text-cyan-400"   },
+            { value:"8:30",  label:"AM ET daily briefing",     border:"border-l-violet-500",  num:"text-violet-400" },
+            { value:"$5",    label:"Per month, full access",   border:"border-l-amber-500",   num:"text-amber-400"  },
           ].map(s => (
-            <div key={s.label}>
-              <p className="text-2xl font-black text-[#F1F5F9]">{s.value}</p>
-              <p className="text-xs text-[#4B5675] mt-1 leading-snug">{s.label}</p>
+            <div key={s.label} className={`pl-4 border-l-2 ${s.border}`}>
+              <p className={`text-3xl font-black ${s.num}`}>{s.value}</p>
+              <p className="text-xs text-[#4B5675] mt-1.5 leading-snug">{s.label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* ══ FEATURES ══ */}
-      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-14">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Platform</p>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">Everything you need to trade smarter.</h2>
-          <p className="text-[#7B8DB4] text-sm max-w-md mx-auto">One platform for signals, analysis, journaling, options, and futures — built on institutional-grade methodology.</p>
+      {/* ══ NEW TO TRADING? — beginner explainer ══ */}
+      <section className="px-6 sm:px-10 py-16 max-w-5xl mx-auto w-full">
+        <div className="reveal bg-[#13112A] border border-[#252345] rounded-2xl p-8 flex flex-col lg:flex-row items-start gap-10">
+          <div className="lg:w-56 shrink-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 mb-2">New to trading?</p>
+            <h3 className="text-xl font-black text-[#F1F5F9] leading-snug">Here&apos;s what Traxora does for you</h3>
+          </div>
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {[
+              { n:"1", title:"Reads the chart for you", desc:"No technical analysis needed. The AI scans 6 institutional signals and returns a clear verdict: BUY, HOLD, or SELL." },
+              { n:"2", title:"Tells you exactly where to enter", desc:"You get a specific entry price range, a stop-loss level (where you're wrong), and a target price. No guessing." },
+              { n:"3", title:"Tells you when — and when not — to trade", desc:"Signals include Kill Zone timing. Outside the 2–3 hour institutional windows, the AI tells you to wait instead of forcing a trade." },
+            ].map(s => (
+              <div key={s.n} className="flex gap-3">
+                <span className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
+                <div>
+                  <p className="text-sm font-bold text-[#F1F5F9] mb-1">{s.title}</p>
+                  <p className="text-sm text-[#4B5675] leading-relaxed">{s.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      </section>
+
+      {/* ══ FEATURES — left-aligned header, colored icon cards ══ */}
+      <section className="px-6 sm:px-10 pb-24 max-w-5xl mx-auto w-full">
+        <div className="mb-12">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-3 reveal">Platform</p>
+          <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4 reveal">Everything you need<br className="hidden sm:block" /> to trade smarter.</h2>
+          <p className="text-lg text-[#7B8DB4] max-w-xl leading-relaxed reveal">Signals, briefings, a scanner, options analysis, journaling, and a practice account — all in one place, built on institutional methodology.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {[
-            { n:"01", title:"AI Signal Analysis",   desc:"Enter any ticker. Claude Sonnet 4.6 checks Order Blocks, FVGs, liquidity, and Kill Zone timing — returns BUY, HOLD, or SELL with entry zone, stop, and target." },
-            { n:"02", title:"Morning Briefing",     desc:"Full AI market brief at 8:30am ET. Macro regime, top options plays, futures setups, VIX context, and the day's key levels — before the open." },
-            { n:"03", title:"Deep Market Scanner",  desc:"Scan 50+ tickers at once. Ranked by smart money conviction score. The highest-probability setups surface automatically." },
-            { n:"04", title:"Options Analysis",     desc:"Implied volatility, expected move, Greeks, and strike selection in one report. Know whether IV is cheap or rich before committing premium." },
-            { n:"05", title:"AI Trade Journal",     desc:"Every closed trade is auto-reviewed — market structure, risk management, psychology, and a lesson. No manual logging required." },
-            { n:"06", title:"Paper Trading Sim",    desc:"Practice with a $10,000 simulated account. Test every strategy risk-free before deploying real capital. Track win rate and R-multiple." },
+            {
+              title:"AI Signal Analysis",
+              desc:"Enter any ticker. Claude Sonnet 4.6 checks Order Blocks, FVGs, liquidity, and Kill Zone timing — returns BUY, HOLD, or SELL with entry zone, stop, and target.",
+              topColor:"border-t-emerald-500", iconColor:"text-emerald-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
+            },
+            {
+              title:"Morning Briefing",
+              desc:"Full AI market brief at 8:30am ET. Macro regime, top options plays, futures setups, VIX context, and the day's key levels — before the open.",
+              topColor:"border-t-amber-500", iconColor:"text-amber-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>,
+            },
+            {
+              title:"Deep Market Scanner",
+              desc:"Scan 50+ tickers at once. Ranked by smart money conviction score. The highest-probability setups surface automatically — no manual searching.",
+              topColor:"border-t-cyan-500", iconColor:"text-cyan-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+            },
+            {
+              title:"Options Analysis",
+              desc:"Implied volatility, expected move, Greeks, and strike selection in one report. Know whether IV is cheap or rich before committing premium.",
+              topColor:"border-t-violet-500", iconColor:"text-violet-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+            },
+            {
+              title:"AI Trade Journal",
+              desc:"Every closed trade is auto-reviewed — market structure, risk management, psychology, and a lesson written by AI. No manual logging required.",
+              topColor:"border-t-indigo-500", iconColor:"text-indigo-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>,
+            },
+            {
+              title:"Paper Trading Sim",
+              desc:"Practice with a $100,000 simulated account. Test every strategy risk-free before real capital. Track win rate, R-multiple, and expectancy.",
+              topColor:"border-t-rose-500", iconColor:"text-rose-400",
+              icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+            },
           ].map((f, i) => (
-            <div key={f.title} className={`reveal reveal-d${(i % 3) + 1} bg-[#13112A] border border-[#252345] rounded-2xl p-6 hover:border-[#333368] transition-colors`}>
-              <p className="text-[11px] font-black text-emerald-500/40 mb-3 tracking-widest">{f.n}</p>
-              <h3 className="font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
+            <div key={f.title} className={`reveal reveal-d${(i % 3) + 1} bg-[#13112A] border border-[#252345] border-t-2 ${f.topColor} rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-0.5 transition-all group`}>
+              <div className={`${f.iconColor} mb-4 opacity-70 group-hover:opacity-100 transition-opacity`}>{f.icon}</div>
+              <h3 className="text-base font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
               <p className="text-sm text-[#7B8DB4] leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      {/* ══ HOW IT WORKS ══ */}
-      <section className="px-6 sm:px-10 py-20 landing-stripe">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-14">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">How it works</p>
-            <h2 className="text-3xl font-black tracking-tight">Three steps to your next trade.</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-            {[
-              { n:"01", title:"Sign in",            desc:"Create your account with Google in one click. Free tier is available immediately — no credit card required." },
-              { n:"02", title:"Enter any ticker",   desc:"Type AAPL, NVDA, ES, GC, or any stock or futures symbol. The AI runs a full institutional analysis in seconds." },
-              { n:"03", title:"Act on the signal",  desc:"Get a clear verdict with a specific entry zone, stop-loss, and price target based on live Smart Money market structure." },
-            ].map(s => (
-              <div key={s.n} className="reveal flex gap-5">
-                <span className="text-4xl font-black text-[#1C1A3A] shrink-0 leading-none mt-0.5">{s.n}</span>
-                <div>
-                  <h3 className="font-bold text-[#F1F5F9] mb-2">{s.title}</h3>
-                  <p className="text-sm text-[#7B8DB4] leading-relaxed">{s.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ SMART MONEY CONCEPTS ══ */}
-      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
-        <div className="flex flex-col lg:flex-row gap-14 items-start">
-          <div className="lg:w-[38%]">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-4">Methodology</p>
-            <h2 className="text-3xl font-black tracking-tight mb-4">Built on 6 core Smart Money concepts.</h2>
-            <p className="text-[#7B8DB4] text-sm leading-relaxed mb-4">Smart Money (or ICT) is how institutional banks and funds — JP Morgan, Goldman Sachs — actually move markets. They hunt retail stop-losses, fill orders at specific price levels, and only act during specific sessions.</p>
-            <p className="text-[#7B8DB4] text-sm leading-relaxed mb-6">Traxora decodes these six signals for you automatically. Every analysis checks all six — the AI only fires when multiple concepts align, reducing noise and increasing precision.</p>
-            <Link href="/guide" className="inline-flex items-center gap-1.5 text-sm text-emerald-400 hover:text-emerald-300 transition-colors font-semibold">
-              Learn the methodology →
-            </Link>
-          </div>
-          <div className="lg:w-[62%] grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[
-              { tag:"OB",  name:"Order Blocks",       desc:"Last opposing candle before an impulse move. Smart money leaves orders here — price returns to fill them." },
-              { tag:"FVG", name:"Fair Value Gap",      desc:"Price imbalance where the market moved too fast. Institutions send price back to close these gaps." },
-              { tag:"LIQ", name:"Liquidity Sweep",     desc:"Stop clusters above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses." },
-              { tag:"MSS", name:"Market Structure",    desc:"Higher highs and higher lows define a trend. The AI tracks structure across multiple timeframes simultaneously." },
-              { tag:"OTE", name:"Optimal Trade Entry", desc:"61.8–78.6% Fibonacci retracement of a swing — the highest-probability zone to enter before continuation." },
-              { tag:"KZ",  name:"Kill Zones",          desc:"London (2–5am ET) and NY (9:30–11am ET) sessions — when 80% of institutional moves occur." },
-            ].map(c => (
-              <div key={c.tag} className="reveal bg-[#13112A] border border-[#252345] rounded-xl p-4 hover:border-[#333368] transition-colors">
-                <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/8 border border-emerald-500/20 px-2 py-0.5 rounded inline-block mb-2">{c.tag}</span>
-                <p className="text-xs font-bold text-[#F1F5F9] mb-1">{c.name}</p>
-                <p className="text-[11px] text-[#4B5675] leading-relaxed">{c.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ══ TESTIMONIALS ══ */}
-      <section className="px-6 sm:px-10 py-20 landing-stripe">
+      {/* ══ KILL ZONE TIMING — split: left text, right timeline cards ══ */}
+      <section className="px-6 sm:px-10 py-24 landing-stripe">
         <div className="max-w-5xl mx-auto">
-          <p className="text-center text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-10">What traders are saying</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {[
-              { quote:"The morning briefing alone is worth it. I know exactly what to watch before the open.", name:"Austin L.", role:"Swing trader" },
-              { quote:"Finally an app that explains WHY it's a BUY — not just a candle pattern. The AI reasoning is solid.", name:"rangepk3r", role:"Community admin" },
-              { quote:"Deep analysis used to take me 45 min every morning. Traxora does it in seconds.", name:"Marcus D.", role:"Day trader" },
-            ].map((t, i) => (
-              <div key={i} className="reveal bg-[#13112A] border border-[#252345] rounded-2xl p-6 flex flex-col">
-                <div className="flex gap-0.5 mb-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+            {/* Left: explanation */}
+            <div className="lg:pt-2">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-amber-400 mb-4 reveal">When to trade</p>
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-5 reveal">
+                The market moves big<br />at <span className="text-amber-400">specific times only.</span>
+              </h2>
+              <p className="text-base text-[#7B8DB4] leading-relaxed mb-5 reveal">
+                Professional traders don&apos;t trade 8 hours a day. They trade 2–3 hour windows called <strong className="text-[#CBD5E1]">Kill Zones</strong> — when institutional banks open, place massive orders, and drive price in one direction.
+              </p>
+              <p className="text-base text-[#7B8DB4] leading-relaxed mb-5 reveal">
+                Outside these windows, the market chops sideways. Retail traders lose money trying to trade dead sessions. Every Traxora signal includes Kill Zone context — so you know whether the timing is right.
+              </p>
+              <p className="text-sm text-[#4B5675] leading-relaxed mb-6 reveal">
+                Based on ICT methodology by Michael Huddleston — the same framework used to analyze where JP Morgan, Goldman Sachs, and HSBC actually place orders.
+              </p>
+              <div className="reveal">
+                <Link href="/guide" className="inline-flex items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300 transition-colors font-semibold">
+                  Learn the Kill Zone methodology →
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: Kill Zone cards */}
+            <div className="space-y-3 reveal">
+              {[
+                {
+                  name:"London Kill Zone",
+                  time:"2:00 AM – 5:00 AM ET",
+                  desc:"London banks open and clear out stop-losses before the real directional move. Most reliable high-probability setups of the day.",
+                  badge:"High probability",
+                  border:"border-amber-500/25", badgeBg:"bg-amber-500/15 text-amber-400", dot:"bg-amber-400", timeTxt:"text-amber-400/80",
+                },
+                {
+                  name:"New York AM Kill Zone",
+                  time:"8:30 AM – 11:00 AM ET",
+                  desc:"Highest liquidity and institutional order flow of the day. Best window for day trades and continuation moves from the London session.",
+                  badge:"Highest probability",
+                  border:"border-emerald-500/25", badgeBg:"bg-emerald-500/15 text-emerald-400", dot:"bg-emerald-400", timeTxt:"text-emerald-400/80",
+                },
+                {
+                  name:"New York PM Kill Zone",
+                  time:"1:30 PM – 3:00 PM ET",
+                  desc:"End-of-day reversals and positioning. Lower probability than AM session. Traxora flags these with a caution tag.",
+                  badge:"Lower probability",
+                  border:"border-rose-500/20", badgeBg:"bg-rose-500/15 text-rose-400", dot:"bg-rose-400", timeTxt:"text-rose-400/70",
+                },
+                {
+                  name:"Dead Zone — Do Not Trade",
+                  time:"11:00 AM – 1:30 PM ET",
+                  desc:"Choppy, low volume, no institutional interest. The AI will tell you to wait when price enters this window — saving you from bad trades.",
+                  badge:"Avoid",
+                  border:"border-[#252345]", badgeBg:"bg-[#1C1933] text-[#4B5675]", dot:"bg-[#252345]", timeTxt:"text-[#4B5675]",
+                },
+              ].map(kz => (
+                <div key={kz.name} className={`bg-[#0D0B1A] border ${kz.border} rounded-xl px-5 py-4 flex gap-4 items-start hover:brightness-110 transition-all`}>
+                  <span className={`w-2 h-2 rounded-full ${kz.dot} shrink-0 mt-2`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <p className="text-sm font-bold text-[#F1F5F9]">{kz.name}</p>
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${kz.badgeBg}`}>{kz.badge}</span>
+                    </div>
+                    <p className={`text-[11px] font-mono font-semibold mb-1.5 ${kz.timeTxt}`}>{kz.time}</p>
+                    <p className="text-xs text-[#4B5675] leading-relaxed">{kz.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ HOW IT WORKS — 3 horizontal step cards ══ */}
+      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
+        <div className="flex flex-col lg:flex-row gap-4 mb-12 items-start">
+          <div className="lg:w-64 shrink-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-400 mb-3 reveal">How it works</p>
+            <h2 className="text-4xl font-black tracking-tight reveal">Three steps to your next trade.</h2>
+          </div>
+          <div className="flex-1 lg:pt-12">
+            <p className="text-lg text-[#7B8DB4] leading-relaxed reveal">No setup, no configuration. Sign in and start getting signals in under 60 seconds — even if you&apos;ve never traded before.</p>
+          </div>
+        </div>
+        <div className="space-y-5">
+          {[
+            {
+              n:"01",
+              title:"Sign in with Google",
+              desc:"One click. No forms, no credit card required. Free tier starts immediately. Your account, your signals — private and never shared.",
+              detail:"Free tier includes full AI signal analysis. Morning Brief, Deep Scanner, and Paper Trading unlock on Pro ($5/mo).",
+              numColor:"text-cyan-500/25", accentColor:"text-cyan-400/70",
+            },
+            {
+              n:"02",
+              title:"Enter any stock or futures ticker",
+              desc:"Type AAPL, NVDA, TSLA, ES (S&P 500 futures), NQ (Nasdaq futures), GC (gold) — any symbol. The AI runs a full institutional analysis.",
+              detail:"The AI checks all 6 Smart Money concepts simultaneously: Order Blocks, FVGs, liquidity, market structure, OTE zones, and Kill Zone timing.",
+              numColor:"text-emerald-500/25", accentColor:"text-emerald-400/70",
+            },
+            {
+              n:"03",
+              title:"Act on the signal",
+              desc:"Get a clear BUY, HOLD, or SELL with a specific entry zone, stop-loss level, and price target. No chart reading experience needed.",
+              detail:"Every signal explains the reasoning in plain English. If the setup is risky or outside a Kill Zone, the AI explicitly tells you to wait.",
+              numColor:"text-violet-500/25", accentColor:"text-violet-400/70",
+            },
+          ].map((s, i) => (
+            <div key={s.n} className={`reveal reveal-d${i + 1} flex gap-6 items-start bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-0.5 transition-all`}>
+              <span className={`text-5xl font-black leading-none shrink-0 ${s.numColor} select-none`}>{s.n}</span>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-xl font-black text-[#F1F5F9] mb-2">{s.title}</h3>
+                <p className="text-base text-[#7B8DB4] leading-relaxed mb-3">{s.desc}</p>
+                <p className={`text-sm leading-relaxed ${s.accentColor}`}>{s.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ══ SMART MONEY CONCEPTS — left description, right 2-col grid ══ */}
+      <section className="px-6 sm:px-10 py-24 landing-stripe">
+        <div className="max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-12 items-start">
+            {/* Left: description */}
+            <div className="lg:col-span-2">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-violet-400 mb-4 reveal">Methodology</p>
+              <h2 className="text-4xl font-black tracking-tight mb-5 reveal">Built on 6 Smart Money concepts.</h2>
+              <p className="text-base text-[#7B8DB4] leading-relaxed mb-5 reveal">
+                Smart Money (ICT methodology) is how institutional banks — JPMorgan, Goldman Sachs, HSBC — actually move markets. They don&apos;t buy at obvious support. They engineer liquidity grabs first, then reverse.
+              </p>
+              <p className="text-base text-[#7B8DB4] leading-relaxed mb-6 reveal">
+                Traxora decodes all six signals simultaneously. The AI only fires a BUY or SELL when multiple concepts align — reducing noise and false signals significantly.
+              </p>
+              <Link href="/guide" className="reveal inline-flex items-center gap-1.5 text-sm text-violet-400 hover:text-violet-300 transition-colors font-semibold">
+                Learn the full methodology →
+              </Link>
+            </div>
+
+            {/* Right: concept cards */}
+            <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { tag:"OB",  name:"Order Blocks",       desc:"Last opposing candle before an impulse move. Smart money leaves orders here — price returns to fill them before continuing." },
+                { tag:"FVG", name:"Fair Value Gap",      desc:"Price imbalance where the market moved too fast. Institutions send price back to close these gaps." },
+                { tag:"LIQ", name:"Liquidity Sweep",     desc:"Stop clusters above highs and below lows. Smart money sweeps these levels to fill large orders, then reverses hard." },
+                { tag:"MSS", name:"Market Structure",    desc:"Higher highs and higher lows define a trend. The AI tracks structure across multiple timeframes simultaneously." },
+                { tag:"OTE", name:"Optimal Trade Entry", desc:"61.8–78.6% Fibonacci retracement of a swing — the highest-probability zone to enter before continuation." },
+                { tag:"KZ",  name:"Kill Zones",          desc:"London (2–5am ET) and NY AM (8:30–11am ET) sessions — when 80% of all institutional moves occur." },
+              ].map((c, i) => (
+                <div key={c.tag} className={`reveal reveal-d${(i % 2) + 1} bg-[#0D0B1A] border border-[#252345] rounded-xl p-5 hover:border-violet-500/30 transition-colors`}>
+                  <span className="text-[10px] font-black text-violet-400 bg-violet-500/8 border border-violet-500/20 px-2.5 py-1 rounded-lg inline-block mb-3">{c.tag}</span>
+                  <p className="text-sm font-bold text-[#F1F5F9] mb-1.5">{c.name}</p>
+                  <p className="text-xs text-[#4B5675] leading-relaxed">{c.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ TESTIMONIALS — wide card top + two below ══ */}
+      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-3 reveal">Traders love it</p>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight reveal">What traders are saying.</h2>
+          </div>
+          <p className="text-base text-[#7B8DB4] max-w-xs leading-relaxed sm:text-right reveal">Real feedback from the early beta community.</p>
+        </div>
+
+        {/* Wide card */}
+        <div className="reveal mb-5">
+          <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 flex flex-col sm:flex-row gap-6 items-start hover:border-[#333368] transition-colors">
+            <div className="text-6xl font-black text-emerald-500/10 leading-none shrink-0 select-none">&ldquo;</div>
+            <div className="flex-1">
+              <p className="text-lg text-[#CBD5E1] leading-relaxed mb-6">The morning briefing alone is worth it. I know exactly what to watch before the open — macro, key levels, top setups. Used to spend 45 minutes doing this manually every day. Traxora does it in seconds, and honestly it&apos;s better than what I was producing myself.</p>
+              <div className="flex items-center gap-3">
+                <div className="flex gap-0.5">
                   {Array.from({ length: 5 }).map((_, j) => (
-                    <svg key={j} width="11" height="11" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                    <svg key={j} width="13" height="13" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                   ))}
                 </div>
-                <p className="text-sm text-[#94A3B8] leading-relaxed flex-1 mb-5">&ldquo;{t.quote}&rdquo;</p>
-                <div className="border-t border-[#252345] pt-4">
-                  <p className="text-xs font-bold text-[#E2E8F0]">{t.name}</p>
-                  <p className="text-[10px] text-[#4B5675] mt-0.5">{t.role}</p>
-                </div>
+                <p className="text-sm font-bold text-[#E2E8F0]">Marcus D.</p>
+                <p className="text-xs text-[#4B5675]">Day trader</p>
               </div>
-            ))}
+            </div>
           </div>
-          <p className="text-center text-[10px] text-[#333368] mt-6">Feedback from early beta users</p>
+        </div>
+
+        {/* Two smaller cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+          {[
+            { quote:"Finally an app that explains WHY it's a BUY — not just a candle pattern. The AI reasoning cites specific Order Blocks and FVGs and I can verify it myself on the chart. That builds real trust.", name:"rangepk3r", role:"Community admin" },
+            { quote:"I'm new to trading. The Kill Zone timing stopped me from making dumb trades at 2pm when nothing is moving. That one lesson alone saved me money in week one.", name:"Dev R.", role:"Beginner trader, 3 months in" },
+          ].map((t, i) => (
+            <div key={i} className={`reveal reveal-d${i + 1} bg-[#13112A] border border-[#252345] rounded-2xl p-7 flex flex-col hover:border-[#333368] transition-colors`}>
+              <div className="flex gap-0.5 mb-4">
+                {Array.from({ length: 5 }).map((_, j) => (
+                  <svg key={j} width="12" height="12" viewBox="0 0 24 24" fill="#F59E0B"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                ))}
+              </div>
+              <p className="text-base text-[#94A3B8] leading-relaxed flex-1 mb-5">&ldquo;{t.quote}&rdquo;</p>
+              <div className="border-t border-[#252345] pt-4">
+                <p className="text-sm font-bold text-[#E2E8F0]">{t.name}</p>
+                <p className="text-xs text-[#4B5675] mt-0.5">{t.role}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ══ PRICING ══ */}
+      {/* ══ PRICING — centered (standard for pricing) ══ */}
       <section className="px-6 sm:px-10 py-24 max-w-4xl mx-auto w-full">
         <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">Pricing</p>
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-3">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-4">Pricing</p>
+          <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-5">
             Others charge <span className="line-through text-[#4B5675]">$29–$118/mo</span>.<br />
             <span className="text-emerald-400">Traxora is $5/mo.</span>
           </h2>
-          <p className="text-[#7B8DB4] text-sm max-w-sm mx-auto">Full institutional-grade analysis. No features locked behind higher tiers. Cancel anytime.</p>
+          <p className="text-lg text-[#7B8DB4] max-w-md mx-auto leading-relaxed">Full institutional-grade analysis. No features locked behind higher tiers. Cancel anytime.</p>
         </div>
 
         <div className="reveal-scale bg-[#13112A] border border-emerald-500/25 rounded-3xl overflow-hidden relative">
@@ -363,8 +595,8 @@ export default function HomePage() {
               "Options analysis with Greeks & IV",
               "AI trade journal — auto-written",
               "Futures signals — ES, NQ, GC, CL",
-              "Paper trading simulator — $10K",
-              "Push notifications during Kill Zones",
+              "Paper trading simulator — $100K",
+              "Kill Zone alerts during live sessions",
             ].map(f => (
               <div key={f} className="flex items-center gap-2.5 text-sm text-[#CBD5E1] py-0.5">
                 <svg className="shrink-0 text-emerald-500" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -379,12 +611,16 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ COMPARISON ══ */}
-      <section className="px-6 sm:px-10 py-20 max-w-5xl mx-auto w-full">
-        <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-[#4B5675] mb-3">Comparison</p>
-          <h2 className="text-3xl font-black tracking-tight mb-3">No competitor offers all of this.</h2>
-          <p className="text-[#7B8DB4] text-sm max-w-md mx-auto">Smart Money signals + Claude Sonnet 4.6 + $5/mo. None of them have all three.</p>
+      {/* ══ COMPARISON — left-aligned header ══ */}
+      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
+        <div className="flex flex-col lg:flex-row gap-4 mb-12 items-start">
+          <div className="lg:w-72 shrink-0">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#4B5675] mb-3 reveal">Comparison</p>
+            <h2 className="text-4xl font-black tracking-tight reveal">No competitor offers all of this.</h2>
+          </div>
+          <div className="flex-1 lg:pt-10">
+            <p className="text-lg text-[#7B8DB4] leading-relaxed reveal">Smart Money signals + Claude Sonnet 4.6 AI + $5/mo. None of them have all three.</p>
+          </div>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-[#252345]">
           <table className="w-full text-sm">
@@ -434,54 +670,66 @@ export default function HomePage() {
             </tbody>
           </table>
         </div>
-        <div className="text-center mt-10">
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-10 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
+        <div className="mt-8">
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
             {session ? "Open Dashboard →" : "Get started — sign in with Google →"}
           </button>
         </div>
       </section>
 
-      {/* ══ FAQ ══ */}
-      <section className="px-6 sm:px-10 py-20 landing-stripe">
-        <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-3">FAQ</p>
-            <h2 className="text-3xl font-black tracking-tight">Common questions.</h2>
+      {/* ══ FAQ — left heading + right accordion ══ */}
+      <section className="px-6 sm:px-10 py-24 landing-stripe">
+        <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-12">
+          <div className="lg:col-span-2">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-4 reveal">FAQ</p>
+            <h2 className="text-4xl font-black tracking-tight mb-5 reveal">Common questions.</h2>
+            <p className="text-base text-[#7B8DB4] leading-relaxed reveal">Everything you need to know before getting started.</p>
           </div>
-          <div className="space-y-2">
+          <div className="lg:col-span-3 space-y-2">
             {[
-              { q:"Do I need trading experience?",       a:"No. Every signal includes plain-English reasoning — what the Order Block means, why this is a Kill Zone, what the entry level represents. Beginners learn faster; experienced traders get confirmation they trust." },
+              { q:"Do I need trading experience?",       a:"No. Every signal includes plain-English reasoning — what the Order Block means, why this is a Kill Zone, what the entry level represents. Beginners learn as they use it; experienced traders get institutional confirmation they can trust." },
               { q:"What exactly does the AI analyze?",   a:"Six Smart Money concepts per ticker: Order Blocks, Fair Value Gaps, Liquidity Sweeps, Market Structure Shifts, Optimal Trade Entry zones, and Kill Zone timing — synthesized into a single verdict with entry zone, stop-loss, and target." },
               { q:"Can I cancel Pro anytime?",           a:"Yes — cancel from Settings with one click. No contracts, no retention flows. You keep access through the end of your current billing period." },
               { q:"How fast does Pro activate?",         a:"Instantly. The moment your Ko-fi payment confirms, your account upgrades. Refresh the page — all Pro features are immediately available." },
               { q:"Is this financial advice?",           a:"No. Traxora is an educational research tool. All signals are generated by AI analyzing public market data. Always do your own research and consult a licensed financial advisor before making investment decisions." },
             ].map(item => (
-              <details key={item.q} className="group bg-[#13112A] border border-[#252345] rounded-xl overflow-hidden hover:border-[#333368] transition-colors">
-                <summary className="flex items-center justify-between px-5 py-4 cursor-pointer">
-                  <p className="font-semibold text-sm text-[#F1F5F9] pr-4">{item.q}</p>
-                  <svg className="shrink-0 text-[#4B5675] transition-transform duration-200 group-open:rotate-180" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              <details key={item.q} className="group bg-[#13112A] border border-[#252345] rounded-2xl overflow-hidden hover:border-[#333368] transition-colors">
+                <summary className="flex items-center justify-between px-6 py-5 cursor-pointer">
+                  <p className="font-bold text-base text-[#F1F5F9] pr-6">{item.q}</p>
+                  <svg className="shrink-0 text-[#4B5675] transition-transform duration-200 group-open:rotate-180" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </summary>
-                <p className="px-5 pb-5 text-sm text-[#7B8DB4] leading-relaxed border-t border-[#252345] pt-4">{item.a}</p>
+                <p className="px-6 pb-6 text-base text-[#7B8DB4] leading-relaxed border-t border-[#252345] pt-5">{item.a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ══ FINAL CTA ══ */}
-      <section className="px-6 sm:px-10 py-24 max-w-3xl mx-auto w-full text-center">
-        <p className="text-[11px] font-semibold uppercase tracking-widest text-emerald-400 mb-4">Get started</p>
-        <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-4">
-          Institutional-grade analysis.<br />At $5 a month.
-        </h2>
-        <p className="text-[#7B8DB4] text-sm mb-8 max-w-sm mx-auto">No credit card required to start. Upgrade to Pro whenever you&apos;re ready.</p>
-        <div className="flex items-center justify-center gap-3 flex-wrap">
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
-            {session ? "Open Dashboard →" : "Sign in with Google →"}
-          </button>
-          <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-sm font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
-            Read the guide →
-          </Link>
+      {/* ══ FINAL CTA — full-width card, text left, buttons right ══ */}
+      <section className="px-6 sm:px-10 py-24 max-w-5xl mx-auto w-full">
+        <div className="bg-[#13112A] border border-emerald-500/20 rounded-3xl overflow-hidden relative">
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute bottom-0 right-0 w-[500px] h-[400px] bg-emerald-600/8 rounded-full blur-3xl" />
+            <div className="absolute top-0 left-20 w-[300px] h-[200px] bg-cyan-600/5 rounded-full blur-3xl" />
+          </div>
+          <div className="relative z-10 px-8 sm:px-12 py-14 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-4">Get started today</p>
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
+                Institutional-grade analysis.<br /><span className="text-emerald-400">At $5 a month.</span>
+              </h2>
+              <p className="text-lg text-[#7B8DB4] leading-relaxed">No credit card required to start. Upgrade to Pro whenever you&apos;re ready. Cancel anytime — no questions asked.</p>
+            </div>
+            <div className="flex flex-col gap-4 lg:items-end">
+              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-9 py-4 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 w-full lg:w-auto">
+                {session ? "Open Dashboard →" : "Sign in with Google →"}
+              </button>
+              <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-9 py-4 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9] text-center w-full lg:w-auto">
+                Read the guide →
+              </Link>
+              <p className="text-xs text-[#4B5675] lg:text-right">Powered by Claude Sonnet 4.6 · Secure via Google OAuth</p>
+            </div>
+          </div>
         </div>
       </section>
 

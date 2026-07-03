@@ -3,12 +3,15 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import { scopedKey } from "../lib/userState";
 import { haptic } from "../lib/haptics";
+
+const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,6 +36,9 @@ type TakenTrade = {
   potential:  number;
   time:       number;
   note:       string;
+  status?:    "OPEN" | "WIN" | "LOSS";
+  closePrice?: number;
+  closedAt?:  number;
 };
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -77,12 +83,13 @@ function ago(ms: number) {
 
 function PositionSizer({
   initSymbol, initEntry, initSignal,
-  account, onTaken,
+  account, onTaken, onSymbolChange,
 }: {
   initSymbol?: string; initEntry?: string;
   initSignal?: "BUY" | "SELL";
   account: { size: number; riskPct: number };
   onTaken: (t: TakenTrade) => void;
+  onSymbolChange?: (s: string) => void;
 }) {
   const [symbol, setSymbol] = useState(initSymbol ?? "");
   const [signal, setSignal] = useState<"BUY" | "SELL">(initSignal ?? "BUY");
@@ -92,7 +99,7 @@ function PositionSizer({
   const [note,   setNote]   = useState("");
   const [saved,  setSaved]  = useState(false);
 
-  useEffect(() => { if (initSymbol) setSymbol(initSymbol); }, [initSymbol]);
+  useEffect(() => { if (initSymbol) { setSymbol(initSymbol); onSymbolChange?.(initSymbol); } }, [initSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (initSignal) setSignal(initSignal); }, [initSignal]);
   useEffect(() => { if (initEntry)  setEntry(initEntry);   }, [initEntry]);
 
@@ -133,7 +140,7 @@ function PositionSizer({
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div className="col-span-2 sm:col-span-1">
             <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Ticker</label>
-            <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL"
+            <input value={symbol} onChange={e => { const v = e.target.value.toUpperCase(); setSymbol(v); onSymbolChange?.(v); }} placeholder="AAPL"
               className="w-full bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2.5 text-sm font-black font-mono text-[#F1F5F9] placeholder-[#2D3A52] focus:outline-none focus:border-emerald-500/40" />
           </div>
           <div className="col-span-2 sm:col-span-1">
@@ -219,16 +226,20 @@ function PositionSizer({
 function TradePlannerContent() {
   const params = useSearchParams();
 
-  const [account, setAccount]           = useState<{ size: number; riskPct: number }>({ size: 10000, riskPct: 1 });
+  const [account, setAccount]           = useState<{ size: number; riskPct: number }>({ size: 100000, riskPct: 1 });
   const [editingAccount, setEditing]    = useState(false);
-  const [accountInput, setAccountInput] = useState("10000");
+  const [accountInput, setAccountInput] = useState("100000");
   const [riskInput, setRiskInput]       = useState("1");
   const [signals, setSignals]           = useState<Signal[]>([]);
   const [taken, setTaken]               = useState<TakenTrade[]>([]);
   const [sizerSignal, setSizerSignal]   = useState<Signal | null>(null);
+  const [chartSymbol, setChartSymbol]   = useState(params.get("symbol") ?? "");
 
   const initSymbol = params.get("symbol") ?? "";
   const initSignal = (params.get("side") as "BUY" | "SELL" | null) ?? "BUY";
+
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [closeInput, setCloseInput] = useState("");
 
   useEffect(() => {
     const acc = loadAccount();
@@ -247,24 +258,59 @@ function TradePlannerContent() {
   }
 
   const handleTaken = useCallback((t: TakenTrade) => {
-    setTaken(prev => { const next = [t, ...prev]; saveTaken(next); return next; });
+    const withStatus = { ...t, status: "OPEN" as const };
+    setTaken(prev => { const next = [withStatus, ...prev]; saveTaken(next); return next; });
   }, []);
 
   function removeTaken(id: string) {
     setTaken(prev => { const next = prev.filter(t => t.id !== id); saveTaken(next); return next; });
   }
 
+  function closeTrade(id: string, outcome: "WIN" | "LOSS") {
+    const cp = parseFloat(closeInput);
+    setTaken(prev => {
+      const next = prev.map(t => t.id === id
+        ? { ...t, status: outcome, closePrice: isNaN(cp) ? undefined : cp, closedAt: Date.now() }
+        : t
+      );
+      saveTaken(next);
+      return next;
+    });
+    setClosingId(null);
+    setCloseInput("");
+  }
+
+  // ── Derived stats ─────────────────────────────────────────────────────────
+  const open   = taken.filter(t => !t.status || t.status === "OPEN");
+  const closed = taken.filter(t => t.status === "WIN" || t.status === "LOSS");
+  const wins   = closed.filter(t => t.status === "WIN");
+  const losses = closed.filter(t => t.status === "LOSS");
+  const winRate = closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : null;
+  const riskDeployed = open.reduce((s, t) => s + t.riskDollar, 0);
+  const maxRisk = (account.size * account.riskPct) / 100 * 5;
+  const riskPct = maxRisk > 0 ? Math.min((riskDeployed / maxRisk) * 100, 100) : 0;
+  const avgRR = taken.length > 0
+    ? taken.reduce((s, t) => s + (t.potential / t.riskDollar), 0) / taken.length
+    : null;
+  const realizedPL = closed.reduce((s, t) => {
+    if (t.closePrice == null) return s + (t.status === "WIN" ? t.potential : -t.riskDollar);
+    const dir = t.signal === "BUY" ? 1 : -1;
+    return s + dir * (t.closePrice - t.entry) * t.shares;
+  }, 0);
+  const equity = account.size + realizedPL;
+
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 pb-32 page-enter">
+      <main className="app-ambient flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 pb-32 page-enter">
         <Topbar />
-        <div className="max-w-7xl mx-auto w-full mt-3 space-y-4">
+        <div className="max-w-7xl mx-auto w-full mt-3 space-y-5">
 
-          {/* Header */}
+          {/* ── Header ── */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
-              <h1 className="reveal section-header text-3xl font-black tracking-tight text-gradient-green">Trade Planner</h1>
+              <h1 className="reveal text-2xl lg:text-4xl font-black tracking-tight text-gradient-green">Paper Portfolio</h1>
+              <p className="text-xs lg:text-sm text-[#4B5675] mt-1">Simulate trades risk-free with $100,000 virtual capital</p>
             </div>
             <div className="flex items-center gap-2">
               <Link href="/journal" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-3 py-2 rounded-xl transition-all">Journal →</Link>
@@ -272,33 +318,72 @@ function TradePlannerContent() {
             </div>
           </div>
 
-          {/* Account card */}
-          <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
+          {/* ── Portfolio Hero ── */}
+          <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 lg:px-7 py-5 lg:py-6">
             {!editingAccount ? (
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-8 flex-wrap">
-                  {[
-                    { label: "Account Size",           val: fmtD(account.size),                              color: "text-[#F1F5F9]" },
-                    { label: "Risk / Trade",            val: `${account.riskPct}% · ${fmtD((account.size * account.riskPct)/100)}`, color: "text-rose-400" },
-                    { label: "Max Daily (3 trades)",    val: fmtD((account.size * account.riskPct * 3)/100),  color: "text-amber-400" },
-                  ].map(s => (
-                    <div key={s.label}>
-                      <p className="text-[9px] text-[#4B5675] uppercase tracking-widest font-semibold mb-0.5">{s.label}</p>
-                      <p className={`text-xl font-black font-mono ${s.color}`}>{s.val}</p>
+              <>
+                <div className="flex items-start justify-between flex-wrap gap-6">
+                  <div>
+                    <p className="text-[10px] lg:text-xs text-[#4B5675] uppercase tracking-widest mb-2">Portfolio Equity</p>
+                    <p className={`text-4xl lg:text-5xl font-black font-mono tabular-nums ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                      {fmtD(equity)}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className={`text-sm font-bold tabular-nums ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                        {realizedPL >= 0 ? "+" : ""}{fmtD(realizedPL)}
+                      </span>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${realizedPL >= 0 ? "bg-emerald-500/15 text-emerald-400" : "bg-rose-500/15 text-rose-400"}`}>
+                        {realizedPL >= 0 ? "+" : ""}{((realizedPL / account.size) * 100).toFixed(2)}%
+                      </span>
+                      <span className="text-[#4B5675] text-xs">realized P&L</span>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Quick stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: "Account Size",    val: fmtD(account.size),                                   color: "text-[#F1F5F9]" },
+                      { label: "Risk / Trade",    val: `${account.riskPct}% · ${fmtD((account.size * account.riskPct)/100)}`, color: "text-rose-400" },
+                      { label: "Max Daily Risk",  val: fmtD((account.size * account.riskPct * 3)/100),        color: "text-amber-400" },
+                      { label: "Buying Power",    val: fmtD(account.size - riskDeployed),                    color: "text-sky-400" },
+                    ].map(s => (
+                      <div key={s.label}>
+                        <p className="text-[9px] lg:text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{s.label}</p>
+                        <p className={`text-sm lg:text-base font-black font-mono ${s.color}`}>{s.val}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button type="button" onClick={() => setEditing(true)}
+                    className="self-start text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-4 py-2 rounded-xl transition-all shrink-0">
+                    Edit
+                  </button>
                 </div>
-                <button type="button" onClick={() => setEditing(true)}
-                  className="text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-4 py-2 rounded-xl transition-all">
-                  Edit
-                </button>
-              </div>
+
+                {/* Risk gauge */}
+                <div className="mt-5 pt-4 border-t border-white/[0.05]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Risk Deployed ({open.length} open)</span>
+                    <span className={`text-xs font-bold font-mono ${riskPct > 70 ? "text-rose-400" : riskPct > 40 ? "text-amber-400" : "text-emerald-400"}`}>
+                      {fmtD(riskDeployed)} / {fmtD(maxRisk)}
+                    </span>
+                  </div>
+                  <div className="h-2 bg-[#0D0B1A] rounded-full overflow-hidden border border-[#1C1933]">
+                    {/* eslint-disable-next-line react/forbid-dom-props */}
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${riskPct > 70 ? "bg-rose-500" : riskPct > 40 ? "bg-amber-500" : "bg-emerald-500"}`}
+                      style={{ width: `${riskPct}%` }}
+                    />
+                  </div>
+                  <p className="text-[9px] text-[#4B5675] mt-1.5">Max risk = 5× your per-trade risk limit ({fmtD((account.size * account.riskPct)/100)} × 5)</p>
+                </div>
+              </>
             ) : (
               <div className="flex items-end gap-3 flex-wrap">
                 <div>
                   <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Account Size ($)</label>
-                  <input value={accountInput} onChange={e => setAccountInput(e.target.value)} placeholder="10000"
-                    className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/50 w-36" />
+                  <input value={accountInput} onChange={e => setAccountInput(e.target.value)} placeholder="100000"
+                    className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/50 w-40" />
                 </div>
                 <div>
                   <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Risk Per Trade (%)</label>
@@ -312,8 +397,25 @@ function TradePlannerContent() {
             )}
           </div>
 
-          {/* Two-column layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* ── Stats strip ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            {[
+              { label: "Open Positions",  val: String(open.length),                                             color: open.length > 0 ? "text-sky-400" : "text-[#F1F5F9]" },
+              { label: "Closed Trades",   val: String(closed.length),                                           color: "text-[#F1F5F9]" },
+              { label: "Win Rate",        val: winRate != null ? `${winRate}%` : "—",                           color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]" },
+              { label: "Wins / Losses",   val: `${wins.length}W · ${losses.length}L`,                          color: "text-[#F1F5F9]" },
+              { label: "Avg R:R",         val: avgRR != null ? `${avgRR.toFixed(2)}:1` : "—",                  color: avgRR != null ? (avgRR >= 2 ? "text-emerald-400" : avgRR >= 1 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]" },
+              { label: "Realized P&L",    val: closed.length > 0 ? `${realizedPL >= 0 ? "+" : ""}${fmtD(realizedPL)}` : "—", color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
+            ].map(s => (
+              <div key={s.label} className="glass surface-sheen border border-[#252345] rounded-2xl px-4 py-3.5">
+                <p className="text-[9px] lg:text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{s.label}</p>
+                <p className={`text-lg lg:text-xl font-black font-mono tabular-nums ${s.color}`}>{s.val}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Sizer + Signals ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
             {/* Sizer */}
             <PositionSizer
@@ -322,89 +424,110 @@ function TradePlannerContent() {
               initEntry={sizerSignal ? sizerSignal.price.toFixed(2) : ""}
               account={account}
               onTaken={handleTaken}
+              onSymbolChange={s => { if (s.length >= 1) setChartSymbol(s); }}
             />
 
-            {/* Recent signals */}
-            <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Recent Signals — tap to load</p>
-              {signals.length === 0 ? (
-                <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-10 text-center space-y-3">
-                  <p className="text-3xl">⚡</p>
-                  <p className="text-sm font-semibold text-[#7B8DB4]">No signals yet</p>
-                  <p className="text-xs text-[#4B5675]">Run an analysis to generate your first signal</p>
-                  <Link href="/analysis" className="inline-block mt-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all">
-                    Go to Signals →
-                  </Link>
+            {/* Signals + Rules */}
+            <div className="space-y-4">
+              <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
+                <div className="px-5 pt-4 pb-3 border-b border-[#1C1933]">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Recent Signals — tap to load</p>
                 </div>
-              ) : (
+                {signals.length === 0 ? (
+                  <div className="px-5 py-8 text-center space-y-3">
+                    <p className="text-3xl">⚡</p>
+                    <p className="text-sm font-semibold text-[#7B8DB4]">No signals yet</p>
+                    <p className="text-xs text-[#4B5675]">Run an analysis to generate your first signal</p>
+                    <Link href="/analysis" className="inline-block mt-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all">
+                      Go to Signals →
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="p-3 space-y-2">
+                    {signals.map((s, i) => {
+                      const ticker = s.symbol.replace(".US","").replace(".COMM","");
+                      const active = sizerSignal?.symbol === s.symbol && sizerSignal?.time === s.time;
+                      return (
+                        <button key={i} type="button" onClick={() => { const next = active ? null : s; setSizerSignal(next); if (next) setChartSymbol(next.symbol.replace(".US","").replace(".COMM","")); }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
+                            active ? "bg-emerald-500/8 border-emerald-500/30" : "bg-[#0D0B1A] border-[#1C1933] hover:border-[#333368]"
+                          }`}>
+                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
+                            s.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                          }`}>{s.signal}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold">{ticker}</p>
+                            <p className="text-[10px] text-[#4B5675] truncate">{s.name || ticker} · {ago(s.time)}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-sm font-mono font-bold">${s.price.toFixed(2)}</p>
+                            <p className={`text-[9px] font-semibold ${s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-rose-400"}`}>{s.confidence}</p>
+                          </div>
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={active ? "#34D399" : "#4B5675"} strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Trading rules */}
+              <div className="glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675] mb-3">Paper Trading Rules</p>
                 <div className="space-y-2">
-                  {signals.map((s, i) => {
-                    const ticker = s.symbol.replace(".US","").replace(".COMM","");
-                    const active = sizerSignal?.symbol === s.symbol && sizerSignal?.time === s.time;
-                    return (
-                      <button key={i} type="button" onClick={() => setSizerSignal(active ? null : s)}
-                        className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-left transition-all active:scale-[0.99] ${
-                          active
-                            ? "bg-emerald-500/8 border-emerald-500/30"
-                            : "bg-[#13112A] border-[#252345] hover:border-[#333368]"
-                        }`}>
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
-                          s.signal === "BUY"
-                            ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                            : "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                        }`}>{s.signal}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold">{ticker}</p>
-                          <p className="text-[10px] text-[#4B5675] truncate">{s.name || ticker} · {ago(s.time)}</p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-mono font-bold">${s.price.toFixed(2)}</p>
-                          <p className={`text-[9px] font-semibold ${
-                            s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-rose-400"
-                          }`}>{s.confidence}</p>
-                        </div>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={active ? "#34D399" : "#4B5675"} strokeWidth="2.5" strokeLinecap="round">
-                          <polyline points="9 18 15 12 9 6"/>
-                        </svg>
-                      </button>
-                    );
-                  })}
+                  {[
+                    ["1%", "Never risk more than 1% per trade"],
+                    ["Pre", "Define stop loss before entering"],
+                    ["R:R", "Only take trades with 2:1+ reward/risk"],
+                    ["Log", "Record every trade with a reason"],
+                    ["Rev", "Review closed trades weekly"],
+                  ].map(([tag, rule]) => (
+                    <div key={tag} className="flex items-center gap-3">
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 w-8 text-center">{tag}</span>
+                      <p className="text-xs text-[#7B8DB4]">{rule}</p>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* Logged trades */}
-          {taken.length > 0 && (
+          {/* ── Chart ── */}
+          {chartSymbol && (
+            <div className="rounded-2xl overflow-hidden">
+              <TraxoraChart symbol={chartSymbol} height={440} />
+            </div>
+          )}
+
+          {/* ── Open Positions ── */}
+          {open.length > 0 && (
             <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Logged Trades ({taken.length})</p>
+              <div className="flex items-center gap-3">
+                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Open Positions ({open.length})</p>
+                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+              </div>
               <div className="space-y-2">
-                {taken.map(t => (
-                  <div key={t.id} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
+                {open.map(t => (
+                  <div key={t.id} className="border border-sky-500/20 bg-sky-500/5 rounded-2xl px-5 py-4">
                     <div className="flex items-center gap-3 mb-3">
-                      <span className={`text-[10px] font-black px-2 py-1 rounded-lg border ${
-                        t.signal === "BUY"
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                          : "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                      <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
+                        t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
                       }`}>{t.signal}</span>
                       <p className="text-sm font-bold flex-1">{t.symbol}</p>
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/25">OPEN</span>
                       <p className="text-[10px] text-[#4B5675]">{ago(t.time)}</p>
-                      <button type="button" onClick={() => removeTaken(t.id)} aria-label="Remove trade"
-                        className="text-[#2D3A52] hover:text-rose-400 transition-colors">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                          <path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                        </svg>
+                      <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
                       </button>
                     </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
                       {[
-                        { l: "Entry",   v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
-                        { l: "Stop",    v: `$${t.stop.toFixed(2)}`,   c: "text-rose-400"  },
-                        { l: "Target",  v: `$${t.target.toFixed(2)}`, c: "text-emerald-400" },
-                        { l: "Shares",  v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
-                        { l: "Risk",    v: fmtD(t.riskDollar),        c: "text-rose-400"  },
-                        { l: "Upside",  v: fmtD(t.potential),         c: "text-emerald-400" },
+                        { l: "Entry",  v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
+                        { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: "text-rose-400" },
+                        { l: "Target", v: `$${t.target.toFixed(2)}`, c: "text-emerald-400" },
+                        { l: "Shares", v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
+                        { l: "Risk",   v: fmtD(t.riskDollar),        c: "text-rose-400" },
+                        { l: "Upside", v: fmtD(t.potential),         c: "text-emerald-400" },
                       ].map(r => (
                         <div key={r.l} className="bg-[#0D0B1A] rounded-xl p-2 text-center border border-[#1C1933]">
                           <p className={`text-xs font-black font-mono ${r.c}`}>{r.v}</p>
@@ -412,10 +535,85 @@ function TradePlannerContent() {
                         </div>
                       ))}
                     </div>
-                    {t.note && <p className="text-xs text-[#4B5675] mt-2 italic">&ldquo;{t.note}&rdquo;</p>}
+                    {t.note && <p className="text-xs text-[#4B5675] mb-3 italic">&ldquo;{t.note}&rdquo;</p>}
+
+                    {/* Close trade */}
+                    {closingId === t.id ? (
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <input
+                          type="number"
+                          value={closeInput}
+                          onChange={e => setCloseInput(e.target.value)}
+                          placeholder="Close price (optional)"
+                          className="flex-1 min-w-0 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/40"
+                        />
+                        <button type="button" onClick={() => closeTrade(t.id, "WIN")}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">✓ Win</button>
+                        <button type="button" onClick={() => closeTrade(t.id, "LOSS")}
+                          className="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">✗ Loss</button>
+                        <button type="button" onClick={() => { setClosingId(null); setCloseInput(""); }}
+                          className="text-xs text-[#4B5675] hover:text-[#94A3B8] px-2 py-2 transition-colors">Cancel</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setClosingId(t.id)}
+                        className="text-xs font-semibold text-sky-400 hover:text-sky-300 border border-sky-500/25 hover:border-sky-500/50 px-4 py-2 rounded-xl transition-all">
+                        Close Position →
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* ── Trade History ── */}
+          {closed.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Trade History ({closed.length})</p>
+              <div className="space-y-2">
+                {closed.map(t => {
+                  const isWin = t.status === "WIN";
+                  const pl = t.closePrice != null
+                    ? (t.signal === "BUY" ? t.closePrice - t.entry : t.entry - t.closePrice) * t.shares
+                    : (isWin ? t.potential : -t.riskDollar);
+                  return (
+                    <div key={t.id} className={`rounded-2xl px-5 py-4 border ${isWin ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
+                          t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
+                        }`}>{t.signal}</span>
+                        <p className="text-sm font-bold flex-1">{t.symbol}</p>
+                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${isWin ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border-rose-500/30"}`}>
+                          {isWin ? "WIN" : "LOSS"}
+                        </span>
+                        <span className={`text-sm font-black font-mono tabular-nums ${pl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                          {pl >= 0 ? "+" : ""}{fmtD(pl)}
+                        </span>
+                        <p className="text-[10px] text-[#4B5675] hidden sm:block">{t.closedAt ? ago(t.closedAt) : ago(t.time)}</p>
+                        <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-4 mt-2 flex-wrap">
+                        <span className="text-[10px] font-mono text-[#4B5675]">Entry <span className="text-amber-400 font-bold">${t.entry.toFixed(2)}</span></span>
+                        {t.closePrice && <span className="text-[10px] font-mono text-[#4B5675]">Close <span className="text-[#F1F5F9] font-bold">${t.closePrice.toFixed(2)}</span></span>}
+                        <span className="text-[10px] font-mono text-[#4B5675]">Shares <span className="text-[#F1F5F9] font-bold">{fmtS(t.shares)}</span></span>
+                        <span className="text-[10px] font-mono text-[#4B5675]">R:R <span className="text-violet-400 font-bold">{(t.potential/t.riskDollar).toFixed(1)}:1</span></span>
+                        {t.note && <span className="text-[10px] text-[#4B5675] italic">&ldquo;{t.note}&rdquo;</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Empty state */}
+          {taken.length === 0 && (
+            <div className="border border-dashed border-[#252345] rounded-2xl px-6 py-14 text-center">
+              <p className="text-4xl mb-4">📋</p>
+              <p className="text-base font-bold text-[#7B8DB4] mb-2">No trades logged yet</p>
+              <p className="text-sm text-[#4B5675]">Use the Position Sizer above to calculate your size, then log the trade.</p>
             </div>
           )}
 

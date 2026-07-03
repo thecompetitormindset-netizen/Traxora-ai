@@ -134,8 +134,8 @@ function saveFuturesList(list: Array<{ symbol: string; name: string }>) {
 
 
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
-  if (closes.length < 2) return null;
   const uid   = useId().replace(/:/g, "");
+  if (closes.length < 2) return null;
   const min   = Math.min(...closes);
   const max   = Math.max(...closes);
   const range = max - min || 1;
@@ -220,7 +220,7 @@ function markAlertFired(symbol: string, signal: "BUY" | "SELL") {
 
 
 const PAPER_KEY   = "paper_portfolio_v2";
-const PAPER_START = 10_000;
+const PAPER_START = 100_000;
 
 type PaperStats = {
   accountValue: number;
@@ -344,10 +344,11 @@ function OptionsPlaysSection() {
 
   // Auto-load on mount + refresh every 5 minutes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     scan();
     const id = setInterval(scan, 5 * 60 * 1000);
     return () => clearInterval(id);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   // Detect if market is closed — uses proper ET time with DST
   const marketClosed = (() => {
@@ -538,35 +539,45 @@ function DashboardContent() {
   });
   const [portfolioTrades, setPortfolioTrades] = useState<PaperTrade[]>([]);
 
-  const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(DEFAULT_WATCHLIST);
+  const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(() =>
+    typeof window !== "undefined" ? loadCustomWatchlist() : DEFAULT_WATCHLIST
+  );
   const watchlistInitialized                = useRef(false);
   const [editMode, setEditMode]             = useState(false);
   const [addInput, setAddInput]             = useState("");
   const [addLoading, setAddLoading]         = useState(false);
   const [addError, setAddError]             = useState<string | null>(null);
   const [refreshCountdown, setRefreshCountdown] = useState(60);
-  const [stocks, setStocks]                 = useState<StockCard[]>(
-    DEFAULT_WATCHLIST.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true }))
-  );
+  const [stocks, setStocks]                 = useState<StockCard[]>(() => {
+    const wl = typeof window !== "undefined" ? loadCustomWatchlist() : DEFAULT_WATCHLIST;
+    return wl.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true }));
+  });
   const [trendingStocks, setTrendingStocks] = useState<StockCard[]>([]);
   const [poppedSymbols, setPoppedSymbols]   = useState<Set<string>>(new Set());
-  const [lastFetched, setLastFetched]       = useState<number | null>(null);
-  const [priceAlerts, setPriceAlerts]       = useState<AlertMap>({});
+  const [priceAlerts, setPriceAlerts]       = useState<AlertMap>(() => typeof window !== "undefined" ? loadAlerts() : {});
   const [copiedSymbol, setCopiedSymbol]     = useState<string | null>(null); // symbol whose Claude prompt was just copied
   const [alertForm, setAlertForm]           = useState<string | null>(null); // symbol whose form is open
   const [alertAbove, setAlertAbove]         = useState("");
   const [alertBelow, setAlertBelow]         = useState("");
-  const [futuresList, setFuturesList]         = useState<Array<{ symbol: string; name: string }>>(DEFAULT_FUTURES_LIST);
-  const [futures, setFutures]                 = useState<FuturesCard[]>(
-    DEFAULT_FUTURES_LIST.map((f) => ({ ...f, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, loading: true }))
+  const [futuresList, setFuturesList]         = useState<Array<{ symbol: string; name: string }>>(() =>
+    typeof window !== "undefined" ? loadFuturesList() : DEFAULT_FUTURES_LIST
   );
+  const [futures, setFutures]                 = useState<FuturesCard[]>(() => {
+    const fl = typeof window !== "undefined" ? loadFuturesList() : DEFAULT_FUTURES_LIST;
+    return fl.map((f) => ({ ...f, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, loading: true }));
+  });
   const [editFutures, setEditFutures]         = useState(false);
   const [addFuturesInput, setAddFuturesInput] = useState("");
   const [addFuturesLoading, setAddFuturesLoading] = useState(false);
   const [addFuturesError, setAddFuturesError] = useState<string | null>(null);
 
-  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
-  const [alertsPaused, setAlertsPaused] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return "unsupported";
+    return Notification.permission;
+  });
+  const [alertsPaused, setAlertsPaused] = useState(() =>
+    typeof window !== "undefined" && localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true"
+  );
   const [showAllStocks, setShowAllStocks] = useState(false);
   const [showAllFutures, setShowAllFutures] = useState(false);
 
@@ -581,22 +592,10 @@ function DashboardContent() {
     return () => window.removeEventListener("storage", refresh);
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined" || !("Notification" in window)) {
-      setNotifPermission("unsupported");
-    } else {
-      setNotifPermission(Notification.permission);
-    }
-    setAlertsPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
-    setPriceAlerts(loadAlerts());
-  }, []);
-
-  // Fetch stocks + signals — loads watchlist from localStorage on mount, then hydrates from Supabase
+  // Fetch stocks + signals — hydrates from Supabase then fetches quotes
   useEffect(() => {
     let active = true;
-    const wl = loadCustomWatchlist();
-    setWatchlist(wl);
-    setStocks(wl.map((w) => ({ ...w, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, earningsDate: null, loading: true })));
+    const wl = watchlist;
 
     // Pull from Supabase in background — overrides localStorage if server has different data
     fetch("/api/user/watchlist")
@@ -614,7 +613,7 @@ function DashboardContent() {
       })
       .catch(() => { watchlistInitialized.current = true; });
 
-    // Start fetching quotes regardless (use `wl` — Supabase override fetches separately via watchlist state change)
+    // Start fetching quotes
     wl.forEach(async ({ symbol, name }) => {
       try {
         const res  = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`);
@@ -623,7 +622,6 @@ function DashboardContent() {
         const prev   = data?.previousClose ?? null;
         const change = price && prev ? ((price - prev) / prev) * 100 : null;
         setStocks((s) => s.map((c) => c.symbol === symbol ? { ...c, price, change, loading: false } : c));
-        setLastFetched(Date.now());
         // Fetch sparkline in background (non-blocking — failure is silent)
         fetch(`/api/eod-bars?symbol=${encodeURIComponent(symbol)}`)
           .then((r) => r.json())
@@ -688,9 +686,7 @@ function DashboardContent() {
 
   // Load futures list from localStorage on mount + fetch quotes + AI signals
   useEffect(() => {
-    const fl = loadFuturesList();
-    setFuturesList(fl);
-    setFutures(fl.map((f) => ({ ...f, price: null, change: null, signal: null, confidence: null, trade: null, sparkline: null, loading: true })));
+    const fl = futuresList;
 
     fl.forEach(async ({ symbol, name }) => {
       try {
@@ -768,7 +764,6 @@ function DashboardContent() {
         }
       } catch { /* silent */ }
     });
-    setLastFetched(Date.now());
   }, [watchlist]);
 
   // Countdown timer — fires refreshPrices when it hits 0, then resets to 60
@@ -776,7 +771,6 @@ function DashboardContent() {
   useEffect(() => { refreshPricesRef.current = refreshPrices; }, [refreshPrices]);
 
   useEffect(() => {
-    setRefreshCountdown(60);
     const tick = setInterval(() => {
       setRefreshCountdown(c => {
         if (c <= 1) {
@@ -786,7 +780,7 @@ function DashboardContent() {
         return c - 1;
       });
     }, 1000);
-    return () => clearInterval(tick);
+    return () => { clearInterval(tick); setRefreshCountdown(60); };
   }, [watchlist]);
 
   // Fetch earnings dates once the watchlist is set (background, non-blocking)
@@ -1063,13 +1057,13 @@ function DashboardContent() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 overflow-y-auto !pb-36 page-enter">
+        <main className="app-ambient flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-y-auto !pb-36 page-enter">
           <div className="max-w-7xl mx-auto w-full">
 
             {/* ── PAGE HEADER ── */}
-            <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div className="flex items-center justify-between gap-3 mb-5 lg:mb-7 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
-                <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Dashboard</h1>
+                <h1 className="reveal text-2xl lg:text-4xl font-black tracking-tight text-gradient-green">Dashboard</h1>
                 <MarketStatus />
               </div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -1122,7 +1116,7 @@ function DashboardContent() {
             {/* ── BENTO GRID ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
-            {/* ── PORTFOLIO HERO ── */}
+            {/* ── PORTFOLIO HERO + SENTIMENT side by side ── */}
             {(() => {
               const closed = portfolioTrades
                 .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
@@ -1139,122 +1133,131 @@ function DashboardContent() {
               const totalPL = paperStats.realizedPL;
               const totalPct = (totalPL / STARTING_CAPITAL) * 100;
               const isUp = totalPL >= 0;
+              const color = isUp ? "#34D399" : "#F87171";
 
               return (
-                <>
-                <div className="lg:col-span-2">
-                <Link href="/strategy" className="block group h-full">
-                  <div className={`card-shine glass surface-sheen rounded-2xl p-5 border transition-all hover:border-emerald-500/20 h-full ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
-                    <div className="flex items-start gap-8 flex-wrap">
-                      {/* Left: value */}
+                <div className="lg:col-span-2 self-start">
+                <Link href="/strategy" className="block group">
+                  <div className={`card-shine glass surface-sheen rounded-2xl border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
+
+                    {/* Header: value + change */}
+                    <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-4 flex items-end justify-between gap-4">
                       <div>
-                        <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-2">Paper Portfolio</p>
-                        <p className="text-4xl font-black tracking-tight text-[#F1F5F9] tabular-nums">
+                        <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">Paper Portfolio</p>
+                        <p className="text-3xl lg:text-4xl font-black tracking-tight text-[var(--text-primary,#F1F5F9)] tabular-nums leading-none">
                           ${paperStats.accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                         <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-                          <span className="text-base font-bold tabular-nums">
-                            {isUp ? "+" : ""}{totalPL.toFixed(2)}
-                          </span>
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-xl ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+                          <span className="text-sm font-bold tabular-nums">{isUp ? "+" : ""}{totalPL.toFixed(2)}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
                             {isUp ? "+" : ""}{totalPct.toFixed(2)}%
                           </span>
                           <span className="text-[#4B5675] text-xs">all time</span>
                         </div>
                       </div>
+                      <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-semibold transition-colors shrink-0 pb-0.5">View performance →</p>
+                    </div>
 
-                      {/* Right: equity curve */}
-                      {curve.length >= 2 && (
-                        <div className="shrink-0">
+                    {/* Full-width equity chart */}
+                    <div className="w-full px-0">
+                      {curve.length >= 2 ? (
+                        <svg
+                          viewBox={`0 0 800 110`}
+                          preserveAspectRatio="none"
+                          className="w-full h-[110px]"
+                          aria-hidden
+                        >
+                          <defs>
+                            <linearGradient id="port-chart-grad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={color} stopOpacity="0.20"/>
+                              <stop offset="100%" stopColor={color} stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
                           {(() => {
-                            const min = Math.min(...curve);
-                            const max = Math.max(...curve);
+                            const min   = Math.min(...curve);
+                            const max   = Math.max(...curve);
                             const range = max - min || 1;
-                            const w = 120, h = 48;
+                            const W = 800, H = 110, pad = 6;
                             const pts = curve.map((v, i) => {
-                              const x = (i / (curve.length - 1)) * w;
-                              const y = h - 4 - ((v - min) / range) * (h - 8);
+                              const x = (i / (curve.length - 1)) * W;
+                              const y = H - pad - ((v - min) / range) * (H - pad * 2);
                               return `${x.toFixed(1)},${y.toFixed(1)}`;
-                            }).join(" ");
-                            const color = isUp ? "#34D399" : "#F87171";
-                            const areaId = isUp ? "port-up" : "port-dn";
-                            const area = `0,${h} ${pts} ${w},${h}`;
+                            });
+                            const pStr = pts.join(" ");
+                            const last = pts[pts.length - 1].split(",");
                             return (
-                              <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible" aria-hidden>
-                                <defs>
-                                  <linearGradient id={areaId} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor={color} stopOpacity="0.25"/>
-                                    <stop offset="100%" stopColor={color} stopOpacity="0"/>
-                                  </linearGradient>
-                                </defs>
-                                <polygon points={area} fill={`url(#${areaId})`} />
-                                <polyline points={pts} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <circle cx={pts.split(" ").at(-1)?.split(",")[0] ?? w} cy={pts.split(" ").at(-1)?.split(",")[1] ?? 0} r="3" fill={color} />
-                              </svg>
+                              <>
+                                <polygon points={`0,${H} ${pStr} ${W},${H}`} fill="url(#port-chart-grad)" />
+                                <polyline points={pStr} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx={last[0]} cy={last[1]} r="4" fill={color} />
+                              </>
                             );
                           })()}
+                        </svg>
+                      ) : (
+                        <div className="w-full h-[110px] flex items-center justify-center">
+                          <p className="text-xs text-[#333368]">Chart appears after first closed trade</p>
                         </div>
                       )}
                     </div>
 
                     {/* Stats row */}
-                    <div className="mt-4 grid grid-cols-4 gap-3 pt-4 border-t border-white/[0.05]">
+                    <div className="grid grid-cols-4 gap-3 px-5 lg:px-6 py-4 border-t border-[#252345]">
                       {[
-                        { label: "Open",     value: String(paperStats.openCount),                                                         color: "text-[#F1F5F9]" },
-                        { label: "Closed",   value: String(paperStats.closedCount),                                                       color: "text-[#F1F5F9]" },
+                        { label: "Open",     value: String(paperStats.openCount),                                                         color: "text-[var(--text-primary,#F1F5F9)]" },
+                        { label: "Closed",   value: String(paperStats.closedCount),                                                       color: "text-[var(--text-primary,#F1F5F9)]" },
                         { label: "Win Rate", value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",                          color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
                         { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`,                        color: isUp ? "text-emerald-400" : "text-rose-400" },
                       ].map(s => (
                         <div key={s.label}>
-                          <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-0.5">{s.label}</p>
+                          <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
                           <p className={`text-sm font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
                         </div>
                       ))}
                     </div>
-
-                    <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-medium transition-colors mt-3">View performance →</p>
                   </div>
                 </Link>
                 </div>
-                <div className="lg:col-span-1 hidden lg:block">
-                  <SentimentWidget />
-                </div>
-                </>
               );
             })()}
+
+            {/* Signal Track Record — full width, top section */}
+            <div className="lg:col-span-3">
+              <SignalPerformance />
+            </div>
 
             {/* Morning Brief — full width */}
             <div className="lg:col-span-3">
               <div
-                className="reveal flex items-center gap-4 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 py-4 cursor-pointer hover:border-emerald-500/40 transition-all group"
+                className="reveal flex items-center gap-4 lg:gap-6 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 lg:px-7 py-4 lg:py-5 cursor-pointer hover:border-emerald-500/40 transition-all group"
                 onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
               >
-                <div className="hover-float w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
-                  <span className="text-xl">🌅</span>
+                <div className="hover-float w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
+                  <span className="text-xl lg:text-2xl">🌅</span>
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-[#F1F5F9]">Today's Market Brief</p>
-                  <p className="text-xs text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
+                  <p className="text-sm lg:text-base font-bold text-[#F1F5F9]">Today&apos;s Market Brief</p>
+                  <p className="text-xs lg:text-sm text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
                 </div>
-                <span className="text-xs text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
+                <span className="text-xs lg:text-sm text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
               </div>
             </div>
 
             {/* Stats — full width */}
             <div className="lg:col-span-3">
-            <div className="reveal stagger-container grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Sentiment card */}
-              <div className="glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
-                <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
+            <div className="reveal stagger-container grid grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
+              {/* Sentiment card — desktop only; mobile shows the full SentimentWidget below */}
+              <div className="hidden lg:flex glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4 lg:px-6 lg:py-5 flex-col">
+                <p className="text-xs lg:text-sm text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
                 {isAnalyzing ? (
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2 mt-2 lg:mt-3">
                     <svg className="animate-spin shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
                       <path d="M21 12a9 9 0 1 1-6.219-8.56" />
                     </svg>
                     <span className="text-sm text-[#4B5675] animate-pulse">Analyzing…</span>
                   </div>
                 ) : (
-                  <p className={`num-reveal text-2xl font-bold mt-2 font-mono ${sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}`}>
+                  <p className={`num-reveal text-2xl lg:text-3xl font-bold mt-2 lg:mt-3 font-mono ${sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}`}>
                     {sentiment}
                   </p>
                 )}
@@ -1264,26 +1267,26 @@ function DashboardContent() {
                 { label: "Hold Signals", value: holdCount.toString(), color: "text-amber-400" },
                 { label: "Sell Signals", value: sellCount.toString(), color: "text-rose-400" },
               ].map((s) => (
-                <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
-                  <p className="text-xs text-[#4B5675] font-medium uppercase tracking-wider">{s.label}</p>
-                  <p className={`num-reveal text-2xl font-bold mt-2 font-mono ${s.color}`}>{s.value}</p>
+                <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4 lg:px-6 lg:py-5">
+                  <p className="text-xs lg:text-sm text-[#4B5675] font-medium uppercase tracking-wider">{s.label}</p>
+                  <p className={`num-reveal text-2xl lg:text-3xl font-bold mt-2 lg:mt-3 font-mono ${s.color}`}>{s.value}</p>
                 </div>
               ))}
             </div>
             </div>{/* /Stats col-span-3 */}
 
             {/* ── Section divider: Market ── */}
-            <div className="lg:col-span-3 flex items-center gap-4 pt-2">
+            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
               <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Market</span>
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Market</span>
               <div className="flex-1 h-px bg-[#252345]" />
             </div>
 
             {/* Watchlist — 2/3 */}
             <div className="order-4 lg:order-none lg:col-span-2">
-              <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
                 <div className="flex items-center gap-2 min-w-0">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
+                  <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
                   <span className="text-[10px] font-mono text-[#333368]">
                     {displayStocks.length}
                     {trendingStocks.length > 0 && <span className="text-teal-400/70"> +{trendingStocks.length}</span>}
@@ -1335,7 +1338,7 @@ function DashboardContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(340px,1fr))] gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 {(showAllStocks ? displayStocks : displayStocks.slice(0, 3)).map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
                   const animClass = stock.isNew
@@ -1354,22 +1357,23 @@ function DashboardContent() {
                           ×
                         </button>
                       )}
-                      <div className="flex items-start justify-between mb-3">
+                      {/* Card header: symbol + signal */}
+                      <div className="flex items-start justify-between mb-2.5">
                         <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="font-bold tracking-tight">{stock.symbol.replace(".US","").replace(".COMM","")}</p>
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <p className="text-base font-black tracking-tight text-[#F1F5F9]">{stock.symbol.replace(".US","").replace(".COMM","")}</p>
                             {stock.isNew && (
                               <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20">TRENDING</span>
                             )}
                           </div>
-                          <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[130px]">{stock.name}</p>
+                          <p className="text-[11px] text-[#4B5675] truncate max-w-[140px]">{stock.name}</p>
                         </div>
                         {stock.loading
-                          ? <span className="text-xs text-[#4B5675] animate-pulse">…</span>
+                          ? <span className="text-xs text-[#4B5675] animate-pulse mt-0.5">…</span>
                           : stock.signal
                           ? (
-                            <div className="flex flex-col items-end gap-1">
-                              <span className={`signal-pop text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadgeCls(stock.signal)}`}>{stock.signal}</span>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className={`signal-pop text-[11px] font-bold px-2.5 py-0.5 rounded-lg border ${signalBadgeCls(stock.signal)}`}>{stock.signal}</span>
                               {stock.confidence && (
                                 <span className={`text-[9px] font-semibold ${stock.confidence === "High" ? "text-emerald-400" : stock.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
                                   {stock.confidence}
@@ -1380,34 +1384,39 @@ function DashboardContent() {
                           : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
                         }
                       </div>
-                      <p className={`num-reveal text-xl font-bold font-mono ${stock.change !== null && stock.change >= 0 ? "price-glow-up" : stock.change !== null ? "price-glow-down" : changeColor(stock.change)}`}>
-                        {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
-                      </p>
-                      <div className="flex items-end justify-between mt-1">
-                        <p className={`text-xs font-medium font-mono ${changeColor(stock.change)}`}>
-                          {stock.change !== null ? `${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today` : "—"}
-                        </p>
+
+                      {/* Price + change */}
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className={`num-reveal text-2xl font-black font-mono leading-none ${stock.change !== null && stock.change >= 0 ? "price-glow-up" : stock.change !== null ? "price-glow-down" : changeColor(stock.change)}`}>
+                            {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
+                          </p>
+                          <p className={`text-xs font-medium font-mono mt-0.5 ${changeColor(stock.change)}`}>
+                            {stock.change !== null ? `${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today` : "—"}
+                          </p>
+                        </div>
                         {stock.sparkline && (
                           <Sparkline closes={stock.sparkline} positive={(stock.change ?? 0) >= 0} />
                         )}
                       </div>
 
+                      {/* Trade plan — compact inline row matching futures style */}
                       {stock.trade && stock.signal !== "HOLD" ? (
                         <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
                             <span className="font-bold text-amber-400">{stock.trade.entryZone}</span>
-                            <span className="text-[#1C1A3A] shrink-0">·</span>
+                            <span className="text-[#4B5675]">·</span>
                             <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
                             <span className="font-bold text-rose-400">{stock.trade.stopLoss}</span>
-                            <span className="text-[#1C1A3A] shrink-0">·</span>
+                            <span className="text-[#4B5675]">·</span>
                             <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
                             <span className="font-bold text-emerald-400">{stock.trade.takeProfit}</span>
-                            <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{stock.trade.rrRatio}</span>
+                            <span className="ml-auto text-[8px] text-[#4B5675]">{stock.trade.rrRatio}</span>
                           </div>
                         </div>
                       ) : stock.signal === "HOLD" ? (
-                        <p className="text-[10px] text-[#4B5675] mt-2">Wait for clearer direction</p>
+                        <p className="text-[11px] text-[#4B5675] mt-2.5 italic">Wait for clearer structure</p>
                       ) : null}
 
                       {stock.earningsDate && (
@@ -1502,7 +1511,7 @@ function DashboardContent() {
                   const signalGlow = stock.signal === "BUY" ? "signal-card-buy" : stock.signal === "SELL" ? "signal-card-sell" : "";
                   const idx = displayStocks.indexOf(stock);
                   const staggerClass = !animClass ? `card-stagger card-stagger-${Math.min(idx + 1, 12)}` : animClass;
-                  const sharedClass = `${signalGlow} relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${staggerClass} transition-colors hover:border-[#333368]`;
+                  const sharedClass = `${signalGlow} relative group bg-[#13112A] rounded-2xl p-4 lg:p-5 border border-l-2 border-[#252345] ${signalBorder(stock.signal)} ${staggerClass} transition-colors hover:border-[#333368]`;
                   const analysisHref = `/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`;
 
                   return (
@@ -1521,13 +1530,8 @@ function DashboardContent() {
             {/* Right sidebar — 1/3 */}
             <div className="order-3 lg:order-none lg:col-span-1 flex flex-col gap-3">
 
-              {/* Sentiment — mobile only (desktop shows next to Portfolio Hero) */}
-              <div className="lg:hidden">
-                <SentimentWidget />
-              </div>
-              {/* Signal Track Record */}
-              <SignalPerformance />
-
+              {/* Sentiment gauge */}
+              <SentimentWidget />
               {/* Earnings compact */}
               {(() => {
                 const upcoming = displayStocks
@@ -1571,18 +1575,18 @@ function DashboardContent() {
             </div>{/* /right sidebar */}
 
             {/* ── Section divider: Futures ── */}
-            <div className="order-5 lg:order-none lg:col-span-3 flex items-center gap-4 pt-2">
+            <div className="order-5 lg:order-none lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
               <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Futures</span>
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Futures</span>
               <div className="flex-1 h-px bg-[#252345]" />
             </div>
 
             {/* Futures — full width */}
             <div className="order-5 lg:order-none lg:col-span-3">
             <section>
-            <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Futures</h2>
+                <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Futures</h2>
                 <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
               </div>
               <div className="flex items-center gap-3">
@@ -1643,7 +1647,7 @@ function DashboardContent() {
                 return (
                   <div
                     key={f.symbol}
-                    className={`relative group bg-[#13112A] rounded-2xl p-4 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
+                    className={`relative group bg-[#13112A] rounded-2xl p-4 lg:p-5 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
                     onClick={!editFutures ? () => router.push(analysisHref) : undefined}
                   >
                     {editFutures && (
@@ -1656,13 +1660,13 @@ function DashboardContent() {
                       </button>
                     )}
                     {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-4 lg:mb-5">
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <p className="font-bold tracking-tight">{f.symbol.replace(".COMM", "")}</p>
+                          <p className="font-bold lg:text-lg tracking-tight">{f.symbol.replace(".COMM", "")}</p>
                           <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">FUT</span>
                         </div>
-                        <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[130px]">{f.name}</p>
+                        <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[130px] lg:max-w-[160px]">{f.name}</p>
                       </div>
                       {f.loading
                         ? <span className="text-xs text-[#4B5675] animate-pulse">…</span>
@@ -1681,11 +1685,11 @@ function DashboardContent() {
                       }
                     </div>
                     {/* Price */}
-                    <p className={`text-xl font-bold font-mono ${changeColor(f.change)}`}>
+                    <p className={`text-xl lg:text-2xl font-bold font-mono ${changeColor(f.change)}`}>
                       {f.price !== null ? `$${f.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                     </p>
                     <div className="flex items-end justify-between mt-1">
-                      <p className={`text-xs font-medium font-mono ${changeColor(f.change)}`}>
+                      <p className={`text-xs lg:text-sm font-medium font-mono ${changeColor(f.change)}`}>
                         {f.change !== null ? `${f.change >= 0 ? "+" : ""}${f.change.toFixed(2)}% today` : "—"}
                       </p>
                       {f.sparkline && <Sparkline closes={f.sparkline} positive={(f.change ?? 0) >= 0} />}
@@ -1738,9 +1742,9 @@ function DashboardContent() {
           </div>{/* /futures lg:col-span-3 */}
 
           {/* ── Section divider: Options ── */}
-          <div className="order-6 lg:order-none lg:col-span-3 flex items-center gap-4 pt-2">
+          <div className="order-6 lg:order-none lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
             <div className="flex-1 h-px bg-[#252345]" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
+            <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
             <div className="flex-1 h-px bg-[#252345]" />
           </div>
 

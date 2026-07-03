@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { usePathname } from "next/navigation";
 
-const PLAN_CACHE_KEY = "traxora_plan_cache";
-
 // Map route prefixes to human-readable feature names for the upgrade prompt
 const FEATURE_NAMES: Record<string, string> = {
   "/analysis":     "AI Signal Analysis",
@@ -36,11 +34,7 @@ export default function PaywallGuard({ children }: { children: React.ReactNode }
     if (status === "loading") return;
     if (status === "unauthenticated") { window.location.href = "/login?signedOut=1"; return; }
 
-    // Fast path: already verified this session
-    try {
-      if (sessionStorage.getItem(PLAN_CACHE_KEY) === "pro") { setAllowed(true); return; }
-    } catch { /* ignore */ }
-
+    // Always fetch fresh — no caching so account switches can never carry over a stale grant
     fetch("/api/user/plan")
       .then(r => {
         if (!r.ok) throw new Error(`plan-check-${r.status}`);
@@ -52,11 +46,9 @@ export default function PaywallGuard({ children }: { children: React.ReactNode }
           window.location.href = `/pricing?feature=${encodeURIComponent(feature)}`;
           return;
         }
-        try { sessionStorage.setItem(PLAN_CACHE_KEY, "pro"); } catch { /* ignore */ }
         setAllowed(true);
       })
       .catch(() => {
-        // Plan check failed — deny access rather than grant it silently
         const feature = featureFromPath(pathname ?? "");
         window.location.href = `/pricing?feature=${encodeURIComponent(feature)}&error=plan-check`;
       });

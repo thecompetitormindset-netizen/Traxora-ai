@@ -11,7 +11,6 @@ const MARKETING = new Set(["/", "/login", "/pricing", "/guide", "/privacy", "/te
 
 // Lazy-load heavy components so they never block the initial paint
 const WelcomeModal   = dynamic(() => import("./WelcomeModal"),   { ssr: false });
-const AIChatWidget   = dynamic(() => import("./AIChatWidget"),   { ssr: false });
 const AutoScanner    = dynamic(() => import("./AutoScanner"),    { ssr: false });
 const AutoJournal    = dynamic(() => import("./AutoJournal"),    { ssr: false });
 const MorningBriefing= dynamic(() => import("./MorningBriefing"),{ ssr: false });
@@ -36,7 +35,6 @@ export default function AppShell() {
       {!isMarketing && (
         <>
           <WelcomeModal />
-          <AIChatWidget />
           <AutoScanner />
           <AutoJournal />
           <MorningBriefing />

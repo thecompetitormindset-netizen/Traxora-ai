@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
@@ -227,6 +227,19 @@ function PricingContent() {
             )}
 
             <p className="text-[10px] text-[#4B5675] text-center mt-3">Secure checkout via Ko-fi · cancel anytime from Settings</p>
+
+            {session && (
+              <p className="text-[10px] text-[#4B5675] text-center mt-2">
+                Signed in as <span className="text-[#7B8DB4]">{session.user?.email}</span> ·{" "}
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  className="text-emerald-500 hover:text-emerald-400 transition-colors underline-offset-2 hover:underline"
+                >
+                  Switch account
+                </button>
+              </p>
+            )}
           </div>
         </div>
 
