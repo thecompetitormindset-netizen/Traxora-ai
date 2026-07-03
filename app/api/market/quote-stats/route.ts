@@ -1,21 +1,30 @@
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
-export const maxDuration = 10;
+export const maxDuration = 15;
 
 import { auth } from "@/auth";
 import { toYahooSymbol } from "@/app/lib/yahooSymbol";
+import { getYahooCookie, YAHOO_UA } from "@/app/lib/yahooAuth";
 
 export type QuoteStats = {
-  symbol:       string;
-  yearHigh:     number | null;
-  yearLow:      number | null;
-  marketCap:    number | null;  // raw dollars
-  avgVolume:    number | null;
-  pe:           number | null;
-  eps:          number | null;
-  beta:         number | null;
-  dividendYield:number | null;
+  symbol:        string;
+  yearHigh:      number | null;
+  yearLow:       number | null;
+  marketCap:     number | null;
+  avgVolume:     number | null;
+  pe:            number | null;
+  eps:           number | null;
+  beta:          number | null;
+  dividendYield: number | null;
 };
+
+function raw(obj: Record<string, unknown> | undefined, key: string): number | null {
+  if (!obj) return null;
+  const v = obj[key];
+  if (typeof v === "number") return v;
+  if (v && typeof v === "object" && "raw" in v) return (v as { raw?: number }).raw ?? null;
+  return null;
+}
 
 export async function GET(req: Request) {
   const session = await auth();
@@ -27,30 +36,38 @@ export async function GET(req: Request) {
   const yahoo = toYahooSymbol(sym);
 
   try {
+    const yAuth = await getYahooCookie();
+    if (!yAuth) throw new Error("Yahoo auth failed");
+
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(yahoo)}&fields=fiftyTwoWeekHigh,fiftyTwoWeekLow,marketCap,averageDailyVolume10Day,trailingPE,epsTrailingTwelveMonths,beta,dividendYield`,
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(yahoo)}` +
+      `?modules=summaryDetail%2CdefaultKeyStatistics&crumb=${encodeURIComponent(yAuth.crumb)}`,
       {
         cache:   "no-store",
-        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
-        signal:  AbortSignal.timeout(8_000),
+        headers: { "User-Agent": YAHOO_UA, Cookie: yAuth.cookie },
+        signal:  AbortSignal.timeout(10_000),
       },
     );
     if (!res.ok) throw new Error(`Yahoo ${res.status}`);
 
-    const json = await res.json();
-    const q    = json?.quoteResponse?.result?.[0];
-    if (!q) return Response.json({ error: "No data" }, { status: 404 });
+    const json   = await res.json();
+    const result = json?.quoteSummary?.result?.[0];
+    if (!result) return Response.json({ error: "No data" }, { status: 404 });
 
+    const sd = result.summaryDetail        as Record<string, unknown> ?? {};
+    const ks = result.defaultKeyStatistics as Record<string, unknown> ?? {};
+
+    const dyRaw = raw(sd, "dividendYield");
     const stats: QuoteStats = {
       symbol:        sym,
-      yearHigh:      q.fiftyTwoWeekHigh              ?? null,
-      yearLow:       q.fiftyTwoWeekLow               ?? null,
-      marketCap:     q.marketCap                     ?? null,
-      avgVolume:     q.averageDailyVolume10Day        ?? null,
-      pe:            q.trailingPE                    ?? null,
-      eps:           q.epsTrailingTwelveMonths        ?? null,
-      beta:          q.beta                          ?? null,
-      dividendYield: q.dividendYield != null ? q.dividendYield * 100 : null,
+      yearHigh:      raw(sd, "fiftyTwoWeekHigh"),
+      yearLow:       raw(sd, "fiftyTwoWeekLow"),
+      marketCap:     raw(sd, "marketCap"),
+      avgVolume:     raw(sd, "averageVolume"),
+      pe:            raw(sd, "trailingPE"),
+      eps:           raw(ks, "trailingEps"),
+      beta:          raw(sd, "beta"),
+      dividendYield: dyRaw != null ? dyRaw * 100 : null,
     };
 
     return Response.json(stats);

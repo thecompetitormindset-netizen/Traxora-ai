@@ -3,6 +3,7 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
 import { auth } from "@/auth";
+import { getYahooCookie, YAHOO_UA } from "@/app/lib/yahooAuth";
 
 export type AnalystRatings = {
   symbol:      string;
@@ -44,11 +45,15 @@ export async function GET(req: Request) {
   if (!symbol) return Response.json({ error: "Missing symbol" }, { status: 400 });
 
   try {
+    const yAuth = await getYahooCookie();
+    if (!yAuth) return Response.json({ error: "Yahoo auth failed" }, { status: 502 });
+
     const res = await fetch(
-      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=recommendationTrend,financialData`,
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}` +
+      `?modules=recommendationTrend%2CfinancialData&crumb=${encodeURIComponent(yAuth.crumb)}`,
       {
         cache:   "no-store",
-        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
+        headers: { "User-Agent": YAHOO_UA, Cookie: yAuth.cookie },
         signal:  AbortSignal.timeout(10_000),
       },
     );
