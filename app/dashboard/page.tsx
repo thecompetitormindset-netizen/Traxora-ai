@@ -1293,7 +1293,7 @@ function DashboardContent() {
                   </span>
                 </div>
                 <div className="flex items-center gap-3">
-                  {displayStocks.length > 3 && (
+                  {displayStocks.length > 4 && (
                     <button type="button" onClick={() => setShowAllStocks(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
                       {showAllStocks ? "Show less ↑" : `See all ${displayStocks.length} ↓`}
                     </button>
@@ -1338,8 +1338,8 @@ function DashboardContent() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 gap-3">
-                {(showAllStocks ? displayStocks : displayStocks.slice(0, 3)).map((stock) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {(showAllStocks ? displayStocks : displayStocks.slice(0, 4)).map((stock) => {
                   const hasPopped = poppedSymbols.has(stock.symbol);
                   const animClass = stock.isNew
                     ? "animate-stock-arrive"
