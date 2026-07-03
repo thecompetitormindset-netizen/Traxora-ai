@@ -252,7 +252,7 @@ function MetricCard({
 
 // ── Widget ─────────────────────────────────────────────────────────────────────
 
-export default function SentimentWidget() {
+export default function SentimentWidget({ horizontal }: { horizontal?: boolean } = {}) {
   const [data,    setData]    = useState<SentimentData | null>(null);
   const [loading, setLoading] = useState(true);
   const isDark = useIsDark();
@@ -269,6 +269,70 @@ export default function SentimentWidget() {
     data?.regime === "Risk-Off" ? "bg-rose-500/10    text-rose-400    border-rose-500/20"    :
                                   "bg-amber-500/10   text-amber-400   border-amber-500/20";
 
+  /* ── Horizontal (full-width top bar) layout ─────────────────────── */
+  if (horizontal) {
+    return (
+      <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 flex flex-col sm:flex-row items-start gap-4">
+        {/* Gauge — compact left column */}
+        <div className="shrink-0 w-full sm:w-[180px]">
+          <div className="flex items-center justify-between mb-1 sm:block">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-[#4B5675]">Market Sentiment</p>
+            <p className="text-[10px] text-[#333368] sm:mt-0.5">VIX · 5D · News</p>
+          </div>
+          {loading ? (
+            <div className="h-24 flex items-center justify-center">
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
+            </div>
+          ) : !data ? (
+            <div className="h-24 flex items-center justify-center"><p className="text-[#4B5675] text-xs">Unavailable</p></div>
+          ) : (
+            <ArcGauge score={data.overallScore ?? 0} isDark={isDark} />
+          )}
+        </div>
+
+        {/* Right — regime + metrics + SPY/QQQ */}
+        <div className="flex-1 min-w-0 flex flex-col gap-3 justify-center">
+          {/* Top row: regime badge + VIX + SPY/QQQ */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {!loading && data?.regime && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${regimeClass}`}>{data.regime}</span>
+            )}
+            {!loading && data?.vix != null && (
+              <span className="text-[9px] font-mono text-[#4B5675]">
+                VIX <span className={`font-bold ${data.vix >= 30 ? "text-rose-400" : data.vix >= 20 ? "text-amber-400" : "text-emerald-400"}`}>{data.vix.toFixed(1)}</span>
+                {data.vixChange != null && (
+                  <span className={data.vixChange >= 0 ? "text-rose-400" : "text-emerald-400"}>{" "}{data.vixChange >= 0 ? "+" : ""}{data.vixChange.toFixed(1)}%</span>
+                )}
+              </span>
+            )}
+            {!loading && data && [{ label: "SPY", chg: data.spyChange }, { label: "QQQ", chg: data.qqqChange }].map(({ label, chg }) => (
+              <div key={label} className="flex items-center gap-1 bg-[#0D0B1A] border border-[#252345] rounded-lg px-2 py-1">
+                <span className="text-[9px] font-bold text-[#4B5675] font-mono">{label}</span>
+                <span className={`text-[10px] font-black font-mono tabular-nums ${chg == null ? "text-[#4B5675]" : chg >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                  {chg != null ? `${chg >= 0 ? "+" : ""}${chg.toFixed(2)}%` : "—"}
+                </span>
+              </div>
+            ))}
+            <Link href="/market-sentiment" className="ml-auto text-[10px] font-semibold text-emerald-400 hover:text-emerald-300 transition-colors flex items-center gap-1">
+              Full Pulse
+              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg>
+            </Link>
+          </div>
+
+          {/* Metric cards row */}
+          {!loading && data?.breakdown && (
+            <div className="flex flex-wrap gap-2">
+              <MetricCard label="VIX" sublabel={data.vix != null ? `Raw: ${data.vix.toFixed(1)}` : "Fear index"} weight={data.breakdown.weights.vix} value={data.breakdown.vixInput} accent="text-emerald-400" delay={400} />
+              <MetricCard label="5D Trend" sublabel="SPY momentum" weight={data.breakdown.weights.momentum} value={data.breakdown.momentumInput} accent="text-teal-400" delay={600} />
+              <MetricCard label="News" sublabel="Sentiment flow" weight={data.breakdown.weights.news} value={data.breakdown.newsInput} accent="text-sky-400" delay={800} />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Default vertical layout ────────────────────────────────────── */
   return (
     <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
 

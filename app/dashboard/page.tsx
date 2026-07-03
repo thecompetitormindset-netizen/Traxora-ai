@@ -1243,25 +1243,14 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* Market Sentiment — horizontal full-width bar */}
+            <div className="lg:col-span-3">
+              <SentimentWidget horizontal />
+            </div>
+
             {/* Stats — full width */}
             <div className="lg:col-span-3">
-            <div className="reveal stagger-container grid grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-5">
-              {/* Sentiment card — desktop only; mobile shows the full SentimentWidget below */}
-              <div className="hidden lg:flex glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4 lg:px-6 lg:py-5 flex-col">
-                <p className="text-xs lg:text-sm text-[#4B5675] font-medium uppercase tracking-wider">Sentiment</p>
-                {isAnalyzing ? (
-                  <div className="flex items-center gap-2 mt-2 lg:mt-3">
-                    <svg className="animate-spin shrink-0" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="2.5">
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                    <span className="text-sm text-[#4B5675] animate-pulse">Analyzing…</span>
-                  </div>
-                ) : (
-                  <p className={`num-reveal text-2xl lg:text-3xl font-bold mt-2 lg:mt-3 font-mono ${sentiment === "Bullish" ? "text-emerald-400" : sentiment === "Bearish" ? "text-rose-400" : "text-amber-400"}`}>
-                    {sentiment}
-                  </p>
-                )}
-              </div>
+            <div className="reveal stagger-container grid grid-cols-3 gap-3 lg:gap-5">
               {[
                 { label: "Buy Signals",  value: buyCount.toString(),  color: "text-emerald-400" },
                 { label: "Hold Signals", value: holdCount.toString(), color: "text-amber-400" },
@@ -1530,8 +1519,53 @@ function DashboardContent() {
             {/* Right sidebar — 1/3 */}
             <div className="order-3 lg:order-none lg:col-span-1 flex flex-col gap-3">
 
-              {/* Sentiment gauge */}
-              <SentimentWidget />
+              {/* Trending Markets */}
+              {(() => {
+                const trending = displayStocks
+                  .filter(s => s.signal === "BUY" || s.signal === "SELL")
+                  .sort((a, b) => {
+                    const rank = (s: typeof a) =>
+                      s.confidence === "High" ? 0 : s.confidence === "Medium" ? 1 : 2;
+                    return rank(a) - rank(b);
+                  })
+                  .slice(0, 6);
+                return (
+                  <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Trending</h2>
+                      <span className="text-[10px] text-[#333368] font-mono">{trending.length}</span>
+                    </div>
+                    {trending.length === 0 ? (
+                      <p className="text-xs text-[#4B5675] py-3">No active signals yet — run analysis on your watchlist</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        {trending.map(s => (
+                          <div
+                            key={s.symbol}
+                            className="flex items-center justify-between gap-2 px-3 py-2 bg-[#0D0B1A] rounded-xl cursor-pointer hover:bg-[#1A1838] transition-colors"
+                            onClick={() => window.location.href = `/analysis?symbol=${encodeURIComponent(s.symbol)}`}
+                          >
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-xs font-bold font-mono text-[#F1F5F9]">{s.symbol.replace(".US","").replace(".COMM","")}</p>
+                                {s.isNew && <span className="text-[7px] font-bold px-1 py-px rounded bg-teal-500/10 text-teal-400 border border-teal-500/20">HOT</span>}
+                              </div>
+                              <p className={`text-[10px] font-mono tabular-nums ${(s.change ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                                {s.price !== null ? `$${s.price.toFixed(2)}` : "—"}
+                                {s.change !== null ? ` · ${s.change >= 0 ? "+" : ""}${s.change.toFixed(2)}%` : ""}
+                              </p>
+                            </div>
+                            <div className="flex flex-col items-end gap-0.5 shrink-0">
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${s.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"}`}>{s.signal}</span>
+                              <span className={`text-[8px] font-semibold ${s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>{s.confidence}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {/* Earnings compact */}
               {(() => {
                 const upcoming = displayStocks
