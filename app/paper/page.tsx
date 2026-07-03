@@ -41,6 +41,19 @@ type TakenTrade = {
   closedAt?:  number;
 };
 
+type RecommendedPlay = {
+  symbol:     string;
+  name:       string;
+  category:   "market" | "futures" | "options";
+  signal:     "BUY" | "SELL";
+  price:      number;
+  stop:       string;
+  target:     string;
+  confidence: "High" | "Medium" | "Low";
+  rrRatio?:   string;
+  meta?:      string;
+};
+
 // ── Storage ───────────────────────────────────────────────────────────────────
 
 const ACCOUNT_KEY = "traxora_planner_account";
@@ -77,6 +90,179 @@ function ago(ms: number) {
   if (s < 3600)  return `${Math.floor(s/60)}m ago`;
   if (s < 86400) return `${Math.floor(s/3600)}h ago`;
   return `${Math.floor(s/86400)}d ago`;
+}
+
+function extractFirstPrice(s: string): string {
+  const m = s.match(/[\d]+\.?\d*/);
+  return m ? m[0] : s;
+}
+
+function loadCachedPlays(): RecommendedPlay[] {
+  try {
+    const alerts = JSON.parse(
+      localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]"
+    ) as Array<{ symbol: string; name: string; signal: string; price: number; confidence: string; time: number }>;
+
+    const plays: RecommendedPlay[] = [];
+    const seen = new Set<string>();
+    const now  = Date.now();
+    const TTL  = 8 * 60 * 60 * 1000; // 8 hours
+
+    for (const a of alerts) {
+      if (now - a.time > TTL) continue;
+      if (a.signal !== "BUY" && a.signal !== "SELL") continue;
+      if (seen.has(a.symbol)) continue;
+
+      const cKey   = scopedKey(`sig_${a.symbol}_${Math.round(a.price * 100)}`);
+      const cached = JSON.parse(localStorage.getItem(cKey) ?? "null");
+      if (!cached?.trade?.stopLoss || !cached?.trade?.takeProfit) continue;
+
+      seen.add(a.symbol);
+      plays.push({
+        symbol:     a.symbol,
+        name:       a.name || a.symbol.replace(".US","").replace(".COMM",""),
+        category:   a.symbol.includes(".COMM") ? "futures" : "market",
+        signal:     a.signal as "BUY" | "SELL",
+        price:      a.price,
+        stop:       extractFirstPrice(cached.trade.stopLoss),
+        target:     extractFirstPrice(cached.trade.takeProfit),
+        confidence: a.confidence as "High" | "Medium" | "Low",
+        rrRatio:    cached.trade.rrRatio,
+      });
+    }
+
+    return plays.sort((a, b) => {
+      const cr = (c: string) => c === "High" ? 0 : c === "Medium" ? 1 : 2;
+      return cr(a.confidence) - cr(b.confidence);
+    });
+  } catch { return []; }
+}
+
+// ── Recommended Plays ─────────────────────────────────────────────────────────
+
+function PlayCard({ play, onSelect }: { play: RecommendedPlay; onSelect: (p: RecommendedPlay) => void }) {
+  const isBuy = play.signal === "BUY";
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(play)}
+      className={`w-full text-left p-3 rounded-xl border border-l-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${
+        isBuy
+          ? "bg-emerald-500/5 border-emerald-500/20 border-l-emerald-500/50 hover:bg-emerald-500/10"
+          : "bg-rose-500/5 border-rose-500/20 border-l-rose-500/50 hover:bg-rose-500/10"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
+            isBuy ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                  : "bg-rose-500/15 text-rose-400 border-rose-500/25"
+          }`}>{play.signal}</span>
+          <span className="text-xs font-black font-mono text-[#F1F5F9]">
+            {play.symbol.replace(".US","").replace(".COMM","")}
+          </span>
+        </div>
+        <span className={`text-[8px] font-bold ${
+          play.confidence === "High"   ? "text-emerald-400" :
+          play.confidence === "Medium" ? "text-amber-400"   : "text-[#4B5675]"
+        }`}>{play.confidence}</span>
+      </div>
+
+      <p className={`text-base font-black font-mono ${isBuy ? "text-emerald-400" : "text-rose-400"}`}>
+        ${play.price.toFixed(2)}
+      </p>
+
+      <div className="flex items-center gap-1.5 mt-1 text-[9px] font-mono flex-wrap">
+        <span className="text-[#4B5675]">Stp</span>
+        <span className="font-bold text-rose-400">{play.stop}</span>
+        <span className="text-[#252345]">·</span>
+        <span className="text-[#4B5675]">Tgt</span>
+        <span className="font-bold text-emerald-400">{play.target}</span>
+        {play.rrRatio && (
+          <><span className="text-[#252345]">·</span><span className="text-violet-400">{play.rrRatio}</span></>
+        )}
+      </div>
+      {play.meta && <p className="text-[8px] text-[#4B5675] mt-1 truncate">{play.meta}</p>}
+      <p className="text-[9px] text-emerald-400 font-semibold mt-2">Tap to load all levels →</p>
+    </button>
+  );
+}
+
+function RecommendedPlays({ onSelect }: { onSelect: (p: RecommendedPlay) => void }) {
+  const [marketPlays,  setMarketPlays]  = useState<RecommendedPlay[]>([]);
+  const [futuresPlays, setFuturesPlays] = useState<RecommendedPlay[]>([]);
+  const [optionsPlays, setOptionsPlays] = useState<RecommendedPlay[]>([]);
+  const [optLoading,   setOptLoading]   = useState(true);
+
+  useEffect(() => {
+    const cached  = loadCachedPlays();
+    setMarketPlays(cached.filter(p => p.category === "market").slice(0, 3));
+    setFuturesPlays(cached.filter(p => p.category === "futures").slice(0, 3));
+
+    fetch("/api/market/options-scan", { cache: "no-store" })
+      .then(r => r.json())
+      .then(data => {
+        type OP = {
+          symbol: string; signal: "BUY"|"SELL"; price: number;
+          play: string; strike: string; expiry: string|null; dte: number|null;
+          stop: string; target: string; confidence: "High"|"Medium"|"Low";
+          rrRatio: string; iv: number|null;
+        };
+        const plays: RecommendedPlay[] = (data.plays ?? []).slice(0, 3).map((p: OP) => ({
+          symbol:     p.symbol,
+          name:       `${p.play} · ${p.strike}`,
+          category:   "options" as const,
+          signal:     p.signal,
+          price:      p.price,
+          stop:       extractFirstPrice(p.stop),
+          target:     extractFirstPrice(p.target),
+          confidence: p.confidence,
+          rrRatio:    p.rrRatio,
+          meta:       [p.expiry, p.dte ? `${p.dte}d DTE` : null, p.iv ? `IV ${p.iv}%` : null]
+                        .filter(Boolean).join(" · "),
+        }));
+        setOptionsPlays(plays);
+      })
+      .catch(() => {})
+      .finally(() => setOptLoading(false));
+  }, []);
+
+  const noData = !optLoading && futuresPlays.length === 0 && optionsPlays.length === 0 && marketPlays.length === 0;
+  if (noData) return null;
+
+  const col = (label: string, color: string, plays: RecommendedPlay[], loading?: boolean, emptyMsg?: string) => (
+    <div className="bg-[#0D0B1A] p-4">
+      <p className={`text-[8px] font-black uppercase tracking-widest mb-3 ${color}`}>{label}</p>
+      {loading ? (
+        <div className="space-y-2">
+          {[0,1,2].map(i => <div key={i} className="h-20 bg-[#13112A] rounded-xl animate-pulse" />)}
+        </div>
+      ) : plays.length === 0 ? (
+        <p className="text-[10px] text-[#333368] leading-relaxed">{emptyMsg}</p>
+      ) : (
+        <div className="space-y-2">
+          {plays.map((p, i) => <PlayCard key={i} play={p} onSelect={onSelect} />)}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
+      <div className="px-5 pt-4 pb-3 border-b border-[#1C1933] flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Today&apos;s Top Plays</p>
+          <p className="text-[9px] text-[#333368] mt-0.5">Tap any card to instantly load symbol, entry, stop &amp; target</p>
+        </div>
+        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">1-click fill</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#1C1933]">
+        {col("Futures (Mini)", "text-violet-400", futuresPlays, false, "Run the Dashboard first — futures signals cache here automatically")}
+        {col("Options Plays",  "text-amber-400",  optionsPlays, optLoading, "No high-confidence setups right now — check back later")}
+        {col("Market Stocks",  "text-sky-400",    marketPlays, false, "Run the Dashboard first — stock signals cache here automatically")}
+      </div>
+    </div>
+  );
 }
 
 // ── Position Sizer Component ──────────────────────────────────────────────────
@@ -240,8 +426,10 @@ function TradePlannerContent() {
   const initSymbol = params.get("symbol") ?? "";
   const initSignal = (params.get("side") as "BUY" | "SELL" | null) ?? "BUY";
 
-  const [closingId, setClosingId] = useState<string | null>(null);
-  const [closeInput, setCloseInput] = useState("");
+  const [selectedPlay, setSelectedPlay] = useState<RecommendedPlay | null>(null);
+  const [playKey,      setPlayKey]      = useState(0);
+  const [closingId,    setClosingId]    = useState<string | null>(null);
+  const [closeInput,   setCloseInput]   = useState("");
 
   useEffect(() => {
     const acc = loadAccount();
@@ -250,6 +438,17 @@ function TradePlannerContent() {
     setSignals(raw.filter(s => s.signal === "BUY" || s.signal === "SELL").slice(0, 12));
     setTaken(loadTaken());
   }, []);
+
+  function handleSelectPlay(p: RecommendedPlay) {
+    setSelectedPlay(p);
+    setPlayKey(k => k + 1);
+    setSizerSignal(null);
+    haptic.medium();
+    // Scroll position sizer into view on mobile
+    setTimeout(() => {
+      document.getElementById("position-sizer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
+  }
 
   function saveAccountSettings() {
     const size    = parseFloat(accountInput.replace(/[^0-9.]/g, ""));
@@ -416,16 +615,36 @@ function TradePlannerContent() {
             ))}
           </div>
 
+          {/* ── Recommended Plays ── */}
+          <RecommendedPlays onSelect={handleSelectPlay} />
+
           {/* ── Sizer + Signals ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div id="position-sizer" className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
             {/* Sizer */}
             <PositionSizer
-              initSymbol={sizerSignal ? sizerSignal.symbol.replace(".US","").replace(".COMM","") : initSymbol}
-              initSignal={sizerSignal?.signal ?? initSignal}
-              initEntry={sizerSignal ? sizerSignal.price.toFixed(2) : (params.get("price") ?? "")}
-              initStop={sizerSignal ? "" : (params.get("stop") ?? "")}
-              initTarget={sizerSignal ? "" : (params.get("target") ?? "")}
+              key={playKey}
+              initSymbol={
+                selectedPlay ? selectedPlay.symbol.replace(".US","").replace(".COMM","")
+                : sizerSignal ? sizerSignal.symbol.replace(".US","").replace(".COMM","")
+                : initSymbol
+              }
+              initSignal={selectedPlay?.signal ?? sizerSignal?.signal ?? initSignal}
+              initEntry={
+                selectedPlay ? selectedPlay.price.toFixed(2)
+                : sizerSignal ? sizerSignal.price.toFixed(2)
+                : (params.get("price") ?? "")
+              }
+              initStop={
+                selectedPlay ? selectedPlay.stop
+                : sizerSignal ? ""
+                : (params.get("stop") ?? "")
+              }
+              initTarget={
+                selectedPlay ? selectedPlay.target
+                : sizerSignal ? ""
+                : (params.get("target") ?? "")
+              }
               account={account}
               onTaken={handleTaken}
               onSymbolChange={s => { if (s.length >= 1) setChartSymbol(s); }}
