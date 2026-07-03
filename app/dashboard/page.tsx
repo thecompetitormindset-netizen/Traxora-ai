@@ -1438,7 +1438,7 @@ function DashboardContent() {
                             <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => { e.stopPropagation(); haptic.tap(); }} className="glow-green text-[11px] text-emerald-400 font-medium">Analyse →</Link>
                             {(stock.signal === "BUY" || stock.signal === "SELL") && stock.price && (
                               <Link
-                                href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&direction=${stock.signal === "BUY" ? "LONG" : "SHORT"}&price=${stock.price.toFixed(2)}`}
+                                href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&side=${stock.signal}&price=${stock.price !== null ? stock.price.toFixed(2) : ""}${stock.trade ? `&stop=${encodeURIComponent(stock.trade.stopLoss)}&target=${encodeURIComponent(stock.trade.takeProfit)}` : ""}`}
                                 onClick={(e) => { e.stopPropagation(); haptic.medium(); }}
                                 className="text-[11px] text-violet-400 hover:text-violet-300 font-medium transition-colors"
                               >

@@ -82,11 +82,11 @@ function ago(ms: number) {
 // ── Position Sizer Component ──────────────────────────────────────────────────
 
 function PositionSizer({
-  initSymbol, initEntry, initSignal,
+  initSymbol, initEntry, initSignal, initStop, initTarget,
   account, onTaken, onSymbolChange,
 }: {
-  initSymbol?: string; initEntry?: string;
-  initSignal?: "BUY" | "SELL";
+  initSymbol?: string; initEntry?: string; initSignal?: "BUY" | "SELL";
+  initStop?: string; initTarget?: string;
   account: { size: number; riskPct: number };
   onTaken: (t: TakenTrade) => void;
   onSymbolChange?: (s: string) => void;
@@ -94,14 +94,16 @@ function PositionSizer({
   const [symbol, setSymbol] = useState(initSymbol ?? "");
   const [signal, setSignal] = useState<"BUY" | "SELL">(initSignal ?? "BUY");
   const [entry,  setEntry]  = useState(initEntry  ?? "");
-  const [stop,   setStop]   = useState("");
-  const [target, setTarget] = useState("");
+  const [stop,   setStop]   = useState(initStop   ?? "");
+  const [target, setTarget] = useState(initTarget ?? "");
   const [note,   setNote]   = useState("");
   const [saved,  setSaved]  = useState(false);
 
   useEffect(() => { if (initSymbol) { setSymbol(initSymbol); onSymbolChange?.(initSymbol); } }, [initSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (initSignal) setSignal(initSignal); }, [initSignal]);
   useEffect(() => { if (initEntry)  setEntry(initEntry);   }, [initEntry]);
+  useEffect(() => { if (initStop)   setStop(initStop);     }, [initStop]);
+  useEffect(() => { if (initTarget) setTarget(initTarget); }, [initTarget]);
 
   const entryN  = parsePrice(entry);
   const stopN   = parsePrice(stop);
@@ -421,7 +423,9 @@ function TradePlannerContent() {
             <PositionSizer
               initSymbol={sizerSignal ? sizerSignal.symbol.replace(".US","").replace(".COMM","") : initSymbol}
               initSignal={sizerSignal?.signal ?? initSignal}
-              initEntry={sizerSignal ? sizerSignal.price.toFixed(2) : ""}
+              initEntry={sizerSignal ? sizerSignal.price.toFixed(2) : (params.get("price") ?? "")}
+              initStop={sizerSignal ? "" : (params.get("stop") ?? "")}
+              initTarget={sizerSignal ? "" : (params.get("target") ?? "")}
               account={account}
               onTaken={handleTaken}
               onSymbolChange={s => { if (s.length >= 1) setChartSymbol(s); }}
