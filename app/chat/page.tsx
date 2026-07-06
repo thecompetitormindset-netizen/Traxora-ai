@@ -189,7 +189,7 @@ export default function ChatPage() {
     <PaywallGuard>
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
-        <main className="app-ambient flex-1 flex flex-col chat-main-height">
+        <main className="app-ambient min-w-0 flex-1 flex flex-col chat-main-height">
           <div className="p-3 sm:p-4 xl:p-5 pb-0 shrink-0">
             <Topbar />
             <div className="flex items-center justify-between mt-3 mb-2">

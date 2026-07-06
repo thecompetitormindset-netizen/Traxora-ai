@@ -165,7 +165,7 @@ export default function SettingsPage() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+        <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
           <div className="max-w-3xl mx-auto w-full">
 
           {/* Header */}

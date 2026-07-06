@@ -512,7 +512,7 @@ export default function WheelPage() {
     <div className="flex flex-col min-h-screen bg-[#0D0B1A] text-[#F1F5F9]">
       <Topbar />
       <div className="flex flex-1 !pb-36">
-        <main className="app-ambient flex-1 max-w-6xl mx-auto w-full px-3 py-4 page-enter">
+        <main className="app-ambient min-w-0 flex-1 max-w-6xl mx-auto w-full px-3 py-4 page-enter">
 
           {/* Header */}
           <div className="mb-6 text-center">

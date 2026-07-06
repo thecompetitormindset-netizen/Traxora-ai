@@ -211,7 +211,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
       </Link>
 
       {/* Search */}
-      <div className="flex-1 max-w-xl relative">
+      <div className="flex-1 min-w-0 max-w-xl relative">
         <div className="focus-ring glass surface-sheen flex items-center gap-2.5 border border-[#252345] hover:border-[#333368] rounded-xl px-4 py-2.5 transition-all duration-100 focus-within:border-emerald-500/40">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="11" cy="11" r="8" />
@@ -225,7 +225,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => { if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
-            className="flex-1 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
+            className="flex-1 min-w-0 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
           {loading && (
             <svg className="animate-spin shrink-0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2.5">

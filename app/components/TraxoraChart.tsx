@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   createChart, ColorType, LineStyle,
-  CandlestickSeries, HistogramSeries, LineSeries,
+  CandlestickSeries, HistogramSeries, LineSeries, AreaSeries,
   type IChartApi, type ISeriesApi, type CandlestickData,
   type CandlestickSeriesPartialOptions, type IPriceLine,
   type Time,
@@ -86,6 +87,39 @@ const C_LIGHT = {
   stop:     "#E11D48",
   target:   "#059669",
 };
+
+// Charts paint to a canvas, so CSS variables and the theme remap layer can't
+// reach them — resolve the active theme's tokens to concrete hex values here.
+// Falls back to the static palettes when a token is missing or not 6-digit hex
+// (alpha suffixes like C.bull + "55" require #RRGGBB).
+function buildPalette(isDark: boolean) {
+  const base = isDark ? C_DARK : C_LIGHT;
+  if (typeof window === "undefined") return base;
+  const css = getComputedStyle(document.documentElement);
+  const v = (name: string, fallback: string) => {
+    const val = css.getPropertyValue(name).trim();
+    return /^#[0-9a-fA-F]{6}$/.test(val) ? val : fallback;
+  };
+  const bull = v("--buy", base.bull);
+  const bear = v("--sell", base.bear);
+  return {
+    ...base,
+    bg:      v("--bg-surface", base.bg),
+    panel:   v("--bg-elevated", base.panel),
+    border:  v("--border", base.border),
+    borderH: v("--border-hover", base.borderH),
+    dim:     v("--text-muted", base.dim),
+    mid:     v("--text-secondary", base.mid),
+    bright:  v("--text-primary", base.bright),
+    bull, bear,
+    bullDim: bull + "18",
+    bearDim: bear + "18",
+    fair:    v("--hold", base.fair),
+    entry:   v("--hold", base.entry),
+    stop:    bear,
+    target:  bull,
+  };
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -190,21 +224,19 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const containerRef = useRef<HTMLDivElement>(null);
 
   // ── Theme awareness ───────────────────────────────────────────────────────────
-  const [isDark, setIsDark] = useState(() => {
-    if (typeof document === "undefined") return true;
-    const t = document.documentElement.getAttribute("data-theme");
-    return t !== "light" && t !== "clean" && t !== "ember";
+  const [theme, setTheme] = useState(() => {
+    if (typeof document === "undefined") return "dark";
+    return document.documentElement.getAttribute("data-theme") ?? "dark";
   });
   useEffect(() => {
-    const update = () => {
-      const t = document.documentElement.getAttribute("data-theme");
-      setIsDark(t !== "light" && t !== "clean" && t !== "ember");
-    };
+    const update = () => setTheme(document.documentElement.getAttribute("data-theme") ?? "dark");
     update();
     window.addEventListener("theme-changed", update);
     return () => window.removeEventListener("theme-changed", update);
   }, []);
-  const C = isDark ? C_DARK : C_LIGHT;
+  const isDark = theme !== "light" && theme !== "clean" && theme !== "ember";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const C = useMemo(() => buildPalette(isDark), [theme, isDark]);
   const chartRef     = useRef<IChartApi | null>(null);
   const candleRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volRef       = useRef<ISeriesApi<"Histogram"> | null>(null);
@@ -218,7 +250,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const bbUpRef      = useRef<ISeriesApi<"Line"> | null>(null);
   const bbMidRef     = useRef<ISeriesApi<"Line"> | null>(null);
   const bbLoRef      = useRef<ISeriesApi<"Line"> | null>(null);
-  const closeLineRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const closeLineRef = useRef<ISeriesApi<"Area"> | null>(null);
 
   // Signal price lines
   const entryLineRef  = useRef<IPriceLine | null>(null);
@@ -235,7 +267,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const [lastBar,     setLastBar]       = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
   const [tooltip,     setTooltip]       = useState<Tooltip>(null);
   const [fullscreen,  setFullscreen]    = useState(false);
-  const [chartType,   setChartType]     = useState<"candle" | "line">("candle");
+  const [chartType,   setChartType]     = useState<"candle" | "line">("line");
+  const chartTypeRef                    = useRef<"candle" | "line">("line");
+  const [showVolume,  setShowVolume]    = useState(true);
   const allBarsRef                      = useRef<RawBar[]>([]);
 
   const [showTrend,    setShowTrend]    = useState(false);
@@ -249,11 +283,26 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const clean      = symbol.replace(".US", "").replace(".COMM", "");
   const isFutures  = symbol.endsWith(".COMM");
 
-  // keep ref in sync with state so subscription callbacks can read current interval
+  // Live blinking dot on the last bar — always in line mode, 5M/1M in candle mode.
+  const computeDot = useCallback(() => {
+    const bars   = allBarsRef.current;
+    const chart  = chartRef.current;
+    const series = chartTypeRef.current === "line" ? closeLineRef.current : candleRef.current;
+    const active = chartTypeRef.current === "line" || intervalRef.current === "5M" || intervalRef.current === "1M";
+    if (!active || !bars.length || !chart || !series) { setBlinkDot(null); return; }
+    const lastB = bars[bars.length - 1];
+    const x = chart.timeScale().timeToCoordinate(toTime(lastB.time));
+    const y = series.priceToCoordinate(lastB.close);
+    setBlinkDot(x != null && y != null ? { x, y } : null);
+  }, []);
+
+  // keep refs in sync with state so subscription callbacks can read current values
   useEffect(() => {
-    intervalRef.current = interval;
-    if (interval !== "5M" && interval !== "1M") setBlinkDot(null);
-  }, [interval]);
+    intervalRef.current  = interval;
+    chartTypeRef.current = chartType;
+    const t = setTimeout(computeDot, 120); // let the chart settle before positioning
+    return () => clearTimeout(t);
+  }, [interval, chartType, computeDot]);
 
   // ESC exits fullscreen
   useEffect(() => {
@@ -293,15 +342,15 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const pageBg = isDark
-      ? C.bg
-      : getComputedStyle(document.documentElement).getPropertyValue("--bg-canvas").trim() || C.bg;
-
-    const chart = createChart(containerRef.current, {
-      autoSize: true,
-      height,
+    const el = containerRef.current;
+    const chart = createChart(el, {
+      // Explicit sizing (not autoSize): the chart is created inside a portal /
+      // flex container whose dimensions settle after mount, and autoSize can
+      // latch onto a mid-mount measurement and mangle the internal layout.
+      width:  el.clientWidth  || 600,
+      height: el.clientHeight || height,
       layout: {
-        background: { type: ColorType.Solid, color: pageBg },
+        background: { type: ColorType.Solid, color: C.bg },
         textColor:  C.mid,
         fontFamily: "ui-sans-serif, system-ui, sans-serif",
         fontSize:   11,
@@ -322,6 +371,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       upColor: C.bull, downColor: C.bear,
       borderUpColor: C.bull, borderDownColor: C.bear,
       wickUpColor: C.bull + "BB", wickDownColor: C.bear + "BB",
+      visible: chartTypeRef.current === "candle",
     } as CandlestickSeriesPartialOptions);
 
     volRef.current = chart.addSeries(HistogramSeries, { priceFormat: { type: "volume" }, priceScaleId: "vol", visible: false });
@@ -341,12 +391,13 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     rsiOsRef.current = chart.addSeries(LineSeries, { color: C.bull + "40", lineWidth: 1, lineStyle: 3, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, priceScaleId: "rsi" });
     rsiRef.current.priceScale().applyOptions({ scaleMargins: { top: 0.80, bottom: 0.02 }, borderColor: C.border, textColor: C.bright });
 
-    // Line chart series — hidden by default; shown when chartType === "line"
-    closeLineRef.current = chart.addSeries(LineSeries, {
-      color: C.bull, lineWidth: 2,
+    // Line (area) chart series — gradient fill under the close line
+    closeLineRef.current = chart.addSeries(AreaSeries, {
+      lineColor: C.bull, lineWidth: 2,
+      topColor: C.bull + "2E", bottomColor: C.bull + "03",
       priceLineVisible: false, lastValueVisible: true,
       crosshairMarkerVisible: true, crosshairMarkerRadius: 4,
-      visible: false,
+      visible: chartTypeRef.current === "line",
     });
 
     chart.subscribeCrosshairMove((param) => {
@@ -364,18 +415,21 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     });
 
     // Update blink dot position when user scrolls / zooms
-    chart.timeScale().subscribeVisibleLogicalRangeChange(() => {
-      if (intervalRef.current !== "5M" && intervalRef.current !== "1M") return;
-      const bars = allBarsRef.current;
-      if (!bars.length || !candleRef.current) return;
-      const lastB = bars[bars.length - 1];
-      const x = chart.timeScale().timeToCoordinate(toTime(lastB.time));
-      const y = candleRef.current.priceToCoordinate(lastB.close);
-      setBlinkDot(x != null && y != null ? { x, y } : null);
-    });
+    chart.timeScale().subscribeVisibleLogicalRangeChange(() => computeDot());
 
-    const ro = new ResizeObserver(() => chart.applyOptions({ width: containerRef.current?.clientWidth ?? 800 }));
-    if (containerRef.current) ro.observe(containerRef.current);
+    // Track the container size manually and re-fit the visible range so bars
+    // aren't left squished after viewport resize, rotation, or sidebar collapse.
+    const ro = new ResizeObserver(() => {
+      const node = containerRef.current;
+      if (!node) return;
+      chart.applyOptions({ width: node.clientWidth, height: node.clientHeight || height });
+      chart.timeScale().fitContent();
+    });
+    ro.observe(el);
+
+    // Re-render cached bars — the chart is recreated when the theme changes or
+    // when it moves in/out of the fullscreen portal, but the data hasn't.
+    applyBars();
 
     return () => {
       ro.disconnect(); chart.remove();
@@ -385,12 +439,66 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       rsiRef.current = rsiObRef.current = rsiOsRef.current = null;
       entryLineRef.current = stopLineRef.current = targetLineRef.current = null;
     };
-  }, [isDark]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [theme, fullscreen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Toggle volume bars with fullscreen ───────────────────────────────────────
+  // ── Fullscreen extras: volume bars + dotted price grid ──────────────────────
   useEffect(() => {
-    volRef.current?.applyOptions({ visible: fullscreen });
-  }, [fullscreen]);
+    volRef.current?.applyOptions({ visible: fullscreen && showVolume });
+  }, [fullscreen, showVolume, theme]);
+
+  useEffect(() => {
+    chartRef.current?.applyOptions({
+      grid: {
+        vertLines: { visible: false },
+        horzLines: { visible: fullscreen, color: C.border, style: LineStyle.Dotted },
+      },
+    });
+  }, [fullscreen, theme, C]);
+
+  // ── Render cached bars into the chart series ─────────────────────────────────
+  // Separate from fetching so the chart can be recreated (theme change,
+  // fullscreen portal move) without hitting the network again.
+  const applyBars = useCallback(() => {
+    const raw = allBarsRef.current;
+    if (!raw.length || !chartRef.current) return;
+
+    const candles: OhlcBar[] = raw.map(b => ({ time: toTime(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
+    const volumes = raw.map(b => ({ time: toTime(b.time), value: b.volume, color: b.close >= b.open ? C.bull + "55" : C.bear + "55" }));
+
+    const lineData: LineBar[] = raw.map(b => ({ time: toTime(b.time), value: b.close }));
+    candleRef.current?.setData(candles as CandlestickData[]);
+    volRef.current?.setData(volumes);
+    closeLineRef.current?.setData(lineData);
+    ema9Ref.current?.setData(showTrend  ? ema(candles, 9)  : []);
+    ema21Ref.current?.setData(showTrend ? ema(candles, 21) : []);
+    ema50Ref.current?.setData(showLongT ? ema(candles, 50) : []);
+    vwapRef.current?.setData(showFair && isIntraday ? vwap(raw) : []);
+
+    if (showBB && candles.length >= 20) {
+      const bb = bbCalc(candles);
+      bbUpRef.current?.setData(bb.upper); bbMidRef.current?.setData(bb.mid); bbLoRef.current?.setData(bb.lower);
+    } else { bbUpRef.current?.setData([]); bbMidRef.current?.setData([]); bbLoRef.current?.setData([]); }
+
+    if (showMomentum && candles.length > 15) {
+      const r = rsiCalc(candles);
+      rsiRef.current?.setData(r);
+      const t0 = candles[0].time, t1 = candles[candles.length - 1].time;
+      rsiObRef.current?.setData([{ time: t0, value: 70 }, { time: t1, value: 70 }]);
+      rsiOsRef.current?.setData([{ time: t0, value: 30 }, { time: t1, value: 30 }]);
+    } else { rsiRef.current?.setData([]); rsiObRef.current?.setData([]); rsiOsRef.current?.setData([]); }
+
+    chartRef.current?.timeScale().fitContent();
+    const last = raw[raw.length - 1], prev = raw[raw.length - 2];
+    setLastPrice(last.close);
+    setLastBar({ o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume });
+    const chg = prev ? ((last.close - prev.close) / prev.close) * 100 : null;
+    setLastChg(chg);
+    // Line chart follows the day's direction
+    const lineC = chg != null && chg < 0 ? C.bear : C.bull;
+    closeLineRef.current?.applyOptions({ lineColor: lineC, topColor: lineC + "2E", bottomColor: lineC + "03" });
+    // Position the live dot once the chart settles after fitContent
+    setTimeout(computeDot, 120);
+  }, [showTrend, showLongT, showFair, showMomentum, showBB, isIntraday, C, computeDot]);
 
   // ── Load data ─────────────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -422,50 +530,10 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       raw = raw.filter(b => { if (seen.has(b.time)) return false; seen.add(b.time); return true; });
       raw.sort((a, b) => a.time - b.time);
       allBarsRef.current = raw;
-
-      const candles: OhlcBar[] = raw.map(b => ({ time: toTime(b.time), open: b.open, high: b.high, low: b.low, close: b.close }));
-      const volumes = raw.map(b => ({ time: toTime(b.time), value: b.volume, color: b.close >= b.open ? C.bull + "55" : C.bear + "55" }));
-
-      const lineData: LineBar[] = raw.map(b => ({ time: toTime(b.time), value: b.close }));
-      candleRef.current?.setData(candles as CandlestickData[]);
-      volRef.current?.setData(volumes);
-      closeLineRef.current?.setData(lineData);
-      ema9Ref.current?.setData(showTrend  ? ema(candles, 9)  : []);
-      ema21Ref.current?.setData(showTrend ? ema(candles, 21) : []);
-      ema50Ref.current?.setData(showLongT ? ema(candles, 50) : []);
-      vwapRef.current?.setData(showFair && isIntraday ? vwap(raw) : []);
-
-      if (showBB && candles.length >= 20) {
-        const bb = bbCalc(candles);
-        bbUpRef.current?.setData(bb.upper); bbMidRef.current?.setData(bb.mid); bbLoRef.current?.setData(bb.lower);
-      } else { bbUpRef.current?.setData([]); bbMidRef.current?.setData([]); bbLoRef.current?.setData([]); }
-
-      if (showMomentum && candles.length > 15) {
-        const r = rsiCalc(candles);
-        rsiRef.current?.setData(r);
-        const t0 = candles[0].time, t1 = candles[candles.length - 1].time;
-        rsiObRef.current?.setData([{ time: t0, value: 70 }, { time: t1, value: 70 }]);
-        rsiOsRef.current?.setData([{ time: t0, value: 30 }, { time: t1, value: 30 }]);
-      } else { rsiRef.current?.setData([]); rsiObRef.current?.setData([]); rsiOsRef.current?.setData([]); }
-
-      chartRef.current?.timeScale().fitContent();
-      const last = raw[raw.length - 1], prev = raw[raw.length - 2];
-      setLastPrice(last.close);
-      setLastBar({ o: last.open, h: last.high, l: last.low, c: last.close, v: last.volume });
-      setLastChg(prev ? ((last.close - prev.close) / prev.close) * 100 : null);
-      // Compute blink dot position for short intervals (needs ~100ms for chart to settle after fitContent)
-      setTimeout(() => {
-        const iv = intervalRef.current;
-        if ((iv === "5M" || iv === "1M") && chartRef.current && candleRef.current && allBarsRef.current.length) {
-          const lb = allBarsRef.current[allBarsRef.current.length - 1];
-          const x  = chartRef.current.timeScale().timeToCoordinate(toTime(lb.time));
-          const y  = candleRef.current.priceToCoordinate(lb.close);
-          setBlinkDot(x != null && y != null ? { x, y } : null);
-        }
-      }, 120);
+      applyBars();
     } catch { setError(true); }
     finally { setLoading(false); }
-  }, [symbol, interval, showTrend, showLongT, showFair, showMomentum, showBB, isIntraday, isDark]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, interval, applyBars]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -490,13 +558,22 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     );
   }
 
+  function downloadSnapshot() {
+    const canvas = chartRef.current?.takeScreenshot();
+    if (!canvas) return;
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `${clean}-${interval}.png`;
+    a.click();
+  }
+
   // ── Signal parsed prices ──────────────────────────────────────────────────────
   const entryP  = signalData ? parsePrice(signalData.entry)  : null;
   const stopP   = signalData ? parsePrice(signalData.stop)   : null;
   const targetP = signalData ? parsePrice(signalData.target) : null;
   const signalBull = signalData?.signal === "BUY";
 
-  return (
+  const card = (
     <>
     {/* Backdrop */}
     {fullscreen && <div className="fixed inset-0 z-[199] bg-black/70 backdrop-blur-sm" onClick={() => setFullscreen(false)} />}
@@ -504,19 +581,19 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     <div
       className={`select-none transition-all duration-300 flex flex-col overflow-hidden ${
         fullscreen
-          ? "fixed inset-0 sm:inset-3 z-[200] sm:rounded-2xl shadow-2xl shadow-black/80"
+          ? "fixed inset-0 z-[200] shadow-2xl shadow-black/80"
           : "rounded-2xl"
       }`}
       style={{
-        background: isDark ? C.bg : "var(--bg-canvas)",
-        border: `1px solid ${isDark ? C.borderH : "var(--border)"}`,
+        background: C.bg,
+        border: `1px solid ${C.border}`,
       }}
     >
       {/* ── Header ── */}
       <div className="px-4 pt-3 pb-2.5 shrink-0" style={{ borderBottom: `1px solid ${C.border}` }}>
 
         {/* Row 1: symbol + price + controls */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-x-3 gap-y-1.5 flex-wrap">
           <div className="flex items-center gap-3 min-w-0 flex-wrap">
             <div className="flex items-center gap-2 shrink-0">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: C.bull }} />
@@ -525,7 +602,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
             </div>
             {lastPrice != null && !loading && (
               <div className="flex items-center gap-2">
-                <span className="text-xl font-black font-mono" style={{ color: isBull ? C.bull : C.bear }}>${fmtP(lastPrice)}</span>
+                <span className="text-xl font-black font-mono" style={{ color: C.bright }}>${fmtP(lastPrice)}</span>
                 {lastChg != null && (
                   <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg font-mono"
                     style={{ color: isBull ? C.bull : C.bear, background: isBull ? C.bullDim : C.bearDim }}>
@@ -561,7 +638,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           </div>
 
           {/* Controls */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {/* Chart type toggle */}
             <div className="flex items-center gap-px p-0.5 rounded-lg" style={{ background: C.panel, border: `1px solid ${C.border}` }}>
               <button type="button" onClick={() => setChartType("candle")} title="Candlestick" aria-label="Candlestick chart" aria-pressed={chartType === "candle" ? "true" : "false"}
@@ -590,6 +667,25 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
                 </button>
               ))}
             </div>
+            {fullscreen && (
+              <>
+                <button type="button" onClick={() => chartRef.current?.timeScale().fitContent()} title="Reset zoom" aria-label="Reset zoom"
+                  className="p-1.5 rounded-lg transition-all flex items-center justify-center"
+                  style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.dim }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+                    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                  </svg>
+                </button>
+                <button type="button" onClick={downloadSnapshot} title="Download chart as PNG" aria-label="Download chart as PNG"
+                  className="p-1.5 rounded-lg transition-all flex items-center justify-center"
+                  style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.dim }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                </button>
+              </>
+            )}
             <button type="button" onClick={() => setFullscreen(v => !v)} title={fullscreen ? "Exit (Esc)" : "Full screen"} aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
               className="p-1.5 rounded-lg transition-all flex items-center justify-center"
               style={{ background: C.panel, border: `1px solid ${C.border}`, color: C.dim }}>
@@ -607,8 +703,9 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
           <Chip active={showLongT}    color={C.longT}    label="Long Trend"   onClick={() => setShowLongT(v => !v)} />
           {isIntraday && <Chip active={showFair} color={C.fair} label="Fair Price" onClick={() => setShowFair(v => !v)} />}
           <Chip active={showMomentum} color={C.momentum} label="Momentum"     onClick={() => setShowMomentum(v => !v)} />
-          {/* BB only in fullscreen — takes up space otherwise */}
+          {/* BB + volume only in fullscreen — take up space otherwise */}
           {fullscreen && <Chip active={showBB} color={C.longT} label="Volatility" onClick={() => setShowBB(v => !v)} />}
+          {fullscreen && <Chip active={showVolume} color={C.mid} label="Volume" onClick={() => setShowVolume(v => !v)} />}
           {/* Signal lines toggle */}
           {signalData && (
             <Chip active={showSignals} color={signalBull ? C.bull : C.bear} label="Signal Lines" onClick={() => setShowSignals(v => !v)} />
@@ -619,13 +716,11 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       {/* ── Chart area + optional signal panel ── */}
       <div className={`flex-1 flex min-h-0 ${fullscreen ? "flex-col sm:flex-row" : ""}`}>
 
-        {/* Chart canvas */}
-        <div className={`relative flex-1 min-w-0 ${fullscreen ? "min-h-0" : ""}`}>
-          <div
-            ref={containerRef}
-            className={fullscreen ? "w-full h-full" : ""}
-            style={fullscreen ? undefined : { height }}
-          />
+        {/* Chart canvas — absolutely positioned so the chart's fixed-size canvas
+            can never widen the layout (its min-content would otherwise force
+            page overflow on narrow viewports). */}
+        <div className={`relative flex-1 min-w-0 overflow-hidden ${fullscreen ? "min-h-0" : ""}`} style={fullscreen ? undefined : { height }}>
+          <div ref={containerRef} className="absolute inset-0" />
 
           {/* Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -678,7 +773,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
           {/* Loading */}
           {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: isDark ? C.bg : "var(--bg-canvas)" }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: C.bg }}>
               <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ color: C.bull + "80" }}>
                 <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
               </svg>
@@ -688,7 +783,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
           {/* Error */}
           {error && !loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: isDark ? C.bg : "var(--bg-canvas)" }}>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: C.bg }}>
               <p className="text-sm" style={{ color: C.bright }}>Chart unavailable</p>
               <button type="button" onClick={loadData} className="text-[10px] font-bold font-mono" style={{ color: C.bull }}>RETRY →</button>
             </div>
@@ -778,4 +873,12 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     </div>
     </>
   );
+
+  // Fullscreen renders through a body portal: ancestors with CSS transforms
+  // (e.g. reveal animations) create containing blocks that trap `position:
+  // fixed`, so in place the chart would only "fill" the content column.
+  if (fullscreen && typeof document !== "undefined") {
+    return createPortal(card, document.body);
+  }
+  return card;
 }

@@ -126,7 +126,7 @@ function MarketContent() {
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
-      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="max-w-5xl mx-auto w-full">
 

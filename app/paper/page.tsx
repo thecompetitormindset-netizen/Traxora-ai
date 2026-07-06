@@ -600,7 +600,7 @@ function TradePlannerContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="app-ambient flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 pb-32 page-enter">
+      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 pb-32 page-enter">
         <Topbar />
         <div className="max-w-7xl mx-auto w-full mt-3 space-y-5">
 

@@ -57,6 +57,14 @@ html {
   color-scheme: dark;
   overscroll-behavior-y: none;
 }
+
+/* Never allow horizontal page scroll — a single overflowing element would
+   otherwise expand the mobile layout viewport and zoom the whole app out.
+   `clip` (not `hidden`) avoids creating a scroll container, keeping
+   position: sticky working. */
+html, body {
+  overflow-x: clip;
+}
 html[data-theme="clean"],
 html[data-theme="ember"],
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) { color-scheme: light; }

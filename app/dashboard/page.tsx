@@ -1064,7 +1064,7 @@ function DashboardContent() {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <main className="app-ambient flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-y-auto !pb-36 page-enter">
+        <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-y-auto !pb-36 page-enter">
           <div className="max-w-7xl mx-auto w-full">
 
             {/* ── PAGE HEADER ── */}

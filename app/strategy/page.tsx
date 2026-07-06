@@ -171,7 +171,7 @@ function StrategyContent() {
     return (
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
-        <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+        <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
           <Topbar />
           <div className="mt-3 max-w-6xl mx-auto">
             <h1 className="text-3xl font-black mb-2">Your Stats</h1>
@@ -198,7 +198,7 @@ function StrategyContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
-      <main className="app-ambient flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
         <div className="mt-3 max-w-7xl mx-auto w-full space-y-4">
 
