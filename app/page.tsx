@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 const LIVE_SIGNALS = [
-  { sym:"NVDA", name:"NVIDIA Corp.",    price:"$134.50", sig:"BUY",  conf:"High",   ob:"Bullish OB at $131.20", fvg:"FVG $132–134",   liq:"BSL at $135.80", kz:"NY session"   },
-  { sym:"AAPL", name:"Apple Inc.",      price:"$189.20", sig:"HOLD", conf:"Medium", ob:"Premium zone, no OB",   fvg:"FVG filled $188", liq:"SSL at $186",    kz:"Pre-London"   },
-  { sym:"TSLA", name:"Tesla Inc.",      price:"$178.40", sig:"SELL", conf:"High",   ob:"Bearish OB at $182",    fvg:"FVG $179–181",   liq:"BSL swept $183", kz:"NY AM session"},
-  { sym:"GC",   name:"Gold Futures",   price:"$2,340",  sig:"BUY",  conf:"High",   ob:"Bullish OB $2,325",     fvg:"FVG $2,328–332", liq:"SSL at $2,318",  kz:"London open"  },
-  { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",   liq:"BSL at $420",    kz:"NY session"   },
+  { sym:"NVDA", name:"NVIDIA Corp.",    price:"$134.50", chg:"+2.4%", sig:"BUY",  conf:"High",   ob:"Bullish OB at $131.20", fvg:"FVG $132–134",   liq:"BSL at $135.80", kz:"NY session",    spark:[ 8,14,12,18,16,22,20,28,26,34] },
+  { sym:"AAPL", name:"Apple Inc.",      price:"$189.20", chg:"+0.3%", sig:"HOLD", conf:"Medium", ob:"Premium zone, no OB",   fvg:"FVG filled $188", liq:"SSL at $186",    kz:"Pre-London",    spark:[20,22,19,21,20,23,21,20,22,21] },
+  { sym:"TSLA", name:"Tesla Inc.",      price:"$178.40", chg:"-1.8%", sig:"SELL", conf:"High",   ob:"Bearish OB at $182",    fvg:"FVG $179–181",   liq:"BSL swept $183", kz:"NY AM session", spark:[32,28,30,24,26,20,22,16,18,12] },
+  { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  conf:"High",   ob:"Bullish OB $2,325",     fvg:"FVG $2,328–332", liq:"SSL at $2,318",  kz:"London open",   spark:[10,14,13,18,17,21,24,22,27,30] },
+  { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", chg:"+0.9%", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",   liq:"BSL at $420",    kz:"NY session",    spark:[12,16,14,19,18,17,21,24,23,27] },
 ];
 
 export default function HomePage() {
@@ -70,6 +70,12 @@ export default function HomePage() {
   const sigBorder = signal.sig === "BUY"  ? "border-emerald-500/20"
                   : signal.sig === "SELL" ? "border-rose-500/20"
                   :                         "border-amber-500/20";
+  const sparkStroke = signal.sig === "BUY" ? "var(--buy)" : signal.sig === "SELL" ? "var(--sell)" : "var(--hold)";
+  const sparkPoints = signal.spark.map((v, i) => `${(i * (112 / (signal.spark.length - 1))).toFixed(1)},${40 - v}`).join(" ");
+  const sparkLast   = { x: 112, y: 40 - signal.spark[signal.spark.length - 1] };
+  const confBar     = signal.conf === "High" ? "w-pct-85 bg-emerald-400" : "w-pct-55 bg-amber-400";
+  const confText    = signal.conf === "High" ? "text-emerald-400" : "text-amber-400";
+  const chgColor    = signal.chg.startsWith("-") ? "text-rose-400" : "text-emerald-400";
 
   const NAV_LINKS = [
     { href:"/intelligence", label:"Scanner" },
@@ -144,7 +150,7 @@ export default function HomePage() {
             </p>
 
             <div className="hero-enter hero-enter-4 flex items-center gap-4 flex-wrap mb-4">
-              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
+              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-[var(--glow-accent)] hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
                 {!session && (
                   <svg width="16" height="16" viewBox="0 0 24 24">
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
@@ -225,6 +231,16 @@ export default function HomePage() {
                   </div>
                   <span className={`text-xs font-black px-2.5 py-1 rounded-md border ${sigColor}`}>{signal.sig}</span>
                 </div>
+                <div className="px-5 pt-4 flex items-end justify-between gap-4">
+                  <div className="text-left">
+                    <p className="text-2xl font-mono font-black text-[#F1F5F9] leading-none">{signal.price}</p>
+                    <p className={`text-[11px] font-bold mt-1 ${chgColor}`}>{signal.chg} today</p>
+                  </div>
+                  <svg className="w-28 h-10 shrink-0" viewBox="0 0 116 40" fill="none" aria-hidden="true">
+                    <polyline points={sparkPoints} stroke={sparkStroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <circle cx={sparkLast.x} cy={sparkLast.y} r="2.5" fill={sparkStroke} className="animate-pulse" />
+                  </svg>
+                </div>
                 <div className="px-5 py-4 grid grid-cols-2 gap-x-6 gap-y-3 text-left">
                   {[
                     { label:"Order Block",    value:signal.ob  },
@@ -238,9 +254,12 @@ export default function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div className="px-5 pb-4 flex items-center justify-between border-t border-[#252345] pt-3">
-                  <span className="text-xs text-[#4B5675]">Confidence: <span className={signal.conf === "High" ? "text-emerald-400 font-semibold" : "text-amber-400 font-semibold"}>{signal.conf}</span></span>
-                  <span className="text-xs font-mono font-bold text-[#CBD5E1]">{signal.price}</span>
+                <div className="px-5 pb-4 flex items-center gap-3 border-t border-[#252345] pt-3">
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold">Confidence</span>
+                  <div className="flex-1 h-1.5 rounded-full bg-[#252345] overflow-hidden">
+                    <div className={`h-full rounded-full transition-all duration-500 ${confBar}`} />
+                  </div>
+                  <span className={`text-xs font-bold ${confText}`}>{signal.conf}</span>
                 </div>
               </div>
               <p className="text-[10px] text-[#333368] mt-3 text-center">Demo signal · Not financial advice</p>
@@ -253,13 +272,13 @@ export default function HomePage() {
       <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-10 px-6 sm:px-10 overflow-x-auto">
         <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8">
           {[
-            { value:"< 5s",  label:"AI analysis per ticker",  border:"border-l-emerald-500", num:"text-emerald-400" },
-            { value:"6",     label:"Smart Money concepts",     border:"border-l-cyan-500",    num:"text-cyan-400"   },
-            { value:"8:30",  label:"AM ET daily briefing",     border:"border-l-violet-500",  num:"text-violet-400" },
-            { value:"$5",    label:"Per month, full access",   border:"border-l-amber-500",   num:"text-amber-400"  },
+            { value:"< 5s",  label:"AI analysis per ticker"  },
+            { value:"6",     label:"Smart Money concepts"    },
+            { value:"8:30",  label:"AM ET daily briefing"    },
+            { value:"$5",    label:"Per month, full access"  },
           ].map(s => (
-            <div key={s.label} className={`pl-4 border-l-2 ${s.border}`}>
-              <p className={`text-3xl font-black ${s.num}`}>{s.value}</p>
+            <div key={s.label} className="pl-4 border-l-2 border-l-[var(--accent)]">
+              <p className="text-3xl font-black text-[var(--accent)]">{s.value}</p>
               <p className="text-xs text-[#4B5675] mt-1.5 leading-snug">{s.label}</p>
             </div>
           ))}

@@ -488,7 +488,7 @@ function OptionsPlaysSection() {
               </div>
 
               {/* Price + change — same as watchlist */}
-              <p className={`text-xl font-bold font-mono ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              <p className="text-xl font-bold font-mono text-[#F1F5F9]">
                 ${p.price.toFixed(2)}
               </p>
               <p className={`text-xs mt-1 font-medium font-mono ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
@@ -500,18 +500,18 @@ function OptionsPlaysSection() {
                 p.play === "CALLS" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
               }`}>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Strike</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Strike</span>
                   <span className="font-bold text-amber-400">{p.strike}</span>
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
                   <span className="font-bold text-[#F1F5F9]">{p.entryZone}</span>
                   {p.premiumEst && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="font-bold text-violet-400">{p.premiumEst}</span></>}
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
                   <span className="font-bold text-emerald-400">{p.target}</span>
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
                   <span className="font-bold text-rose-400">{p.stop}</span>
                   <span className="ml-auto text-[8px] text-[#4B5675]">{p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}</span>
                 </div>
@@ -523,7 +523,7 @@ function OptionsPlaysSection() {
                   type="button"
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyClaudePrompt(p); }}
                   title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                  className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                  className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                 >
                   {copiedSymbol === p.symbol ? "Copied!" : "Send to Claude →"}
                 </button>
@@ -1115,7 +1115,7 @@ function DashboardContent() {
                 </button>
               )}
               {notifPermission === "denied" && (
-                <span className="flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 text-rose-400 px-3 py-1.5 rounded-xl text-xs font-medium">Alerts Blocked</span>
+                <span title="Browser notifications are blocked — enable them in your browser settings to receive alerts" className="flex items-center gap-2 bg-[#1A1838] border border-[#252345] text-[#4B5675] px-3 py-1.5 rounded-xl text-xs font-medium">Alerts blocked</span>
               )}
             </div>
             </div>
@@ -1224,8 +1224,12 @@ function DashboardContent() {
                           })()}
                         </svg>
                       ) : (
-                        <div className="w-full h-[110px] flex items-center justify-center">
-                          <p className="text-xs text-[#333368]">Chart appears after first closed trade</p>
+                        <div className="w-full h-[110px] relative flex flex-col items-center justify-center gap-1.5">
+                          <svg className="absolute inset-x-0 bottom-2 w-full h-12 opacity-40" viewBox="0 0 300 48" fill="none" preserveAspectRatio="none" aria-hidden="true">
+                            <path d="M0 40 C40 38, 60 30, 90 32 S150 20, 180 24 S250 10, 300 14" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="4 5" strokeLinecap="round" />
+                          </svg>
+                          <p className="text-xs font-medium text-[#4B5675]">No closed trades yet</p>
+                          <p className="text-[11px] text-[#333368]">Fill your first paper trade and your equity curve starts here</p>
                         </div>
                       )}
                     </div>
@@ -1250,22 +1254,6 @@ function DashboardContent() {
               );
             })()}
 
-            {/* Stats — full width */}
-            <div className="lg:col-span-3">
-            <div className="reveal stagger-container grid grid-cols-3 gap-3 lg:gap-5">
-              {[
-                { label: "Buy Signals",  value: buyCount.toString(),  color: "text-emerald-400" },
-                { label: "Hold Signals", value: holdCount.toString(), color: "text-amber-400" },
-                { label: "Sell Signals", value: sellCount.toString(), color: "text-rose-400" },
-              ].map((s) => (
-                <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4 lg:px-6 lg:py-5">
-                  <p className="text-xs lg:text-sm text-[#4B5675] font-medium uppercase tracking-wider">{s.label}</p>
-                  <p className={`num-reveal text-2xl lg:text-3xl font-bold mt-2 lg:mt-3 font-mono ${s.color}`}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-            </div>{/* /Stats col-span-3 */}
-
             {/* ── Section divider: Market ── */}
             <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
               <div className="flex-1 h-px bg-[#252345]" />
@@ -1276,12 +1264,23 @@ function DashboardContent() {
             {/* Watchlist — full width */}
             <div className="order-4 lg:order-none lg:col-span-3">
               <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
                   <span className="text-[10px] font-mono text-[#333368]">
                     {displayStocks.length}
                     {trendingStocks.length > 0 && <span className="text-teal-400/70"> +{trendingStocks.length}</span>}
                   </span>
+                  <div className="flex items-center gap-1.5 ml-1">
+                    {[
+                      { label: "BUY",  count: buyCount,  cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+                      { label: "HOLD", count: holdCount, cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+                      { label: "SELL", count: sellCount, cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
+                    ].filter(s => s.count > 0).map(s => (
+                      <span key={s.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border font-mono ${s.cls}`}>
+                        {s.count} {s.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {displayStocks.length > 6 && (
@@ -1379,7 +1378,7 @@ function DashboardContent() {
                       {/* Price + change */}
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className={`num-reveal text-2xl font-black font-mono leading-none ${stock.change !== null && stock.change >= 0 ? "price-glow-up" : stock.change !== null ? "price-glow-down" : changeColor(stock.change)}`}>
+                          <p className="num-reveal text-2xl font-black font-mono leading-none text-[#F1F5F9]">
                             {stock.price !== null ? `$${stock.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                           </p>
                           <p className={`text-xs font-medium font-mono mt-0.5 ${changeColor(stock.change)}`}>
@@ -1395,13 +1394,13 @@ function DashboardContent() {
                       {stock.trade && stock.signal !== "HOLD" ? (
                         <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
                             <span className="font-bold text-amber-400">{stock.trade.entryZone}</span>
                             <span className="text-[#4B5675]">·</span>
-                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
                             <span className="font-bold text-rose-400">{stock.trade.stopLoss}</span>
                             <span className="text-[#4B5675]">·</span>
-                            <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
                             <span className="font-bold text-emerald-400">{stock.trade.takeProfit}</span>
                             <span className="ml-auto text-[8px] text-[#4B5675]">{stock.trade.rrRatio}</span>
                           </div>
@@ -1431,7 +1430,7 @@ function DashboardContent() {
                               <Link
                                 href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&side=${stock.signal}&price=${stock.price !== null ? stock.price.toFixed(2) : ""}${stock.trade ? `&stop=${encodeURIComponent(stock.trade.stopLoss)}&target=${encodeURIComponent(stock.trade.takeProfit)}` : ""}`}
                                 onClick={(e) => { e.stopPropagation(); haptic.medium(); }}
-                                className="text-[11px] text-violet-400 hover:text-violet-300 font-medium transition-colors"
+                                className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                               >
                                 Trade →
                               </Link>
@@ -1441,7 +1440,7 @@ function DashboardContent() {
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(stock); }}
                                 title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                                className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                                className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                               >
                                 {copiedSymbol === stock.symbol ? "Copied!" : "Send to Claude →"}
                               </button>
@@ -1629,7 +1628,7 @@ function DashboardContent() {
                       }
                     </div>
                     {/* Price */}
-                    <p className={`text-xl lg:text-2xl font-bold font-mono ${changeColor(f.change)}`}>
+                    <p className="text-xl lg:text-2xl font-bold font-mono text-[#F1F5F9]">
                       {f.price !== null ? `$${f.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
                     </p>
                     <div className="flex items-end justify-between mt-1">
@@ -1642,13 +1641,13 @@ function DashboardContent() {
                     {f.trade && f.signal !== "HOLD" ? (
                       <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Ent</span>
+                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
                           <span className="font-bold text-amber-400">{f.trade.entryZone}</span>
                           <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Stp</span>
+                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
                           <span className="font-bold text-rose-400">{f.trade.stopLoss}</span>
                           <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[7px] text-[#4B5675] uppercase tracking-widest shrink-0">Tgt</span>
+                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
                           <span className="font-bold text-emerald-400">{f.trade.takeProfit}</span>
                           <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{f.trade.rrRatio}</span>
                         </div>
@@ -1671,7 +1670,7 @@ function DashboardContent() {
                             type="button"
                             onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(f); }}
                             title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                            className="text-[11px] text-amber-400 hover:text-amber-300 font-medium transition-colors"
+                            className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                           >
                             {copiedSymbol === f.symbol ? "Copied!" : "Send to Claude →"}
                           </button>

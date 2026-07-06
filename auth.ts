@@ -1,6 +1,9 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import Credentials from "next-auth/providers/credentials";
 import { Resend } from "resend";
+
+const isDev = process.env.NODE_ENV === "development";
 
 function loginEmailHtml(params: {
   name: string;
@@ -210,7 +213,26 @@ function loginEmailHtml(params: {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [Google],
+  providers: [
+    Google,
+    // Local-only sign-in path: Google OAuth can't complete against localhost,
+    // so `next dev` accepts any email directly. Never registered in production builds.
+    ...(isDev
+      ? [
+          Credentials({
+            id: "dev-login",
+            name: "Dev Login (local only)",
+            credentials: { email: { label: "Email" } },
+            authorize(credentials) {
+              const email = typeof credentials?.email === "string" && credentials.email.includes("@")
+                ? credentials.email
+                : "dev@localhost.test";
+              return { id: `dev-${email}`, name: "Dev User", email };
+            },
+          }),
+        ]
+      : []),
+  ],
   // Required on Vercel: trusts the x-forwarded-host header from the edge proxy
   // so OAuth callbacks resolve to the correct production URL instead of localhost.
   trustHost: true,
@@ -236,6 +258,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async signIn({ user, isNewUser }) {
+      if (isDev) return; // don't send real sign-in emails from local dev
       const resendKey = process.env.RESEND_API_KEY;
       if (!resendKey || !user.email) return;
 
