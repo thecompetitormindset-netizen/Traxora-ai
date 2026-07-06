@@ -220,7 +220,33 @@ function markAlertFired(symbol: string, signal: "BUY" | "SELL") {
 
 const PAPER_KEY   = "paper_portfolio_v2";
 const ACCOUNT_KEY = "traxora_planner_account";
+const TAKEN_KEY   = "traxora_taken_trades";
 const PAPER_START = 100_000;
+
+// Trades taken on the /paper page — a separate store from paper_portfolio_v2,
+// synced to Supabase via /api/paper-trades. The portfolio card must reflect
+// both systems or trades closed on /paper never show up here.
+type TakenTradeLite = {
+  signal:      "BUY" | "SELL";
+  entry:       number;
+  shares:      number;
+  status?:     string;
+  closePrice?: number;
+  closedAt?:   number;
+  potential?:  number;
+  riskDollar?: number;
+};
+
+function takenTradePL(t: TakenTradeLite): number {
+  // Mirrors the /paper page: no close price recorded → assume stop/target fill
+  if (t.closePrice == null) return t.status === "WIN" ? (t.potential ?? 0) : -(t.riskDollar ?? 0);
+  return (t.signal === "BUY" ? 1 : -1) * (t.closePrice - t.entry) * t.shares;
+}
+
+function loadTakenTrades(key: string): TakenTradeLite[] {
+  try { return JSON.parse(localStorage.getItem(key) ?? "[]") as TakenTradeLite[]; }
+  catch { return []; }
+}
 
 type PaperStats = {
   accountValue: number;
@@ -544,6 +570,7 @@ function DashboardContent() {
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
   const [portfolioTrades, setPortfolioTrades] = useState<PaperTrade[]>([]);
+  const [takenTrades, setTakenTrades]         = useState<TakenTradeLite[]>([]);
 
   const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(() =>
     typeof window !== "undefined" ? loadCustomWatchlist() : DEFAULT_WATCHLIST
@@ -588,13 +615,26 @@ function DashboardContent() {
   const [showAllFutures, setShowAllFutures] = useState(false);
 
   useEffect(() => {
-    const key     = scopedKey(PAPER_KEY);
-    const acctKey = scopedKey(ACCOUNT_KEY);
+    const key      = scopedKey(PAPER_KEY);
+    const acctKey  = scopedKey(ACCOUNT_KEY);
+    const takenKey = scopedKey(TAKEN_KEY);
     const refresh = () => {
       setPaperStats(loadPaperStats(key, acctKey));
       setPortfolioTrades(loadTrades());
+      setTakenTrades(loadTakenTrades(takenKey));
     };
     refresh();
+    // Cross-device: trades taken on /paper sync through Supabase — pull them
+    // so a trade closed on the phone shows up in this card on desktop too.
+    fetch("/api/paper-trades")
+      .then(r => (r.ok ? r.json() : null))
+      .then((data: { trades?: TakenTradeLite[] } | null) => {
+        if (data && Array.isArray(data.trades) && data.trades.length > 0) {
+          localStorage.setItem(takenKey, JSON.stringify(data.trades));
+          setTakenTrades(data.trades);
+        }
+      })
+      .catch(() => {});
     window.addEventListener("storage", refresh);
     return () => window.removeEventListener("storage", refresh);
   }, []);
@@ -1147,19 +1187,31 @@ function DashboardContent() {
 
             {/* ── PORTFOLIO HERO ── */}
             {(() => {
-              const closed = portfolioTrades
+              // Merge closed trades from BOTH paper systems: the portfolio
+              // store (paper_portfolio_v2) and trades closed on /paper.
+              const closedA = portfolioTrades
                 .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
-                .sort((a, b) => new Date(a.exitDate!).getTime() - new Date(b.exitDate!).getTime());
+                .map(t => ({ time: new Date(t.exitDate!).getTime(), pl: calcPL(t, t.exitPrice!) }));
+              const closedB = takenTrades
+                .filter(t => t.status === "WIN" || t.status === "LOSS")
+                .map(t => ({ time: t.closedAt ?? 0, pl: takenTradePL(t) }));
+              const events = [...closedA, ...closedB].sort((a, b) => a.time - b.time);
 
               // Build equity curve: cumulative account value after each closed trade
               const curve: number[] = [STARTING_CAPITAL];
               let running = STARTING_CAPITAL;
-              for (const t of closed) {
-                running += calcPL(t, t.exitPrice!);
+              for (const e of events) {
+                running += e.pl;
                 curve.push(running);
               }
 
-              const totalPL = paperStats.realizedPL;
+              const takenPL      = closedB.reduce((s, e) => s + e.pl, 0);
+              const totalPL      = paperStats.realizedPL + takenPL;
+              const accountValue = paperStats.accountValue + takenPL;
+              const openCount    = paperStats.openCount + takenTrades.filter(t => t.status === "OPEN").length;
+              const closedCount  = events.length;
+              const winCount     = events.filter(e => e.pl > 0).length;
+              const winRate      = closedCount > 0 ? Math.round((winCount / closedCount) * 100) : null;
               const totalPct = (totalPL / STARTING_CAPITAL) * 100;
               const isUp = totalPL >= 0;
               const color = isUp ? "#34D399" : "#F87171";
@@ -1174,7 +1226,7 @@ function DashboardContent() {
                       <div>
                         <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">Paper Portfolio</p>
                         <p className="text-3xl lg:text-4xl font-black tracking-tight text-[var(--text-primary,#F1F5F9)] tabular-nums leading-none">
-                          ${paperStats.accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ${accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </p>
                         <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
                           <span className="text-sm font-bold tabular-nums">{isUp ? "+" : ""}{totalPL.toFixed(2)}</span>
@@ -1237,10 +1289,10 @@ function DashboardContent() {
                     {/* Stats row */}
                     <div className="grid grid-cols-4 gap-3 px-5 lg:px-6 py-4 border-t border-[#252345]">
                       {[
-                        { label: "Open",     value: String(paperStats.openCount),                                                         color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Closed",   value: String(paperStats.closedCount),                                                       color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Win Rate", value: paperStats.winRate != null ? `${paperStats.winRate}%` : "—",                          color: paperStats.winRate != null ? (paperStats.winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
-                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`,                        color: isUp ? "text-emerald-400" : "text-rose-400" },
+                        { label: "Open",     value: String(openCount),                                       color: "text-[var(--text-primary,#F1F5F9)]" },
+                        { label: "Closed",   value: String(closedCount),                                     color: "text-[var(--text-primary,#F1F5F9)]" },
+                        { label: "Win Rate", value: winRate != null ? `${winRate}%` : "—",                   color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
+                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`, color: isUp ? "text-emerald-400" : "text-rose-400" },
                       ].map(s => (
                         <div key={s.label}>
                           <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
