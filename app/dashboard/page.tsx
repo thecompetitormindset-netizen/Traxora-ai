@@ -564,6 +564,83 @@ function OptionsPlaysSection() {
   );
 }
 
+// ── Value Picks Mini Card ─────────────────────────────────────────────────────
+
+const MINI_PICKS = [
+  { symbol: "PFE",  name: "Pfizer",       pe: "~11x", metaKey: "Div", metric: "6.5%" },
+  { symbol: "DVN",  name: "Devon Energy", pe: "~7x",  metaKey: "FCF",  metric: "4.2%" },
+  { symbol: "VZ",   name: "Verizon",      pe: "~9x",  metaKey: "Div", metric: "6.5%" },
+];
+
+function ValuePicksMini() {
+  const [quotes, setQuotes] = useState<Record<string, { price: number; change: number }>>({});
+
+  useEffect(() => {
+    Promise.allSettled(
+      MINI_PICKS.map(p =>
+        fetch(`/api/quote?symbol=${encodeURIComponent(p.symbol + ".US")}`)
+          .then(r => r.ok ? r.json() : null)
+          .then(d => ({ symbol: p.symbol, price: d?.price ?? null, prev: d?.previousClose ?? null }))
+      )
+    ).then(results => {
+      const map: Record<string, { price: number; change: number }> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value?.price) {
+          const { symbol, price, prev } = r.value;
+          map[symbol] = { price, change: prev ? ((price - prev) / prev) * 100 : 0 };
+        }
+      }
+      setQuotes(map);
+    });
+  }, []);
+
+  return (
+    <div className="lg:col-span-3">
+      <div className="glass surface-sheen rounded-2xl border border-sky-500/15 p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-0.5">Undervalued Picks</p>
+            <p className="text-xs text-[#7B8DB4]">Top value opportunities — low P/E, high yield</p>
+          </div>
+          <Link href="/intelligence?section=value"
+            className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold transition-colors shrink-0">
+            See all 8 →
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {MINI_PICKS.map(p => {
+            const q = quotes[p.symbol];
+            const up = (q?.change ?? 0) >= 0;
+            return (
+              <div key={p.symbol} className="bg-[#0D0B1A] rounded-xl border border-[#252345] border-l-2 border-l-sky-500/40 px-3.5 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-black font-mono text-sm text-[#F1F5F9]">{p.symbol}</p>
+                  <p className="text-[9px] text-[#4B5675] truncate">{p.name}</p>
+                  <div className="flex gap-2 mt-1">
+                    <span className="text-[9px] font-mono text-[#4B5675]">P/E <span className="text-sky-400 font-bold">{p.pe}</span></span>
+                    <span className="text-[9px] font-mono text-[#4B5675]">{p.metaKey} <span className="text-sky-400 font-bold">{p.metric}</span></span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  {q
+                    ? <>
+                        <p className="text-sm font-black font-mono text-[#F1F5F9]">${q.price.toFixed(2)}</p>
+                        <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                          {up ? "+" : ""}{q.change.toFixed(2)}%
+                        </p>
+                      </>
+                    : <p className="text-sm text-[#4B5675] animate-pulse">—</p>
+                  }
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DashboardContent() {
   const router = useRouter();
   const [paperStats, setPaperStats] = useState<PaperStats>({
@@ -1305,6 +1382,9 @@ function DashboardContent() {
                 </div>
               );
             })()}
+
+            {/* ── Value Picks mini-card ── */}
+            <ValuePicksMini />
 
             {/* ── Section divider: Market ── */}
             <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">

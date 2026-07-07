@@ -392,18 +392,158 @@ function FuturesPanel() {
   );
 }
 
+// ── Value Picks ───────────────────────────────────────────────────────────────
+
+type ValuePick = {
+  symbol:   string;
+  name:     string;
+  sector:   string;
+  pe:       string;
+  metric:   string;
+  metaKey:  string;
+  why:      string;
+};
+
+const VALUE_PICKS: ValuePick[] = [
+  { symbol: "PFE",  name: "Pfizer",           sector: "Healthcare",  pe: "~11x",  metric: "6.5%",  metaKey: "Div Yield", why: "Trading at multi-year lows after COVID windfall ended. Pipeline re-rated too harshly — oncology acquisitions add long-term upside at current price." },
+  { symbol: "INTC", name: "Intel",             sector: "Technology",  pe: "~13x",  metric: "0.8x",  metaKey: "P/B",       why: "Near book value with CHIPS Act fabrication subsidies providing a floor. Foundry turnaround is slow but the margin of safety at this price is significant." },
+  { symbol: "DVN",  name: "Devon Energy",      sector: "Energy",      pe: "~7x",   metric: "4.2%",  metaKey: "FCF Yield", why: "Deeply discounted against oil sector peers. Variable dividend model returns cash efficiently. Strong balance sheet with minimal debt." },
+  { symbol: "KEY",  name: "KeyCorp",           sector: "Financials",  pe: "~10x",  metric: "0.9x",  metaKey: "P/B",       why: "Regional bank trading below book value. Rate cycle pressures are fading — NIM expansion likely as deposit costs normalize in 2025–26." },
+  { symbol: "CSCO", name: "Cisco Systems",     sector: "Technology",  pe: "~13x",  metric: "3.2%",  metaKey: "Div Yield", why: "Mature but still growing. AI infrastructure spending boosts networking demand. Strong FCF and a growing security/software recurring revenue base." },
+  { symbol: "MO",   name: "Altria Group",      sector: "Consumer",    pe: "~9x",   metric: "8.4%",  metaKey: "Div Yield", why: "Priced for a decline that has been slower than feared. Pricing power sustains margins; on! nicotine pouch growth partially offsets cigarette volume decline." },
+  { symbol: "VZ",   name: "Verizon",           sector: "Telecom",     pe: "~9x",   metric: "6.5%",  metaKey: "Div Yield", why: "Bond-like income at a steep equity discount. Spectrum value understated on the balance sheet. 5G capex cycle is peaking — FCF set to rise." },
+  { symbol: "WBA",  name: "Walgreens",         sector: "Retail",      pe: "N/A",   metric: "~0.05x",metaKey: "P/S",       why: "Deep restructuring story — store closures cutting costs, VillageMD exit reducing losses. Pharmacy services are sticky; market pricing in worst case." },
+];
+
+type LiveQuote = { price: number; change: number };
+
+function ValuePicksPanel() {
+  const [quotes,  setQuotes]  = useState<Record<string, LiveQuote>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAll() {
+      setLoading(true);
+      const results = await Promise.allSettled(
+        VALUE_PICKS.map(p =>
+          fetch(`/api/quote?symbol=${encodeURIComponent(p.symbol + ".US")}`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => ({ symbol: p.symbol, price: d?.price ?? null, prev: d?.previousClose ?? null }))
+        )
+      );
+      const map: Record<string, LiveQuote> = {};
+      for (const r of results) {
+        if (r.status === "fulfilled" && r.value.price) {
+          const { symbol, price, prev } = r.value;
+          const change = price && prev ? ((price - prev) / prev) * 100 : 0;
+          map[symbol] = { price, change };
+        }
+      }
+      setQuotes(map);
+      setLoading(false);
+    }
+    fetchAll();
+  }, []);
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+        <div>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Undervalued Picks</h2>
+          <p className="text-xs text-[#4B5675] mt-0.5">8 stocks trading below intrinsic value — live prices, fundamental rationale</p>
+        </div>
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span className="text-[10px] text-amber-300/80 font-medium">Educational only — not financial advice</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        {VALUE_PICKS.map((p) => {
+          const q = quotes[p.symbol];
+          const up = (q?.change ?? 0) >= 0;
+          return (
+            <div key={p.symbol}
+              className="bg-[#13112A] rounded-2xl border border-[#252345] border-l-2 border-l-sky-500/40 p-5 flex flex-col gap-3 hover:border-[#333368] transition-colors">
+
+              {/* Top row */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="font-black font-mono text-[#F1F5F9] tracking-tight">{p.symbol}</p>
+                  <p className="text-[10px] text-[#4B5675] truncate mt-0.5">{p.name}</p>
+                  <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 mt-1 inline-block">{p.sector}</span>
+                </div>
+                <div className="text-right shrink-0">
+                  {loading && !q
+                    ? <div className="h-5 w-16 bg-[#252345] rounded animate-pulse mb-1" />
+                    : q
+                    ? <>
+                        <p className="text-lg font-black font-mono text-[#F1F5F9]">${q.price.toFixed(2)}</p>
+                        <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                          {up ? "+" : ""}{q.change.toFixed(2)}%
+                        </p>
+                      </>
+                    : <p className="text-sm text-[#4B5675]">—</p>
+                  }
+                </div>
+              </div>
+
+              {/* Key metrics */}
+              <div className="flex gap-3">
+                <div className="flex-1 bg-[#0D0B1A] rounded-lg px-2.5 py-2 text-center">
+                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">P/E</p>
+                  <p className="text-xs font-black font-mono text-sky-400">{p.pe}</p>
+                </div>
+                <div className="flex-1 bg-[#0D0B1A] rounded-lg px-2.5 py-2 text-center">
+                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{p.metaKey}</p>
+                  <p className="text-xs font-black font-mono text-sky-400">{p.metric}</p>
+                </div>
+              </div>
+
+              {/* Why undervalued */}
+              <p className="text-[10px] text-[#7B8DB4] leading-relaxed line-clamp-3">{p.why}</p>
+
+              {/* Actions */}
+              <div className="flex items-center gap-3 mt-auto pt-1 border-t border-[#252345]">
+                <Link
+                  href={`/analysis?symbol=${encodeURIComponent(p.symbol + ".US")}`}
+                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+                >
+                  Analyse →
+                </Link>
+                <Link
+                  href={`/paper?symbol=${encodeURIComponent(p.symbol)}`}
+                  className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/25 hover:bg-sky-500/20 transition-colors"
+                >
+                  Paper Trade
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer note */}
+      <p className="text-[10px] text-[#333368] mt-4 leading-relaxed">
+        Fundamentals sourced from analyst consensus data as of mid-2025. P/E and yield figures are approximate — verify with latest filings before trading. These picks represent sectors historically discounted to fair value, not guaranteed outperformers.
+      </p>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section = "options" | "futures" | "analyze" | "chain" | "calculator" | "flow";
+type Section = "options" | "futures" | "analyze" | "chain" | "calculator" | "flow" | "value";
 
-const SECTION_TABS = ["options", "futures", "flow", "chain", "calculator", "analyze"] as const satisfies readonly Section[];
+const SECTION_TABS = ["options", "futures", "flow", "chain", "calculator", "analyze", "value"] as const satisfies readonly Section[];
 
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
   const [section, setSection] = useState<Section>(() => {
     const s = params.get("section");
-    return (s === "futures" || s === "analyze" || s === "options" || s === "chain" || s === "flow" || s === "calculator") ? s as Section : "options";
+    return (s === "futures" || s === "analyze" || s === "options" || s === "chain" || s === "flow" || s === "calculator" || s === "value") ? s as Section : "options";
   });
 
   useSwipeTabs(SECTION_TABS, section, setSection);
@@ -420,7 +560,7 @@ function IntelligenceContent() {
         </div>
 
         {/* Section tabs */}
-        <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs mb-6 w-fit">
+        <div className="flex flex-wrap gap-1 bg-[#1A1838] rounded-xl p-1 text-xs mb-6 w-fit">
           {([
             ["options",     "📊 Options Plays"],
             ["futures",     "⚡ Futures"],
@@ -428,9 +568,10 @@ function IntelligenceContent() {
             ["chain",       "⛓️ Chain"],
             ["calculator",  "💹 P&L"],
             ["analyze",     "🔍 Analyze"],
+            ["value",       "💎 Value"],
           ] as [Section, string][]).map(([id, label]) => (
             <button key={id} type="button" onClick={() => setSection(id)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${section === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
+              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${section === id ? (id === "value" ? "bg-sky-600 text-white" : "bg-violet-600 text-white") : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
               {label}
             </button>
           ))}
@@ -456,6 +597,11 @@ function IntelligenceContent() {
         {section === "analyze"  && (
           <div className="max-w-7xl mx-auto">
             <OptionsTab initialSymbol={initSym} />
+          </div>
+        )}
+        {section === "value" && (
+          <div className="max-w-7xl mx-auto">
+            <ValuePicksPanel />
           </div>
         )}
       </main>
