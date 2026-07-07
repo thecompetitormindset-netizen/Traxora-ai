@@ -566,7 +566,7 @@ function OptionsPlaysSection() {
 
 // ── Value Picks Mini Card ─────────────────────────────────────────────────────
 
-type MiniValueStock = { symbol: string; name: string; price: number | null; changePct: number | null; pe: number | null; divYield: number | null; score: number; isDip: boolean };
+type MiniValueStock = { symbol: string; name: string; price: number | null; changePct: number | null; pe: number | null; divYield: number | null; marketCap?: number | null; score: number; isDip: boolean };
 
 function ValuePicksMini() {
   const [picks,   setPicks]   = useState<MiniValueStock[]>([]);

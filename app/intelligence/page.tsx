@@ -395,18 +395,17 @@ function FuturesPanel() {
 // ── Value Picks ───────────────────────────────────────────────────────────────
 
 type ValueStock = {
-  symbol:       string;
-  name:         string;
-  price:        number | null;
-  changePct:    number | null;
-  pe:           number | null;
-  forwardPe:    number | null;
-  pb:           number | null;
-  divYield:     number | null;
-  debtToEquity: number | null;
-  epsGrowth:    number | null;
-  score:        number;
-  isDip:        boolean;
+  symbol:    string;
+  name:      string;
+  price:     number | null;
+  changePct: number | null;
+  pe:        number | null;
+  forwardPe: number | null;
+  pb:        number | null;
+  divYield:  number | null;
+  marketCap: number | null;
+  score:     number;
+  isDip:     boolean;
 };
 
 type ScanResult = { valuePicks: ValueStock[]; dipAlerts: ValueStock[]; scanned: number; updatedAt: string };
@@ -460,10 +459,10 @@ function ValueCard({ s, isDip }: { s: ValueStock; isDip: boolean }) {
       {/* Metric chips */}
       <div className="grid grid-cols-2 gap-1.5">
         {[
-          { label: "P/E",      value: s.pe         !== null ? `${s.pe.toFixed(1)}x`          : "—" },
-          { label: "Fwd P/E",  value: s.forwardPe  !== null ? `${s.forwardPe.toFixed(1)}x`   : "—" },
-          { label: "P/B",      value: s.pb         !== null ? `${s.pb.toFixed(2)}x`           : "—" },
-          { label: "Div Yield",value: s.divYield   !== null ? `${s.divYield.toFixed(1)}%`     : "—" },
+          { label: "P/E",       value: s.pe        !== null ? `${s.pe.toFixed(1)}x`        : "—" },
+          { label: "Fwd P/E",   value: s.forwardPe !== null ? `${s.forwardPe.toFixed(1)}x` : "—" },
+          { label: "P/B",       value: s.pb        !== null ? `${s.pb.toFixed(2)}x`        : "—" },
+          { label: "Div Yield", value: s.divYield  !== null ? `${s.divYield.toFixed(1)}%`  : "—" },
         ].map(({ label, value }) => (
           <div key={label} className="bg-[#0D0B1A] rounded-lg px-2 py-1.5 text-center">
             <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">{label}</p>
@@ -471,6 +470,9 @@ function ValueCard({ s, isDip }: { s: ValueStock; isDip: boolean }) {
           </div>
         ))}
       </div>
+      {s.marketCap !== null && (
+        <p className="text-[9px] text-[#4B5675]">Mkt cap <span className="text-[#7B8DB4] font-medium">${s.marketCap >= 1000 ? `${(s.marketCap/1000).toFixed(1)}T` : `${s.marketCap.toFixed(0)}B`}</span></p>
+      )}
 
       <ScoreBar score={s.score} />
 
@@ -597,7 +599,7 @@ function ValuePicksPanel() {
           )}
 
           <p className="text-[10px] text-[#333368] mt-4">
-            Score 0–10: P/E {"<"} 10 (+3), P/E 10–15 (+2), Fwd P/E {"<"} 12 (+2), P/B {"<"} 1 (+2), Div yield ≥5% (+2), yield ≥3% (+1), D/E {"<"} 1 (+1). Fundamentals from Yahoo Finance, cached 4h. Prices refresh every 5 min.
+            ~{data.scanned} stocks scanned via single Yahoo Finance batch call. Score 0–10: P/E {"<"} 10 (+3), P/E 10–15 (+2), Fwd P/E {"<"} 12 (+2), P/B {"<"} 1 (+2), Div yield ≥5% (+2), yield ≥3% (+1). Dip alert = score ≥3 and down ≥4% today. Refreshes every 5 min.
           </p>
         </>
       )}
