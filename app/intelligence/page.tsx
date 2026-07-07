@@ -394,140 +394,213 @@ function FuturesPanel() {
 
 // ── Value Picks ───────────────────────────────────────────────────────────────
 
-type ValuePick = {
-  symbol:   string;
-  name:     string;
-  sector:   string;
-  pe:       string;
-  metric:   string;
-  metaKey:  string;
-  why:      string;
+type ValueStock = {
+  symbol:       string;
+  name:         string;
+  price:        number | null;
+  changePct:    number | null;
+  pe:           number | null;
+  forwardPe:    number | null;
+  pb:           number | null;
+  divYield:     number | null;
+  debtToEquity: number | null;
+  epsGrowth:    number | null;
+  score:        number;
+  isDip:        boolean;
 };
 
-const VALUE_PICKS: ValuePick[] = [
-  { symbol: "PFE",  name: "Pfizer",           sector: "Healthcare",  pe: "~11x",  metric: "6.5%",  metaKey: "Div Yield", why: "Trading at multi-year lows after COVID windfall ended. Pipeline re-rated too harshly — oncology acquisitions add long-term upside at current price." },
-  { symbol: "INTC", name: "Intel",             sector: "Technology",  pe: "~13x",  metric: "0.8x",  metaKey: "P/B",       why: "Near book value with CHIPS Act fabrication subsidies providing a floor. Foundry turnaround is slow but the margin of safety at this price is significant." },
-  { symbol: "DVN",  name: "Devon Energy",      sector: "Energy",      pe: "~7x",   metric: "4.2%",  metaKey: "FCF Yield", why: "Deeply discounted against oil sector peers. Variable dividend model returns cash efficiently. Strong balance sheet with minimal debt." },
-  { symbol: "KEY",  name: "KeyCorp",           sector: "Financials",  pe: "~10x",  metric: "0.9x",  metaKey: "P/B",       why: "Regional bank trading below book value. Rate cycle pressures are fading — NIM expansion likely as deposit costs normalize in 2025–26." },
-  { symbol: "CSCO", name: "Cisco Systems",     sector: "Technology",  pe: "~13x",  metric: "3.2%",  metaKey: "Div Yield", why: "Mature but still growing. AI infrastructure spending boosts networking demand. Strong FCF and a growing security/software recurring revenue base." },
-  { symbol: "MO",   name: "Altria Group",      sector: "Consumer",    pe: "~9x",   metric: "8.4%",  metaKey: "Div Yield", why: "Priced for a decline that has been slower than feared. Pricing power sustains margins; on! nicotine pouch growth partially offsets cigarette volume decline." },
-  { symbol: "VZ",   name: "Verizon",           sector: "Telecom",     pe: "~9x",   metric: "6.5%",  metaKey: "Div Yield", why: "Bond-like income at a steep equity discount. Spectrum value understated on the balance sheet. 5G capex cycle is peaking — FCF set to rise." },
-  { symbol: "WBA",  name: "Walgreens",         sector: "Retail",      pe: "N/A",   metric: "~0.05x",metaKey: "P/S",       why: "Deep restructuring story — store closures cutting costs, VillageMD exit reducing losses. Pharmacy services are sticky; market pricing in worst case." },
-];
+type ScanResult = { valuePicks: ValueStock[]; dipAlerts: ValueStock[]; scanned: number; updatedAt: string };
 
-type LiveQuote = { price: number; change: number };
+function ScoreBar({ score }: { score: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-0.5">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className={`w-1.5 h-2.5 rounded-sm ${i < score ? "bg-sky-400" : "bg-[#252345]"}`} />
+        ))}
+      </div>
+      <span className="text-[9px] font-bold font-mono text-sky-400">{score}/10</span>
+    </div>
+  );
+}
+
+function ValueCard({ s, isDip }: { s: ValueStock; isDip: boolean }) {
+  const up = (s.changePct ?? 0) >= 0;
+  return (
+    <div className={`bg-[#13112A] rounded-2xl border-l-2 p-5 flex flex-col gap-3 transition-colors hover:border-[#333368] ${
+      isDip
+        ? "border border-amber-500/30 border-l-amber-400"
+        : "border border-[#252345] border-l-sky-500/40"
+    }`}>
+      {isDip && (
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500/10 border border-amber-500/25 w-fit">
+          <span className="text-amber-400 text-[9px] font-black">DIP ALERT</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-amber-400"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-black font-mono text-[#F1F5F9] tracking-tight">{s.symbol}</p>
+          <p className="text-[10px] text-[#4B5675] truncate mt-0.5">{s.name || s.symbol}</p>
+        </div>
+        <div className="text-right shrink-0">
+          {s.price !== null
+            ? <>
+                <p className="text-lg font-black font-mono text-[#F1F5F9]">${s.price.toFixed(2)}</p>
+                <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                  {up ? "+" : ""}{(s.changePct ?? 0).toFixed(2)}%
+                </p>
+              </>
+            : <p className="text-sm text-[#4B5675] animate-pulse">—</p>
+          }
+        </div>
+      </div>
+
+      {/* Metric chips */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {[
+          { label: "P/E",      value: s.pe         !== null ? `${s.pe.toFixed(1)}x`          : "—" },
+          { label: "Fwd P/E",  value: s.forwardPe  !== null ? `${s.forwardPe.toFixed(1)}x`   : "—" },
+          { label: "P/B",      value: s.pb         !== null ? `${s.pb.toFixed(2)}x`           : "—" },
+          { label: "Div Yield",value: s.divYield   !== null ? `${s.divYield.toFixed(1)}%`     : "—" },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-[#0D0B1A] rounded-lg px-2 py-1.5 text-center">
+            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest">{label}</p>
+            <p className="text-[11px] font-black font-mono text-sky-400">{value}</p>
+          </div>
+        ))}
+      </div>
+
+      <ScoreBar score={s.score} />
+
+      <div className="flex items-center gap-2 mt-auto pt-1 border-t border-[#252345]">
+        <Link
+          href={`/analysis?symbol=${encodeURIComponent(s.symbol + ".US")}`}
+          className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
+        >
+          Analyse →
+        </Link>
+        <Link
+          href={`/paper?symbol=${encodeURIComponent(s.symbol)}`}
+          className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/25 hover:bg-sky-500/20 transition-colors"
+        >
+          Paper Trade
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 function ValuePicksPanel() {
-  const [quotes,  setQuotes]  = useState<Record<string, LiveQuote>>({});
+  const [data,    setData]    = useState<ScanResult | null>(null);
   const [loading, setLoading] = useState(true);
+  const [err,     setErr]     = useState<string | null>(null);
+  const [lastScan,setLastScan]= useState<Date | null>(null);
+
+  const scan = useCallback(async () => {
+    setLoading(true); setErr(null);
+    try {
+      const res = await fetch("/api/market/value-scan", { cache: "no-store" });
+      if (!res.ok) { setErr(`Scan failed (${res.status})`); return; }
+      const d: ScanResult = await res.json();
+      setData(d);
+      setLastScan(new Date());
+    } catch { setErr("Network error — try again"); }
+    finally { setLoading(false); }
+  }, []);
 
   useEffect(() => {
-    async function fetchAll() {
-      setLoading(true);
-      const results = await Promise.allSettled(
-        VALUE_PICKS.map(p =>
-          fetch(`/api/quote?symbol=${encodeURIComponent(p.symbol + ".US")}`)
-            .then(r => r.ok ? r.json() : null)
-            .then(d => ({ symbol: p.symbol, price: d?.price ?? null, prev: d?.previousClose ?? null }))
-        )
-      );
-      const map: Record<string, LiveQuote> = {};
-      for (const r of results) {
-        if (r.status === "fulfilled" && r.value.price) {
-          const { symbol, price, prev } = r.value;
-          const change = price && prev ? ((price - prev) / prev) * 100 : 0;
-          map[symbol] = { price, change };
-        }
-      }
-      setQuotes(map);
-      setLoading(false);
-    }
-    fetchAll();
-  }, []);
+    scan();
+    const id = setInterval(scan, 5 * 60 * 1_000);
+    return () => clearInterval(id);
+  }, [scan]);
 
   return (
     <div>
       {/* Header */}
-      <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Undervalued Picks</h2>
-          <p className="text-xs text-[#4B5675] mt-0.5">8 stocks trading below intrinsic value — live prices, fundamental rationale</p>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Live Value Screener</h2>
+          <p className="text-xs text-[#4B5675] mt-0.5">
+            {data
+              ? `${data.scanned} stocks scanned · ${data.valuePicks.length} undervalued · ${data.dipAlerts.length} dip alerts`
+              : "Scanning 30 quality stocks for real-time fundamentals…"}
+            {lastScan && (
+              <span className="text-[#333368] ml-2">
+                · {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            )}
+          </p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
-          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <span className="text-[10px] text-amber-300/80 font-medium">Educational only — not financial advice</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/8 border border-amber-500/20">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span className="text-[10px] text-amber-300/80 font-medium">Educational only · not financial advice</span>
+          </div>
+          <button type="button" onClick={scan} disabled={loading}
+            className="text-xs text-sky-400 hover:text-sky-300 font-medium transition-colors disabled:opacity-40 flex items-center gap-1.5">
+            {loading
+              ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Scanning…</>
+              : "Rescan →"}
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {VALUE_PICKS.map((p) => {
-          const q = quotes[p.symbol];
-          const up = (q?.change ?? 0) >= 0;
-          return (
-            <div key={p.symbol}
-              className="bg-[#13112A] rounded-2xl border border-[#252345] border-l-2 border-l-sky-500/40 p-5 flex flex-col gap-3 hover:border-[#333368] transition-colors">
+      {err && <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 mb-4 text-xs text-rose-400">{err}</div>}
 
-              {/* Top row */}
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-black font-mono text-[#F1F5F9] tracking-tight">{p.symbol}</p>
-                  <p className="text-[10px] text-[#4B5675] truncate mt-0.5">{p.name}</p>
-                  <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-sky-500/10 text-sky-400 border border-sky-500/20 mt-1 inline-block">{p.sector}</span>
-                </div>
-                <div className="text-right shrink-0">
-                  {loading && !q
-                    ? <div className="h-5 w-16 bg-[#252345] rounded animate-pulse mb-1" />
-                    : q
-                    ? <>
-                        <p className="text-lg font-black font-mono text-[#F1F5F9]">${q.price.toFixed(2)}</p>
-                        <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                          {up ? "+" : ""}{q.change.toFixed(2)}%
-                        </p>
-                      </>
-                    : <p className="text-sm text-[#4B5675]">—</p>
-                  }
-                </div>
+      {loading && !data && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 animate-pulse space-y-3">
+              <div className="flex justify-between"><div className="h-4 bg-[#252345] rounded w-12" /><div className="h-5 bg-[#252345] rounded w-16" /></div>
+              <div className="grid grid-cols-2 gap-1.5">{Array.from({length:4}).map((_,j)=><div key={j} className="h-10 bg-[#252345] rounded-lg"/>)}</div>
+              <div className="h-3 bg-[#252345] rounded w-3/4" />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {data && (
+        <>
+          {/* Dip alerts — shown first when present */}
+          {data.dipAlerts.length > 0 && (
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-black text-amber-400 uppercase tracking-widest">Buy the Dip</span>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
+                  {data.dipAlerts.length} alert{data.dipAlerts.length !== 1 ? "s" : ""}
+                </span>
+                <span className="text-[9px] text-[#4B5675]">— strong fundamentals, down ≥4% today</span>
               </div>
-
-              {/* Key metrics */}
-              <div className="flex gap-3">
-                <div className="flex-1 bg-[#0D0B1A] rounded-lg px-2.5 py-2 text-center">
-                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">P/E</p>
-                  <p className="text-xs font-black font-mono text-sky-400">{p.pe}</p>
-                </div>
-                <div className="flex-1 bg-[#0D0B1A] rounded-lg px-2.5 py-2 text-center">
-                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{p.metaKey}</p>
-                  <p className="text-xs font-black font-mono text-sky-400">{p.metric}</p>
-                </div>
-              </div>
-
-              {/* Why undervalued */}
-              <p className="text-[10px] text-[#7B8DB4] leading-relaxed line-clamp-3">{p.why}</p>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 mt-auto pt-1 border-t border-[#252345]">
-                <Link
-                  href={`/analysis?symbol=${encodeURIComponent(p.symbol + ".US")}`}
-                  className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors"
-                >
-                  Analyse →
-                </Link>
-                <Link
-                  href={`/paper?symbol=${encodeURIComponent(p.symbol)}`}
-                  className="ml-auto text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/25 hover:bg-sky-500/20 transition-colors"
-                >
-                  Paper Trade
-                </Link>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {data.dipAlerts.map(s => <ValueCard key={s.symbol} s={s} isDip={true} />)}
               </div>
             </div>
-          );
-        })}
-      </div>
+          )}
 
-      {/* Footer note */}
-      <p className="text-[10px] text-[#333368] mt-4 leading-relaxed">
-        Fundamentals sourced from analyst consensus data as of mid-2025. P/E and yield figures are approximate — verify with latest filings before trading. These picks represent sectors historically discounted to fair value, not guaranteed outperformers.
-      </p>
+          {/* Value picks */}
+          {data.valuePicks.length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-3">Undervalued — live fundamentals</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {data.valuePicks.map(s => <ValueCard key={s.symbol} s={s} isDip={false} />)}
+              </div>
+            </div>
+          )}
+
+          {data.valuePicks.length === 0 && data.dipAlerts.length === 0 && (
+            <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
+              <p className="text-sm font-medium text-[#F1F5F9] mb-1">No clear value opportunities right now</p>
+              <p className="text-xs text-[#4B5675]">Market may be fairly valued across these 30 stocks. Check back when a correction creates entry points.</p>
+            </div>
+          )}
+
+          <p className="text-[10px] text-[#333368] mt-4">
+            Score 0–10: P/E {"<"} 10 (+3), P/E 10–15 (+2), Fwd P/E {"<"} 12 (+2), P/B {"<"} 1 (+2), Div yield ≥5% (+2), yield ≥3% (+1), D/E {"<"} 1 (+1). Fundamentals from Yahoo Finance, cached 4h. Prices refresh every 5 min.
+          </p>
+        </>
+      )}
     </div>
   );
 }
