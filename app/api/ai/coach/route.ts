@@ -68,9 +68,16 @@ export async function POST(req: Request) {
     return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });
   }
 
-  const { trades, wins, losses, winRate } = await req.json();
+  // Two callers, two payloads: AutoCoach sends { trades, wins, losses, winRate },
+  // the strategy page sends those plus a rich { summary } of closed-trade analytics.
+  const body = await req.json().catch(() => ({}));
+  const { trades = [], wins = 0, losses = 0, winRate = 0, summary } = body as {
+    trades?: Array<{ side: string; quantity: number; symbol: string; price: number }>;
+    wins?: number; losses?: number; winRate?: number | string;
+    summary?: Record<string, unknown>;
+  };
 
-  const recent = (trades as Array<{ side: string; quantity: number; symbol: string; price: number }>)
+  const recent = (Array.isArray(trades) ? trades : [])
     .slice(0, 20)
     .map((t) => `${t.side} ${t.quantity}x ${t.symbol.replace(".US", "").replace(".COMM", "")} @$${Number(t.price).toFixed(2)}`)
     .join(" | ");
@@ -101,8 +108,12 @@ GRADING: A = all 7 checklist items, correct model, R:R ≥ 2.5:1 | B = 5–6 ite
 ---
 
 Trader stats:
-- Win Rate: ${winRate}% (${wins}W / ${losses}L, ${wins + losses} total closed trades)
-- Recent trades: ${recent || "no trades yet"}
+- Win Rate: ${winRate}% (${wins}W / ${losses}L, ${Number(wins) + Number(losses)} total closed trades)
+- Recent trades: ${recent || (summary ? "see detailed summary below" : "no trades yet")}
+${summary ? `
+Detailed performance summary (win/loss patterns, per-symbol results, exit discipline, best/worst trades — analyse these for repeated mistakes and coach against them specifically):
+${JSON.stringify(summary)}
+` : ""}
 
 Write exactly this format (no markdown, no asterisks):
 

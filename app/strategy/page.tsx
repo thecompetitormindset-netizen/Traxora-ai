@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import { loadTrades, calcPL, STARTING_CAPITAL, type PaperTrade } from "@/app/lib/paperTrades";
+import { scopedKey, setCurrentUser } from "@/app/lib/userState";
 import PortfolioAllocationChart from "@/app/components/PortfolioAllocationChart";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -74,21 +76,81 @@ function MiniBar({ value, max, color }: { value: number; max: number; color: str
 
 type ClosedTrade = PaperTrade & { exitPrice: number; exitDate: string; pl: number; plPct: number };
 
+// Trades from the /paper planner — a separate, server-synced store. Convert
+// them into the ClosedTrade shape so all analytics cover both systems.
+type TakenTradeLite = {
+  id: string; symbol: string; signal: "BUY" | "SELL";
+  entry: number; stop: number; target: number; shares: number;
+  time: number; note?: string;
+  status?: string; closePrice?: number; closedAt?: number;
+};
+
+function takenToClosed(t: TakenTradeLite): ClosedTrade | null {
+  if (t.status !== "WIN" && t.status !== "LOSS") return null;
+  // No close price recorded → assume the stop/target filled (same as /paper)
+  const exitPrice = t.closePrice ?? (t.status === "WIN" ? t.target : t.stop);
+  if (exitPrice == null || !t.entry || !t.shares) return null;
+  const base: PaperTrade & { exitPrice: number; exitDate: string } = {
+    id:         `taken-${t.id}`,
+    symbol:     t.symbol,
+    direction:  t.signal === "BUY" ? "LONG" : "SHORT",
+    entryPrice: t.entry,
+    shares:     t.shares,
+    stopLoss:   t.stop ?? null,
+    takeProfit: t.target ?? null,
+    entryDate:  new Date(t.time ?? Date.now()).toISOString(),
+    notes:      t.note ?? "",
+    status:     "CLOSED",
+    exitPrice,
+    exitDate:   new Date(t.closedAt ?? t.time ?? Date.now()).toISOString(),
+    exitReason: t.closePrice == null ? (t.status === "WIN" ? "target_hit" : "stop_hit") : "manual",
+  };
+  const pl = calcPL(base, exitPrice);
+  return { ...base, pl, plPct: (pl / (base.entryPrice * base.shares)) * 100 };
+}
+
+function loadTakenLocal(): TakenTradeLite[] {
+  try { return JSON.parse(localStorage.getItem(scopedKey("traxora_taken_trades")) ?? "[]") as TakenTradeLite[]; }
+  catch { return []; }
+}
+
 function StrategyContent() {
   const [trades,  setTrades]  = useState<ClosedTrade[]>([]);
   const [coaching, setCoaching] = useState<string | null>(null);
   const [coachLoading, setCoachLoading] = useState(false);
   const [tab, setTab] = useState<"overview" | "breakdown" | "trades">("overview");
 
+  const { data: session } = useSession();
+
   useEffect(() => {
-    const all = loadTrades();
-    const closed = all
-      .filter((t): t is PaperTrade & { exitPrice: number; exitDate: string } =>
-        t.status === "CLOSED" && t.exitPrice != null && t.exitDate != null)
-      .map(t => ({ ...t, pl: calcPL(t, t.exitPrice), plPct: calcPL(t, t.exitPrice) / (t.entryPrice * t.shares) * 100 }))
-      .sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime());
-    setTrades(closed);
-  }, []);
+    if (session === undefined) return; // wait for session so scoped keys resolve
+    setCurrentUser(session?.user?.email ?? null);
+
+    const build = (taken: TakenTradeLite[]) => {
+      const fromPortfolio = loadTrades()
+        .filter((t): t is PaperTrade & { exitPrice: number; exitDate: string } =>
+          t.status === "CLOSED" && t.exitPrice != null && t.exitDate != null)
+        .map(t => ({ ...t, pl: calcPL(t, t.exitPrice), plPct: calcPL(t, t.exitPrice) / (t.entryPrice * t.shares) * 100 }));
+      const fromPlanner = taken.map(takenToClosed).filter((t): t is ClosedTrade => t !== null);
+      setTrades([...fromPortfolio, ...fromPlanner]
+        .sort((a, b) => new Date(a.exitDate).getTime() - new Date(b.exitDate).getTime()));
+    };
+
+    build(loadTakenLocal());
+    // Cross-device: also pull the /paper planner's server-synced trades
+    fetch("/api/paper-trades")
+      .then(r => (r.ok ? r.json() : null))
+      .then((data: { trades?: TakenTradeLite[] } | null) => {
+        if (!data || !Array.isArray(data.trades) || data.trades.length === 0) return;
+        const byId = new Map<string, TakenTradeLite>(data.trades.map(t => [t.id, t]));
+        for (const t of loadTakenLocal()) {
+          const s = byId.get(t.id);
+          if (!s || (t.closedAt ?? t.time ?? 0) > (s.closedAt ?? s.time ?? 0)) byId.set(t.id, t);
+        }
+        build([...byId.values()]);
+      })
+      .catch(() => {});
+  }, [session]);
 
   // ── Derived stats ─────────────────────────────────────────────────────────
 
@@ -148,21 +210,29 @@ function StrategyContent() {
     if (!trades.length) return;
     setCoachLoading(true);
     try {
+      const exitCounts = { target_hit: 0, stop_hit: 0, manual: 0 };
+      for (const t of trades) exitCounts[t.exitReason ?? "manual"]++;
       const summary = {
         totalTrades: trades.length, winRate: winRate.toFixed(1), profitFactor: profitFactor.toFixed(2),
         avgWin: avgWin.toFixed(2), avgLoss: avgLoss.toFixed(2), maxDrawdown: maxDD.toFixed(1),
         avgHoldDays: avgHold.toFixed(1), totalPL: totalPL.toFixed(2),
         bySymbol: symbolRows.slice(0, 5).map(r => ({ symbol: r.sym, pl: r.pl.toFixed(2), wr: r.wr.toFixed(0), trades: r.count })),
         byDirection: dirStats.map(d => ({ direction: d.label, trades: d.trades.length, wr: d.wr.toFixed(0) })),
-        recentTrades: trades.slice(-5).map(t => ({ symbol: t.symbol, direction: t.direction, pl: t.pl.toFixed(2), exitReason: t.exitReason })),
+        exitDiscipline: exitCounts,
+        bestTrade:  best  ? { symbol: best.symbol,  direction: best.direction,  pl: best.pl.toFixed(2)  } : null,
+        worstTrade: worst ? { symbol: worst.symbol, direction: worst.direction, pl: worst.pl.toFixed(2) } : null,
+        recentTrades: trades.slice(-10).map(t => ({
+          symbol: t.symbol, direction: t.direction, pl: t.pl.toFixed(2), plPct: t.plPct.toFixed(1),
+          exitReason: t.exitReason, entry: t.entryPrice, exit: t.exitPrice,
+        })),
       };
       const res = await fetch("/api/ai/coach", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ summary }),
+        body: JSON.stringify({ wins: wins.length, losses: losses.length, winRate: winRate.toFixed(1), summary }),
       });
       const data = await res.json();
-      setCoaching(data.coaching ?? data.message ?? "No coaching available.");
+      setCoaching(data.report ?? data.coaching ?? data.message ?? "No coaching available.");
     } catch { setCoaching("Coaching unavailable — try again."); }
     finally { setCoachLoading(false); }
   }
@@ -206,7 +276,7 @@ function StrategyContent() {
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
               <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Your Stats</h1>
-              <p className="text-[#7B8DB4] text-sm mt-1">{trades.length} closed trades · account started at $10,000</p>
+              <p className="text-[#7B8DB4] text-sm mt-1">{trades.length} closed trades · account started at ${STARTING_CAPITAL.toLocaleString()}</p>
             </div>
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
               {(["overview", "breakdown", "trades"] as const).map(t => (

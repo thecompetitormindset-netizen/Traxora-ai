@@ -474,13 +474,38 @@ function TradePlannerContent() {
     const raw = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]") as Signal[];
     setSignals(raw.filter(s => s.signal === "BUY" || s.signal === "SELL").slice(0, 12));
     setTaken(loadTaken());
-    // Fetch from server and update if server has data (cross-device sync)
-    fetch("/api/paper-trades").then(r => r.json()).then(data => {
-      if (Array.isArray(data.trades) && data.trades.length > 0) {
-        setTaken(data.trades);
-        saveTaken(data.trades);
-      }
-    }).catch(() => {});
+    // Cross-device sync: merge server trades with local by id, then heal the
+    // server if it's missing anything (trades taken before sync existed, or
+    // saved while the network/POST silently failed). Never blindly replace —
+    // a fresh device pulling an empty server must not erase local history,
+    // and a device with local history must upload it.
+    fetch("/api/paper-trades")
+      .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+      .then((data: { trades?: TakenTrade[] }) => {
+        const server = Array.isArray(data.trades) ? data.trades : [];
+        const local  = loadTaken();
+        const byId   = new Map<string, TakenTrade>(server.map(t => [t.id, t]));
+        let serverBehind = false;
+        for (const t of local) {
+          const s = byId.get(t.id);
+          // Local wins when it progressed further (e.g. closed on this device)
+          if (!s || (t.closedAt ?? t.time ?? 0) > (s.closedAt ?? s.time ?? 0)) {
+            byId.set(t.id, t);
+            serverBehind = true;
+          }
+        }
+        const merged = [...byId.values()].sort((a, b) => (b.time ?? 0) - (a.time ?? 0));
+        setTaken(merged);
+        saveTaken(merged);
+        if (serverBehind) {
+          fetch("/api/paper-trades", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trades: merged }),
+          }).catch(() => {});
+        }
+      })
+      .catch(e => console.warn("[paper] trade sync failed — trades stay on this device until it succeeds:", e));
   }, [session, userEmail]); // re-run once session resolves (catches direct page load)
 
   function handleSelectPlay(p: RecommendedPlay) {
