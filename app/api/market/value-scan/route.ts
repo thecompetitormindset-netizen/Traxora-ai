@@ -4,157 +4,168 @@ export const maxDuration = 30;
 
 import { auth } from "@/auth";
 
-// ── Universe ──────────────────────────────────────────────────────────────────
-// ~150 quality stocks across every sector — large, mid, and some growth names.
-// The actual picks and dip alerts are determined entirely by live fundamentals,
-// not by anything hardcoded here. Add or remove symbols freely.
-const UNIVERSE = [
-  // Mega-cap tech
-  "AAPL","MSFT","GOOGL","META","AMZN","NVDA","ORCL","CRM","ADBE","INTC",
-  "AMD","QCOM","AMAT","MU","TXN","AVGO","IBM","CSCO","NOW","SNOW",
-  // Consumer discretionary
-  "TSLA","WMT","COST","MCD","NKE","TGT","SBUX","HD","LOW","F",
-  "GM","BKNG","EBAY","ETSY","DASH","LYFT","UBER",
-  // Financials — banks, payments, fintech
-  "JPM","BAC","WFC","GS","MS","C","AXP","BLK","SCHW","USB",
-  "KEY","RF","CFG","FITB","HBAN","MTB","ZION","CMA","PYPL","SQ","HOOD",
-  // Healthcare
-  "JNJ","UNH","LLY","ABBV","MRK","PFE","TMO","ABT","BMY","GILD",
-  "CVS","CI","HUM","MDT","SYK","BSX","EW","ISRG",
-  // Energy
-  "XOM","CVX","COP","OXY","SLB","HAL","DVN","MPC","VLO","PSX",
-  "BKR","EOG","HES","FANG",
-  // Consumer staples
-  "PG","KO","PEP","MO","PM","MDLZ","CL","GIS","K","CAG","WBA",
-  // Telecom
-  "VZ","T","TMUS",
-  // Industrials
-  "CAT","BA","HON","GE","RTX","LMT","NOC","DE","MMM","UPS","FDX",
-  // Materials
-  "LIN","APD","FCX","NEM","ALB","CF",
-  // REITs
-  "O","AMT","PLD","CCI","EQIX","SPG","WPC",
-  // Sector ETFs (useful for macro dip alerts)
-  "XLF","XLE","XLK","XLV","XLI",
-  // High-beta / growth (crash harder = better dip alerts)
-  "PLTR","SOFI","RIVN","COIN","RBLX","SNAP","PINS",
-  "SPOT","SHOP","NET","DDOG","ZS","CRWD","S","GTLB",
-];
-
-export type ValueStock = {
-  symbol:       string;
-  name:         string;
-  price:        number | null;
-  changePct:    number | null;
-  pe:           number | null;
-  forwardPe:    number | null;
-  pb:           number | null;
-  divYield:     number | null;  // percent, e.g. 6.5
-  marketCap:    number | null;  // billions
-  score:        number;
-  isDip:        boolean;
-};
+// No hardcoded universe. Yahoo Finance's screener runs against its entire
+// database (~8 000+ US equities). We query predefined screens and let
+// their backend do the filtering across the whole market.
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+export type ValueStock = {
+  symbol:    string;
+  name:      string;
+  price:     number | null;
+  changePct: number | null;
+  pe:        number | null;
+  forwardPe: number | null;
+  pb:        number | null;
+  divYield:  number | null;   // percent, e.g. 6.5
+  marketCap: number | null;   // billions USD
+  sector:    string | null;
+  score:     number;
+  isDip:     boolean;
+};
+
 function scoreStock(s: ValueStock): number {
   let sc = 0;
-  const pe = s.pe;
-  const fp = s.forwardPe;
-  if (pe   !== null && pe   > 0) { if (pe < 10) sc += 3; else if (pe < 15) sc += 2; else if (pe < 20) sc += 1; }
-  if (fp   !== null && fp   > 0) { if (fp < 12) sc += 2; else if (fp < 17) sc += 1; }
-  if (s.pb !== null && s.pb > 0) { if (s.pb < 1) sc += 2; else if (s.pb < 2) sc += 1; }
-  if (s.divYield !== null)        { if (s.divYield >= 5) sc += 2; else if (s.divYield >= 3) sc += 1; }
+  if (s.pe        !== null && s.pe > 0)        { if (s.pe < 10) sc += 3; else if (s.pe < 15) sc += 2; else if (s.pe < 20) sc += 1; }
+  if (s.forwardPe !== null && s.forwardPe > 0) { if (s.forwardPe < 12) sc += 2; else if (s.forwardPe < 17) sc += 1; }
+  if (s.pb        !== null && s.pb > 0)        { if (s.pb < 1) sc += 2; else if (s.pb < 2) sc += 1; }
+  if (s.divYield  !== null)                    { if (s.divYield >= 5) sc += 2; else if (s.divYield >= 3) sc += 1; }
   return Math.min(sc, 10);
+}
+
+// Parse a single Yahoo quote result into our shape
+function parseQuote(q: Record<string, unknown>): ValueStock | null {
+  const sym = q.symbol as string | undefined;
+  if (!sym) return null;
+
+  const num  = (k: string) => (typeof q[k] === "number" ? (q[k] as number) : null);
+  const str  = (k: string) => (typeof q[k] === "string" ? (q[k] as string) : null);
+
+  const price     = num("regularMarketPrice");
+  const changePct = num("regularMarketChangePercent");
+  const pe        = num("trailingPE");
+  const fp        = num("forwardPE");
+  const pb        = num("priceToBook");
+  const mcRaw     = num("marketCap");
+  const yRaw      = num("trailingAnnualDividendYield") ?? num("dividendYield");
+
+  const s: ValueStock = {
+    symbol:    sym,
+    name:      (str("longName") ?? str("shortName") ?? sym),
+    price:     price     !== null ? parseFloat(price.toFixed(2))     : null,
+    changePct: changePct !== null ? parseFloat(changePct.toFixed(2)) : null,
+    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))    : null,
+    forwardPe: fp !== null && fp > 0 ? parseFloat(fp.toFixed(1))    : null,
+    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))    : null,
+    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))  : null,
+    marketCap: mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1)) : null,
+    sector:    str("sector"),
+    score:     0,
+    isDip:     false,
+  };
+  s.score = scoreStock(s);
+  s.isDip = (changePct ?? 0) <= -4 && s.score >= 3;
+  return s;
+}
+
+// Fetch one of Yahoo's predefined screeners — runs against their full market DB
+async function fetchScreen(scrId: string, count = 50): Promise<ValueStock[]> {
+  try {
+    const url =
+      `https://query1.finance.yahoo.com/v1/finance/screener/predefined/${scrId}` +
+      `?formatted=false&lang=en-US&region=US&count=${count}&start=0&fields=` +
+      `regularMarketPrice,regularMarketChangePercent,trailingPE,forwardPE,` +
+      `priceToBook,trailingAnnualDividendYield,dividendYield,marketCap,` +
+      `shortName,longName,sector`;
+
+    const res = await fetch(url, {
+      cache:   "no-store",
+      headers: { "User-Agent": UA, "Accept": "application/json" },
+      signal:  AbortSignal.timeout(12_000),
+    });
+    if (!res.ok) return [];
+
+    const json   = await res.json();
+    const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
+    return quotes.map(parseQuote).filter((s): s is ValueStock => s !== null);
+  } catch { return []; }
+}
+
+// Fetch a custom POST screener query — used for dip detection across entire market
+async function fetchDipScreen(): Promise<ValueStock[]> {
+  try {
+    const body = {
+      offset: 0, size: 100,
+      sortField: "percentchange", sortType: "asc",
+      quoteType: "EQUITY",
+      query: {
+        operator: "and",
+        operands: [
+          // Down at least 4% today
+          { operator: "lt", operands: ["percentchange", -4] },
+          // Profitable (has a PE ratio)
+          { operator: "gt", operands: ["trailingpe",    0]  },
+          // Not penny stock (market cap > $200M)
+          { operator: "gt", operands: ["intradaymarketcap", 200_000_000] },
+        ],
+      },
+      userId: "", userIdType: "guid",
+    };
+
+    const res = await fetch(
+      "https://query2.finance.yahoo.com/v1/finance/screener?lang=en-US&region=US&formatted=false",
+      {
+        method:  "POST",
+        cache:   "no-store",
+        headers: { "User-Agent": UA, "Content-Type": "application/json", "Accept": "application/json" },
+        body:    JSON.stringify(body),
+        signal:  AbortSignal.timeout(12_000),
+      },
+    );
+    if (!res.ok) return [];
+
+    const json   = await res.json();
+    const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
+    return quotes.map(parseQuote).filter((s): s is ValueStock => s !== null);
+  } catch { return []; }
 }
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-  // Single batch call — Yahoo v7 returns price + fundamental fields for all symbols
-  const fields = [
-    "regularMarketPrice",
-    "regularMarketChangePercent",
-    "trailingPE",
-    "forwardPE",
-    "priceToBook",
-    "trailingAnnualDividendYield",
-    "dividendYield",
-    "marketCap",
-    "shortName",
-    "longName",
-  ].join(",");
+  // Run all three screens in parallel
+  const [undervaluedLarge, undervaluedGrowth, dayLosers] = await Promise.all([
+    fetchScreen("undervalued_large_caps",    50),
+    fetchScreen("undervalued_growth_stocks", 50),
+    fetchDipScreen(),
+  ]);
 
-  const symbolsParam = UNIVERSE.join(",");
+  // Merge value picks, deduplicate by symbol, sort by score desc
+  const seen      = new Set<string>();
+  const allValue  = [...undervaluedLarge, ...undervaluedGrowth];
+  const valuePicks: ValueStock[] = [];
+  for (const s of allValue.sort((a, b) => b.score - a.score)) {
+    if (seen.has(s.symbol)) continue;
+    seen.add(s.symbol);
+    valuePicks.push(s);
+    if (valuePicks.length >= 16) break;
+  }
 
-  let raw: Record<string, ValueStock> = {};
+  // Dip alerts — stocks the custom screener found down ≥4% today with earnings
+  const dipSeen   = new Set<string>(valuePicks.map(s => s.symbol));
+  const dipAlerts = dayLosers
+    .filter(s => !dipSeen.has(s.symbol))
+    .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0))
+    .slice(0, 20);
 
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(symbolsParam)}&fields=${encodeURIComponent(fields)}`,
-      {
-        cache:   "no-store",
-        headers: { "User-Agent": UA, "Accept": "application/json" },
-        signal:  AbortSignal.timeout(15_000),
-      },
-    );
-
-    if (res.ok) {
-      const json  = await res.json();
-      const quotes = (json?.quoteResponse?.result ?? []) as Record<string, unknown>[];
-
-      for (const q of quotes) {
-        const sym = q.symbol as string;
-        if (!sym) continue;
-
-        const num = (k: string) =>
-          typeof q[k] === "number" ? (q[k] as number) : null;
-
-        const price     = num("regularMarketPrice");
-        const changePct = num("regularMarketChangePercent");
-        const pe        = num("trailingPE");
-        const fp        = num("forwardPE");
-        const pb        = num("priceToBook");
-        const mcRaw     = num("marketCap");
-        const yieldRaw  = num("trailingAnnualDividendYield") ?? num("dividendYield");
-        const divYield  = yieldRaw !== null ? parseFloat((yieldRaw * 100).toFixed(2)) : null;
-        const name      = (q.longName ?? q.shortName ?? sym) as string;
-        const mcB       = mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1)) : null;
-
-        const s: ValueStock = {
-          symbol:    sym,
-          name,
-          price:     price    !== null ? parseFloat(price.toFixed(2))    : null,
-          changePct: changePct !== null ? parseFloat(changePct.toFixed(2)) : null,
-          pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1)) : null,
-          forwardPe: fp !== null && fp > 0 ? parseFloat(fp.toFixed(1)) : null,
-          pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2)) : null,
-          divYield,
-          marketCap: mcB,
-          score:     0,
-          isDip:     false,
-        };
-        s.score = scoreStock(s);
-        // Dip = down ≥4% today AND has some value quality (score ≥ 3)
-        s.isDip = (changePct ?? 0) <= -4 && s.score >= 3;
-        raw[sym] = s;
-      }
-    }
-  } catch { /* return empty if Yahoo is down */ }
-
-  const all        = Object.values(raw);
-  const dipAlerts  = all.filter(s => s.isDip).sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0));
-  // Value picks: scored ≥ 3, not in dip-alert list, sorted by score desc
-  const valuePicks = all
-    .filter(s => !s.isDip && s.score >= 3)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+  const scanned = undervaluedLarge.length + undervaluedGrowth.length + dayLosers.length;
 
   return Response.json({
     valuePicks,
     dipAlerts,
-    scanned:   all.length,
+    scanned,
     updatedAt: new Date().toISOString(),
   });
 }

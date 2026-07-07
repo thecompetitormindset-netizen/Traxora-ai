@@ -404,6 +404,7 @@ type ValueStock = {
   pb:        number | null;
   divYield:  number | null;
   marketCap: number | null;
+  sector:    string | null;
   score:     number;
   isDip:     boolean;
 };
@@ -470,9 +471,14 @@ function ValueCard({ s, isDip }: { s: ValueStock; isDip: boolean }) {
           </div>
         ))}
       </div>
-      {s.marketCap !== null && (
-        <p className="text-[9px] text-[#4B5675]">Mkt cap <span className="text-[#7B8DB4] font-medium">${s.marketCap >= 1000 ? `${(s.marketCap/1000).toFixed(1)}T` : `${s.marketCap.toFixed(0)}B`}</span></p>
-      )}
+      <div className="flex items-center gap-2 flex-wrap">
+        {s.sector && <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-[#0D0B1A] text-[#4B5675] border border-[#252345]">{s.sector}</span>}
+        {s.marketCap !== null && (
+          <span className="text-[9px] text-[#4B5675]">
+            ${s.marketCap >= 1000 ? `${(s.marketCap/1000).toFixed(1)}T` : `${s.marketCap.toFixed(0)}B`}
+          </span>
+        )}
+      </div>
 
       <ScoreBar score={s.score} />
 
@@ -599,7 +605,7 @@ function ValuePicksPanel() {
           )}
 
           <p className="text-[10px] text-[#333368] mt-4">
-            ~{data.scanned} stocks scanned via single Yahoo Finance batch call. Score 0–10: P/E {"<"} 10 (+3), P/E 10–15 (+2), Fwd P/E {"<"} 12 (+2), P/B {"<"} 1 (+2), Div yield ≥5% (+2), yield ≥3% (+1). Dip alert = score ≥3 and down ≥4% today. Refreshes every 5 min.
+            Powered by Yahoo Finance market-wide screener — scans 8,000+ US equities, no hardcoded list. Value picks from undervalued_large_caps + undervalued_growth_stocks screens. Dip alerts from real-time losers screener filtered to profitable companies (PE &gt; 0) with market cap &gt; $200M. Refreshes every 5 min.
           </p>
         </>
       )}
