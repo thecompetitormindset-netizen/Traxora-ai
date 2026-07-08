@@ -3,12 +3,9 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
 import { auth } from "@/auth";
+import { getYahooCookie, YAHOO_UA } from "@/app/lib/yahooAuth";
 
-// No hardcoded universe. Yahoo Finance's screener runs against its entire
-// database (~8 000+ US equities). We query predefined screens and let
-// their backend do the filtering across the whole market.
-
-const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 export type ValueStock = {
   symbol:    string;
@@ -18,12 +15,14 @@ export type ValueStock = {
   pe:        number | null;
   forwardPe: number | null;
   pb:        number | null;
-  divYield:  number | null;   // percent, e.g. 6.5
+  divYield:  number | null;   // percent e.g. 6.5
   marketCap: number | null;   // billions USD
   sector:    string | null;
   score:     number;
   isDip:     boolean;
 };
+
+// ── Scoring ───────────────────────────────────────────────────────────────────
 
 function scoreStock(s: ValueStock): number {
   let sc = 0;
@@ -34,14 +33,13 @@ function scoreStock(s: ValueStock): number {
   return Math.min(sc, 10);
 }
 
-// Parse a single Yahoo quote result into our shape
-function parseQuote(q: Record<string, unknown>): ValueStock | null {
+// ── Yahoo screener (authenticated) ───────────────────────────────────────────
+
+function parseYahooQuote(q: Record<string, unknown>): ValueStock | null {
   const sym = q.symbol as string | undefined;
   if (!sym) return null;
-
-  const num  = (k: string) => (typeof q[k] === "number" ? (q[k] as number) : null);
-  const str  = (k: string) => (typeof q[k] === "string" ? (q[k] as string) : null);
-
+  const num = (k: string) => (typeof q[k] === "number" ? (q[k] as number) : null);
+  const str = (k: string) => (typeof q[k] === "string" ? (q[k] as string) : null);
   const price     = num("regularMarketPrice");
   const changePct = num("regularMarketChangePercent");
   const pe        = num("trailingPE");
@@ -49,16 +47,15 @@ function parseQuote(q: Record<string, unknown>): ValueStock | null {
   const pb        = num("priceToBook");
   const mcRaw     = num("marketCap");
   const yRaw      = num("trailingAnnualDividendYield") ?? num("dividendYield");
-
   const s: ValueStock = {
     symbol:    sym,
-    name:      (str("longName") ?? str("shortName") ?? sym),
+    name:      str("longName") ?? str("shortName") ?? sym,
     price:     price     !== null ? parseFloat(price.toFixed(2))     : null,
     changePct: changePct !== null ? parseFloat(changePct.toFixed(2)) : null,
-    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))    : null,
-    forwardPe: fp !== null && fp > 0 ? parseFloat(fp.toFixed(1))    : null,
-    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))    : null,
-    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))  : null,
+    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))     : null,
+    forwardPe: fp !== null && fp > 0 ? parseFloat(fp.toFixed(1))     : null,
+    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))     : null,
+    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))   : null,
     marketCap: mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1)) : null,
     sector:    str("sector"),
     score:     0,
@@ -69,31 +66,33 @@ function parseQuote(q: Record<string, unknown>): ValueStock | null {
   return s;
 }
 
-// Fetch one of Yahoo's predefined screeners — runs against their full market DB
-async function fetchScreen(scrId: string, count = 50): Promise<ValueStock[]> {
+async function yahooScreen(
+  scrId: string,
+  cookie: string,
+  count = 50,
+): Promise<ValueStock[]> {
   try {
+    const fields = [
+      "regularMarketPrice","regularMarketChangePercent","trailingPE","forwardPE",
+      "priceToBook","trailingAnnualDividendYield","dividendYield","marketCap",
+      "shortName","longName","sector",
+    ].join(",");
     const url =
       `https://query1.finance.yahoo.com/v1/finance/screener/predefined/${scrId}` +
-      `?formatted=false&lang=en-US&region=US&count=${count}&start=0&fields=` +
-      `regularMarketPrice,regularMarketChangePercent,trailingPE,forwardPE,` +
-      `priceToBook,trailingAnnualDividendYield,dividendYield,marketCap,` +
-      `shortName,longName,sector`;
-
+      `?formatted=false&lang=en-US&region=US&count=${count}&start=0&fields=${encodeURIComponent(fields)}`;
     const res = await fetch(url, {
       cache:   "no-store",
-      headers: { "User-Agent": UA, "Accept": "application/json" },
+      headers: { "User-Agent": YAHOO_UA, "Accept": "application/json", Cookie: cookie },
       signal:  AbortSignal.timeout(12_000),
     });
     if (!res.ok) return [];
-
     const json   = await res.json();
     const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
-    return quotes.map(parseQuote).filter((s): s is ValueStock => s !== null);
+    return quotes.map(parseYahooQuote).filter((s): s is ValueStock => s !== null);
   } catch { return []; }
 }
 
-// Fetch a custom POST screener query — used for dip detection across entire market
-async function fetchDipScreen(): Promise<ValueStock[]> {
+async function yahooDipScreen(cookie: string, crumb: string): Promise<ValueStock[]> {
   try {
     const body = {
       offset: 0, size: 100,
@@ -102,47 +101,119 @@ async function fetchDipScreen(): Promise<ValueStock[]> {
       query: {
         operator: "and",
         operands: [
-          // Down at least 4% today
-          { operator: "lt", operands: ["percentchange", -4] },
-          // Profitable (has a PE ratio)
-          { operator: "gt", operands: ["trailingpe",    0]  },
-          // Not penny stock (market cap > $200M)
+          { operator: "lt", operands: ["percentchange",    -4]          },
+          { operator: "gt", operands: ["trailingpe",        0]          },
           { operator: "gt", operands: ["intradaymarketcap", 200_000_000] },
         ],
       },
       userId: "", userIdType: "guid",
     };
-
     const res = await fetch(
-      "https://query2.finance.yahoo.com/v1/finance/screener?lang=en-US&region=US&formatted=false",
+      `https://query2.finance.yahoo.com/v1/finance/screener?lang=en-US&region=US&formatted=false&crumb=${encodeURIComponent(crumb)}`,
       {
         method:  "POST",
         cache:   "no-store",
-        headers: { "User-Agent": UA, "Content-Type": "application/json", "Accept": "application/json" },
+        headers: { "User-Agent": YAHOO_UA, "Content-Type": "application/json", "Accept": "application/json", Cookie: cookie },
         body:    JSON.stringify(body),
         signal:  AbortSignal.timeout(12_000),
       },
     );
     if (!res.ok) return [];
-
     const json   = await res.json();
     const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
-    return quotes.map(parseQuote).filter((s): s is ValueStock => s !== null);
+    return quotes.map(parseYahooQuote).filter((s): s is ValueStock => s !== null);
   } catch { return []; }
 }
+
+// ── EODHD screener fallback ───────────────────────────────────────────────────
+
+function parseEodhdRow(r: Record<string, unknown>): ValueStock | null {
+  const code = (r.code as string | undefined)?.replace(/\.(US|NASDAQ|NYSE)$/i, "");
+  if (!code) return null;
+  const num = (k: string) => (typeof r[k] === "number" ? (r[k] as number) : null);
+  const str = (k: string) => (typeof r[k] === "string" ? (r[k] as string) : null);
+  const price     = num("price") ?? num("close");
+  const changePct = num("change_p");
+  const pe        = num("pe_ratio") ?? num("pe");
+  const pb        = num("price_to_book") ?? num("pb");
+  const mcRaw     = num("market_capitalization");
+  const yRaw      = num("dividend_yield");
+  const s: ValueStock = {
+    symbol:    code,
+    name:      str("name") ?? code,
+    price:     price     !== null ? parseFloat(price.toFixed(2))      : null,
+    changePct: changePct !== null ? parseFloat(changePct.toFixed(2))  : null,
+    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))      : null,
+    forwardPe: null,
+    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))      : null,
+    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))    : null,
+    marketCap: mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1))  : null,
+    sector:    str("sector") ?? str("industry") ?? null,
+    score:     0,
+    isDip:     false,
+  };
+  s.score = scoreStock(s);
+  s.isDip = (changePct ?? 0) <= -4 && s.score >= 3;
+  return s;
+}
+
+async function eodhdScreen(filters: string, sort: string, limit = 50): Promise<ValueStock[]> {
+  const key = process.env.EODHD_API_KEY;
+  if (!key) return [];
+  try {
+    const url =
+      `https://eodhd.com/api/screener?api_token=${key}` +
+      `&filters=${encodeURIComponent(filters)}&sort=${encodeURIComponent(sort)}` +
+      `&limit=${limit}&country=US`;
+    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) return [];
+    const json = await res.json();
+    const rows = (Array.isArray(json) ? json : json?.data ?? []) as Record<string, unknown>[];
+    return rows.map(parseEodhdRow).filter((s): s is ValueStock => s !== null);
+  } catch { return []; }
+}
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-  // Run all three screens in parallel
-  const [undervaluedLarge, undervaluedGrowth, dayLosers] = await Promise.all([
-    fetchScreen("undervalued_large_caps",    50),
-    fetchScreen("undervalued_growth_stocks", 50),
-    fetchDipScreen(),
-  ]);
+  // Get Yahoo auth cookie for authenticated screener calls
+  const yAuth = await getYahooCookie();
 
-  // Merge value picks, deduplicate by symbol, sort by score desc
+  let undervaluedLarge: ValueStock[] = [];
+  let undervaluedGrowth: ValueStock[] = [];
+  let dipAlerts: ValueStock[] = [];
+
+  if (yAuth) {
+    [undervaluedLarge, undervaluedGrowth, dipAlerts] = await Promise.all([
+      yahooScreen("undervalued_large_caps",    yAuth.cookie, 50),
+      yahooScreen("undervalued_growth_stocks", yAuth.cookie, 50),
+      yahooDipScreen(yAuth.cookie, yAuth.crumb),
+    ]);
+  }
+
+  // Fall back to EODHD if Yahoo returned nothing
+  const yahooWorked = undervaluedLarge.length > 0 || undervaluedGrowth.length > 0;
+  if (!yahooWorked) {
+    const valueFilt = JSON.stringify([
+      ["market_capitalization", ">", "200000000"],
+      ["pe_ratio", "<", "20"],
+      ["pe_ratio", ">", "0"],
+    ]);
+    const dipFilt = JSON.stringify([
+      ["change_p", "<", "-4"],
+      ["pe_ratio", ">", "0"],
+      ["market_capitalization", ">", "200000000"],
+    ]);
+    [undervaluedLarge, dipAlerts] = await Promise.all([
+      eodhdScreen(valueFilt, "pe_ratio,asc", 50),
+      eodhdScreen(dipFilt,   "change_p,asc", 50),
+    ]);
+  }
+
+  // Merge + deduplicate value picks
   const seen      = new Set<string>();
   const allValue  = [...undervaluedLarge, ...undervaluedGrowth];
   const valuePicks: ValueStock[] = [];
@@ -153,19 +224,17 @@ export async function GET() {
     if (valuePicks.length >= 16) break;
   }
 
-  // Dip alerts — stocks the custom screener found down ≥4% today with earnings
-  const dipSeen   = new Set<string>(valuePicks.map(s => s.symbol));
-  const dipAlerts = dayLosers
+  const dipSeen = new Set<string>(valuePicks.map(s => s.symbol));
+  const filteredDips = dipAlerts
     .filter(s => !dipSeen.has(s.symbol))
     .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0))
     .slice(0, 20);
 
-  const scanned = undervaluedLarge.length + undervaluedGrowth.length + dayLosers.length;
-
   return Response.json({
     valuePicks,
-    dipAlerts,
-    scanned,
-    updatedAt: new Date().toISOString(),
+    dipAlerts:  filteredDips,
+    scanned:    undervaluedLarge.length + undervaluedGrowth.length + dipAlerts.length,
+    source:     yahooWorked ? "yahoo" : "eodhd",
+    updatedAt:  new Date().toISOString(),
   });
 }
