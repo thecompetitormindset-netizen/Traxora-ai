@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useCallback, Suspense } from "react";
+import { useEffect, useId, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
@@ -614,22 +614,36 @@ function ValuePicksPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+type Section    = "options" | "futures" | "value" | "flow" | "tools";
+type ToolsTab   = "analyze" | "chain" | "calculator";
+
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
-  const didScroll = useRef(false);
 
-  // Scroll to section anchor if URL param is set (once on mount)
-  useEffect(() => {
-    if (didScroll.current) return;
+  const [section,   setSection]   = useState<Section>(() => {
     const s = params.get("section");
-    if (!s) return;
-    const el = document.getElementById(`section-${s}`);
-    if (el) {
-      didScroll.current = true;
-      setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
-    }
-  }, [params]);
+    if (s === "futures")    return "futures";
+    if (s === "value")      return "value";
+    if (s === "flow")       return "flow";
+    if (s === "analyze" || s === "chain" || s === "calculator") return "tools";
+    return "options";
+  });
+
+  const [toolsTab, setToolsTab] = useState<ToolsTab>(() => {
+    const s = params.get("section");
+    if (s === "chain")      return "chain";
+    if (s === "calculator") return "calculator";
+    return "analyze";
+  });
+
+  const TABS: { id: Section; label: string }[] = [
+    { id: "options",  label: "Options Plays" },
+    { id: "futures",  label: "Futures"       },
+    { id: "value",    label: "Value"         },
+    { id: "flow",     label: "Flow"          },
+    { id: "tools",    label: "Tools"         },
+  ];
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -637,40 +651,63 @@ function IntelligenceContent() {
       <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
         <Topbar />
 
-        {/* Header */}
-        <div className="mt-3 mb-6">
-          <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Markets</h1>
+        {/* Header + tab bar */}
+        <div className="mt-3 mb-5">
+          <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green mb-4">Markets</h1>
+          <div className="flex gap-0 border-b border-[#252345] overflow-x-auto">
+            {TABS.map(t => (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSection(t.id)}
+                className={`shrink-0 px-5 py-2.5 text-xs font-semibold transition-colors border-b-2 -mb-px ${
+                  section === t.id
+                    ? "text-[#F1F5F9] border-emerald-500"
+                    : "text-[#4B5675] border-transparent hover:text-[#94A3B8]"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-10">
-          <div id="section-options">
-            <OptionsPlaysPanel />
-          </div>
-
-          <div id="section-futures">
-            <FuturesPanel />
-          </div>
-
-          <div id="section-value" className="max-w-7xl mx-auto">
+        {section === "options" && <OptionsPlaysPanel />}
+        {section === "futures" && <FuturesPanel />}
+        {section === "value"   && (
+          <div className="max-w-7xl mx-auto">
             <ValuePicksPanel />
           </div>
-
-          <div id="section-flow" className="max-w-6xl mx-auto">
+        )}
+        {section === "flow"    && (
+          <div className="max-w-6xl mx-auto">
             <OptionsFlow />
           </div>
-
-          <div id="section-chain" className="max-w-7xl mx-auto">
-            <OptionsChainViewer initialSymbol={initSym} />
+        )}
+        {section === "tools"   && (
+          <div className="max-w-7xl mx-auto">
+            {/* Tools sub-nav */}
+            <div className="flex gap-1 mb-5">
+              {([
+                ["analyze",    "Analyze"],
+                ["chain",      "Chain"],
+                ["calculator", "P&L Calculator"],
+              ] as [ToolsTab, string][]).map(([id, label]) => (
+                <button key={id} type="button" onClick={() => setToolsTab(id)}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
+                    toolsTab === id
+                      ? "bg-[#252345] text-[#F1F5F9] border-[#333368]"
+                      : "text-[#4B5675] border-transparent hover:text-[#94A3B8]"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {toolsTab === "analyze"    && <OptionsTab initialSymbol={initSym} />}
+            {toolsTab === "chain"      && <OptionsChainViewer initialSymbol={initSym} />}
+            {toolsTab === "calculator" && <div className="max-w-4xl"><OptionsPLCalculator /></div>}
           </div>
-
-          <div id="section-calculator" className="max-w-4xl mx-auto">
-            <OptionsPLCalculator />
-          </div>
-
-          <div id="section-analyze" className="max-w-7xl mx-auto">
-            <OptionsTab initialSymbol={initSym} />
-          </div>
-        </div>
+        )}
       </main>
     </div>
   );
