@@ -639,9 +639,9 @@ function IntelligenceContent() {
 
   const TABS: { id: Section; label: string }[] = [
     { id: "options",  label: "Options Plays" },
-    { id: "futures",  label: "Futures"       },
-    { id: "value",    label: "Value"         },
+    { id: "value",    label: "Value Picks"   },
     { id: "flow",     label: "Flow"          },
+    { id: "futures",  label: "Futures"       },
     { id: "tools",    label: "Tools"         },
   ];
 

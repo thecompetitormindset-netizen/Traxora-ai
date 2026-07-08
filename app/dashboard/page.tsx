@@ -575,6 +575,22 @@ type DashValueStock = {
 
 function ValueStockCard({ s }: { s: DashValueStock }) {
   const up = (s.changePct ?? 0) >= 0;
+  const fullSym = s.symbol.includes(".") ? s.symbol : `${s.symbol}.US`;
+  const [watched, setWatched] = useState(() =>
+    typeof window !== "undefined" && loadCustomWatchlist().some(w => w.symbol === fullSym)
+  );
+
+  function toggleWatch(e: React.MouseEvent) {
+    e.preventDefault();
+    const wl = loadCustomWatchlist();
+    if (watched) {
+      saveCustomWatchlist(wl.filter(w => w.symbol !== fullSym));
+    } else {
+      saveCustomWatchlist([...wl, { symbol: fullSym, name: s.name }]);
+    }
+    setWatched(v => !v);
+  }
+
   return (
     <div className={`bg-[#0D0B1A] rounded-xl border border-l-2 p-3.5 flex flex-col gap-2 hover:border-[#333368] transition-colors ${
       s.isDip ? "border-amber-500/20 border-l-amber-400" : "border-[#252345] border-l-sky-500/40"
@@ -624,10 +640,15 @@ function ValueStockCard({ s }: { s: DashValueStock }) {
           className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
           Analyse →
         </Link>
-        <Link href={`/paper?symbol=${encodeURIComponent(s.symbol)}`}
-          className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-colors">
-          Paper Trade
-        </Link>
+        <button type="button" onClick={toggleWatch}
+          title={watched ? "Remove from watchlist" : "Add to watchlist"}
+          className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-colors ${
+            watched
+              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20"
+              : "bg-[#1A1838] text-[#4B5675] border-[#252345] hover:text-emerald-400 hover:border-emerald-500/30"
+          }`}>
+          {watched ? "★ Watching" : "☆ Watch"}
+        </button>
       </div>
     </div>
   );
@@ -1455,6 +1476,25 @@ function DashboardContent() {
               );
             })()}
 
+            {/* ── Section divider: Options ── */}
+            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
+              <div className="flex-1 h-px bg-[#252345]" />
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
+              <div className="flex-1 h-px bg-[#252345]" />
+            </div>
+
+            {/* Options Plays — moved to top (daily driver) */}
+            <div className="lg:col-span-3">
+              <OptionsPlaysSection />
+            </div>
+
+            {/* ── Section divider: Value ── */}
+            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
+              <div className="flex-1 h-px bg-[#252345]" />
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Undervalued</span>
+              <div className="flex-1 h-px bg-[#252345]" />
+            </div>
+
             {/* ── Value Picks ── */}
             <ValuePicksSection />
 
@@ -1887,18 +1927,6 @@ function DashboardContent() {
             </div>
           </section>
           </div>{/* /futures lg:col-span-3 */}
-
-          {/* ── Section divider: Options ── */}
-          <div className="order-6 lg:order-none lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-            <div className="flex-1 h-px bg-[#252345]" />
-            <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
-            <div className="flex-1 h-px bg-[#252345]" />
-          </div>
-
-          {/* Options Plays — full width */}
-          <div className="order-6 lg:order-none lg:col-span-3">
-            <OptionsPlaysSection />
-          </div>
 
           {/* Risk Rules + Exchange CTA — full width */}
           <div className="order-7 lg:order-none lg:col-span-3">
