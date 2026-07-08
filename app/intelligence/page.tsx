@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, useCallback, Suspense } from "react";
-import { useSwipeTabs } from "@/app/lib/useSwipeTabs";
+import { useEffect, useId, useRef, useState, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
@@ -615,19 +614,22 @@ function ValuePicksPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section = "options" | "futures" | "analyze" | "chain" | "calculator" | "flow" | "value";
-
-const SECTION_TABS = ["options", "futures", "flow", "chain", "calculator", "analyze", "value"] as const satisfies readonly Section[];
-
 function IntelligenceContent() {
   const params  = useSearchParams();
   const initSym = params.get("sym") ?? "";
-  const [section, setSection] = useState<Section>(() => {
-    const s = params.get("section");
-    return (s === "futures" || s === "analyze" || s === "options" || s === "chain" || s === "flow" || s === "calculator" || s === "value") ? s as Section : "options";
-  });
+  const didScroll = useRef(false);
 
-  useSwipeTabs(SECTION_TABS, section, setSection);
+  // Scroll to section anchor if URL param is set (once on mount)
+  useEffect(() => {
+    if (didScroll.current) return;
+    const s = params.get("section");
+    if (!s) return;
+    const el = document.getElementById(`section-${s}`);
+    if (el) {
+      didScroll.current = true;
+      setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
+  }, [params]);
 
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
@@ -640,51 +642,35 @@ function IntelligenceContent() {
           <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Markets</h1>
         </div>
 
-        {/* Section tabs */}
-        <div className="flex flex-wrap gap-1 bg-[#1A1838] rounded-xl p-1 text-xs mb-6 w-fit">
-          {([
-            ["options",     "📊 Options Plays"],
-            ["futures",     "⚡ Futures"],
-            ["flow",        "🌊 Flow"],
-            ["chain",       "⛓️ Chain"],
-            ["calculator",  "💹 P&L"],
-            ["analyze",     "🔍 Analyze"],
-            ["value",       "💎 Value"],
-          ] as [Section, string][]).map(([id, label]) => (
-            <button key={id} type="button" onClick={() => setSection(id)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors ${section === id ? (id === "value" ? "bg-sky-600 text-white" : "bg-violet-600 text-white") : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <div className="space-y-10">
+          <div id="section-options">
+            <OptionsPlaysPanel />
+          </div>
 
-        {section === "options"  && <OptionsPlaysPanel />}
-        {section === "futures"  && <FuturesPanel />}
-        {section === "flow"     && (
-          <div className="max-w-6xl mx-auto">
-            <OptionsFlow />
+          <div id="section-futures">
+            <FuturesPanel />
           </div>
-        )}
-        {section === "chain"    && (
-          <div className="max-w-7xl mx-auto">
-            <OptionsChainViewer initialSymbol={initSym} />
-          </div>
-        )}
-        {section === "calculator" && (
-          <div className="max-w-4xl mx-auto">
-            <OptionsPLCalculator />
-          </div>
-        )}
-        {section === "analyze"  && (
-          <div className="max-w-7xl mx-auto">
-            <OptionsTab initialSymbol={initSym} />
-          </div>
-        )}
-        {section === "value" && (
-          <div className="max-w-7xl mx-auto">
+
+          <div id="section-value" className="max-w-7xl mx-auto">
             <ValuePicksPanel />
           </div>
-        )}
+
+          <div id="section-flow" className="max-w-6xl mx-auto">
+            <OptionsFlow />
+          </div>
+
+          <div id="section-chain" className="max-w-7xl mx-auto">
+            <OptionsChainViewer initialSymbol={initSym} />
+          </div>
+
+          <div id="section-calculator" className="max-w-4xl mx-auto">
+            <OptionsPLCalculator />
+          </div>
+
+          <div id="section-analyze" className="max-w-7xl mx-auto">
+            <OptionsTab initialSymbol={initSym} />
+          </div>
+        </div>
       </main>
     </div>
   );
