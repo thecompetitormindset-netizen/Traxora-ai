@@ -5,11 +5,6 @@ export const maxDuration = 45;
 import { smartMoneyScore, computeCanonicalTrade } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 
-function fmtPrice(p: number): string {
-  const decimals = p < 1 ? 4 : p < 10 ? 3 : 2;
-  return p.toFixed(decimals);
-}
-
 function calcClosesEMA(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
   const k = 2 / (period + 1);
@@ -67,7 +62,8 @@ async function fetchQuote(symbol: string) {
           : "neutral")
         : null;
 
-    return { symbol, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment };
+    const name = (meta.shortName ?? meta.longName ?? symbol) as string;
+    return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment };
   } catch { return null; }
 }
 
@@ -170,6 +166,7 @@ export async function runOptionsScan() {
 
   const results: {
     symbol:       string;
+    name:         string;
     price:        number;
     changePct:    number;
     signal:       "BUY" | "SELL";
@@ -270,6 +267,7 @@ export async function runOptionsScan() {
 
     results.push({
       symbol:       q.symbol,
+      name:         q.name,
       price:        q.price,
       changePct,
       signal:       finalSignal,
