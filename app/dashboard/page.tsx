@@ -564,98 +564,150 @@ function OptionsPlaysSection() {
   );
 }
 
-// ── Value Picks Mini Card ─────────────────────────────────────────────────────
+// ── Value Picks Dashboard Section ────────────────────────────────────────────
 
-type MiniValueStock = { symbol: string; name: string; price: number | null; changePct: number | null; pe: number | null; divYield: number | null; marketCap?: number | null; sector?: string | null; score: number; isDip: boolean };
+type DashValueStock = {
+  symbol: string; name: string; price: number | null; changePct: number | null;
+  pe: number | null; forwardPe: number | null; pb: number | null;
+  divYield: number | null; marketCap: number | null; sector: string | null;
+  score: number; isDip: boolean;
+};
 
-function ValuePicksMini() {
-  const [picks,   setPicks]   = useState<MiniValueStock[]>([]);
-  const [dipCount,setDipCount]= useState(0);
-  const [loading, setLoading] = useState(true);
+function ValueStockCard({ s }: { s: DashValueStock }) {
+  const up = (s.changePct ?? 0) >= 0;
+  return (
+    <div className={`bg-[#0D0B1A] rounded-xl border border-l-2 p-3.5 flex flex-col gap-2 hover:border-[#333368] transition-colors ${
+      s.isDip ? "border-amber-500/20 border-l-amber-400" : "border-[#252345] border-l-sky-500/40"
+    }`}>
+      {/* Symbol row */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{s.symbol}</span>
+            {s.isDip && (
+              <span className="text-[8px] font-black px-1 py-px rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">DIP</span>
+            )}
+          </div>
+          <p className="text-[9px] text-[#4B5675] truncate mt-px">{s.name}</p>
+        </div>
+        <div className="text-right shrink-0">
+          {s.price !== null
+            ? <>
+                <p className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">${s.price.toFixed(2)}</p>
+                <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                  {up ? "+" : ""}{(s.changePct ?? 0).toFixed(2)}%
+                </p>
+              </>
+            : <p className="text-sm text-[#4B5675] animate-pulse">—</p>
+          }
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="flex gap-2 flex-wrap">
+        {s.pe       !== null && <span className="text-[9px] font-mono text-[#4B5675]">P/E <span className="text-sky-400 font-bold">{s.pe}x</span></span>}
+        {s.forwardPe !== null && <span className="text-[9px] font-mono text-[#4B5675]">Fwd <span className="text-sky-400 font-bold">{s.forwardPe}x</span></span>}
+        {s.pb       !== null && <span className="text-[9px] font-mono text-[#4B5675]">P/B <span className="text-sky-400 font-bold">{s.pb}x</span></span>}
+        {s.divYield !== null && s.divYield > 0 && <span className="text-[9px] font-mono text-[#4B5675]">Yield <span className="text-emerald-400 font-bold">{s.divYield.toFixed(1)}%</span></span>}
+      </div>
+
+      {/* Score dots */}
+      <div className="flex gap-0.5">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className={`flex-1 h-1 rounded-full ${i < s.score ? "bg-sky-400" : "bg-[#252345]"}`} />
+        ))}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 pt-1 border-t border-[#1A1838]">
+        <Link href={`/analysis?symbol=${encodeURIComponent(s.symbol + ".US")}`}
+          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
+          Analyse →
+        </Link>
+        <Link href={`/paper?symbol=${encodeURIComponent(s.symbol)}`}
+          className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 hover:bg-sky-500/20 transition-colors">
+          Paper Trade
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ValuePicksSection() {
+  const [valuePicks, setValuePicks] = useState<DashValueStock[]>([]);
+  const [dipAlerts,  setDipAlerts]  = useState<DashValueStock[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [showAllVal, setShowAllVal] = useState(false);
+  const [showAllDip, setShowAllDip] = useState(false);
 
   useEffect(() => {
     fetch("/api/market/value-scan", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then((d: { valuePicks?: MiniValueStock[]; dipAlerts?: MiniValueStock[] } | null) => {
+      .then((d: { valuePicks?: DashValueStock[]; dipAlerts?: DashValueStock[] } | null) => {
         if (!d) return;
-        const dips = d.dipAlerts ?? [];
-        const vals = d.valuePicks ?? [];
-        setDipCount(dips.length);
-        // Show dip alerts first, then top value picks, max 3 total
-        setPicks([...dips, ...vals].slice(0, 3));
+        setValuePicks(d.valuePicks ?? []);
+        setDipAlerts(d.dipAlerts  ?? []);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  const skeletons = Array.from({ length: 6 });
+  const visibleVal = showAllVal ? valuePicks : valuePicks.slice(0, 6);
+  const visibleDip = showAllDip ? dipAlerts  : dipAlerts.slice(0, 6);
+
   return (
-    <div className="lg:col-span-3">
-      <div className={`glass surface-sheen rounded-2xl border p-5 ${dipCount > 0 ? "border-amber-500/20" : "border-sky-500/15"}`}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
+    <div className="lg:col-span-3 space-y-5">
+
+      {/* ── Dip Alerts ── */}
+      {(loading || dipAlerts.length > 0) && (
+        <div>
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest">Value Screener</p>
-              {dipCount > 0 && (
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25 animate-pulse">
-                  {dipCount} DIP{dipCount > 1 ? "S" : ""}
-                </span>
-              )}
+              <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Buy the Dip</h2>
+              {!loading && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25 animate-pulse">{dipAlerts.length} today</span>}
             </div>
-            <p className="text-xs text-[#7B8DB4] mt-0.5">Live fundamentals · 30 quality stocks scanned</p>
+            {dipAlerts.length > 6 && (
+              <button type="button" onClick={() => setShowAllDip(v => !v)}
+                className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold transition-colors">
+                {showAllDip ? "Show less ↑" : `See all ${dipAlerts.length} ↓`}
+              </button>
+            )}
           </div>
-          <Link href="/intelligence?section=value"
-            className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold transition-colors shrink-0">
-            Full scanner →
-          </Link>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
+            {loading
+              ? skeletons.map((_, i) => <div key={i} className="h-32 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)
+              : visibleDip.map(s => <ValueStockCard key={s.symbol} s={s} />)
+            }
+          </div>
         </div>
+      )}
 
-        {loading && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-16 bg-[#0D0B1A] rounded-xl border border-[#252345] animate-pulse" />
-            ))}
+      {/* ── Value Picks ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Undervalued Picks</h2>
+            {!loading && valuePicks.length > 0 && (
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{valuePicks.length} found</span>
+            )}
           </div>
-        )}
-
-        {!loading && picks.length === 0 && (
-          <p className="text-xs text-[#4B5675] text-center py-4">No value opportunities detected — market may be fairly valued</p>
-        )}
-
-        {!loading && picks.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {picks.map(p => {
-              const up = (p.changePct ?? 0) >= 0;
-              return (
-                <div key={p.symbol} className={`rounded-xl border border-l-2 px-3.5 py-3 flex items-center justify-between gap-3 bg-[#0D0B1A] ${
-                  p.isDip ? "border-amber-500/25 border-l-amber-400" : "border-[#252345] border-l-sky-500/40"
-                }`}>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="font-black font-mono text-sm text-[#F1F5F9]">{p.symbol}</p>
-                      {p.isDip && <span className="text-[8px] font-black text-amber-400">DIP</span>}
-                    </div>
-                    <p className="text-[9px] text-[#4B5675] truncate">{p.name}</p>
-                    <div className="flex gap-2 mt-1">
-                      {p.pe     !== null && <span className="text-[9px] font-mono text-[#4B5675]">P/E <span className="text-sky-400 font-bold">{p.pe.toFixed(1)}x</span></span>}
-                      {p.divYield !== null && p.divYield > 0 && <span className="text-[9px] font-mono text-[#4B5675]">Yield <span className="text-sky-400 font-bold">{p.divYield.toFixed(1)}%</span></span>}
-                    </div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    {p.price !== null
-                      ? <>
-                          <p className="text-sm font-black font-mono text-[#F1F5F9]">${p.price.toFixed(2)}</p>
-                          <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                            {up ? "+" : ""}{(p.changePct ?? 0).toFixed(2)}%
-                          </p>
-                        </>
-                      : <p className="text-sm text-[#4B5675]">—</p>
-                    }
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+          {valuePicks.length > 6 && (
+            <button type="button" onClick={() => setShowAllVal(v => !v)}
+              className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold transition-colors">
+              {showAllVal ? "Show less ↑" : `See all ${valuePicks.length} ↓`}
+            </button>
+          )}
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
+          {loading
+            ? skeletons.map((_, i) => <div key={i} className="h-32 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)
+            : visibleVal.length > 0
+            ? visibleVal.map(s => <ValueStockCard key={s.symbol} s={s} />)
+            : <p className="col-span-full text-xs text-[#4B5675] py-4 text-center">Screener running — check back in a moment</p>
+          }
+        </div>
+        <p className="text-[9px] text-[#333368] mt-2">Powered by Yahoo Finance market-wide screener · not financial advice · refreshes every 5 min</p>
       </div>
     </div>
   );
@@ -1403,8 +1455,8 @@ function DashboardContent() {
               );
             })()}
 
-            {/* ── Value Picks mini-card ── */}
-            <ValuePicksMini />
+            {/* ── Value Picks ── */}
+            <ValuePicksSection />
 
             {/* ── Section divider: Market ── */}
             <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">

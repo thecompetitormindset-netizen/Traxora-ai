@@ -62,7 +62,7 @@ function parseYahooQuote(q: Record<string, unknown>): ValueStock | null {
     isDip:     false,
   };
   s.score = scoreStock(s);
-  s.isDip = (changePct ?? 0) <= -4 && s.score >= 3;
+  s.isDip = (changePct ?? 0) <= -4;   // any profitable drop qualifies as dip
   return s;
 }
 
@@ -153,7 +153,7 @@ function parseEodhdRow(r: Record<string, unknown>): ValueStock | null {
     isDip:     false,
   };
   s.score = scoreStock(s);
-  s.isDip = (changePct ?? 0) <= -4 && s.score >= 3;
+  s.isDip = (changePct ?? 0) <= -4;
   return s;
 }
 
@@ -213,7 +213,7 @@ export async function GET() {
     ]);
   }
 
-  // Merge + deduplicate value picks
+  // Merge + deduplicate value picks — no score gate, Yahoo already pre-filters
   const seen      = new Set<string>();
   const allValue  = [...undervaluedLarge, ...undervaluedGrowth];
   const valuePicks: ValueStock[] = [];
@@ -221,14 +221,14 @@ export async function GET() {
     if (seen.has(s.symbol)) continue;
     seen.add(s.symbol);
     valuePicks.push(s);
-    if (valuePicks.length >= 16) break;
+    if (valuePicks.length >= 24) break;
   }
 
   const dipSeen = new Set<string>(valuePicks.map(s => s.symbol));
   const filteredDips = dipAlerts
     .filter(s => !dipSeen.has(s.symbol))
     .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0))
-    .slice(0, 20);
+    .slice(0, 25);
 
   return Response.json({
     valuePicks,
