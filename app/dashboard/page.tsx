@@ -661,15 +661,19 @@ function ValuePicksSection() {
   const [showAllVal, setShowAllVal] = useState(false);
   const [showAllDip, setShowAllDip] = useState(false);
 
+  const [scanEmpty, setScanEmpty] = useState(false);
+
   useEffect(() => {
     fetch("/api/market/value-scan", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then((d: { valuePicks?: DashValueStock[]; dipAlerts?: DashValueStock[] } | null) => {
-        if (!d) return;
+      .then((d: { valuePicks?: DashValueStock[]; dipAlerts?: DashValueStock[]; scanned?: number } | null) => {
+        if (!d) { setScanEmpty(true); return; }
         setValuePicks(d.valuePicks ?? []);
         setDipAlerts(d.dipAlerts  ?? []);
+        // scanned === 0 means every screener source failed — not "still running"
+        if ((d.scanned ?? 0) === 0) setScanEmpty(true);
       })
-      .catch(() => {})
+      .catch(() => setScanEmpty(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -725,10 +729,14 @@ function ValuePicksSection() {
             ? skeletons.map((_, i) => <div key={i} className="h-32 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)
             : visibleVal.length > 0
             ? visibleVal.map(s => <ValueStockCard key={s.symbol} s={s} />)
-            : <p className="col-span-full text-xs text-[#4B5675] py-4 text-center">Screener running — check back in a moment</p>
+            : <p className="col-span-full text-xs text-[#4B5675] py-4 text-center">
+                {scanEmpty
+                  ? "Value screener sources are unreachable right now — Yahoo may be rate-limiting and the EODHD screener add-on may not be active on your plan."
+                  : "Screener running — check back in a moment"}
+              </p>
           }
         </div>
-        <p className="text-[9px] text-[#333368] mt-2">Powered by Yahoo Finance market-wide screener · not financial advice · refreshes every 5 min</p>
+        <p className="text-[9px] text-[#333368] mt-2">Scanned from a 42-stock value universe (Finnhub + Yahoo data) · not financial advice · refreshes every 30 min</p>
       </div>
     </div>
   );
@@ -1355,126 +1363,6 @@ function DashboardContent() {
               <SentimentWidget horizontal />
             </div>
 
-            {/* ── PORTFOLIO HERO ── */}
-            {(() => {
-              // Merge closed trades from BOTH paper systems: the portfolio
-              // store (paper_portfolio_v2) and trades closed on /paper.
-              const closedA = portfolioTrades
-                .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
-                .map(t => ({ time: new Date(t.exitDate!).getTime(), pl: calcPL(t, t.exitPrice!) }));
-              const closedB = takenTrades
-                .filter(t => t.status === "WIN" || t.status === "LOSS")
-                .map(t => ({ time: t.closedAt ?? 0, pl: takenTradePL(t) }));
-              const events = [...closedA, ...closedB].sort((a, b) => a.time - b.time);
-
-              // Build equity curve: cumulative account value after each closed trade
-              const curve: number[] = [STARTING_CAPITAL];
-              let running = STARTING_CAPITAL;
-              for (const e of events) {
-                running += e.pl;
-                curve.push(running);
-              }
-
-              const takenPL      = closedB.reduce((s, e) => s + e.pl, 0);
-              const totalPL      = paperStats.realizedPL + takenPL;
-              const accountValue = paperStats.accountValue + takenPL;
-              const openCount    = paperStats.openCount + takenTrades.filter(t => t.status === "OPEN").length;
-              const closedCount  = events.length;
-              const winCount     = events.filter(e => e.pl > 0).length;
-              const winRate      = closedCount > 0 ? Math.round((winCount / closedCount) * 100) : null;
-              const totalPct = (totalPL / STARTING_CAPITAL) * 100;
-              const isUp = totalPL >= 0;
-              const color = isUp ? "#34D399" : "#F87171";
-
-              return (
-                <div className="lg:col-span-3 self-start">
-                <Link href="/strategy" className="block group">
-                  <div className={`card-shine glass surface-sheen rounded-2xl border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
-
-                    {/* Header: value + change */}
-                    <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-4 flex items-end justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">Paper Portfolio</p>
-                        <p className="text-3xl lg:text-4xl font-black tracking-tight text-[var(--text-primary,#F1F5F9)] tabular-nums leading-none">
-                          ${accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                        <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-                          <span className="text-sm font-bold tabular-nums">{isUp ? "+" : ""}{totalPL.toFixed(2)}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-                            {isUp ? "+" : ""}{totalPct.toFixed(2)}%
-                          </span>
-                          <span className="text-[#4B5675] text-xs">all time</span>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-semibold transition-colors shrink-0 pb-0.5">View performance →</p>
-                    </div>
-
-                    {/* Full-width equity chart */}
-                    <div className="w-full px-0">
-                      {curve.length >= 2 ? (
-                        <svg
-                          viewBox={`0 0 800 110`}
-                          preserveAspectRatio="none"
-                          className="w-full h-[110px]"
-                          aria-hidden
-                        >
-                          <defs>
-                            <linearGradient id="port-chart-grad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={color} stopOpacity="0.20"/>
-                              <stop offset="100%" stopColor={color} stopOpacity="0"/>
-                            </linearGradient>
-                          </defs>
-                          {(() => {
-                            const min   = Math.min(...curve);
-                            const max   = Math.max(...curve);
-                            const range = max - min || 1;
-                            const W = 800, H = 110, pad = 6;
-                            const pts = curve.map((v, i) => {
-                              const x = (i / (curve.length - 1)) * W;
-                              const y = H - pad - ((v - min) / range) * (H - pad * 2);
-                              return `${x.toFixed(1)},${y.toFixed(1)}`;
-                            });
-                            const pStr = pts.join(" ");
-                            const last = pts[pts.length - 1].split(",");
-                            return (
-                              <>
-                                <polygon points={`0,${H} ${pStr} ${W},${H}`} fill="url(#port-chart-grad)" />
-                                <polyline points={pStr} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <circle cx={last[0]} cy={last[1]} r="4" fill={color} />
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      ) : (
-                        <div className="w-full h-[110px] relative flex flex-col items-center justify-center gap-1.5">
-                          <svg className="absolute inset-x-0 bottom-2 w-full h-12 opacity-40" viewBox="0 0 300 48" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                            <path d="M0 40 C40 38, 60 30, 90 32 S150 20, 180 24 S250 10, 300 14" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="4 5" strokeLinecap="round" />
-                          </svg>
-                          <p className="text-xs font-medium text-[#4B5675]">No closed trades yet</p>
-                          <p className="text-[11px] text-[#333368]">Fill your first paper trade and your equity curve starts here</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="grid grid-cols-4 gap-3 px-5 lg:px-6 py-4 border-t border-[#252345]">
-                      {[
-                        { label: "Open",     value: String(openCount),                                       color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Closed",   value: String(closedCount),                                     color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Win Rate", value: winRate != null ? `${winRate}%` : "—",                   color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
-                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`, color: isUp ? "text-emerald-400" : "text-rose-400" },
-                      ].map(s => (
-                        <div key={s.label}>
-                          <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
-                          <p className={`text-sm font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </Link>
-                </div>
-              );
-            })()}
 
             {/* ── Section divider: Options ── */}
             <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
@@ -1927,6 +1815,127 @@ function DashboardContent() {
             </div>
           </section>
           </div>{/* /futures lg:col-span-3 */}
+
+            {/* ── PORTFOLIO HERO ── */}
+            {(() => {
+              // Merge closed trades from BOTH paper systems: the portfolio
+              // store (paper_portfolio_v2) and trades closed on /paper.
+              const closedA = portfolioTrades
+                .filter(t => t.status === "CLOSED" && t.exitPrice != null && t.exitDate)
+                .map(t => ({ time: new Date(t.exitDate!).getTime(), pl: calcPL(t, t.exitPrice!) }));
+              const closedB = takenTrades
+                .filter(t => t.status === "WIN" || t.status === "LOSS")
+                .map(t => ({ time: t.closedAt ?? 0, pl: takenTradePL(t) }));
+              const events = [...closedA, ...closedB].sort((a, b) => a.time - b.time);
+
+              // Build equity curve: cumulative account value after each closed trade
+              const curve: number[] = [STARTING_CAPITAL];
+              let running = STARTING_CAPITAL;
+              for (const e of events) {
+                running += e.pl;
+                curve.push(running);
+              }
+
+              const takenPL      = closedB.reduce((s, e) => s + e.pl, 0);
+              const totalPL      = paperStats.realizedPL + takenPL;
+              const accountValue = paperStats.accountValue + takenPL;
+              const openCount    = paperStats.openCount + takenTrades.filter(t => t.status === "OPEN").length;
+              const closedCount  = events.length;
+              const winCount     = events.filter(e => e.pl > 0).length;
+              const winRate      = closedCount > 0 ? Math.round((winCount / closedCount) * 100) : null;
+              const totalPct = (totalPL / STARTING_CAPITAL) * 100;
+              const isUp = totalPL >= 0;
+              const color = isUp ? "#34D399" : "#F87171";
+
+              return (
+                <div className="order-6 lg:order-none lg:col-span-3 self-start">
+                <Link href="/strategy" className="block group">
+                  <div className={`card-shine glass surface-sheen rounded-2xl border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
+
+                    {/* Header: value + change */}
+                    <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-4 flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">Paper Portfolio</p>
+                        <p className="text-3xl lg:text-4xl font-black tracking-tight text-[var(--text-primary,#F1F5F9)] tabular-nums leading-none">
+                          ${accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </p>
+                        <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
+                          <span className="text-sm font-bold tabular-nums">{isUp ? "+" : ""}{totalPL.toFixed(2)}</span>
+                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
+                            {isUp ? "+" : ""}{totalPct.toFixed(2)}%
+                          </span>
+                          <span className="text-[#4B5675] text-xs">all time</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-semibold transition-colors shrink-0 pb-0.5">View performance →</p>
+                    </div>
+
+                    {/* Full-width equity chart */}
+                    <div className="w-full px-0">
+                      {curve.length >= 2 ? (
+                        <svg
+                          viewBox={`0 0 800 110`}
+                          preserveAspectRatio="none"
+                          className="w-full h-[110px]"
+                          aria-hidden
+                        >
+                          <defs>
+                            <linearGradient id="port-chart-grad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor={color} stopOpacity="0.20"/>
+                              <stop offset="100%" stopColor={color} stopOpacity="0"/>
+                            </linearGradient>
+                          </defs>
+                          {(() => {
+                            const min   = Math.min(...curve);
+                            const max   = Math.max(...curve);
+                            const range = max - min || 1;
+                            const W = 800, H = 110, pad = 6;
+                            const pts = curve.map((v, i) => {
+                              const x = (i / (curve.length - 1)) * W;
+                              const y = H - pad - ((v - min) / range) * (H - pad * 2);
+                              return `${x.toFixed(1)},${y.toFixed(1)}`;
+                            });
+                            const pStr = pts.join(" ");
+                            const last = pts[pts.length - 1].split(",");
+                            return (
+                              <>
+                                <polygon points={`0,${H} ${pStr} ${W},${H}`} fill="url(#port-chart-grad)" />
+                                <polyline points={pStr} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx={last[0]} cy={last[1]} r="4" fill={color} />
+                              </>
+                            );
+                          })()}
+                        </svg>
+                      ) : (
+                        <div className="w-full h-[110px] relative flex flex-col items-center justify-center gap-1.5">
+                          <svg className="absolute inset-x-0 bottom-2 w-full h-12 opacity-40" viewBox="0 0 300 48" fill="none" preserveAspectRatio="none" aria-hidden="true">
+                            <path d="M0 40 C40 38, 60 30, 90 32 S150 20, 180 24 S250 10, 300 14" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="4 5" strokeLinecap="round" />
+                          </svg>
+                          <p className="text-xs font-medium text-[#4B5675]">No closed trades yet</p>
+                          <p className="text-[11px] text-[#333368]">Fill your first paper trade and your equity curve starts here</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stats row */}
+                    <div className="grid grid-cols-4 gap-3 px-5 lg:px-6 py-4 border-t border-[#252345]">
+                      {[
+                        { label: "Open",     value: String(openCount),                                       color: "text-[var(--text-primary,#F1F5F9)]" },
+                        { label: "Closed",   value: String(closedCount),                                     color: "text-[var(--text-primary,#F1F5F9)]" },
+                        { label: "Win Rate", value: winRate != null ? `${winRate}%` : "—",                   color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
+                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`, color: isUp ? "text-emerald-400" : "text-rose-400" },
+                      ].map(s => (
+                        <div key={s.label}>
+                          <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
+                          <p className={`text-sm font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </Link>
+                </div>
+              );
+            })()}
 
           {/* Risk Rules + Exchange CTA — full width */}
           <div className="order-7 lg:order-none lg:col-span-3">

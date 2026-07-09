@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { getPortfolio } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
 
@@ -413,6 +414,18 @@ export default function MorningBriefing() {
   const [tab,        setTab]        = useState<Tab>("overview");
   const loadingRef = useRef(false);
   const stepTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Mounted in the root layout — close when the user navigates so the modal
+  // doesn't follow them onto a page they deliberately clicked into.
+  const pathname = usePathname();
+  const pathRef  = useRef(pathname);
+  useEffect(() => {
+    if (pathname !== pathRef.current) {
+      pathRef.current = pathname;
+      setVisible(false);
+      setManualOpen(false);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading) { setLoadStep(0); stepTimers.current.forEach(clearTimeout); stepTimers.current = []; return; }

@@ -326,9 +326,15 @@ function PositionSizer({
   const stopN   = parsePrice(stop);
   const targetN = parsePrice(target);
 
-  const riskDollar   = (account.size * account.riskPct) / 100;
+  const maxRisk      = (account.size * account.riskPct) / 100;
   const riskPerShare = entryN && stopN ? Math.abs(entryN - stopN) : null;
-  const shares       = riskPerShare && riskPerShare > 0 ? Math.floor(riskDollar / riskPerShare) : null;
+  const riskShares   = riskPerShare && riskPerShare > 0 ? Math.floor(maxRisk / riskPerShare) : null;
+  // Cap at buying power — risk-based sizing on a tight stop can otherwise
+  // suggest positions worth many times the account (no leverage in paper).
+  const affordable   = entryN && entryN > 0 ? Math.floor(account.size / entryN) : null;
+  const capped       = riskShares != null && affordable != null && riskShares > affordable;
+  const shares       = riskShares != null && affordable != null ? Math.min(riskShares, affordable) : riskShares;
+  const riskDollar   = shares && riskPerShare ? shares * riskPerShare : maxRisk;
   const cost         = shares && entryN ? shares * entryN : null;
   const potential    = shares && targetN && entryN ? shares * Math.abs(targetN - entryN) : null;
   const rr           = potential && riskDollar > 0 ? potential / riskDollar : null;
@@ -397,9 +403,9 @@ function PositionSizer({
         {valid ? (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
             {[
-              { label: "Shares",    val: fmtS(shares!),    color: "text-[#F1F5F9]",   sub: "to buy" },
+              { label: "Shares",    val: fmtS(shares!),    color: "text-[#F1F5F9]",   sub: capped ? "capped at buying power" : "to buy" },
               { label: "Cost",      val: fmtD(cost!),      color: "text-[#F1F5F9]",   sub: "total outlay" },
-              { label: "Risk $",    val: fmtD(riskDollar), color: "text-rose-400",    sub: `${account.riskPct}% of acct` },
+              { label: "Risk $",    val: fmtD(riskDollar), color: "text-rose-400",    sub: capped ? "actual risk (capped)" : `${account.riskPct}% of acct` },
               { label: "Upside $",  val: fmtD(potential!), color: "text-emerald-400", sub: rr ? `${rr.toFixed(1)}:1 R:R` : "" },
             ].map(s => (
               <div key={s.label} className="bg-[#0D0B1A] rounded-xl p-3 text-center border border-[#1C1933]">
@@ -431,7 +437,7 @@ function PositionSizer({
 
       <div className="px-5 py-3 flex items-center gap-4 flex-wrap">
         <span className="text-[10px] text-[#4B5675]">Account <span className="font-bold text-[#F1F5F9]">{fmtD(account.size)}</span></span>
-        <span className="text-[10px] text-[#4B5675]">Max risk/trade <span className="font-bold text-rose-400">{fmtD(riskDollar)}</span></span>
+        <span className="text-[10px] text-[#4B5675]">Max risk/trade <span className="font-bold text-rose-400">{fmtD(maxRisk)}</span></span>
         {rr != null && (
           <span className="text-[10px] text-[#4B5675]">R:R <span className={`font-bold ${rr >= 2 ? "text-emerald-400" : rr >= 1.5 ? "text-amber-400" : "text-rose-400"}`}>{rr.toFixed(2)}:1</span></span>
         )}
@@ -530,6 +536,21 @@ function TradePlannerContent() {
   const handleTaken = useCallback((t: TakenTrade) => {
     const withStatus = { ...t, status: "PENDING" as const };
     setTaken(prev => { const next = [withStatus, ...prev]; persistTaken(next); return next; });
+    // Show the trader their new order — otherwise placing one gives no feedback
+    setTimeout(() => {
+      document.getElementById("orders-and-positions")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
+  }, []);
+
+  // Arriving via a signal card's "Trade →" link (?symbol=...) — bring the
+  // pre-filled order ticket into view instead of landing on the equity header.
+  useEffect(() => {
+    if (!initSymbol) return;
+    const t = setTimeout(() => {
+      document.getElementById("position-sizer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function cancelPending(id: string) {
@@ -540,13 +561,17 @@ function TradePlannerContent() {
     setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
   }
 
-  function closeTrade(id: string, outcome: "WIN" | "LOSS") {
+  // Outcome is derived from the close price — traders shouldn't self-report
+  // win/loss (mislabelling would corrupt every analytics page downstream).
+  function closeTrade(id: string) {
     const cp = parseFloat(closeInput);
+    if (isNaN(cp) || cp <= 0) return;
     setTaken(prev => {
-      const next = prev.map(t => t.id === id
-        ? { ...t, status: outcome, closePrice: isNaN(cp) ? undefined : cp, closedAt: Date.now() }
-        : t
-      );
+      const next = prev.map(t => {
+        if (t.id !== id) return t;
+        const pl = (t.signal === "BUY" ? 1 : -1) * (cp - t.entry) * t.shares;
+        return { ...t, status: (pl >= 0 ? "WIN" : "LOSS") as "WIN" | "LOSS", closePrice: cp, closedAt: Date.now() };
+      });
       persistTaken(next);
       return next;
     });
@@ -852,6 +877,7 @@ function TradePlannerContent() {
           )}
 
           {/* ── Pending Orders ── */}
+          <div id="orders-and-positions" />
           {pending.length > 0 && (
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -1005,7 +1031,12 @@ function TradePlannerContent() {
                     {t.note && <p className="text-xs text-[#4B5675] mb-3 italic">&ldquo;{t.note}&rdquo;</p>}
 
                     {/* Close trade */}
-                    {closingId === t.id ? (
+                    {closingId === t.id ? (() => {
+                      const cp      = parseFloat(closeInput);
+                      const validCp = !isNaN(cp) && cp > 0;
+                      const pl      = validCp ? (t.signal === "BUY" ? 1 : -1) * (cp - t.entry) * t.shares : null;
+                      const isWin   = pl != null && pl >= 0;
+                      return (
                       <div className="flex items-center gap-2 flex-wrap">
                         <input
                           type="number"
@@ -1014,14 +1045,19 @@ function TradePlannerContent() {
                           placeholder="Close price"
                           className="flex-1 min-w-0 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/40"
                         />
-                        <button type="button" onClick={() => closeTrade(t.id, "WIN")}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">✓ Win</button>
-                        <button type="button" onClick={() => closeTrade(t.id, "LOSS")}
-                          className="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-black transition-all">✗ Loss</button>
+                        <button type="button" onClick={() => closeTrade(t.id)} disabled={!validCp}
+                          className={`text-white px-4 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                            !validCp ? "bg-[#333368]" : isWin ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500"
+                          }`}>
+                          {validCp
+                            ? `Close · ${pl! >= 0 ? "+" : "-"}$${Math.abs(pl!).toFixed(2)} ${isWin ? "✓" : "✗"}`
+                            : "Enter close price"}
+                        </button>
                         <button type="button" onClick={() => { setClosingId(null); setCloseInput(""); }}
                           className="text-xs text-[#4B5675] hover:text-[#94A3B8] px-2 py-2 transition-colors">Cancel</button>
                       </div>
-                    ) : (
+                      );
+                    })() : (
                       <button type="button" onClick={() => {
                         setClosingId(t.id);
                         const lp = livePrices[t.symbol];

@@ -3,7 +3,6 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
 import { auth } from "@/auth";
-import { getYahooCookie, YAHOO_UA } from "@/app/lib/yahooAuth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -33,145 +32,101 @@ function scoreStock(s: ValueStock): number {
   return Math.min(sc, 10);
 }
 
-// ── Yahoo screener (authenticated) ───────────────────────────────────────────
+// ── Universe ──────────────────────────────────────────────────────────────────
+// Same pattern as the options scan: a fixed liquid large-cap universe screened
+// with our own data and scoring — no third-party screener endpoints (Yahoo
+// blocks datacenter IPs; the EODHD screener is a paid add-on).
 
-function parseYahooQuote(q: Record<string, unknown>): ValueStock | null {
-  const sym = q.symbol as string | undefined;
-  if (!sym) return null;
-  const num = (k: string) => (typeof q[k] === "number" ? (q[k] as number) : null);
-  const str = (k: string) => (typeof q[k] === "string" ? (q[k] as string) : null);
-  const price     = num("regularMarketPrice");
-  const changePct = num("regularMarketChangePercent");
-  const pe        = num("trailingPE");
-  const fp        = num("forwardPE");
-  const pb        = num("priceToBook");
-  const mcRaw     = num("marketCap");
-  const yRaw      = num("trailingAnnualDividendYield") ?? num("dividendYield");
-  const s: ValueStock = {
-    symbol:    sym,
-    name:      str("longName") ?? str("shortName") ?? sym,
-    price:     price     !== null ? parseFloat(price.toFixed(2))     : null,
-    changePct: changePct !== null ? parseFloat(changePct.toFixed(2)) : null,
-    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))     : null,
-    forwardPe: fp !== null && fp > 0 ? parseFloat(fp.toFixed(1))     : null,
-    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))     : null,
-    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))   : null,
-    marketCap: mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1)) : null,
-    sector:    str("sector"),
-    score:     0,
-    isDip:     false,
-  };
-  s.score = scoreStock(s);
-  s.isDip = (changePct ?? 0) <= -4;   // any profitable drop qualifies as dip
-  return s;
-}
+const UNIVERSE: Array<{ symbol: string; name: string; sector: string }> = [
+  { symbol: "AAPL",  name: "Apple",              sector: "Technology" },
+  { symbol: "MSFT",  name: "Microsoft",          sector: "Technology" },
+  { symbol: "GOOGL", name: "Alphabet",           sector: "Communication" },
+  { symbol: "META",  name: "Meta Platforms",     sector: "Communication" },
+  { symbol: "INTC",  name: "Intel",              sector: "Technology" },
+  { symbol: "CSCO",  name: "Cisco",              sector: "Technology" },
+  { symbol: "IBM",   name: "IBM",                sector: "Technology" },
+  { symbol: "QCOM",  name: "Qualcomm",           sector: "Technology" },
+  { symbol: "MU",    name: "Micron",             sector: "Technology" },
+  { symbol: "JPM",   name: "JPMorgan Chase",     sector: "Financials" },
+  { symbol: "BAC",   name: "Bank of America",    sector: "Financials" },
+  { symbol: "WFC",   name: "Wells Fargo",        sector: "Financials" },
+  { symbol: "C",     name: "Citigroup",          sector: "Financials" },
+  { symbol: "GS",    name: "Goldman Sachs",      sector: "Financials" },
+  { symbol: "MS",    name: "Morgan Stanley",     sector: "Financials" },
+  { symbol: "BRK.B", name: "Berkshire Hathaway", sector: "Financials" },
+  { symbol: "UNH",   name: "UnitedHealth",       sector: "Healthcare" },
+  { symbol: "JNJ",   name: "Johnson & Johnson",  sector: "Healthcare" },
+  { symbol: "PFE",   name: "Pfizer",             sector: "Healthcare" },
+  { symbol: "MRK",   name: "Merck",              sector: "Healthcare" },
+  { symbol: "BMY",   name: "Bristol-Myers",      sector: "Healthcare" },
+  { symbol: "CVS",   name: "CVS Health",         sector: "Healthcare" },
+  { symbol: "XOM",   name: "Exxon Mobil",        sector: "Energy" },
+  { symbol: "CVX",   name: "Chevron",            sector: "Energy" },
+  { symbol: "COP",   name: "ConocoPhillips",     sector: "Energy" },
+  { symbol: "OXY",   name: "Occidental",         sector: "Energy" },
+  { symbol: "T",     name: "AT&T",               sector: "Communication" },
+  { symbol: "VZ",    name: "Verizon",            sector: "Communication" },
+  { symbol: "CMCSA", name: "Comcast",            sector: "Communication" },
+  { symbol: "DIS",   name: "Disney",             sector: "Communication" },
+  { symbol: "KO",    name: "Coca-Cola",          sector: "Staples" },
+  { symbol: "PEP",   name: "PepsiCo",            sector: "Staples" },
+  { symbol: "PG",    name: "Procter & Gamble",   sector: "Staples" },
+  { symbol: "MO",    name: "Altria",             sector: "Staples" },
+  { symbol: "KHC",   name: "Kraft Heinz",        sector: "Staples" },
+  { symbol: "TGT",   name: "Target",             sector: "Retail" },
+  { symbol: "F",     name: "Ford",               sector: "Autos" },
+  { symbol: "GM",    name: "General Motors",     sector: "Autos" },
+  { symbol: "CAT",   name: "Caterpillar",        sector: "Industrials" },
+  { symbol: "DE",    name: "Deere",              sector: "Industrials" },
+  { symbol: "MMM",   name: "3M",                 sector: "Industrials" },
+  { symbol: "DOW",   name: "Dow",                sector: "Materials" },
+];
 
-async function yahooScreen(
-  scrId: string,
-  cookie: string,
-  count = 50,
-): Promise<ValueStock[]> {
+// ── Per-symbol data ───────────────────────────────────────────────────────────
+
+async function finnhubMetrics(symbol: string, key: string) {
   try {
-    const fields = [
-      "regularMarketPrice","regularMarketChangePercent","trailingPE","forwardPE",
-      "priceToBook","trailingAnnualDividendYield","dividendYield","marketCap",
-      "shortName","longName","sector",
-    ].join(",");
-    const url =
-      `https://query1.finance.yahoo.com/v1/finance/screener/predefined/${scrId}` +
-      `?formatted=false&lang=en-US&region=US&count=${count}&start=0&fields=${encodeURIComponent(fields)}`;
-    const res = await fetch(url, {
-      cache:   "no-store",
-      headers: { "User-Agent": YAHOO_UA, "Accept": "application/json", Cookie: cookie },
-      signal:  AbortSignal.timeout(12_000),
-    });
-    if (!res.ok) return [];
-    const json   = await res.json();
-    const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
-    return quotes.map(parseYahooQuote).filter((s): s is ValueStock => s !== null);
-  } catch { return []; }
-}
-
-async function yahooDipScreen(cookie: string, crumb: string): Promise<ValueStock[]> {
-  try {
-    const body = {
-      offset: 0, size: 100,
-      sortField: "percentchange", sortType: "asc",
-      quoteType: "EQUITY",
-      query: {
-        operator: "and",
-        operands: [
-          { operator: "lt", operands: ["percentchange",    -4]          },
-          { operator: "gt", operands: ["trailingpe",        0]          },
-          { operator: "gt", operands: ["intradaymarketcap", 200_000_000] },
-        ],
-      },
-      userId: "", userIdType: "guid",
-    };
     const res = await fetch(
-      `https://query2.finance.yahoo.com/v1/finance/screener?lang=en-US&region=US&formatted=false&crumb=${encodeURIComponent(crumb)}`,
-      {
-        method:  "POST",
-        cache:   "no-store",
-        headers: { "User-Agent": YAHOO_UA, "Content-Type": "application/json", "Accept": "application/json", Cookie: cookie },
-        body:    JSON.stringify(body),
-        signal:  AbortSignal.timeout(12_000),
-      },
+      `https://finnhub.io/api/v1/stock/metric?symbol=${encodeURIComponent(symbol)}&metric=all&token=${key}`,
+      { cache: "no-store" },
     );
-    if (!res.ok) return [];
-    const json   = await res.json();
-    const quotes = (json?.finance?.result?.[0]?.quotes ?? []) as Record<string, unknown>[];
-    return quotes.map(parseYahooQuote).filter((s): s is ValueStock => s !== null);
-  } catch { return []; }
+    if (!res.ok) return null;
+    const data = await res.json() as { metric?: Record<string, number | null> };
+    const m = data.metric ?? {};
+    const num = (k: string) => (typeof m[k] === "number" && isFinite(m[k] as number) ? (m[k] as number) : null);
+    return {
+      pe:        num("peTTM") ?? num("peBasicExclExtraTTM"),
+      forwardPe: num("forwardPE") ?? null,
+      pb:        num("pbQuarterly") ?? num("pb"),
+      divYield:  num("currentDividendYieldTTM") ?? num("dividendYieldIndicatedAnnual"),
+      marketCap: num("marketCapitalization"), // Finnhub returns $M
+    };
+  } catch { return null; }
 }
 
-// ── EODHD screener fallback ───────────────────────────────────────────────────
-
-function parseEodhdRow(r: Record<string, unknown>): ValueStock | null {
-  const code = (r.code as string | undefined)?.replace(/\.(US|NASDAQ|NYSE)$/i, "");
-  if (!code) return null;
-  const num = (k: string) => (typeof r[k] === "number" ? (r[k] as number) : null);
-  const str = (k: string) => (typeof r[k] === "string" ? (r[k] as string) : null);
-  const price     = num("price") ?? num("close");
-  const changePct = num("change_p");
-  const pe        = num("pe_ratio") ?? num("pe");
-  const pb        = num("price_to_book") ?? num("pb");
-  const mcRaw     = num("market_capitalization");
-  const yRaw      = num("dividend_yield");
-  const s: ValueStock = {
-    symbol:    code,
-    name:      str("name") ?? code,
-    price:     price     !== null ? parseFloat(price.toFixed(2))      : null,
-    changePct: changePct !== null ? parseFloat(changePct.toFixed(2))  : null,
-    pe:        pe !== null && pe > 0 ? parseFloat(pe.toFixed(1))      : null,
-    forwardPe: null,
-    pb:        pb !== null && pb > 0 ? parseFloat(pb.toFixed(2))      : null,
-    divYield:  yRaw !== null ? parseFloat((yRaw * 100).toFixed(2))    : null,
-    marketCap: mcRaw !== null ? parseFloat((mcRaw / 1e9).toFixed(1))  : null,
-    sector:    str("sector") ?? str("industry") ?? null,
-    score:     0,
-    isDip:     false,
-  };
-  s.score = scoreStock(s);
-  s.isDip = (changePct ?? 0) <= -4;
-  return s;
-}
-
-async function eodhdScreen(filters: string, sort: string, limit = 50): Promise<ValueStock[]> {
-  const key = process.env.EODHD_API_KEY;
-  if (!key) return [];
+async function yahooQuote(symbol: string) {
   try {
-    const url =
-      `https://eodhd.com/api/screener?api_token=${key}` +
-      `&filters=${encodeURIComponent(filters)}&sort=${encodeURIComponent(sort)}` +
-      `&limit=${limit}&country=US`;
-    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(12_000) });
-    if (!res.ok) return [];
-    const json = await res.json();
-    const rows = (Array.isArray(json) ? json : json?.data ?? []) as Record<string, unknown>[];
-    return rows.map(parseEodhdRow).filter((s): s is ValueStock => s !== null);
-  } catch { return []; }
+    const ySym = symbol.replace(".", "-"); // BRK.B → BRK-B
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=2d`,
+      { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" },
+    );
+    if (!res.ok) return null;
+    const data = await res.json() as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; chartPreviousClose?: number } }> } };
+    const meta = data.chart?.result?.[0]?.meta;
+    const price = meta?.regularMarketPrice ?? null;
+    const prev  = meta?.chartPreviousClose ?? null;
+    return {
+      price,
+      changePct: price != null && prev != null && prev > 0 ? ((price - prev) / prev) * 100 : null,
+    };
+  } catch { return null; }
 }
+
+// ── Cache — fundamentals change slowly; don't re-hit Finnhub every page load ──
+
+let cache: { data: unknown; ts: number } | null = null;
+const CACHE_TTL = 30 * 60 * 1000;
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -179,62 +134,61 @@ export async function GET() {
   const session = await auth();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-  // Get Yahoo auth cookie for authenticated screener calls
-  const yAuth = await getYahooCookie();
-
-  let undervaluedLarge: ValueStock[] = [];
-  let undervaluedGrowth: ValueStock[] = [];
-  let dipAlerts: ValueStock[] = [];
-
-  if (yAuth) {
-    [undervaluedLarge, undervaluedGrowth, dipAlerts] = await Promise.all([
-      yahooScreen("undervalued_large_caps",    yAuth.cookie, 50),
-      yahooScreen("undervalued_growth_stocks", yAuth.cookie, 50),
-      yahooDipScreen(yAuth.cookie, yAuth.crumb),
-    ]);
+  if (cache && Date.now() - cache.ts < CACHE_TTL) {
+    return Response.json(cache.data);
   }
 
-  // Fall back to EODHD if Yahoo returned nothing
-  const yahooWorked = undervaluedLarge.length > 0 || undervaluedGrowth.length > 0;
-  if (!yahooWorked) {
-    const valueFilt = JSON.stringify([
-      ["market_capitalization", ">", "200000000"],
-      ["pe_ratio", "<", "20"],
-      ["pe_ratio", ">", "0"],
-    ]);
-    const dipFilt = JSON.stringify([
-      ["change_p", "<", "-4"],
-      ["pe_ratio", ">", "0"],
-      ["market_capitalization", ">", "200000000"],
-    ]);
-    [undervaluedLarge, dipAlerts] = await Promise.all([
-      eodhdScreen(valueFilt, "pe_ratio,asc", 50),
-      eodhdScreen(dipFilt,   "change_p,asc", 50),
-    ]);
-  }
+  const finnhubKey = process.env.FINNHUB_API_KEY;
 
-  // Merge + deduplicate value picks — no score gate, Yahoo already pre-filters
-  const seen      = new Set<string>();
-  const allValue  = [...undervaluedLarge, ...undervaluedGrowth];
-  const valuePicks: ValueStock[] = [];
-  for (const s of allValue.sort((a, b) => b.score - a.score)) {
-    if (seen.has(s.symbol)) continue;
-    seen.add(s.symbol);
-    valuePicks.push(s);
-    if (valuePicks.length >= 24) break;
-  }
+  const results = await Promise.all(UNIVERSE.map(async (u) => {
+    const [metrics, quote] = await Promise.all([
+      finnhubKey ? finnhubMetrics(u.symbol, finnhubKey) : Promise.resolve(null),
+      yahooQuote(u.symbol),
+    ]);
+    if (!metrics && !quote) return null;
+    const s: ValueStock = {
+      symbol:    u.symbol,
+      name:      u.name,
+      sector:    u.sector,
+      price:     quote?.price ?? null,
+      changePct: quote?.changePct != null ? parseFloat(quote.changePct.toFixed(2)) : null,
+      pe:        metrics?.pe        != null ? parseFloat(metrics.pe.toFixed(1))        : null,
+      forwardPe: metrics?.forwardPe != null ? parseFloat(metrics.forwardPe.toFixed(1)) : null,
+      pb:        metrics?.pb        != null ? parseFloat(metrics.pb.toFixed(1))        : null,
+      divYield:  metrics?.divYield  != null ? parseFloat(metrics.divYield.toFixed(2))  : null,
+      marketCap: metrics?.marketCap != null ? parseFloat((metrics.marketCap / 1000).toFixed(1)) : null,
+      score:     0,
+      isDip:     false,
+    };
+    s.score = scoreStock(s);
+    s.isDip = s.changePct != null && s.changePct <= -3;
+    return s;
+  }));
 
-  const dipSeen = new Set<string>(valuePicks.map(s => s.symbol));
-  const filteredDips = dipAlerts
-    .filter(s => !dipSeen.has(s.symbol))
+  const scanned = results.filter((s): s is ValueStock => s !== null);
+
+  // Value picks: cheap on fundamentals, ranked by score
+  const valuePicks = scanned
+    .filter(s => s.score >= 3 && s.pe !== null)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 24);
+
+  // Dips: quality names having a bad day — a dip is only a "buy" when the
+  // stock also screens as value. A stock that's both undervalued AND dipping
+  // belongs here first (it's the actionable one). When fundamentals are
+  // unavailable (no Finnhub key), fall back to price-only dips.
+  const dipAlerts = scanned
+    .filter(s => s.isDip && (s.pe === null || s.score >= 2))
     .sort((a, b) => (a.changePct ?? 0) - (b.changePct ?? 0))
-    .slice(0, 25);
+    .slice(0, 12);
 
-  return Response.json({
+  const payload = {
     valuePicks,
-    dipAlerts:  filteredDips,
-    scanned:    undervaluedLarge.length + undervaluedGrowth.length + dipAlerts.length,
-    source:     yahooWorked ? "yahoo" : "eodhd",
-    updatedAt:  new Date().toISOString(),
-  });
+    dipAlerts,
+    scanned:   scanned.length,
+    source:    finnhubKey ? "finnhub+yahoo" : "yahoo-only",
+    updatedAt: new Date().toISOString(),
+  };
+  if (scanned.length > 0) cache = { data: payload, ts: Date.now() };
+  return Response.json(payload);
 }

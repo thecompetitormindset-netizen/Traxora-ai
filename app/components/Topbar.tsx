@@ -104,6 +104,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const router = useRouter();
 
   const [query, setQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false); // phone: expand search to full topbar width
   const [results, setResults] = useState<SearchItem[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -200,7 +201,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
     <div className="topbar-glass flex flex-col shrink-0 sticky top-0 z-30">
     <div className="h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
       {/* Logo — links back to landing page */}
-      <Link href="/" className="flex items-center gap-2 shrink-0 group">
+      <Link href="/" className={`${searchFocused ? "hidden sm:flex" : "flex"} items-center gap-2 shrink-0 group`}>
         <div className="logo-icon-bg w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
@@ -223,8 +224,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
             placeholder="Search any symbol or company…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => { if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
-            onBlur={() => setTimeout(() => setOpen(false), 150)}
+            onFocus={() => { setSearchFocused(true); if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
+            onBlur={() => { setTimeout(() => setOpen(false), 150); setTimeout(() => setSearchFocused(false), 150); }}
             className="flex-1 min-w-0 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
           {loading && (
@@ -302,8 +303,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
         )}
       </div>
 
-      {/* Right side */}
-      <div className="flex items-center gap-2">
+      {/* Right side — hidden on phones while searching so the input gets full width */}
+      <div className={`${searchFocused ? "hidden sm:flex" : "flex"} items-center gap-2`}>
         {/* Scan shortcut */}
         <Link
           href="/intelligence"
@@ -363,7 +364,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             <button
               type="button"
               onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login" }); }}
-              className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
+              className="hidden sm:block text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
               Sign out
             </button>
