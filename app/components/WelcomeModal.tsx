@@ -94,9 +94,9 @@ export default function WelcomeModal() {
         </div>
 
         {/* Pricing note */}
-        <div className="px-6 py-4 mx-6 mb-4 mt-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
-          <p className="text-xs text-amber-400 font-semibold">⚡ Pro plan required for full access — $5/mo</p>
-          <p className="text-[10px] text-[#4B5675] mt-0.5">Subscribe from the Pricing page to unlock all features.</p>
+        <div className="px-6 py-4 mx-6 mb-4 mt-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
+          <p className="text-xs text-emerald-400 font-semibold">⚡ Start free — upgrade to Pro anytime</p>
+          <p className="text-[10px] text-[#4B5675] mt-0.5">Unlock everything — deep signals, scanner, briefings, paper trading — for less than one bad trade.</p>
         </div>
 
         {/* Actions */}
