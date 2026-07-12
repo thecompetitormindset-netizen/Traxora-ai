@@ -14,6 +14,18 @@ type CoinRow = {
   cap?:     number | null;
 };
 
+type CryptoMover = {
+  symbol:     string;
+  ticker:     string;
+  name:       string;
+  price:      number | null;
+  changePct:  number | null;
+  rsi14:      number | null;
+  bbWidthPct: number | null;
+  squeeze:    boolean;
+  bigMove:    boolean;
+};
+
 // ── Static universe ───────────────────────────────────────────────────────────
 
 const COINS: { symbol: string; ticker: string; name: string; emoji: string }[] = [
@@ -95,6 +107,7 @@ function CoinCard({ coin, row }: { coin: typeof COINS[0]; row: CoinRow | undefin
 export default function CryptoDashboard() {
   const [rows,    setRows]    = useState<CoinRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [movers,  setMovers]  = useState<CryptoMover[]>([]);
 
   useEffect(() => {
     const symbols = COINS.map(c => c.symbol).join(",");
@@ -105,7 +118,15 @@ export default function CryptoDashboard() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+
+    fetch("/api/market/crypto-movers", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { coins?: CryptoMover[] } | null) => setMovers(d?.coins ?? []))
+      .catch(() => {});
   }, []);
+
+  const bigMovers = movers.filter(m => m.bigMove).sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0));
+  const squeezes  = movers.filter(m => m.squeeze).sort((a, b) => (a.bbWidthPct ?? 100) - (b.bbWidthPct ?? 100));
 
   function rowFor(symbol: string): CoinRow | undefined {
     return rows.find(r => r.symbol === symbol);
@@ -149,6 +170,56 @@ export default function CryptoDashboard() {
             <span className="text-[9px] text-[#4B5675] uppercase tracking-wider mr-2">Crypto Sentiment</span>
             <span className={`text-[11px] font-black ${sentimentColor}`}>{cryptoSentiment}</span>
           </div>
+        </div>
+      )}
+
+      {/* Moving Now — already underway, so you don't miss it */}
+      {bigMovers.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Moving Now</h2>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{bigMovers.length}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+            {bigMovers.map(m => (
+              <Link key={m.symbol} href={`/analysis?symbol=${encodeURIComponent(m.symbol)}`}
+                className="bg-[#0D0B1A] rounded-xl border border-l-2 border-amber-500/20 border-l-amber-400 p-3.5 flex flex-col gap-1.5 hover:border-[#333368] transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{m.ticker}</span>
+                  <span className={`text-[10px] font-mono font-black ${(m.changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                    {(m.changePct ?? 0) >= 0 ? "+" : ""}{m.changePct?.toFixed(2)}%
+                  </span>
+                </div>
+                <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{fmtPrice(m.price)}</span>
+              </Link>
+            ))}
+          </div>
+          <p className="text-[9px] text-[#333368] mt-2">≥5% move over the last ~24h — the move is already happening, not a forecast.</p>
+        </div>
+      )}
+
+      {/* Coiled — Bollinger squeeze relative to the coin's own recent range */}
+      {squeezes.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-sky-400">Coiled — Watch List</h2>
+            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{squeezes.length}</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
+            {squeezes.map(m => (
+              <Link key={m.symbol} href={`/analysis?symbol=${encodeURIComponent(m.symbol)}`}
+                className="bg-[#0D0B1A] rounded-xl border border-l-2 border-sky-500/20 border-l-sky-400 p-3.5 flex flex-col gap-1.5 hover:border-[#333368] transition-colors">
+                <div className="flex items-center justify-between">
+                  <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{m.ticker}</span>
+                  <span className="text-[9px] font-mono font-bold text-sky-400">{m.bbWidthPct}th pctl</span>
+                </div>
+                <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{fmtPrice(m.price)}</span>
+              </Link>
+            ))}
+          </div>
+          <p className="text-[9px] text-[#333368] mt-2">
+            Bollinger Bands unusually tight vs. this coin&rsquo;s own recent range — historically often precedes a bigger move, but not a signal of direction or timing. Squeezes can sit like this for weeks before anything happens.
+          </p>
         </div>
       )}
 
