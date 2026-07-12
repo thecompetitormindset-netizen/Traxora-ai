@@ -45,6 +45,15 @@ function americanToImplied(price: number): number {
   return price > 0 ? 100 / (price + 100) : -price / (-price + 100);
 }
 
+// Raw American-odds prices can't be arithmetic-averaged across bookmakers —
+// when the favorite flips sign between books on a near-toss-up game, the
+// mean lands between -100 and 100, which isn't a valid odds value. Average
+// in probability space instead, then convert back.
+function impliedToAmerican(prob: number): number | null {
+  if (prob <= 0 || prob >= 1) return null;
+  return Math.round(prob >= 0.5 ? (-100 * prob) / (1 - prob) : (100 * (1 - prob)) / prob);
+}
+
 type OddsOutcome = { name: string; price: number; point?: number };
 type OddsMarket  = { key: string; outcomes: OddsOutcome[] };
 type OddsBookmaker = { key: string; title: string; markets: OddsMarket[] };
@@ -68,7 +77,6 @@ function predictGame(ev: OddsEvent, league: { key: string; label: string; group:
 
   // Consensus moneyline: average vig-removed implied probability across books.
   let homeProbSum = 0, awayProbSum = 0, mlBooks = 0;
-  let homeMlSum = 0, awayMlSum = 0, mlPriceBooks = 0;
   for (const bk of bookmakers) {
     const h2h = bk.markets.find(m => m.key === "h2h");
     if (!h2h) continue;
@@ -81,10 +89,7 @@ function predictGame(ev: OddsEvent, league: { key: string; label: string; group:
     if (sum <= 0) continue;
     homeProbSum += hImp / sum;   // vig-removed, normalized to 100%
     awayProbSum += aImp / sum;
-    homeMlSum   += home.price;
-    awayMlSum   += away.price;
     mlBooks++;
-    mlPriceBooks++;
   }
 
   // Consensus spread + total → derived score, same method bettors use:
@@ -140,8 +145,8 @@ function predictGame(ev: OddsEvent, league: { key: string; label: string; group:
     winnerConfidence,
     predictedScore,
     moneyline: {
-      home: mlPriceBooks > 0 ? Math.round(homeMlSum / mlPriceBooks) : null,
-      away: mlPriceBooks > 0 ? Math.round(awayMlSum / mlPriceBooks) : null,
+      home: mlBooks > 0 ? impliedToAmerican(homeProbSum / mlBooks) : null,
+      away: mlBooks > 0 ? impliedToAmerican(awayProbSum / mlBooks) : null,
     },
     bookmakerCount: bookmakers.length,
   };
