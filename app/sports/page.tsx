@@ -23,7 +23,7 @@ type GamePrediction = {
   bookmakerCount:   number;
 };
 
-const LEAGUE_ORDER = ["NFL", "NBA", "MLB", "NHL", "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS"];
+const LEAGUE_ORDER = ["World Cup", "NFL", "NBA", "MLB", "NHL", "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS"];
 
 function fmtOdds(n: number | null): string {
   if (n === null) return "—";
@@ -35,16 +35,30 @@ function fmtKickoff(iso: string): string {
   return d.toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 
+// Local-timezone YYYY-MM-DD so "today"/"tomorrow" match the viewer's clock, not UTC.
+function localDateKey(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-CA");
+}
+
 // ── Game card ─────────────────────────────────────────────────────────────────
 
-function GameCard({ g }: { g: GamePrediction }) {
+function GameCard({ g, todayKey, tomorrowKey }: { g: GamePrediction; todayKey: string; tomorrowKey: string }) {
   const homeWins = g.predictedWinner === g.homeTeam;
   const awayWins = g.predictedWinner === g.awayTeam;
+  const gameDay  = localDateKey(g.commenceTime);
+  const dayLabel = gameDay === todayKey ? "Today" : gameDay === tomorrowKey ? "Tomorrow" : null;
 
   return (
     <div className="bg-[#0D0B1A] rounded-xl border border-[#252345] p-4 flex flex-col gap-3 hover:border-[#333368] transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675]">{fmtKickoff(g.commenceTime)}</span>
+        <span className="flex items-center gap-1.5">
+          {dayLabel && (
+            <span className={`text-[8px] font-black px-1.5 py-px rounded ${
+              dayLabel === "Today" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-sky-500/15 text-sky-400 border border-sky-500/25"
+            }`}>{dayLabel.toUpperCase()}</span>
+          )}
+          <span className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675]">{fmtKickoff(g.commenceTime)}</span>
+        </span>
         <span className="text-[9px] font-semibold text-[#4B5675]">{g.bookmakerCount} book{g.bookmakerCount === 1 ? "" : "s"}</span>
       </div>
 
@@ -91,6 +105,10 @@ export default function SportsPage() {
   const [loading,    setLoading]    = useState(true);
   const [failed,     setFailed]     = useState(false);
   const [filter,     setFilter]     = useState<"all" | "US" | "Soccer">("all");
+  const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("all");
+
+  const todayKey    = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
+  const tomorrowKey = useMemo(() => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA"), []);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
@@ -109,7 +127,9 @@ export default function SportsPage() {
   }, []);
 
   const grouped = useMemo(() => {
-    const filtered = filter === "all" ? games : games.filter(g => g.leagueGroup === filter);
+    let filtered = filter === "all" ? games : games.filter(g => g.leagueGroup === filter);
+    if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
+    if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
     const byLeague = new Map<string, GamePrediction[]>();
     for (const g of filtered) {
       if (!byLeague.has(g.league)) byLeague.set(g.league, []);
@@ -118,7 +138,9 @@ export default function SportsPage() {
     return LEAGUE_ORDER
       .map(l => ({ league: l, games: byLeague.get(l) ?? [] }))
       .filter(l => l.games.length > 0);
-  }, [games, filter]);
+  }, [games, filter, dateFilter, todayKey, tomorrowKey]);
+
+  const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0);
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -151,17 +173,31 @@ export default function SportsPage() {
 
           {/* Filter tabs */}
           {!loading && games.length > 0 && (
-            <div className="flex items-center justify-center gap-2 mb-6">
-              {(["all", "US", "Soccer"] as const).map(f => (
-                <button key={f} type="button" onClick={() => setFilter(f)}
-                  className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
-                    filter === f
-                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                      : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-                  }`}>
-                  {f === "all" ? "All Leagues" : f === "US" ? "NFL · NBA · MLB · NHL" : "Soccer"}
-                </button>
-              ))}
+            <div className="flex flex-col items-center gap-2 mb-6">
+              <div className="flex items-center justify-center gap-2">
+                {(["today", "tomorrow", "all"] as const).map(f => (
+                  <button key={f} type="button" onClick={() => setDateFilter(f)}
+                    className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
+                      dateFilter === f
+                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
+                    }`}>
+                    {f === "today" ? "Today" : f === "tomorrow" ? "Tomorrow" : "All Upcoming"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {(["all", "US", "Soccer"] as const).map(f => (
+                  <button key={f} type="button" onClick={() => setFilter(f)}
+                    className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
+                      filter === f
+                        ? "bg-sky-500/15 text-sky-400 border-sky-500/30"
+                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
+                    }`}>
+                    {f === "all" ? "All Leagues" : f === "US" ? "NFL · NBA · MLB · NHL" : "Soccer"}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
@@ -196,6 +232,16 @@ export default function SportsPage() {
             </div>
           )}
 
+          {/* Configured, has games overall, but none match the current date/league filter */}
+          {!loading && configured && !failed && games.length > 0 && totalFiltered === 0 && (
+            <div className="text-center py-16">
+              <p className="text-sm font-bold text-[#7B8DB4] mb-1">
+                No {filter === "all" ? "" : filter === "US" ? "NFL/NBA/MLB/NHL " : "soccer "}games {dateFilter === "all" ? "match this filter" : dateFilter}
+              </p>
+              <p className="text-xs text-[#4B5675]">Try &ldquo;All Upcoming&rdquo; to see every game with a posted line.</p>
+            </div>
+          )}
+
           {/* Games grouped by league */}
           {!loading && !failed && grouped.map(section => (
             <div key={section.league} className="mb-6">
@@ -204,7 +250,7 @@ export default function SportsPage() {
                 <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{section.games.length}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {section.games.map(g => <GameCard key={g.id} g={g} />)}
+                {section.games.map(g => <GameCard key={g.id} g={g} todayKey={todayKey} tomorrowKey={tomorrowKey} />)}
               </div>
             </div>
           ))}

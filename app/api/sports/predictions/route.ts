@@ -31,6 +31,7 @@ const LEAGUES: Array<{ key: string; label: string; group: "US" | "Soccer" }> = [
   { key: "basketball_nba",             label: "NBA",               group: "US"     },
   { key: "baseball_mlb",               label: "MLB",               group: "US"     },
   { key: "icehockey_nhl",              label: "NHL",               group: "US"     },
+  { key: "soccer_fifa_world_cup",      label: "World Cup",         group: "Soccer" },
   { key: "soccer_epl",                 label: "Premier League",    group: "Soccer" },
   { key: "soccer_uefa_champs_league",  label: "Champions League",  group: "Soccer" },
   { key: "soccer_spain_la_liga",       label: "La Liga",           group: "Soccer" },
@@ -168,7 +169,7 @@ async function fetchLeague(league: { key: string; label: string; group: "US" | "
 // ── Cache — odds don't move fast enough to justify hitting the API every load ─
 
 let cache: { data: unknown; ts: number } | null = null;
-const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL = 90 * 60 * 1000; // 90 min — 11 leagues x 3 markets keeps this under the 20K/mo credit plan
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
