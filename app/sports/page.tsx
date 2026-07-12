@@ -106,6 +106,7 @@ export default function SportsPage() {
   const [failed,     setFailed]     = useState(false);
   const [filter,     setFilter]     = useState<"all" | "US" | "Soccer">("all");
   const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("all");
+  const [confFilter, setConfFilter] = useState<0 | 70 | 80>(70);
 
   const todayKey    = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA"), []);
@@ -130,6 +131,10 @@ export default function SportsPage() {
     let filtered = filter === "all" ? games : games.filter(g => g.leagueGroup === filter);
     if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
     if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
+    // "Sure" is not a real thing in sports — this hides toss-ups the market itself
+    // is unsure about, and games with too few books to trust the line at all.
+    if (confFilter > 0) filtered = filtered.filter(g => g.winnerConfidence !== null && g.winnerConfidence >= confFilter && g.bookmakerCount >= 4);
+    filtered = [...filtered].sort((a, b) => (b.winnerConfidence ?? 0) - (a.winnerConfidence ?? 0));
     const byLeague = new Map<string, GamePrediction[]>();
     for (const g of filtered) {
       if (!byLeague.has(g.league)) byLeague.set(g.league, []);
@@ -138,7 +143,7 @@ export default function SportsPage() {
     return LEAGUE_ORDER
       .map(l => ({ league: l, games: byLeague.get(l) ?? [] }))
       .filter(l => l.games.length > 0);
-  }, [games, filter, dateFilter, todayKey, tomorrowKey]);
+  }, [games, filter, dateFilter, confFilter, todayKey, tomorrowKey]);
 
   const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0);
 
@@ -173,7 +178,7 @@ export default function SportsPage() {
 
           {/* Filter tabs */}
           {!loading && games.length > 0 && (
-            <div className="flex flex-col items-center gap-2 mb-6">
+            <div className="flex flex-col items-center gap-2 mb-3">
               <div className="flex items-center justify-center gap-2">
                 {(["today", "tomorrow", "all"] as const).map(f => (
                   <button key={f} type="button" onClick={() => setDateFilter(f)}
@@ -183,6 +188,18 @@ export default function SportsPage() {
                         : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
                     }`}>
                     {f === "today" ? "Today" : f === "tomorrow" ? "Tomorrow" : "All Upcoming"}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                {([0, 70, 80] as const).map(f => (
+                  <button key={f} type="button" onClick={() => setConfFilter(f)}
+                    className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-colors ${
+                      confFilter === f
+                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
+                    }`}>
+                    {f === 0 ? "All Games" : f === 70 ? "Favorites 70%+" : "Heavy Favorites 80%+"}
                   </button>
                 ))}
               </div>
@@ -199,6 +216,12 @@ export default function SportsPage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {!loading && games.length > 0 && confFilter > 0 && (
+            <p className="text-center text-[10px] text-amber-400/70 mb-6 max-w-md mx-auto">
+              &ldquo;{confFilter}%+&rdquo; means the betting market itself prices this side around a {confFilter}% chance to win — not a guarantee. Favorites lose regularly; treat every game here as a probability, not a lock.
+            </p>
           )}
 
           {/* Loading */}
@@ -232,13 +255,15 @@ export default function SportsPage() {
             </div>
           )}
 
-          {/* Configured, has games overall, but none match the current date/league filter */}
+          {/* Configured, has games overall, but none match the current date/league/confidence filter */}
           {!loading && configured && !failed && games.length > 0 && totalFiltered === 0 && (
             <div className="text-center py-16">
               <p className="text-sm font-bold text-[#7B8DB4] mb-1">
                 No {filter === "all" ? "" : filter === "US" ? "NFL/NBA/MLB/NHL " : "soccer "}games {dateFilter === "all" ? "match this filter" : dateFilter}
               </p>
-              <p className="text-xs text-[#4B5675]">Try &ldquo;All Upcoming&rdquo; to see every game with a posted line.</p>
+              <p className="text-xs text-[#4B5675]">
+                {confFilter > 0 ? `Try "All Games" — no lines hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every game with a posted line."}
+              </p>
             </div>
           )}
 
