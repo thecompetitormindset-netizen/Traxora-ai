@@ -61,6 +61,7 @@ const SIGNALS_ITEMS = [
   { name: "Earnings",  desc: "Upcoming earnings calendar",    href: "/earnings",          emoji: "📅",  event: null },
   { name: "News",      desc: "Filterable market news feed",   href: "/news",              emoji: "📰",  event: null },
   { name: "IPO",       desc: "New listings & outlook",        href: "/ipo",               emoji: "🚀",  event: null },
+  { name: "Sports",    desc: "Game predictions & scores",     href: "/sports",            emoji: "🏆",  event: null },
   { name: "Brief",     desc: "Morning market briefing",       href: null,                 emoji: "🌅",  event: "traxora-show-briefing" },
 ];
 
@@ -247,7 +248,7 @@ export default function Sidebar() {
 
   function toggle(id: PanelId) { haptic.tap(); setOpen(prev => prev === id ? null : id); }
 
-  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment","/earnings","/news","/compare"].some(p => pathname?.startsWith(p));
+  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment","/earnings","/news","/compare","/sports"].some(p => pathname?.startsWith(p));
   const tradeActive    = ["/paper","/journal","/history","/strategy","/chat"].some(p => pathname?.startsWith(p));
   const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
   const dashActive     = pathname === "/dashboard";
