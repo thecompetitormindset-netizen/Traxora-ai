@@ -428,7 +428,7 @@ const SECTIONS: Section[] = [
     steps: [
       {
         step: "Open the Sports page",
-        detail: "Navigate to Sports from the Signals menu, the dashboard's Sports card, or the search palette. Every game with a live bookmaker line appears — usually within 1–2 weeks of kickoff. Covered leagues: NFL, NBA, MLB, NHL, World Cup, Premier League, Champions League, La Liga, Serie A, Bundesliga, and MLS.",
+        detail: "Navigate to Sports from the Signals menu, the dashboard's Sports card, or the search palette. Every game with a live bookmaker line appears — usually within 1–2 weeks of kickoff. Each sport has its own tab: NFL, NBA, MLB, NHL, Soccer (World Cup, Premier League, Champions League, La Liga, Serie A, Bundesliga, MLS), College Football, College Basketball, WNBA, MMA/UFC, and Boxing.",
       },
       {
         step: "How the prediction is built",

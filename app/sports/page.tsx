@@ -23,7 +23,26 @@ type GamePrediction = {
   bookmakerCount:   number;
 };
 
-const LEAGUE_ORDER = ["World Cup", "NFL", "NBA", "MLB", "NHL", "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS"];
+const LEAGUE_ORDER = [
+  "World Cup", "NFL", "NBA", "MLB", "NHL",
+  "College Football", "College Basketball", "WNBA", "MMA / UFC", "Boxing",
+  "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS",
+];
+
+// One tab per sport. Soccer bundles its leagues; every other sport stands alone.
+const SPORT_TABS: Array<{ id: string; label: string; emoji: string; match: (g: GamePrediction) => boolean }> = [
+  { id: "all",    label: "All",                emoji: "🌍", match: () => true },
+  { id: "nfl",    label: "NFL",                emoji: "🏈", match: g => g.league === "NFL" },
+  { id: "nba",    label: "NBA",                emoji: "🏀", match: g => g.league === "NBA" },
+  { id: "mlb",    label: "MLB",                emoji: "⚾", match: g => g.league === "MLB" },
+  { id: "nhl",    label: "NHL",                emoji: "🏒", match: g => g.league === "NHL" },
+  { id: "soccer", label: "Soccer",             emoji: "⚽", match: g => g.leagueGroup === "Soccer" },
+  { id: "cfb",    label: "College Football",   emoji: "🎓", match: g => g.league === "College Football" },
+  { id: "cbb",    label: "College Basketball", emoji: "🎓", match: g => g.league === "College Basketball" },
+  { id: "wnba",   label: "WNBA",               emoji: "🏀", match: g => g.league === "WNBA" },
+  { id: "mma",    label: "MMA / UFC",          emoji: "🥋", match: g => g.league === "MMA / UFC" },
+  { id: "boxing", label: "Boxing",             emoji: "🥊", match: g => g.league === "Boxing" },
+];
 
 function fmtOdds(n: number | null): string {
   if (n === null) return "—";
@@ -104,9 +123,11 @@ export default function SportsPage() {
   const [configured, setConfigured] = useState(true);
   const [loading,    setLoading]    = useState(true);
   const [failed,     setFailed]     = useState(false);
-  const [filter,     setFilter]     = useState<"all" | "US" | "Soccer">("all");
+  const [quotaOut,   setQuotaOut]   = useState(false);
+  const [sportTab,   setSportTab]   = useState("all");
   const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("all");
-  const [confFilter, setConfFilter] = useState<0 | 70 | 80>(70);
+  // Default to every game in schedule order — probability is an opt-in view
+  const [confFilter, setConfFilter] = useState<0 | 70 | 80>(0);
 
   const todayKey    = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA"), []);
@@ -118,23 +139,36 @@ export default function SportsPage() {
   useEffect(() => {
     fetch("/api/sports/predictions", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then((d: { games?: GamePrediction[]; configured?: boolean } | null) => {
+      .then((d: { games?: GamePrediction[]; configured?: boolean; quotaExhausted?: boolean } | null) => {
         if (!d) { setFailed(true); return; }
         setGames(d.games ?? []);
         setConfigured(d.configured ?? false);
+        setQuotaOut(d.quotaExhausted ?? false);
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
   }, []);
 
+  // Games per sport tab (before date/confidence filters) — powers the tab count badges
+  const tabCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of SPORT_TABS) m.set(t.id, games.filter(t.match).length);
+    return m;
+  }, [games]);
+
+  const activeTab = SPORT_TABS.find(t => t.id === sportTab) ?? SPORT_TABS[0];
+
   const grouped = useMemo(() => {
-    let filtered = filter === "all" ? games : games.filter(g => g.leagueGroup === filter);
+    let filtered = games.filter(activeTab.match);
     if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
     if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
     // "Sure" is not a real thing in sports — this hides toss-ups the market itself
     // is unsure about, and games with too few books to trust the line at all.
     if (confFilter > 0) filtered = filtered.filter(g => g.winnerConfidence !== null && g.winnerConfidence >= confFilter && g.bookmakerCount >= 4);
-    filtered = [...filtered].sort((a, b) => (b.winnerConfidence ?? 0) - (a.winnerConfidence ?? 0));
+    // Default view reads like a schedule (kickoff order); probability views rank by confidence
+    filtered = confFilter > 0
+      ? [...filtered].sort((a, b) => (b.winnerConfidence ?? 0) - (a.winnerConfidence ?? 0))
+      : [...filtered].sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
     const byLeague = new Map<string, GamePrediction[]>();
     for (const g of filtered) {
       if (!byLeague.has(g.league)) byLeague.set(g.league, []);
@@ -143,7 +177,7 @@ export default function SportsPage() {
     return LEAGUE_ORDER
       .map(l => ({ league: l, games: byLeague.get(l) ?? [] }))
       .filter(l => l.games.length > 0);
-  }, [games, filter, dateFilter, confFilter, todayKey, tomorrowKey]);
+  }, [games, activeTab, dateFilter, confFilter, todayKey, tomorrowKey]);
 
   const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0);
 
@@ -176,7 +210,35 @@ export default function SportsPage() {
             </p>
           </div>
 
-          {/* Filter tabs */}
+          {/* Sport tabs — one per sport */}
+          {!loading && games.length > 0 && (
+            <div className="mb-3 -mx-3 px-3 overflow-x-auto scrollbar-hide">
+              <div className="flex items-center gap-1.5 w-max mx-auto pb-1">
+                {SPORT_TABS.map(t => {
+                  const count = tabCounts.get(t.id) ?? 0;
+                  const active = sportTab === t.id;
+                  return (
+                    <button key={t.id} type="button" onClick={() => setSportTab(t.id)}
+                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${
+                        active
+                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          : count === 0
+                          ? "bg-[#13112A] text-[#333368] border-[#252345] hover:text-[#4B5675]"
+                          : "bg-[#13112A] text-[#7B8DB4] border-[#252345] hover:text-[#F1F5F9] hover:border-[#333368]"
+                      }`}>
+                      <span aria-hidden>{t.emoji}</span>
+                      {t.label}
+                      <span className={`text-[9px] font-black px-1.5 py-px rounded-full border ${
+                        active ? "bg-emerald-500/15 border-emerald-500/25" : "bg-[#0D0B1A] border-[#252345]"
+                      }`}>{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Date + confidence filters */}
           {!loading && games.length > 0 && (
             <div className="flex flex-col items-center gap-2 mb-3">
               <div className="flex items-center justify-center gap-2">
@@ -200,18 +262,6 @@ export default function SportsPage() {
                         : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
                     }`}>
                     {f === 0 ? "All Games" : f === 70 ? "Favorites 70%+" : "Heavy Favorites 80%+"}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center justify-center gap-2">
-                {(["all", "US", "Soccer"] as const).map(f => (
-                  <button key={f} type="button" onClick={() => setFilter(f)}
-                    className={`text-[10px] font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
-                      filter === f
-                        ? "bg-sky-500/15 text-sky-400 border-sky-500/30"
-                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-                    }`}>
-                    {f === "all" ? "All Leagues" : f === "US" ? "NFL · NBA · MLB · NHL" : "Soccer"}
                   </button>
                 ))}
               </div>
@@ -250,8 +300,17 @@ export default function SportsPage() {
           {/* Empty but configured */}
           {!loading && configured && !failed && games.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games with posted lines right now</p>
-              <p className="text-xs text-[#4B5675]">Books usually post lines within a week or two of kickoff — check back closer to game day.</p>
+              {quotaOut ? (
+                <>
+                  <p className="text-sm font-bold text-[#7B8DB4] mb-1">Predictions are temporarily unavailable</p>
+                  <p className="text-xs text-[#4B5675] max-w-sm mx-auto">The odds provider&rsquo;s monthly request quota is used up. Games reappear automatically when the quota resets at the start of the next billing period.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games with posted lines right now</p>
+                  <p className="text-xs text-[#4B5675]">Books usually post lines within a week or two of kickoff — check back closer to game day.</p>
+                </>
+              )}
             </div>
           )}
 
@@ -259,10 +318,12 @@ export default function SportsPage() {
           {!loading && configured && !failed && games.length > 0 && totalFiltered === 0 && (
             <div className="text-center py-16">
               <p className="text-sm font-bold text-[#7B8DB4] mb-1">
-                No {filter === "all" ? "" : filter === "US" ? "NFL/NBA/MLB/NHL " : "soccer "}games {dateFilter === "all" ? "match this filter" : dateFilter}
+                No {activeTab.id === "all" ? "" : `${activeTab.label} `}games {dateFilter === "all" ? "match this filter" : dateFilter}
               </p>
               <p className="text-xs text-[#4B5675]">
-                {confFilter > 0 ? `Try "All Games" — no lines hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every game with a posted line."}
+                {(tabCounts.get(activeTab.id) ?? 0) === 0 && activeTab.id !== "all"
+                  ? `No ${activeTab.label} lines are posted right now — books post lines closer to game day (or the sport is off-season).`
+                  : confFilter > 0 ? `Try "All Games" — no lines hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every game with a posted line."}
               </p>
             </div>
           )}

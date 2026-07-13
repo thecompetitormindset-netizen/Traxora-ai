@@ -31,6 +31,11 @@ const LEAGUES: Array<{ key: string; label: string; group: "US" | "Soccer" }> = [
   { key: "basketball_nba",             label: "NBA",               group: "US"     },
   { key: "baseball_mlb",               label: "MLB",               group: "US"     },
   { key: "icehockey_nhl",              label: "NHL",               group: "US"     },
+  { key: "americanfootball_ncaaf",     label: "College Football",  group: "US"     },
+  { key: "basketball_ncaab",           label: "College Basketball",group: "US"     },
+  { key: "basketball_wnba",            label: "WNBA",              group: "US"     },
+  { key: "mma_mixed_martial_arts",     label: "MMA / UFC",         group: "US"     },
+  { key: "boxing_boxing",              label: "Boxing",            group: "US"     },
   { key: "soccer_fifa_world_cup",      label: "World Cup",         group: "Soccer" },
   { key: "soccer_epl",                 label: "Premier League",    group: "Soccer" },
   { key: "soccer_uefa_champs_league",  label: "Champions League",  group: "Soccer" },
@@ -153,23 +158,47 @@ function predictGame(ev: OddsEvent, league: { key: string; label: string; group:
   };
 }
 
-async function fetchLeague(league: { key: string; label: string; group: "US" | "Soccer" }, apiKey: string): Promise<GamePrediction[]> {
+// Exhibition events pit league aggregates against each other ("American League
+// @ National League" for the MLB All-Star Game, AFC @ NFC for the Pro Bowl).
+// They're not real schedule games — users expect team-vs-team matchups only.
+const AGGREGATE_TEAMS = new Set([
+  "American League", "National League",
+  "AFC", "NFC", "American Football Conference", "National Football Conference",
+  "Team AFC", "Team NFC",
+]);
+
+function isExhibition(ev: OddsEvent): boolean {
+  return [ev.home_team, ev.away_team].some(
+    n => !n || AGGREGATE_TEAMS.has(n) || /all[- ]star/i.test(n),
+  );
+}
+
+async function fetchLeague(
+  league: { key: string; label: string; group: "US" | "Soccer" },
+  apiKey: string,
+  status: { quotaHit: boolean },
+): Promise<GamePrediction[]> {
   try {
     const url =
       `https://api.the-odds-api.com/v4/sports/${league.key}/odds/` +
       `?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
     const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 160);
+      if (res.status === 401 && body.includes("OUT_OF_USAGE")) status.quotaHit = true;
+      console.warn(`[sports] ${league.key} odds fetch failed: HTTP ${res.status} ${body}`);
+      return [];
+    }
     const events = await res.json() as OddsEvent[];
     if (!Array.isArray(events)) return [];
-    return events.map(ev => predictGame(ev, league));
+    return events.filter(ev => !isExhibition(ev)).map(ev => predictGame(ev, league));
   } catch { return []; }
 }
 
 // ── Cache — odds don't move fast enough to justify hitting the API every load ─
 
 let cache: { data: unknown; ts: number } | null = null;
-const CACHE_TTL = 90 * 60 * 1000; // 90 min — 11 leagues x 3 markets keeps this under the 20K/mo credit plan
+const CACHE_TTL = 120 * 60 * 1000; // 120 min — 16 leagues x 3 markets ≈ 48 credits/refresh, ~17K/mo on the 20K plan
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -186,10 +215,22 @@ export async function GET() {
     return Response.json(cache.data);
   }
 
-  const results = await Promise.all(LEAGUES.map(l => fetchLeague(l, apiKey)));
+  const status = { quotaHit: false };
+  const results = await Promise.all(LEAGUES.map(l => fetchLeague(l, apiKey, status)));
   const games = results.flat().sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
 
-  const payload = { games, configured: true, updatedAt: new Date().toISOString() };
-  if (games.length > 0) cache = { data: payload, ts: Date.now() };
+  const payload = {
+    games,
+    configured: true,
+    quotaExhausted: status.quotaHit && games.length === 0,
+    updatedAt: new Date().toISOString(),
+  };
+  if (games.length > 0) {
+    cache = { data: payload, ts: Date.now() };
+  } else {
+    // Cache empty results too (10 min) — without this, every page load refires
+    // 16 upstream requests, which is what burns quota during outages/off-hours.
+    cache = { data: payload, ts: Date.now() - (CACHE_TTL - 10 * 60 * 1000) };
+  }
   return Response.json(payload);
 }

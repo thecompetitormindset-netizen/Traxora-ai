@@ -194,7 +194,7 @@ export default function HomePage() {
 
             <div className="hero-enter hero-enter-4 flex items-center gap-4 flex-wrap mb-4">
               <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-[var(--glow-accent)] hover:scale-[1.02] active:scale-95">
-                {session ? "Open Dashboard →" : "Start free →"}
+                {session ? "Open Dashboard →" : "Get started →"}
               </button>
               <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
                 See how it works →
@@ -396,7 +396,7 @@ export default function HomePage() {
           <div className="reveal reveal-d1 group bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
             <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl mb-4 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300">🏆</div>
             <h3 className="text-base font-bold text-[#F1F5F9] mb-2">Sports Predictions</h3>
-            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">Every NFL, NBA, MLB, NHL and top-flight soccer game with a posted line — consensus odds, vig removed, ranked by confidence with predicted scores.</p>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">NFL, NBA, MLB, NHL, college football &amp; basketball, WNBA, MMA, boxing and top-flight soccer — every game with a posted line, ranked by confidence with predicted scores.</p>
             <div className="rounded-xl bg-[#0D0B1A] border border-[#252345] px-3 py-2.5">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-[10px] font-semibold text-[#CBD5E1]">Eagles @ Cowboys</span>
@@ -534,9 +534,9 @@ export default function HomePage() {
           {[
             {
               n:"01",
-              title:"Create your free account",
-              desc:"One click. No forms, no credit card required. Free tier starts immediately. Your account, your signals — private and never shared.",
-              detail:"Start on the free tier, then unlock everything — full AI signals, Morning Brief, Deep Scanner, and Paper Trading — by upgrading to Pro.",
+              title:"Create your account",
+              desc:"One click. No forms. Your account, your signals — private and never shared.",
+              detail:"Pro unlocks everything — full AI signals, Morning Brief, Deep Scanner, and Paper Trading — for $5.00/mo, a founding price that never goes up while you stay subscribed.",
               numColor:"text-cyan-500/25", accentColor:"text-cyan-400/70",
             },
             {
@@ -681,7 +681,7 @@ export default function HomePage() {
               <p className="text-xs text-[#4B5675] mt-1">Locked in for as long as you subscribe · cancel anytime · no hidden fees</p>
             </div>
             <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container shrink-0 bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
-              {session ? "Open Dashboard →" : "Get started free →"}
+              {session ? "Open Dashboard →" : "Go Pro — $5/mo →"}
             </button>
           </div>
 
@@ -812,11 +812,11 @@ export default function HomePage() {
               <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
                 Institutional-grade analysis.<br /><span className="text-emerald-400">For the price of a coffee.</span>
               </h2>
-              <p className="text-lg text-[#7B8DB4] leading-relaxed">Start free — no credit card, no trial timer. Go Pro for $5/mo flat and lock in the founding price forever.</p>
+              <p className="text-lg text-[#7B8DB4] leading-relaxed">Pro is $5.00/mo flat — founding price, locked in for as long as you subscribe. Cancel anytime.</p>
             </div>
             <div className="flex flex-col gap-4 lg:items-end">
               <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-9 py-4 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 w-full lg:w-auto">
-                {session ? "Open Dashboard →" : "Start free →"}
+                {session ? "Open Dashboard →" : "Get started →"}
               </button>
               <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-9 py-4 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9] text-center w-full lg:w-auto">
                 Read the guide →
@@ -831,7 +831,7 @@ export default function HomePage() {
       {!session && (
         <div className={`md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-5 pt-3 bg-gradient-to-t from-[#0D0B1A] to-[#0D0B1A]/0 transition-all duration-300 ${showSticky ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
           <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30">
-            Start free →
+            Get started — $5/mo Pro →
           </button>
         </div>
       )}

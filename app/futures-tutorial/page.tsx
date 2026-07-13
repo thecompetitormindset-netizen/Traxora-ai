@@ -47,7 +47,7 @@ const STEPS: Step[] = [
         { label: "A share of the S&P 500 index fund", correct: false },
         { label: "A contract that pays interest like a bond", correct: false },
       ],
-      explanation: "Correct! Futures are pure price bets. You never own any stock or asset. You enter a contract, and when you exit it, you collect the profit or pay the loss based purely on price movement.",
+      explanation: "Futures are pure price bets. You never own any stock or asset. You enter a contract, and when you exit it, you collect the profit or pay the loss based purely on price movement.",
     },
     action: {
       label: "See live futures prices on the Dashboard",
@@ -327,7 +327,7 @@ const STEPS: Step[] = [
         { label: "Skip this trade — $60 risk is 20% of your account, too large", correct: true },
         { label: "Use a market order to get in faster", correct: false },
       ],
-      explanation: "Correct. $60 risk is 20% of your $300 account — way above the 8% ($24) maximum. No matter how strong the signal looks, if the stop distance doesn't fit your risk rules, you skip the trade. The next setup will come.",
+      explanation: "$60 risk is 20% of your $300 account — way above the 8% ($24) maximum. No matter how strong the signal looks, if the stop distance doesn't fit your risk rules, you skip the trade. The next setup will come.",
     },
     action: {
       label: "Start your first paper futures trade",
@@ -359,13 +359,16 @@ function ProgressBar({ current, total }: { current: number; total: number }) {
 
 function Quiz({
   quiz,
+  passed,
   onPass,
 }: {
   quiz: NonNullable<Step["quiz"]>;
+  passed: boolean;
   onPass: () => void;
 }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
+  // Already-passed quizzes render in their solved state when you navigate back
+  const [selected, setSelected] = useState<number | null>(() => passed ? quiz.options.findIndex(o => o.correct) : null);
+  const [revealed, setRevealed] = useState(passed);
 
   function choose(idx: number) {
     if (revealed) return;
@@ -376,7 +379,7 @@ function Quiz({
     if (selected === null) return;
     setRevealed(true);
     if (quiz.options[selected].correct) {
-      setTimeout(onPass, 1200);
+      setTimeout(onPass, 600);
     }
   }
 
@@ -430,13 +433,22 @@ function Quiz({
           </p>
           <p className="text-xs text-[#7B8DB4] leading-relaxed">{quiz.explanation}</p>
           {isWrong && (
-            <button
-              type="button"
-              onClick={retry}
-              className="mt-3 text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
-            >
-              Try again →
-            </button>
+            <div className="mt-3 flex items-center gap-4">
+              <button
+                type="button"
+                onClick={retry}
+                className="text-xs font-semibold text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                Try again →
+              </button>
+              <button
+                type="button"
+                onClick={onPass}
+                className="text-xs font-semibold text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors"
+              >
+                Got it — continue anyway →
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -516,7 +528,7 @@ export default function FuturesTutorialPage() {
             </h1>
             <p className="text-[#7B8DB4] text-sm leading-relaxed mb-8 max-w-md mx-auto">
               You now understand futures contracts, leverage, micro contracts, reading signals,
-              entering trades, risk management, and the 4 PM rule. That's more than most people
+              entering trades, risk management, and the 4 PM rule. That&apos;s more than most people
               know when they start.
             </p>
 
@@ -637,7 +649,9 @@ export default function FuturesTutorialPage() {
               {/* Quiz */}
               {step.quiz && (
                 <Quiz
+                  key={step.id}
                   quiz={step.quiz}
+                  passed={!!quizPassed[step.id]}
                   onPass={() => markPassed(step.id)}
                 />
               )}
@@ -690,7 +704,7 @@ export default function FuturesTutorialPage() {
           {/* Skip quiz note */}
           {hasQuiz && !thisPassed && (
             <p className="text-center text-[10px] text-[#333368] mt-3">
-              Answer the quiz correctly to unlock the next step
+              Answer the quick check to continue — a wrong answer shows the explanation and still lets you move on
             </p>
           )}
 
