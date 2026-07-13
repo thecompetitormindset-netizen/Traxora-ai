@@ -75,23 +75,35 @@ function IndicesBar({ session }: { session: { user?: unknown } | null }) {
 
   if (!session?.user || rows.length === 0) return null;
 
+  // Duration scales with the list so per-item pace stays roughly constant
+  // regardless of how many indices the API returns.
+  const duration = Math.max(14, rows.length * 3.5);
+
   return (
-    <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide border-t border-white/[0.04] px-4 py-1">
-      {rows.map(r => {
-        const up = (r.change ?? 0) >= 0;
-        return (
-          <div key={r.symbol} className="shrink-0 flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#0D0B1A]/60">
-            <span className="text-[10px] text-[#4B5675] font-medium">{r.label}</span>
-            <span className="text-[10px] font-mono font-bold text-[#CBD5E1]">{fmtIdx(r.price, r.symbol)}</span>
-            {r.change !== null && (
-              <span className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                {up ? "+" : ""}{r.change.toFixed(2)}%
-              </span>
-            )}
-          </div>
-        );
-      })}
-      <span className="ml-auto shrink-0 text-[8px] text-[#333368] pr-1">15-min delay</span>
+    <div className="flex items-center border-t border-white/[0.04] py-1">
+      <div className="ticker-mask flex-1 min-w-0">
+        <div className="ticker-track" style={{ animationDuration: `${duration}s` }}>
+          {[0, 1].map(copy => (
+            <div key={copy} className="flex items-center gap-1 pl-4" aria-hidden={copy === 1}>
+              {rows.map(r => {
+                const up = (r.change ?? 0) >= 0;
+                return (
+                  <div key={`${copy}-${r.symbol}`} className="shrink-0 flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-[#0D0B1A]/60">
+                    <span className="text-[10px] text-[#4B5675] font-medium">{r.label}</span>
+                    <span className="text-[10px] font-mono font-bold text-[#CBD5E1]">{fmtIdx(r.price, r.symbol)}</span>
+                    {r.change !== null && (
+                      <span className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                        {up ? "+" : ""}{r.change.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <span className="shrink-0 text-[8px] text-[#333368] px-3">15-min delay</span>
     </div>
   );
 }
