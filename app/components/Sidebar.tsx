@@ -214,6 +214,38 @@ export default function Sidebar() {
   const [open, setOpen] = useState<PanelId>(null);
   const navRef          = useRef<HTMLDivElement>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [peek, setPeek]               = useState(false); // collapsed sidebar slid out on edge-hover
+  const [navHidden, setNavHidden]     = useState(false);
+  const lastScrollY                   = useRef(new WeakMap<EventTarget, number>());
+
+  // Auto-hide the mobile tab bar on scroll down, reveal on scroll up.
+  // Capture-phase listener because some pages scroll on window and others
+  // (e.g. the dashboard) scroll inside <main class="overflow-y-auto">.
+  useEffect(() => {
+    const mountedAt = Date.now();
+    function onScroll(e: Event) {
+      // Skip browser scroll-restoration right after load — only user scrolls count
+      if (Date.now() - mountedAt < 600) return;
+      const target = (e.target === document ? document : e.target) as EventTarget | null;
+      if (!target) return;
+      const el   = target instanceof Element ? target : null;
+      const y    = el ? el.scrollTop : window.scrollY;
+      const last = lastScrollY.current.get(target) ?? y;
+      lastScrollY.current.set(target, y);
+      const delta = y - last;
+      if (Math.abs(delta) < 8) return; // ignore jitter / rubber-banding
+      const atBottom = el
+        ? y + el.clientHeight >= el.scrollHeight - 48
+        : window.innerHeight + y >= document.documentElement.scrollHeight - 48;
+      if (delta > 0 && y > 80 && !atBottom) setNavHidden(true);
+      else setNavHidden(false);
+    }
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => document.removeEventListener("scroll", onScroll, { capture: true });
+  }, []);
+
+  // Route change or opening a sub-panel always brings the bar back
+  useEffect(() => { setNavHidden(false); }, [pathname]);
 
   useEffect(() => {
     const saved = localStorage.getItem("traxora_sidebar_open");
@@ -221,6 +253,7 @@ export default function Sidebar() {
   }, []);
 
   function toggleSidebar() {
+    setPeek(false);
     setSidebarOpen(prev => {
       const next = !prev;
       document.body.classList.toggle("sidebar-collapsed", !next);
@@ -269,7 +302,19 @@ export default function Sidebar() {
   return (
     <>
       {/* ── Desktop persistent sidebar (hidden on mobile) ── */}
-      <aside className="sidebar-desktop fixed left-0 top-0 bottom-0 w-[280px] flex-col z-50 bg-[var(--bg-surface)] border-r border-[var(--border)]">
+      {/* When collapsed, hovering the left screen edge slides it out as an overlay */}
+      {!sidebarOpen && (
+        <div
+          className="sidebar-edge-zone"
+          onMouseEnter={() => setPeek(true)}
+          aria-hidden
+        />
+      )}
+      <aside
+        onMouseEnter={() => { if (!sidebarOpen) setPeek(true); }}
+        onMouseLeave={() => setPeek(false)}
+        className={`sidebar-desktop fixed left-0 top-0 bottom-0 w-[280px] flex-col z-50 bg-[var(--bg-surface)] border-r border-[var(--border)] ${!sidebarOpen && peek ? "sidebar-peek" : ""}`}
+      >
 
         {/* Brand */}
         <div className="h-[68px] flex items-center px-5 border-b border-[var(--border)] shrink-0">
@@ -338,13 +383,13 @@ export default function Sidebar() {
             type="button"
             onClick={toggleSidebar}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[#4B5675] hover:text-[var(--text-primary)] hover:bg-[var(--bg-hover)] transition-colors text-sm font-medium mt-1"
-            title="Hide sidebar"
+            title={sidebarOpen ? "Hide sidebar" : "Pin sidebar open"}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/>
               <polyline points="13 8 17 12 13 16"/>
             </svg>
-            <span>Hide sidebar</span>
+            <span>{sidebarOpen ? "Hide sidebar" : "Pin sidebar"}</span>
           </button>
         </div>
       </aside>
@@ -365,7 +410,12 @@ export default function Sidebar() {
       )}
 
       {/* ── Mobile bottom nav — EXACTLY as before, just hidden on lg+ ── */}
-      <div ref={navRef} className="sidebar-mobile fixed bottom-0 left-0 right-0 z-50 flex-col items-center pointer-events-none">
+      <div
+        ref={navRef}
+        className={`sidebar-mobile fixed bottom-0 left-0 right-0 z-50 flex-col items-center pointer-events-none transition-transform duration-300 ease-out ${
+          navHidden && !open ? "translate-y-[115%]" : "translate-y-0"
+        }`}
+      >
 
         {/* Sub-panel */}
         <div

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSession, signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -11,6 +11,22 @@ const LIVE_SIGNALS = [
   { sym:"TSLA", name:"Tesla Inc.",      price:"$178.40", chg:"-1.8%", sig:"SELL", conf:"High",   ob:"Bearish OB at $182",    fvg:"FVG $179–181",   liq:"BSL swept $183", kz:"NY AM session", spark:[32,28,30,24,26,20,22,16,18,12] },
   { sym:"GC",   name:"Gold Futures",   price:"$2,340",  chg:"+1.1%", sig:"BUY",  conf:"High",   ob:"Bullish OB $2,325",     fvg:"FVG $2,328–332", liq:"SSL at $2,318",  kz:"London open",   spark:[10,14,13,18,17,21,24,22,27,30] },
   { sym:"MSFT", name:"Microsoft Corp.", price:"$415.80", chg:"+0.9%", sig:"BUY",  conf:"Medium", ob:"Bullish OB at $411",    fvg:"FVG $412–415",   liq:"BSL at $420",    kz:"NY session",    spark:[12,16,14,19,18,17,21,24,23,27] },
+];
+
+// Demo ticker tape — stocks, futures, crypto, plus the non-stock feeds
+const TICKER = [
+  { sym:"NVDA",  chg:"+2.4%", sig:"BUY"  },
+  { sym:"ES",    chg:"+0.6%", sig:"BUY"  },
+  { sym:"BTC",   chg:"+3.1%", sig:"BUY"  },
+  { sym:"TSLA",  chg:"-1.8%", sig:"SELL" },
+  { sym:"GC",    chg:"+1.1%", sig:"BUY"  },
+  { sym:"AAPL",  chg:"+0.3%", sig:"HOLD" },
+  { sym:"ETH",   chg:"+2.2%", sig:"BUY"  },
+  { sym:"MSFT",  chg:"+0.9%", sig:"BUY"  },
+  { sym:"NQ",    chg:"-0.4%", sig:"HOLD" },
+  { sym:"SOL",   chg:"+5.7%", sig:"BUY"  },
+  { sym:"CL",    chg:"-0.9%", sig:"SELL" },
+  { sym:"SPY",   chg:"+0.5%", sig:"BUY"  },
 ];
 
 export default function HomePage() {
@@ -46,11 +62,35 @@ export default function HomePage() {
     return () => clearInterval(id);
   }, []);
 
+  const progressRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const fn = () => { setNavScrolled(window.scrollY > 20); setShowSticky(window.scrollY > 600); };
+    const fn = () => {
+      setNavScrolled(window.scrollY > 20);
+      setShowSticky(window.scrollY > 600);
+      if (progressRef.current) {
+        const doc = document.documentElement;
+        const max = doc.scrollHeight - doc.clientHeight;
+        progressRef.current.style.width = max > 0 ? `${(window.scrollY / max) * 100}%` : "0%";
+      }
+    };
     window.addEventListener("scroll", fn, { passive: true });
     return () => window.removeEventListener("scroll", fn);
   }, []);
+
+  // Mouse-follow 3D tilt for the hero signal card stack
+  function tiltMove(e: React.MouseEvent<HTMLDivElement>) {
+    const el = e.currentTarget;
+    const r  = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width  - 0.5;
+    const py = (e.clientY - r.top)  / r.height - 0.5;
+    el.style.setProperty("--tilt-y", `${(px * 8).toFixed(2)}deg`);
+    el.style.setProperty("--tilt-x", `${(-py * 6).toFixed(2)}deg`);
+  }
+  function tiltReset(e: React.MouseEvent<HTMLDivElement>) {
+    e.currentTarget.style.setProperty("--tilt-x", "0deg");
+    e.currentTarget.style.setProperty("--tilt-y", "0deg");
+  }
 
   function ripple(e: React.MouseEvent) {
     const btn = e.currentTarget as HTMLElement;
@@ -87,6 +127,9 @@ export default function HomePage() {
   return (
     <div className="min-h-screen text-[#F1F5F9] flex flex-col">
 
+      {/* ══ SCROLL PROGRESS ══ */}
+      <div ref={progressRef} className="scroll-progress" aria-hidden />
+
       {/* ══ NAV ══ */}
       <nav className={`relative z-20 border-b border-[#252345]/60 px-6 sm:px-10 h-16 flex items-center justify-between backdrop-blur-sm bg-[#0D0B1A]/90 sticky top-0 transition-all duration-300 ${navScrolled ? "shadow-lg shadow-black/20" : ""}`}>
         <div className="flex items-center gap-2.5">
@@ -119,7 +162,7 @@ export default function HomePage() {
             <Link key={l.href} href={l.href} onClick={() => setMobileMenuOpen(false)} className="text-sm text-[#CBD5E1] hover:text-[#F1F5F9] py-3 border-b border-[#252345]/40 last:border-0 transition-colors">{l.label}</Link>
           ))}
           <button type="button" onClick={() => { setMobileMenuOpen(false); handleLaunch(); }} className="mt-3 w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors py-3 rounded-xl text-sm font-bold">
-            {session ? "Open Dashboard →" : "Sign in with Google →"}
+            {session ? "Open Dashboard →" : "Get started →"}
           </button>
         </div>
       </div>
@@ -140,7 +183,7 @@ export default function HomePage() {
               Powered by Claude Sonnet 4.6 · Live market data
             </div>
 
-            <h1 className="hero-enter hero-enter-2 text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.02] mb-6">
+            <h1 className="hero-enter hero-enter-2 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.04] mb-6">
               <span className="block text-[#F1F5F9]">Know exactly</span>
               <span className="block text-gradient-animate">when to trade.</span>
             </h1>
@@ -150,23 +193,15 @@ export default function HomePage() {
             </p>
 
             <div className="hero-enter hero-enter-4 flex items-center gap-4 flex-wrap mb-4">
-              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-[var(--glow-accent)] hover:scale-[1.02] active:scale-95 flex items-center gap-2.5">
-                {!session && (
-                  <svg width="16" height="16" viewBox="0 0 24 24">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
-                  </svg>
-                )}
-                {session ? "Open Dashboard →" : "Sign in with Google"}
+              <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-7 py-3.5 rounded-xl text-base font-bold shadow-lg shadow-[var(--glow-accent)] hover:scale-[1.02] active:scale-95">
+                {session ? "Open Dashboard →" : "Start free →"}
               </button>
               <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-7 py-3.5 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9]">
                 See how it works →
               </Link>
             </div>
 
-            {!session && <p className="text-sm text-[#4B5675] mb-8">Start free · Upgrade to Pro anytime · No credit card required</p>}
+            {!session && <p className="text-sm text-[#4B5675] mb-8">One-click Google sign-in · No credit card · Upgrade to Pro anytime</p>}
 
             <div className="hero-enter hero-enter-4 flex items-center gap-6 flex-wrap mt-2">
               {[
@@ -184,7 +219,7 @@ export default function HomePage() {
 
           {/* Right: Signal card stack */}
           <div className="relative flex items-center justify-center lg:justify-end pt-10 lg:pt-0">
-            <div className="relative w-full max-w-[400px]">
+            <div className="tilt-card relative w-full max-w-[400px]" onMouseMove={tiltMove} onMouseLeave={tiltReset}>
               {/* Ghost card 2 */}
               <div className="absolute inset-x-6 top-8 rotate-3 opacity-20 pointer-events-none">
                 <div className="bg-[#13112A] border border-rose-500/20 rounded-2xl overflow-hidden">
@@ -222,7 +257,7 @@ export default function HomePage() {
                 </div>
               </div>
               {/* Main live card */}
-              <div className={`animate-signal-float relative z-10 bg-[#13112A] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl shadow-black/40 ${signalFade ? "signal-fade-in" : "signal-fade-out"}`}>
+              <div className={`animate-signal-float scanline relative z-10 bg-[#13112A] border ${sigBorder} rounded-2xl overflow-hidden shadow-2xl shadow-black/40 ${signalFade ? "signal-fade-in" : "signal-fade-out"}`}>
                 <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -268,53 +303,37 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ══ METRICS STRIP — colored left-border blocks ══ */}
-      <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-10 px-6 sm:px-10 overflow-x-auto">
-        <div className="max-w-5xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-8">
-          {[
-            { value:"< 5s",  label:"AI analysis per ticker"  },
-            { value:"6",     label:"Smart Money concepts"    },
-            { value:"8:30",  label:"AM ET daily briefing"    },
-            { value:"Flat",  label:"Monthly price for full Pro" },
-          ].map(s => (
-            <div key={s.label} className="pl-4 border-l-2 border-l-[var(--accent)]">
-              <p className="text-3xl font-black text-[var(--accent)]">{s.value}</p>
-              <p className="text-xs text-[#4B5675] mt-1.5 leading-snug">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ══ NEW TO TRADING? — beginner explainer ══ */}
-      <section className="px-6 sm:px-10 py-16 max-w-5xl mx-auto w-full">
-        <div className="reveal bg-[#13112A] border border-[#252345] rounded-2xl p-8 flex flex-col lg:flex-row items-start gap-10">
-          <div className="lg:w-56 shrink-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-400 mb-2">New to trading?</p>
-            <h3 className="text-xl font-black text-[#F1F5F9] leading-snug">Here&apos;s what Traxora does for you</h3>
-          </div>
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { n:"1", title:"Reads the chart for you", desc:"No technical analysis needed. The AI scans 6 institutional signals and returns a clear verdict: BUY, HOLD, or SELL." },
-              { n:"2", title:"Tells you exactly where to enter", desc:"You get a specific entry price range, a stop-loss level (where you're wrong), and a target price. No guessing." },
-              { n:"3", title:"Tells you when — and when not — to trade", desc:"Signals include Kill Zone timing. Outside the 2–3 hour institutional windows, the AI tells you to wait instead of forcing a trade." },
-            ].map(s => (
-              <div key={s.n} className="flex gap-3">
-                <span className="w-6 h-6 rounded-lg bg-cyan-500/15 border border-cyan-500/25 text-cyan-400 text-xs font-black flex items-center justify-center shrink-0 mt-0.5">{s.n}</span>
-                <div>
-                  <p className="text-sm font-bold text-[#F1F5F9] mb-1">{s.title}</p>
-                  <p className="text-sm text-[#4B5675] leading-relaxed">{s.desc}</p>
-                </div>
+      {/* ══ TICKER TAPE — scrolling demo signals across markets ══ */}
+      <div className="border-y border-[#252345]/60 bg-[#0D0B1A]/60 py-4">
+        <div className="ticker-mask">
+          <div className="ticker-track">
+            {[0, 1].map(copy => (
+              <div key={copy} className="flex items-center gap-3" aria-hidden={copy === 1}>
+                {TICKER.map(t => {
+                  const up = !t.chg.startsWith("-");
+                  const sigCls = t.sig === "BUY"  ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/25"
+                               : t.sig === "SELL" ? "text-rose-400 bg-rose-500/10 border-rose-500/25"
+                               :                    "text-amber-400 bg-amber-500/10 border-amber-500/25";
+                  return (
+                    <div key={`${copy}-${t.sym}`} className="flex items-center gap-2 bg-[#13112A] border border-[#252345] rounded-xl px-3.5 py-2 shrink-0">
+                      <span className="text-xs font-black font-mono text-[#F1F5F9]">{t.sym}</span>
+                      <span className={`text-[11px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>{t.chg}</span>
+                      <span className={`text-[9px] font-black px-1.5 py-px rounded-md border ${sigCls}`}>{t.sig}</span>
+                    </div>
+                  );
+                })}
               </div>
             ))}
           </div>
         </div>
-      </section>
+        <p className="text-center text-[9px] text-[#333368] mt-2.5">Demo signals · stocks, futures &amp; crypto in one scanner · not financial advice</p>
+      </div>
 
       {/* ══ FEATURES — left-aligned header, colored icon cards ══ */}
-      <section className="px-6 sm:px-10 pb-24 max-w-5xl mx-auto w-full">
+      <section className="px-6 sm:px-10 pt-24 pb-24 max-w-5xl mx-auto w-full">
         <div className="mb-12">
           <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-3 reveal">Platform</p>
-          <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4 reveal">Everything you need<br className="hidden sm:block" /> to trade smarter.</h2>
+          <h2 className="reveal heading-underline text-4xl sm:text-5xl font-black tracking-tight mb-4">Everything you need<br className="hidden sm:block" /> to trade smarter.</h2>
           <p className="text-lg text-[#7B8DB4] max-w-xl leading-relaxed reveal">Signals, briefings, a scanner, options analysis, journaling, and a practice account — all in one place, built on institutional methodology.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -356,12 +375,72 @@ export default function HomePage() {
               icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
             },
           ].map((f, i) => (
-            <div key={f.title} className={`reveal reveal-d${(i % 3) + 1} bg-[#13112A] border border-[#252345] border-t-2 ${f.topColor} rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-0.5 transition-all group`}>
-              <div className={`${f.iconColor} mb-4 opacity-70 group-hover:opacity-100 transition-opacity`}>{f.icon}</div>
+            <div key={f.title} className={`reveal reveal-d${(i % 3) + 1} bg-[#13112A] border border-[#252345] border-t-2 ${f.topColor} rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300 group`}>
+              <div className={`${f.iconColor} mb-4 opacity-70 group-hover:opacity-100 group-hover:scale-125 group-hover:-rotate-6 origin-bottom-left transition-all duration-300 w-fit`}>{f.icon}</div>
               <h3 className="text-base font-bold text-[#F1F5F9] mb-2">{f.title}</h3>
               <p className="text-sm text-[#7B8DB4] leading-relaxed">{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ══ BEYOND STOCKS — sports, crypto & IPOs ══ */}
+      <section className="px-6 sm:px-10 pb-24 max-w-5xl mx-auto w-full">
+        <div className="mb-12">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-violet-400 mb-3 reveal">More markets</p>
+          <h2 className="reveal heading-underline text-4xl sm:text-5xl font-black tracking-tight mb-4">Not just stocks.</h2>
+          <p className="text-lg text-[#7B8DB4] max-w-xl leading-relaxed reveal">Sports predictions, a 24/7 crypto radar, and an AI-rated IPO calendar — included in the same flat price. No other tool bundles all four.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          {/* Sports */}
+          <div className="reveal reveal-d1 group bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+            <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl mb-4 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300">🏆</div>
+            <h3 className="text-base font-bold text-[#F1F5F9] mb-2">Sports Predictions</h3>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">Every NFL, NBA, MLB, NHL and top-flight soccer game with a posted line — consensus odds, vig removed, ranked by confidence with predicted scores.</p>
+            <div className="rounded-xl bg-[#0D0B1A] border border-[#252345] px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2 mb-1.5">
+                <span className="text-[10px] font-semibold text-[#CBD5E1]">Eagles @ Cowboys</span>
+                <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-[#1A1838] text-[#7B8DB4] border border-[#252345]">NFL</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-amber-300">Eagles</span>
+                <div className="flex-1 h-1 rounded-full bg-[#252345] overflow-hidden">
+                  <div className="h-full w-[68%] rounded-full bg-emerald-400 group-hover:w-[72%] transition-all duration-700" />
+                </div>
+                <span className="text-[10px] font-mono font-bold text-[#F1F5F9]">68%</span>
+              </div>
+            </div>
+          </div>
+          {/* Crypto */}
+          <div className="reveal reveal-d2 group bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+            <div className="w-11 h-11 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-xl mb-4 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-300">₿</div>
+            <h3 className="text-base font-bold text-[#F1F5F9] mb-2">Crypto Radar</h3>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">Twelve major coins scanned around the clock. &ldquo;Moving Now&rdquo; flags 5%+ breakouts; &ldquo;Coiled&rdquo; spots Bollinger squeezes before they pop.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { sym:"SOL", tag:"+5.7% · MOVING", cls:"text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
+                { sym:"BTC", tag:"+3.1%",          cls:"text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
+                { sym:"DOT", tag:"COILED",         cls:"text-sky-400 bg-sky-500/10 border-sky-500/25" },
+              ].map(c => (
+                <span key={c.sym} className={`text-[9px] font-bold font-mono px-2 py-1 rounded-lg border ${c.cls}`}>{c.sym} {c.tag}</span>
+              ))}
+            </div>
+          </div>
+          {/* IPO */}
+          <div className="reveal reveal-d3 group bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
+            <div className="w-11 h-11 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-xl mb-4 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300">🚀</div>
+            <h3 className="text-base font-bold text-[#F1F5F9] mb-2">IPO Calendar</h3>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">Every upcoming listing rated before it prices — exchange, raise size and SPAC risk baked into a simple verdict you can act on.</p>
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { tag:"STRONG",      cls:"text-emerald-400 bg-emerald-500/10 border-emerald-500/25" },
+                { tag:"WATCH",       cls:"text-amber-400 bg-amber-500/10 border-amber-500/25" },
+                { tag:"SPECULATIVE", cls:"text-rose-400 bg-rose-500/10 border-rose-500/25" },
+              ].map(r => (
+                <span key={r.tag} className={`text-[9px] font-black px-2 py-1 rounded-lg border ${r.cls}`}>{r.tag}</span>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -371,8 +450,8 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
             {/* Left: explanation */}
             <div className="lg:pt-2">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-amber-400 mb-4 reveal">When to trade</p>
-              <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-5 reveal">
+              <p className="text-[11px] font-bold uppercase tracking-widest text-amber-400 mb-4 reveal-left">When to trade</p>
+              <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-5 reveal-left">
                 The market moves big<br />at <span className="text-amber-400">specific times only.</span>
               </h2>
               <p className="text-base text-[#7B8DB4] leading-relaxed mb-5 reveal">
@@ -392,7 +471,7 @@ export default function HomePage() {
             </div>
 
             {/* Right: Kill Zone cards */}
-            <div className="space-y-3 reveal">
+            <div className="space-y-3">
               {[
                 {
                   name:"London Kill Zone",
@@ -422,8 +501,8 @@ export default function HomePage() {
                   badge:"Avoid",
                   border:"border-[#252345]", badgeBg:"bg-[#1C1933] text-[#4B5675]", dot:"bg-[#252345]", timeTxt:"text-[#4B5675]",
                 },
-              ].map(kz => (
-                <div key={kz.name} className={`bg-[#0D0B1A] border ${kz.border} rounded-xl px-5 py-4 flex gap-4 items-start hover:brightness-110 transition-all`}>
+              ].map((kz, i) => (
+                <div key={kz.name} className={`reveal-right reveal-d${i + 1} bg-[#0D0B1A] border ${kz.border} rounded-xl px-5 py-4 flex gap-4 items-start hover:brightness-110 hover:translate-x-1 transition-all duration-300`}>
                   <span className={`w-2 h-2 rounded-full ${kz.dot} shrink-0 mt-2`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -445,7 +524,7 @@ export default function HomePage() {
         <div className="flex flex-col lg:flex-row gap-4 mb-12 items-start">
           <div className="lg:w-64 shrink-0">
             <p className="text-[11px] font-bold uppercase tracking-widest text-cyan-400 mb-3 reveal">How it works</p>
-            <h2 className="text-4xl font-black tracking-tight reveal">Three steps to your next trade.</h2>
+            <h2 className="reveal heading-underline text-4xl font-black tracking-tight">Three steps to your next trade.</h2>
           </div>
           <div className="flex-1 lg:pt-12">
             <p className="text-lg text-[#7B8DB4] leading-relaxed reveal">No setup, no configuration. Sign in and start getting signals in under 60 seconds — even if you&apos;ve never traded before.</p>
@@ -455,7 +534,7 @@ export default function HomePage() {
           {[
             {
               n:"01",
-              title:"Sign in with Google",
+              title:"Create your free account",
               desc:"One click. No forms, no credit card required. Free tier starts immediately. Your account, your signals — private and never shared.",
               detail:"Start on the free tier, then unlock everything — full AI signals, Morning Brief, Deep Scanner, and Paper Trading — by upgrading to Pro.",
               numColor:"text-cyan-500/25", accentColor:"text-cyan-400/70",
@@ -494,7 +573,7 @@ export default function HomePage() {
             {/* Left: description */}
             <div className="lg:col-span-2">
               <p className="text-[11px] font-bold uppercase tracking-widest text-violet-400 mb-4 reveal">Methodology</p>
-              <h2 className="text-4xl font-black tracking-tight mb-5 reveal">Built on 6 Smart Money concepts.</h2>
+              <h2 className="reveal heading-underline text-4xl font-black tracking-tight mb-5">Built on 6 Smart Money concepts.</h2>
               <p className="text-base text-[#7B8DB4] leading-relaxed mb-5 reveal">
                 Smart Money (ICT methodology) is how institutional banks — JPMorgan, Goldman Sachs, HSBC — actually move markets. They don&apos;t buy at obvious support. They engineer liquidity grabs first, then reverse.
               </p>
@@ -532,7 +611,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-12">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-3 reveal">Traders love it</p>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight reveal">What traders are saying.</h2>
+            <h2 className="reveal heading-underline text-4xl sm:text-5xl font-black tracking-tight">What traders are saying.</h2>
           </div>
           <p className="text-base text-[#7B8DB4] max-w-xs leading-relaxed sm:text-right reveal">Real feedback from the early beta community.</p>
         </div>
@@ -667,6 +746,7 @@ export default function HomePage() {
                 { feature:"Trade simulator",       t:true,  ti:false, ss:false, ts:true  },
                 { feature:"Push notifications",    t:true,  ti:false, ss:true,  ts:false },
                 { feature:"AI morning briefing",   t:true,  ti:false, ss:false, ts:false },
+                { feature:"Sports, crypto & IPO coverage", t:true, ti:false, ss:false, ts:false },
                 { feature:"Under $10/mo",          t:true,  ti:false, ss:false, ts:false },
               ].map((row, i) => (
                 <tr key={row.feature} className={`border-b border-[#252345] last:border-0 ${i % 2 !== 0 ? "bg-[#13112A]/30" : ""}`}>
@@ -689,11 +769,6 @@ export default function HomePage() {
             </tbody>
           </table>
         </div>
-        <div className="mt-8">
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
-            {session ? "Open Dashboard →" : "Get started — sign in with Google →"}
-          </button>
-        </div>
       </section>
 
       {/* ══ FAQ — left heading + right accordion ══ */}
@@ -701,7 +776,7 @@ export default function HomePage() {
         <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-12">
           <div className="lg:col-span-2">
             <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-4 reveal">FAQ</p>
-            <h2 className="text-4xl font-black tracking-tight mb-5 reveal">Common questions.</h2>
+            <h2 className="reveal heading-underline text-4xl font-black tracking-tight mb-5">Common questions.</h2>
             <p className="text-base text-[#7B8DB4] leading-relaxed reveal">Everything you need to know before getting started.</p>
           </div>
           <div className="lg:col-span-3 space-y-2">
@@ -741,7 +816,7 @@ export default function HomePage() {
             </div>
             <div className="flex flex-col gap-4 lg:items-end">
               <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-9 py-4 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 w-full lg:w-auto">
-                {session ? "Open Dashboard →" : "Sign in with Google →"}
+                {session ? "Open Dashboard →" : "Start free →"}
               </button>
               <Link href="/guide" className="border border-[#252345] hover:border-[#333368] transition-colors px-9 py-4 rounded-xl text-base font-medium text-[#7B8DB4] hover:text-[#F1F5F9] text-center w-full lg:w-auto">
                 Read the guide →
@@ -755,14 +830,8 @@ export default function HomePage() {
       {/* ══ STICKY MOBILE CTA ══ */}
       {!session && (
         <div className={`md:hidden fixed bottom-0 left-0 right-0 z-30 px-4 pb-5 pt-3 bg-gradient-to-t from-[#0D0B1A] to-[#0D0B1A]/0 transition-all duration-300 ${showSticky ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
-          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30 flex items-center justify-center gap-2">
-            <svg width="15" height="15" viewBox="0 0 24 24">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="white"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="white"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="white"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="white"/>
-            </svg>
-            Sign in with Google
+          <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container w-full bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all py-4 rounded-xl text-sm font-bold shadow-2xl shadow-emerald-500/30">
+            Start free →
           </button>
         </div>
       )}

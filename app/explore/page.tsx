@@ -233,9 +233,16 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
 type ExploreView = "markets" | "screener" | "movers" | "calendar" | "crypto";
 
 export default function ExplorePage() {
-  useEffect(() => {
-  }, []);
   const [view, setView]         = useState<ExploreView>("markets");
+
+  // Deep link: /explore?view=crypto etc. — read once on mount
+  useEffect(() => {
+    const v = new URLSearchParams(window.location.search).get("view");
+    if (v && ["markets", "screener", "movers", "calendar", "crypto"].includes(v)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setView(v as ExploreView);
+    }
+  }, []);
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);

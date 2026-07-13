@@ -8,6 +8,9 @@ import { THEME_KEY } from "../lib/theme";
 import ThemeToggle from "./ThemeToggle";
 import { useRouter } from "next/navigation";
 import { setCurrentUser, scopedKey } from "../lib/userState";
+import { signalBadgeCls } from "../lib/signalBadge";
+import { loadDiscoverData, topGames, topCoins, nextIpos, scanLocalSignals } from "../lib/discoverData";
+import type { DiscoverData, LocalSignal } from "../lib/discoverData";
 import type { IndexRow } from "@/app/api/market/indices/route";
 
 type SearchItem = {
@@ -111,6 +114,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
   const [alertCount, setAlertCount] = useState(0);
   const [bellShake, setBellShake] = useState(false);
   const [recentSymbols, setRecentSymbols] = useState<string[]>([]);
+  const [discover, setDiscover] = useState<DiscoverData | null>(null);
+  const [signals, setSignals]   = useState<LocalSignal[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // ⌘K / Ctrl+K focuses search
@@ -224,7 +229,12 @@ export default function Topbar({ onSearch }: TopbarProps) {
             placeholder="Search any symbol or company…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => { setSearchFocused(true); if (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) setOpen(true); }}
+            onFocus={() => {
+              setSearchFocused(true);
+              setSignals(scanLocalSignals(6));
+              if (!discover) loadDiscoverData().then(setDiscover).catch(() => { /* palette shows skeletons */ });
+              if (results.length > 0 || !query.trim()) setOpen(true);
+            }}
             onBlur={() => { setTimeout(() => setOpen(false), 150); setTimeout(() => setSearchFocused(false), 150); }}
             className="flex-1 min-w-0 bg-transparent text-[#F1F5F9] text-sm outline-none placeholder:text-[#4B5675]"
           />
@@ -239,39 +249,181 @@ export default function Topbar({ onSearch }: TopbarProps) {
         </div>
 
         {/* Dropdown */}
-        {open && (results.length > 0 || (!query.trim() && recentSymbols.length > 0)) && (
-          <div className="dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-[999] overflow-hidden max-h-80 overflow-y-auto">
-            {/* Recent symbols — shown when query is empty */}
-            {!query.trim() && recentSymbols.length > 0 && (
+        {open && (results.length > 0 || !query.trim()) && (
+          <div className={`dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-[999] overflow-hidden overflow-y-auto ${query.trim() ? "max-h-80" : "max-h-[72vh]"}`}>
+            {/* Command palette — shown when query is empty */}
+            {!query.trim() && (
               <>
-                <div className="px-4 py-2 flex items-center justify-between border-b border-[#252345]">
-                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Recent</p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      try { localStorage.removeItem(scopedKey("recent_symbols")); } catch { /* ignore */ }
-                      setRecentSymbols([]);
-                      setOpen(false);
-                    }}
-                    className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors"
-                  >
-                    Clear
-                  </button>
+                {/* Browse quick links */}
+                <div className="px-4 pt-3 pb-2.5 border-b border-[#252345]">
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-2">Browse</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "🏆 Sports",   href: "/sports",                       cls: "border-amber-500/25 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" },
+                      { label: "₿ Crypto",    href: "/explore?view=crypto",          cls: "border-violet-500/25 text-violet-400 bg-violet-500/10 hover:bg-violet-500/20" },
+                      { label: "🚀 IPOs",     href: "/ipo",                          cls: "border-sky-500/25 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20" },
+                      { label: "🎯 Options",  href: "/intelligence?section=options", cls: "border-emerald-500/25 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20" },
+                      { label: "📅 Earnings", href: "/earnings",                     cls: "border-teal-500/25 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20" },
+                    ].map(b => (
+                      <button key={b.href} type="button"
+                        onClick={() => { setOpen(false); router.push(b.href); }}
+                        className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-colors ${b.cls}`}>
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                {recentSymbols.map(sym => (
-                  <button
-                    key={sym}
-                    type="button"
-                    onClick={() => handleSelect(sym)}
-                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[#1A1838] transition-colors border-b border-[#252345] last:border-0"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
-                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                    </svg>
-                    <p className="text-sm font-bold text-[#F1F5F9] font-mono">{sym.replace(".US", "").replace(".COMM", "")}</p>
-                    <p className="text-xs text-[#4B5675] ml-1">{sym}</p>
-                  </button>
-                ))}
+
+                {/* Recent symbols — compact chips */}
+                {recentSymbols.length > 0 && (
+                  <div className="px-4 pt-2.5 pb-2.5 border-b border-[#252345]">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Recent</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try { localStorage.removeItem(scopedKey("recent_symbols")); } catch { /* ignore */ }
+                          setRecentSymbols([]);
+                        }}
+                        className="text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {recentSymbols.map(sym => (
+                        <button key={sym} type="button" onClick={() => handleSelect(sym)}
+                          className="text-[11px] font-bold font-mono px-2.5 py-1 rounded-lg bg-[#0D0B1A] border border-[#252345] text-[#CBD5E1] hover:border-emerald-500/40 hover:text-emerald-400 transition-colors">
+                          {sym.replace(".US", "").replace(".COMM", "")}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Live AI signals — from this device's fresh signal cache */}
+                {signals.length > 0 && (
+                  <div className="px-4 pt-2.5 pb-2.5 border-b border-[#252345]">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <span className="ping-live w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                      <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Live AI Signals</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {signals.map(s => (
+                        <button key={s.symbol} type="button" onClick={() => handleSelect(s.symbol)}
+                          className="flex items-center gap-2 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] px-2.5 py-1.5 transition-colors text-left">
+                          <span className="text-[11px] font-bold font-mono text-[#F1F5F9] truncate flex-1">{s.symbol.replace(".US", "").replace(".COMM", "")}</span>
+                          <span className={`text-[9px] font-bold px-1.5 py-px rounded-md border shrink-0 ${signalBadgeCls(s.signal)}`}>{s.signal}</span>
+                          <span className={`text-[9px] font-semibold shrink-0 ${s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>{s.confidence}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sports · Crypto · IPO snapshots */}
+                {discover === null ? (
+                  <div className="px-4 py-3 space-y-2">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="h-9 rounded-lg bg-[#0D0B1A] border border-[#252345] animate-pulse" />
+                    ))}
+                    <p className="text-[10px] text-[#4B5675] text-center pt-1">Loading today&apos;s picks…</p>
+                  </div>
+                ) : (
+                  <div className="grid sm:grid-cols-2">
+
+                    {/* Sports picks */}
+                    {topGames(discover.games, 3).length > 0 && (
+                      <div className="px-4 pt-2.5 pb-2.5 border-b border-[#252345] sm:border-r">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                            <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Top Sports Picks</p>
+                          </div>
+                          <button type="button" onClick={() => { setOpen(false); router.push("/sports"); }}
+                            className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold transition-colors">All →</button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {topGames(discover.games, 3).map(g => (
+                            <button key={g.id} type="button" onClick={() => { setOpen(false); router.push("/sports"); }}
+                              className="w-full rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-amber-500/30 px-2.5 py-1.5 transition-colors text-left">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[10px] font-semibold text-[#F1F5F9] truncate">{g.awayTeam} @ {g.homeTeam}</p>
+                                <span className="text-[8px] font-bold text-[#4B5675] shrink-0">{g.league}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[9px] text-amber-300 font-bold truncate">{g.predictedWinner}</span>
+                                <span className="ml-auto text-[9px] font-mono font-bold text-[#F1F5F9] shrink-0">{g.winnerConfidence}%</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Crypto movers */}
+                    {topCoins(discover.coins, 3).length > 0 && (
+                      <div className="px-4 pt-2.5 pb-2.5 border-b border-[#252345]">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                            <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Crypto Movers</p>
+                          </div>
+                          <button type="button" onClick={() => { setOpen(false); router.push("/explore?view=crypto"); }}
+                            className="text-[10px] text-violet-400 hover:text-violet-300 font-semibold transition-colors">All →</button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {topCoins(discover.coins, 3).map(c => {
+                            const up = (c.changePct ?? 0) >= 0;
+                            return (
+                              <button key={c.symbol} type="button" onClick={() => handleSelect(c.symbol)}
+                                className="w-full flex items-center gap-2 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-violet-500/30 px-2.5 py-1.5 transition-colors text-left">
+                                <span className="text-[10px] font-black font-mono text-violet-300 w-10 shrink-0">{c.ticker}</span>
+                                <span className="text-[10px] font-mono text-[#7B8DB4] truncate flex-1">
+                                  {c.price !== null ? `$${c.price >= 100 ? c.price.toLocaleString("en-US", { maximumFractionDigits: 0 }) : c.price.toFixed(2)}` : "—"}
+                                </span>
+                                {c.bigMove && <span className="text-[7px] font-bold px-1 py-px rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 shrink-0">MOVE</span>}
+                                {!c.bigMove && c.squeeze && <span className="text-[7px] font-bold px-1 py-px rounded bg-sky-500/10 text-sky-400 border border-sky-500/25 shrink-0">COIL</span>}
+                                <span className={`text-[10px] font-mono font-bold shrink-0 ${up ? "text-emerald-400" : "text-rose-400"}`}>
+                                  {up ? "+" : ""}{(c.changePct ?? 0).toFixed(1)}%
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upcoming IPOs */}
+                    {nextIpos(discover.ipos, 3).length > 0 && (
+                      <div className="px-4 pt-2.5 pb-3 sm:col-span-2">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                            <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Upcoming IPOs</p>
+                          </div>
+                          <button type="button" onClick={() => { setOpen(false); router.push("/ipo"); }}
+                            className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold transition-colors">All →</button>
+                        </div>
+                        <div className="grid sm:grid-cols-3 gap-1.5">
+                          {nextIpos(discover.ipos, 3).map(i => (
+                            <button key={`${i.symbol || i.name}-${i.date}`} type="button" onClick={() => { setOpen(false); router.push("/ipo"); }}
+                              className="rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-sky-500/30 px-2.5 py-1.5 transition-colors text-left">
+                              <div className="flex items-center justify-between gap-1.5">
+                                <p className="text-[10px] font-semibold text-[#F1F5F9] truncate">{i.name}</p>
+                                <span className={`text-[8px] font-bold shrink-0 ${i.rating === "Strong" ? "text-emerald-400" : i.rating === "Watch" ? "text-amber-400" : "text-rose-400"}`}>{i.rating}</span>
+                              </div>
+                              <p className="text-[9px] font-mono text-[#4B5675] mt-px">
+                                {i.symbol || "TBD"} · {new Date(`${i.date}T00:00:00`).toLocaleDateString([], { month: "short", day: "numeric" })}
+                              </p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
+                )}
               </>
             )}
             {/* Search results */}

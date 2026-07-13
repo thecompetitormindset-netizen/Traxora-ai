@@ -66,6 +66,10 @@ const SECTIONS: Section[] = [
         step: "Enable push alerts",
         detail: "Click 'Enable Signal Alerts' in the dashboard header. After approving the browser prompt, Traxora sends a push notification every time a BUY or SELL signal fires or a price alert is triggered — even if you're on a different tab.",
       },
+      {
+        step: "Discover row & search palette — Sports, Crypto, IPOs",
+        detail: "Near the top of the Dashboard, the 'Sports · Crypto · IPO' row previews all three feeds: top game predictions with confidence bars, the biggest crypto movers, and the next rated IPOs. Click any card to open the full page. The search bar doubles as a command palette — click it while empty to see Browse shortcuts, your recent symbols, live AI signals with confidence, top sports picks, crypto movers, and upcoming IPOs in one panel.",
+      },
     ],
     tips: [
       "Prices refresh every 60 seconds automatically — no reload needed. The watchlist header shows 'Updated HH:MM' so you always know how fresh the data is.",
@@ -409,6 +413,109 @@ const SECTIONS: Section[] = [
       "Account Value uses your average entry prices, not current market prices. Check the unrealised P&L column in the Open tab for the real-time view.",
       "Win Rate is calculated per-trade, not per-share. A 45% win rate with a 3:1 R:R is more profitable than 60% at 1:1 — focus on both metrics together.",
       "Real Positions are for research and situational awareness only — not a signal to buy or sell. The AI Insight is a structural read of current market structure, not financial advice. Always manage risk with your own stop levels.",
+    ],
+  },
+  {
+    id: "sports",
+    icon: "🏆",
+    title: "Sports Predictions",
+    subtitle: "Consensus game predictions for NFL, NBA, MLB, NHL and top soccer leagues.",
+    color: "text-amber-400",
+    border: "border-amber-500/20",
+    bg: "bg-amber-500/5",
+    href: "/sports",
+    badge: "NEW",
+    steps: [
+      {
+        step: "Open the Sports page",
+        detail: "Navigate to Sports from the Signals menu, the dashboard's Sports card, or the search palette. Every game with a live bookmaker line appears — usually within 1–2 weeks of kickoff. Covered leagues: NFL, NBA, MLB, NHL, World Cup, Premier League, Champions League, La Liga, Serie A, Bundesliga, and MLS.",
+      },
+      {
+        step: "How the prediction is built",
+        detail: "Traxora averages the moneyline across every bookmaker posting odds on the game, removes the vig (the bookmaker's margin), and converts the result into a win probability. The predicted score is derived from the consensus spread and total — the same math professional bettors use.",
+      },
+      {
+        step: "Read the confidence number",
+        detail: "The percentage next to each pick is the vig-removed consensus probability that the predicted winner takes the game. 50–55% is a toss-up. 60–70% is a solid favorite. 80%+ is a heavy favorite — but remember the payout on heavy favorites is small for exactly that reason.",
+      },
+      {
+        step: "Filter to what matters",
+        detail: "Use the Today / Tomorrow / All Upcoming filters to narrow the slate, and the confidence filter to hide toss-ups and thin-data lines (games with fewer than 4 books posting). The list always sorts highest-confidence first.",
+      },
+    ],
+    tips: [
+      "Predictions are consensus market data, not a betting system. A 70% favorite still loses 3 times out of 10 — never treat a single prediction as a sure thing.",
+      "Lines with 6+ bookmakers are far more reliable than lines with 2–3. The bookmaker count is shown on each card.",
+    ],
+  },
+  {
+    id: "crypto",
+    icon: "🪙",
+    title: "Crypto Radar",
+    subtitle: "Moving Now & Coiled watch lists across 12 major coins — 24/7.",
+    color: "text-violet-400",
+    border: "border-violet-500/20",
+    bg: "bg-violet-500/5",
+    href: "/explore?view=crypto",
+    badge: "NEW",
+    steps: [
+      {
+        step: "Open the Crypto tab",
+        detail: "Go to Explore → Crypto (or click the dashboard's Crypto Radar card). The board covers 12 majors: BTC, ETH, SOL, BNB, XRP, ADA, AVAX, DOGE, LINK, DOT, MATIC, and UNI — with live prices and day change.",
+      },
+      {
+        step: "'Moving Now' — momentum already in play",
+        detail: "Any coin up or down 5% or more in the last 24 hours lands on the Moving Now list. These are the coins where the move has started — useful for momentum entries or for avoiding late chases when RSI is already stretched.",
+      },
+      {
+        step: "'Coiled' — squeezes before the break",
+        detail: "The Coiled list flags coins whose Bollinger Band width is in the tightest 20% of its own 90-day history. Unusually tight bands historically precede bigger moves — but they signal energy, not direction, and a squeeze can sit for weeks before anything happens.",
+      },
+      {
+        step: "Use RSI to judge the setup",
+        detail: "Each coin shows its 14-day RSI. Above 70 = overbought (late to chase a green candle). Below 30 = oversold (bounce candidates). A Coiled coin with neutral RSI (40–60) breaking out is the cleanest setup on the board.",
+      },
+      {
+        step: "Run AI analysis on any coin",
+        detail: "Click any coin for the full AI analysis — the same Smart Money framework used for stocks, applied to the coin's chart, with entry zone, stop, and target. You can also add coins like BTC-USD directly to your dashboard watchlist.",
+      },
+    ],
+    tips: [
+      "Crypto trades 24/7, so the 'day change' resets against the prior daily close — a quiet coin at 9 AM can be a Moving Now coin by dinner. Check the radar at different times of day.",
+      "Squeeze + breakout + volume is the classic sequence. The radar finds the squeeze; confirm the breakout direction before entering.",
+    ],
+  },
+  {
+    id: "ipo",
+    icon: "🚀",
+    title: "IPO Calendar",
+    subtitle: "Upcoming listings rated Strong, Watch, or Speculative — SPACs flagged automatically.",
+    color: "text-sky-400",
+    border: "border-sky-500/20",
+    bg: "bg-sky-500/5",
+    href: "/ipo",
+    badge: "NEW",
+    steps: [
+      {
+        step: "Open the IPO page",
+        detail: "Navigate to IPO from the Signals menu or the dashboard's IPO Calendar card. The page shows two lists: Upcoming (listings that haven't priced yet, sorted by date) and Recent (already trading, with performance vs. the IPO price where available). The calendar refreshes every 30 minutes.",
+      },
+      {
+        step: "What the ratings mean",
+        detail: "STRONG (green): major exchange (NYSE/NASDAQ), $200M+ raise, symbol and price range already set — the most institutional-quality listings. WATCH (amber): major exchange with a smaller raise, or a big raise with details still TBD. SPECULATIVE (red): SPACs and blank-check companies — high uncertainty by construction.",
+      },
+      {
+        step: "SPACs are flagged automatically",
+        detail: "Any listing whose name signals a blank-check structure ('Acquisition Corp', 'SPAC', etc.) is tagged as a SPAC and rated Speculative regardless of size. These are pools of cash looking for a company to buy — you're betting on the sponsor, not a business.",
+      },
+      {
+        step: "Analyze a new listing after it prices",
+        detail: "Once an IPO starts trading, you can run the standard AI analysis on its ticker like any other stock. Keep in mind new listings have no chart history — structure-based signals get more reliable after the first few weeks of price action.",
+      },
+    ],
+    tips: [
+      "Most IPOs are volatile in their first month and many trade below their IPO price within a year — the rating is a quality screen, not a buy signal.",
+      "The 'quiet period' ends ~25 days after listing, when analyst coverage begins. Expect a volatility bump around that date.",
     ],
   },
 ];

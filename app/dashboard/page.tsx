@@ -7,6 +7,7 @@ import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
+import DiscoverSection from "../components/DiscoverSection";
 import MarketStatus from "../components/MarketStatus";
 import OnboardingModal from "../components/OnboardingModal";
 import { scopedKey } from "../lib/userState";
@@ -1363,6 +1364,17 @@ function DashboardContent() {
               <SentimentWidget horizontal />
             </div>
 
+            {/* ── Section divider: Discover ── */}
+            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
+              <div className="flex-1 h-px bg-[#252345]" />
+              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Sports · Crypto · IPO</span>
+              <div className="flex-1 h-px bg-[#252345]" />
+            </div>
+
+            {/* Discover — sports betting, crypto & IPO feature cards */}
+            <div className="lg:col-span-3">
+              <DiscoverSection />
+            </div>
 
             {/* ── Section divider: Options ── */}
             <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">

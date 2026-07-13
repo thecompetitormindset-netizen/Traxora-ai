@@ -1228,6 +1228,88 @@ details summary { list-style: none; }
   animation: gradient-pan 5s ease infinite;
 }
 
+/* ══ LANDING DETAIL ANIMATIONS ════════════════════════════════════════════════ */
+
+/* Thin scroll-progress bar above the sticky nav */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  width: 0%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--glow-accent, rgba(16, 185, 129, 0.45));
+  z-index: 60;
+  pointer-events: none;
+}
+
+/* Ticker tape marquee — track holds the list twice for a seamless loop */
+.ticker-mask {
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.ticker-track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  animation: ticker-scroll 42s linear infinite;
+}
+.ticker-mask:hover .ticker-track { animation-play-state: paused; }
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-50% - 6px)); }
+}
+
+/* Mouse-follow 3D tilt (vars set from JS) */
+.tilt-card {
+  transform: perspective(900px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 0.18s ease-out;
+  will-change: transform;
+}
+
+/* Soft scan-line sweeping down a card */
+.scanline { position: relative; }
+.scanline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -45%;
+  height: 42%;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+  animation: scanline-sweep 5.5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 6;
+}
+@keyframes scanline-sweep {
+  0%   { top: -45%; }
+  55%  { top: 110%; }
+  100% { top: 110%; }
+}
+
+/* Accent underline that grows in when the heading reveals */
+.heading-underline { position: relative; }
+.heading-underline::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  bottom: -10px;
+  height: 3px;
+  width: 0;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.25s;
+}
+.heading-underline.is-visible::after { width: 52px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track    { animation: none; }
+  .scanline::after { animation: none; opacity: 0; }
+  .tilt-card       { transform: none; }
+}
+
 /* ══ SHIMMER ON BUTTONS ═══════════════════════════════════════════════════════ */
 .btn-shimmer { position: relative; overflow: hidden; }
 .btn-shimmer::after {
@@ -2450,6 +2532,25 @@ hr.gradient-hr {
   }
   body.sidebar-collapsed .sidebar-desktop {
     transform: translateX(-100%);
+  }
+  /* Edge-hover reveal: collapsed sidebar slides out OVER content (no reflow) */
+  body.sidebar-collapsed .sidebar-desktop.sidebar-peek {
+    transform: translateX(0);
+    box-shadow: 24px 0 64px -24px rgba(0, 0, 0, 0.55);
+  }
+}
+
+/* Invisible hover strip along the left edge — only exists while collapsed */
+.sidebar-edge-zone { display: none; }
+@media (min-width: 1024px) {
+  .sidebar-edge-zone {
+    display: block;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    z-index: 49;
   }
 }
 
