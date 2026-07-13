@@ -396,7 +396,7 @@ export default function HomePage() {
           <div className="reveal reveal-d1 group bg-[#13112A] border border-[#252345] rounded-2xl p-7 hover:border-[#333368] hover:-translate-y-1.5 hover:shadow-xl hover:shadow-black/30 transition-all duration-300">
             <div className="w-11 h-11 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-xl mb-4 group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300">🏆</div>
             <h3 className="text-base font-bold text-[#F1F5F9] mb-2">Sports Predictions</h3>
-            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">NFL, NBA, MLB, NHL, college football &amp; basketball, WNBA, MMA, boxing and top-flight soccer — every game with a posted line, ranked by confidence with predicted scores.</p>
+            <p className="text-sm text-[#7B8DB4] leading-relaxed mb-4">NFL, NBA, MLB, NHL, college football &amp; basketball, WNBA and top-flight soccer — free win probability from real season records, ranked by confidence.</p>
             <div className="rounded-xl bg-[#0D0B1A] border border-[#252345] px-3 py-2.5">
               <div className="flex items-center justify-between gap-2 mb-1.5">
                 <span className="text-[10px] font-semibold text-[#CBD5E1]">Eagles @ Cowboys</span>

@@ -16,16 +16,15 @@ type GamePrediction = {
   commenceTime:     string;
   homeTeam:         string;
   awayTeam:         string;
+  homeRecord:       string | null;
+  awayRecord:       string | null;
   predictedWinner:  string | null;
   winnerConfidence: number | null;
-  predictedScore:   { home: number; away: number } | null;
-  moneyline:        { home: number | null; away: number | null };
-  bookmakerCount:   number;
 };
 
 const LEAGUE_ORDER = [
   "World Cup", "NFL", "NBA", "MLB", "NHL",
-  "College Football", "College Basketball", "WNBA", "MMA / UFC", "Boxing",
+  "College Football", "College Basketball", "WNBA",
   "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS",
 ];
 
@@ -40,14 +39,7 @@ const SPORT_TABS: Array<{ id: string; label: string; emoji: string; match: (g: G
   { id: "cfb",    label: "College Football",   emoji: "🎓", match: g => g.league === "College Football" },
   { id: "cbb",    label: "College Basketball", emoji: "🎓", match: g => g.league === "College Basketball" },
   { id: "wnba",   label: "WNBA",               emoji: "🏀", match: g => g.league === "WNBA" },
-  { id: "mma",    label: "MMA / UFC",          emoji: "🥋", match: g => g.league === "MMA / UFC" },
-  { id: "boxing", label: "Boxing",             emoji: "🥊", match: g => g.league === "Boxing" },
 ];
-
-function fmtOdds(n: number | null): string {
-  if (n === null) return "—";
-  return n > 0 ? `+${n}` : `${n}`;
-}
 
 function fmtKickoff(iso: string): string {
   const d = new Date(iso);
@@ -78,7 +70,6 @@ function GameCard({ g, todayKey, tomorrowKey }: { g: GamePrediction; todayKey: s
           )}
           <span className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675]">{fmtKickoff(g.commenceTime)}</span>
         </span>
-        <span className="text-[9px] font-semibold text-[#4B5675]">{g.bookmakerCount} book{g.bookmakerCount === 1 ? "" : "s"}</span>
       </div>
 
       <div className="space-y-1.5">
@@ -86,27 +77,25 @@ function GameCard({ g, todayKey, tomorrowKey }: { g: GamePrediction; todayKey: s
           <span className={`text-sm font-bold truncate ${awayWins ? "text-emerald-400" : "text-[var(--text-primary,#F1F5F9)]"}`}>
             {g.awayTeam}{awayWins && " ✓"}
           </span>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-mono text-[#4B5675]">{fmtOdds(g.moneyline.away)}</span>
-            {g.predictedScore && <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{g.predictedScore.away}</span>}
-          </div>
+          {g.awayRecord && <span className="text-[10px] font-mono text-[#4B5675] shrink-0">{g.awayRecord}</span>}
         </div>
         <div className="flex items-center justify-between gap-2">
           <span className={`text-sm font-bold truncate ${homeWins ? "text-emerald-400" : "text-[var(--text-primary,#F1F5F9)]"}`}>
             {g.homeTeam}{homeWins && " ✓"}
           </span>
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-[10px] font-mono text-[#4B5675]">{fmtOdds(g.moneyline.home)}</span>
-            {g.predictedScore && <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{g.predictedScore.home}</span>}
-          </div>
+          {g.homeRecord && <span className="text-[10px] font-mono text-[#4B5675] shrink-0">{g.homeRecord}</span>}
         </div>
       </div>
 
-      {g.predictedWinner && g.winnerConfidence !== null && (
+      {g.predictedWinner && g.winnerConfidence !== null ? (
         <div className="pt-2 border-t border-[#1A1838] flex items-center gap-2">
           <span className="text-[9px] text-[#4B5675] uppercase tracking-widest font-bold">Pick</span>
           <span className="text-xs font-bold text-emerald-400 truncate">{g.predictedWinner}</span>
           <span className="ml-auto text-[10px] font-mono font-bold text-[#7B8DB4]">{g.winnerConfidence}%</span>
+        </div>
+      ) : (
+        <div className="pt-2 border-t border-[#1A1838]">
+          <span className="text-[9px] text-[#333368]">Not enough games played yet for a prediction</span>
         </div>
       )}
     </div>
@@ -123,7 +112,6 @@ export default function SportsPage() {
   const [configured, setConfigured] = useState(true);
   const [loading,    setLoading]    = useState(true);
   const [failed,     setFailed]     = useState(false);
-  const [quotaOut,   setQuotaOut]   = useState(false);
   const [sportTab,   setSportTab]   = useState("all");
   const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("all");
   // Default to every game in schedule order — probability is an opt-in view
@@ -139,11 +127,10 @@ export default function SportsPage() {
   useEffect(() => {
     fetch("/api/sports/predictions", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
-      .then((d: { games?: GamePrediction[]; configured?: boolean; quotaExhausted?: boolean } | null) => {
+      .then((d: { games?: GamePrediction[]; configured?: boolean } | null) => {
         if (!d) { setFailed(true); return; }
         setGames(d.games ?? []);
         setConfigured(d.configured ?? false);
-        setQuotaOut(d.quotaExhausted ?? false);
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
@@ -162,9 +149,9 @@ export default function SportsPage() {
     let filtered = games.filter(activeTab.match);
     if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
     if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
-    // "Sure" is not a real thing in sports — this hides toss-ups the market itself
-    // is unsure about, and games with too few books to trust the line at all.
-    if (confFilter > 0) filtered = filtered.filter(g => g.winnerConfidence !== null && g.winnerConfidence >= confFilter && g.bookmakerCount >= 4);
+    // "Sure" is not a real thing in sports — this hides toss-ups and games where
+    // either team hasn't played enough games yet to trust the record.
+    if (confFilter > 0) filtered = filtered.filter(g => g.winnerConfidence !== null && g.winnerConfidence >= confFilter);
     // Default view reads like a schedule (kickoff order); probability views rank by confidence
     filtered = confFilter > 0
       ? [...filtered].sort((a, b) => (b.winnerConfidence ?? 0) - (a.winnerConfidence ?? 0))
@@ -206,7 +193,7 @@ export default function SportsPage() {
               <h1 className="text-2xl font-black tracking-tight text-gradient-green">Game Predictions</h1>
             </div>
             <p className="text-xs text-[#4B5675] max-w-lg mx-auto">
-              Winner and score predictions derived from live sportsbook odds — not betting advice, for informational purposes only.
+              Win probability from each team&rsquo;s season record (log5 method) — not betting odds, for informational purposes only.
             </p>
           </div>
 
@@ -268,9 +255,11 @@ export default function SportsPage() {
             </div>
           )}
 
-          {!loading && games.length > 0 && confFilter > 0 && (
+          {!loading && games.length > 0 && (
             <p className="text-center text-[10px] text-amber-400/70 mb-6 max-w-md mx-auto">
-              &ldquo;{confFilter}%+&rdquo; means the betting market itself prices this side around a {confFilter}% chance to win — not a guarantee. Favorites lose regularly; treat every game here as a probability, not a lock.
+              Predictions come from each team&rsquo;s own season win rate (log5), not real betting markets — a much
+              weaker signal than sportsbook odds. Early-season records especially can be noisy; treat every pick
+              here as a rough estimate, not a lock.
             </p>
           )}
 
@@ -284,8 +273,8 @@ export default function SportsPage() {
           {/* Not configured */}
           {!loading && !configured && !failed && (
             <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">Game predictions aren&rsquo;t set up yet</p>
-              <p className="text-xs text-[#4B5675] max-w-sm mx-auto">Add an <code className="text-[#7B8DB4]">ODDS_API_KEY</code> (from the-odds-api.com) to enable this section.</p>
+              <p className="text-sm font-bold text-[#7B8DB4] mb-1">Game predictions aren&rsquo;t available right now</p>
+              <p className="text-xs text-[#4B5675] max-w-sm mx-auto">Try refreshing in a moment.</p>
             </div>
           )}
 
@@ -300,17 +289,8 @@ export default function SportsPage() {
           {/* Empty but configured */}
           {!loading && configured && !failed && games.length === 0 && (
             <div className="text-center py-16">
-              {quotaOut ? (
-                <>
-                  <p className="text-sm font-bold text-[#7B8DB4] mb-1">Predictions are temporarily unavailable</p>
-                  <p className="text-xs text-[#4B5675] max-w-sm mx-auto">The odds provider&rsquo;s monthly request quota is used up. Games reappear automatically when the quota resets at the start of the next billing period.</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games with posted lines right now</p>
-                  <p className="text-xs text-[#4B5675]">Books usually post lines within a week or two of kickoff — check back closer to game day.</p>
-                </>
-              )}
+              <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games in the next 10 days</p>
+              <p className="text-xs text-[#4B5675]">Most of these leagues are seasonal — check back when a sport&rsquo;s season is active.</p>
             </div>
           )}
 
@@ -322,8 +302,8 @@ export default function SportsPage() {
               </p>
               <p className="text-xs text-[#4B5675]">
                 {(tabCounts.get(activeTab.id) ?? 0) === 0 && activeTab.id !== "all"
-                  ? `No ${activeTab.label} lines are posted right now — books post lines closer to game day (or the sport is off-season).`
-                  : confFilter > 0 ? `Try "All Games" — no lines hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every game with a posted line."}
+                  ? `${activeTab.label} has no games in the next 10 days — the season may not be active right now.`
+                  : confFilter > 0 ? `Try "All Games" — no picks hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every scheduled game."}
               </p>
             </div>
           )}

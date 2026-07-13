@@ -419,7 +419,7 @@ const SECTIONS: Section[] = [
     id: "sports",
     icon: "🏆",
     title: "Sports Predictions",
-    subtitle: "Consensus game predictions for NFL, NBA, MLB, NHL and top soccer leagues.",
+    subtitle: "Free win-probability estimates for NFL, NBA, MLB, NHL and top soccer leagues, from real season records.",
     color: "text-amber-400",
     border: "border-amber-500/20",
     bg: "bg-amber-500/5",
@@ -428,24 +428,24 @@ const SECTIONS: Section[] = [
     steps: [
       {
         step: "Open the Sports page",
-        detail: "Navigate to Sports from the Signals menu, the dashboard's Sports card, or the search palette. Every game with a live bookmaker line appears — usually within 1–2 weeks of kickoff. Each sport has its own tab: NFL, NBA, MLB, NHL, Soccer (World Cup, Premier League, Champions League, La Liga, Serie A, Bundesliga, MLS), College Football, College Basketball, WNBA, MMA/UFC, and Boxing.",
+        detail: "Navigate to Sports from the Signals menu, the dashboard's Sports card, or the search palette. Every scheduled game in the next 10 days appears, pulled from ESPN's public schedule data. Each sport has its own tab: NFL, NBA, MLB, NHL, Soccer (World Cup, Premier League, Champions League, La Liga, Serie A, Bundesliga, MLS), College Football, College Basketball, and WNBA.",
       },
       {
         step: "How the prediction is built",
-        detail: "Traxora averages the moneyline across every bookmaker posting odds on the game, removes the vig (the bookmaker's margin), and converts the result into a win probability. The predicted score is derived from the consensus spread and total — the same math professional bettors use.",
+        detail: "Traxora pulls each team's real season win-loss record and runs it through log5 — Bill James' formula for estimating the probability one team beats another purely from their win rates. This is free and real, but it's not the same thing as a betting market: it ignores injuries, matchups, and home-field edge that real odds price in.",
       },
       {
         step: "Read the confidence number",
-        detail: "The percentage next to each pick is the vig-removed consensus probability that the predicted winner takes the game. 50–55% is a toss-up. 60–70% is a solid favorite. 80%+ is a heavy favorite — but remember the payout on heavy favorites is small for exactly that reason.",
+        detail: "The percentage next to each pick is the log5 win probability for the predicted winner. Games appear without a pick if either team has played fewer than 3 games this season — too small a sample to mean anything. 50–55% is a toss-up; 80%+ means one team has a much better record than the other.",
       },
       {
         step: "Filter to what matters",
-        detail: "Use the Today / Tomorrow / All Upcoming filters to narrow the slate, and the confidence filter to hide toss-ups and thin-data lines (games with fewer than 4 books posting). The list always sorts highest-confidence first.",
+        detail: "Use the Today / Tomorrow / All Upcoming filters to narrow the slate, and the confidence filter to hide toss-ups. The list always sorts highest-confidence first once a confidence filter is active.",
       },
     ],
     tips: [
-      "Predictions are consensus market data, not a betting system. A 70% favorite still loses 3 times out of 10 — never treat a single prediction as a sure thing.",
-      "Lines with 6+ bookmakers are far more reliable than lines with 2–3. The bookmaker count is shown on each card.",
+      "This is a season-record model, not a betting system — it's meaningfully weaker than real sportsbook odds. A 70% favorite by record still loses often; never treat a pick here as a sure thing.",
+      "Most leagues only show games while their season is active — NFL is empty in July, for example. That's normal, not a bug.",
     ],
   },
   {

@@ -14,191 +14,186 @@ export type GamePrediction = {
   commenceTime:     string;
   homeTeam:         string;
   awayTeam:         string;
-  predictedWinner:  string | null;
-  winnerConfidence: number | null;   // 0-100, vig-removed implied probability
-  predictedScore:   { home: number; away: number } | null;
-  moneyline:        { home: number | null; away: number | null };
-  bookmakerCount:   number;
+  homeRecord:       string | null;   // "W-L" or "W-D-L" as ESPN reports it, display only
+  awayRecord:       string | null;
+  predictedWinner:  string | null;   // null when either team has too few games played
+  winnerConfidence: number | null;   // 0-100, log5 win probability from season records
 };
 
 // ── Leagues covered ───────────────────────────────────────────────────────────
-// The Odds API sport keys. Games only appear once a bookmaker has posted a
-// line — usually within ~1-2 weeks of kickoff — so "every game" means every
-// game with odds live right now, not the full season schedule.
+// ESPN's public scoreboard/standings endpoints — free, unauthenticated, no
+// request quota. Games only show up here once each sport's season is active
+// (NFL is empty in July, MLB/WNBA are live) — that's real season scheduling,
+// not a bug. Fight sports (MMA/Boxing) are deliberately excluded: a fighter's
+// career win-loss record isn't a comparable signal to a team's season record,
+// and building a "prediction" off it would be a much weaker, more misleading
+// claim than this same math applied to team sports.
 
-const LEAGUES: Array<{ key: string; label: string; group: "US" | "Soccer" }> = [
-  { key: "americanfootball_nfl",       label: "NFL",               group: "US"     },
-  { key: "basketball_nba",             label: "NBA",               group: "US"     },
-  { key: "baseball_mlb",               label: "MLB",               group: "US"     },
-  { key: "icehockey_nhl",              label: "NHL",               group: "US"     },
-  { key: "americanfootball_ncaaf",     label: "College Football",  group: "US"     },
-  { key: "basketball_ncaab",           label: "College Basketball",group: "US"     },
-  { key: "basketball_wnba",            label: "WNBA",              group: "US"     },
-  { key: "mma_mixed_martial_arts",     label: "MMA / UFC",         group: "US"     },
-  { key: "boxing_boxing",              label: "Boxing",            group: "US"     },
-  { key: "soccer_fifa_world_cup",      label: "World Cup",         group: "Soccer" },
-  { key: "soccer_epl",                 label: "Premier League",    group: "Soccer" },
-  { key: "soccer_uefa_champs_league",  label: "Champions League",  group: "Soccer" },
-  { key: "soccer_spain_la_liga",       label: "La Liga",           group: "Soccer" },
-  { key: "soccer_italy_serie_a",       label: "Serie A",           group: "Soccer" },
-  { key: "soccer_germany_bundesliga",  label: "Bundesliga",        group: "Soccer" },
-  { key: "soccer_usa_mls",             label: "MLS",               group: "Soccer" },
+const LEAGUES: Array<{ sport: string; league: string; label: string; group: "US" | "Soccer" }> = [
+  { sport: "football",   league: "nfl",                        label: "NFL",               group: "US"     },
+  { sport: "basketball", league: "nba",                        label: "NBA",               group: "US"     },
+  { sport: "baseball",   league: "mlb",                        label: "MLB",               group: "US"     },
+  { sport: "hockey",     league: "nhl",                        label: "NHL",               group: "US"     },
+  { sport: "football",   league: "college-football",           label: "College Football",  group: "US"     },
+  { sport: "basketball", league: "mens-college-basketball",    label: "College Basketball",group: "US"     },
+  { sport: "basketball", league: "wnba",                       label: "WNBA",              group: "US"     },
+  { sport: "soccer",     league: "fifa.world",                 label: "World Cup",         group: "Soccer" },
+  { sport: "soccer",     league: "eng.1",                      label: "Premier League",    group: "Soccer" },
+  { sport: "soccer",     league: "uefa.champions",              label: "Champions League",  group: "Soccer" },
+  { sport: "soccer",     league: "esp.1",                      label: "La Liga",           group: "Soccer" },
+  { sport: "soccer",     league: "ita.1",                      label: "Serie A",           group: "Soccer" },
+  { sport: "soccer",     league: "ger.1",                      label: "Bundesliga",        group: "Soccer" },
+  { sport: "soccer",     league: "usa.1",                      label: "MLS",               group: "Soccer" },
 ];
 
-// ── Odds → prediction math ────────────────────────────────────────────────────
+const MIN_GAMES_PLAYED = 3; // below this, a record is too small a sample to trust
 
-function americanToImplied(price: number): number {
-  return price > 0 ? 100 / (price + 100) : -price / (-price + 100);
+// ── log5 — Bill James' formula for win probability from two teams' win rates ──
+
+function log5(pA: number, pB: number): number {
+  const denom = pA + pB - 2 * pA * pB;
+  if (denom === 0) return 0.5;
+  return (pA - pA * pB) / denom;
 }
 
-// Raw American-odds prices can't be arithmetic-averaged across bookmakers —
-// when the favorite flips sign between books on a near-toss-up game, the
-// mean lands between -100 and 100, which isn't a valid odds value. Average
-// in probability space instead, then convert back.
-function impliedToAmerican(prob: number): number | null {
-  if (prob <= 0 || prob >= 1) return null;
-  return Math.round(prob >= 0.5 ? (-100 * prob) / (1 - prob) : (100 * (1 - prob)) / prob);
-}
+// ── ESPN response shapes (only the fields we use) ─────────────────────────────
 
-type OddsOutcome = { name: string; price: number; point?: number };
-type OddsMarket  = { key: string; outcomes: OddsOutcome[] };
-type OddsBookmaker = { key: string; title: string; markets: OddsMarket[] };
-type OddsEvent = {
+type EspnTeam = { id: string; displayName: string };
+type EspnCompetitor = { id: string; homeAway: "home" | "away"; team: EspnTeam };
+type EspnStatus = { type: { state: "pre" | "in" | "post"; completed: boolean } };
+type EspnEvent = {
   id: string;
-  sport_key: string;
-  commence_time: string;
-  home_team: string;
-  away_team: string;
-  bookmakers: OddsBookmaker[];
+  date: string;
+  competitions: Array<{ competitors: EspnCompetitor[]; status: EspnStatus }>;
+};
+type EspnScoreboard = { events?: EspnEvent[] };
+
+type StandingsStat = { name: string; value?: number };
+type StandingsEntry = { team: { id: string }; stats: StandingsStat[] };
+type EspnStandings = {
+  children?: Array<{ standings?: { entries?: StandingsEntry[] } }>;
+  standings?: { entries?: StandingsEntry[] };
 };
 
-function scoreDecimals(group: "US" | "Soccer", sportKey: string): number {
-  if (group === "Soccer") return 0;               // goals are whole numbers
-  if (sportKey === "baseball_mlb") return 0;       // runs are whole numbers
-  return 0;                                        // NFL/NBA/NHL points also whole
+type TeamRecord = { wins: number; losses: number; ties: number; games: number; winPct: number };
+
+function statVal(stats: StandingsStat[], name: string): number | null {
+  const s = stats.find(s => s.name === name);
+  return typeof s?.value === "number" ? s.value : null;
 }
 
-function predictGame(ev: OddsEvent, league: { key: string; label: string; group: "US" | "Soccer" }): GamePrediction {
-  const bookmakers = ev.bookmakers ?? [];
-
-  // Consensus moneyline: average vig-removed implied probability across books.
-  let homeProbSum = 0, awayProbSum = 0, mlBooks = 0;
-  for (const bk of bookmakers) {
-    const h2h = bk.markets.find(m => m.key === "h2h");
-    if (!h2h) continue;
-    const home = h2h.outcomes.find(o => o.name === ev.home_team);
-    const away = h2h.outcomes.find(o => o.name === ev.away_team);
-    if (!home || !away) continue;
-    const hImp = americanToImplied(home.price);
-    const aImp = americanToImplied(away.price);
-    const sum  = hImp + aImp;
-    if (sum <= 0) continue;
-    homeProbSum += hImp / sum;   // vig-removed, normalized to 100%
-    awayProbSum += aImp / sum;
-    mlBooks++;
-  }
-
-  // Consensus spread + total → derived score, same method bettors use:
-  // favorite = (total + |spread|) / 2, underdog = (total - |spread|) / 2.
-  let totalSum = 0, totalBooks = 0;
-  let spreadSum = 0, spreadBooks = 0, favoriteIsHome = true;
-  for (const bk of bookmakers) {
-    const totals = bk.markets.find(m => m.key === "totals");
-    if (totals) {
-      const over = totals.outcomes.find(o => o.name === "Over");
-      if (over?.point != null) { totalSum += over.point; totalBooks++; }
-    }
-    const spreads = bk.markets.find(m => m.key === "spreads");
-    if (spreads) {
-      const homeSide = spreads.outcomes.find(o => o.name === ev.home_team);
-      if (homeSide?.point != null) {
-        spreadSum += Math.abs(homeSide.point);
-        if (homeSide.point < 0) favoriteIsHome = true; else favoriteIsHome = false;
-        spreadBooks++;
+async function fetchStandings(sport: string, league: string): Promise<Map<string, TeamRecord>> {
+  const map = new Map<string, TeamRecord>();
+  try {
+    const res = await fetch(
+      `https://site.api.espn.com/apis/v2/sports/${sport}/${league}/standings`,
+      { cache: "no-store", signal: AbortSignal.timeout(10_000) },
+    );
+    if (!res.ok) return map;
+    const data = await res.json() as EspnStandings;
+    const groups = data.children?.length ? data.children.map(c => c.standings?.entries ?? []) : [data.standings?.entries ?? []];
+    for (const entries of groups) {
+      for (const e of entries) {
+        const wins   = statVal(e.stats, "wins")   ?? 0;
+        const losses = statVal(e.stats, "losses") ?? 0;
+        const ties   = statVal(e.stats, "ties")   ?? 0;
+        const games  = statVal(e.stats, "gamesPlayed") ?? (wins + losses + ties);
+        // Shrink toward .500 with 4 "phantom" games (regression to the mean) —
+        // without this, a 3-0 start (common in group-stage soccer) computes as
+        // a mathematically perfect 1.000 win rate, which log5 then turns into
+        // a false-certainty 100% prediction against literally any opponent.
+        // Barely moves large samples (94 MLB games), stabilizes tiny ones.
+        const SHRINK = 4;
+        const winPct = games + SHRINK > 0 ? (wins + 0.5 * ties + SHRINK * 0.5) / (games + SHRINK) : 0.5;
+        map.set(e.team.id, { wins, losses, ties, games, winPct });
       }
     }
-  }
+  } catch { /* leave map empty — games still show, just without a prediction */ }
+  return map;
+}
 
-  const winnerConfidence = mlBooks > 0
-    ? Math.round((Math.max(homeProbSum, awayProbSum) / mlBooks) * 1000) / 10
-    : null;
-  const predictedWinner = mlBooks > 0
-    ? (homeProbSum >= awayProbSum ? ev.home_team : ev.away_team)
-    : null;
-
-  let predictedScore: GamePrediction["predictedScore"] = null;
-  if (totalBooks > 0 && spreadBooks > 0) {
-    const total  = totalSum / totalBooks;
-    const spread = spreadSum / spreadBooks;
-    const favScore = (total + spread) / 2;
-    const dogScore = (total - spread) / 2;
-    const dec = scoreDecimals(league.group, league.key);
-    const round = (n: number) => Math.max(0, Number(n.toFixed(dec)));
-    predictedScore = favoriteIsHome
-      ? { home: round(favScore), away: round(dogScore) }
-      : { home: round(dogScore), away: round(favScore) };
-  }
-
-  return {
-    id:               ev.id,
-    sportKey:         league.key,
-    league:           league.label,
-    leagueGroup:      league.group,
-    commenceTime:     ev.commence_time,
-    homeTeam:         ev.home_team,
-    awayTeam:         ev.away_team,
-    predictedWinner,
-    winnerConfidence,
-    predictedScore,
-    moneyline: {
-      home: mlBooks > 0 ? impliedToAmerican(homeProbSum / mlBooks) : null,
-      away: mlBooks > 0 ? impliedToAmerican(awayProbSum / mlBooks) : null,
-    },
-    bookmakerCount: bookmakers.length,
-  };
+function recordLabel(r: TeamRecord | undefined): string | null {
+  if (!r) return null;
+  return r.ties > 0 ? `${r.wins}-${r.losses}-${r.ties}` : `${r.wins}-${r.losses}`;
 }
 
 // Exhibition events pit league aggregates against each other ("American League
 // @ National League" for the MLB All-Star Game, AFC @ NFC for the Pro Bowl).
-// They're not real schedule games — users expect team-vs-team matchups only.
+// Not real matchups, and no season "team" record exists for them.
 const AGGREGATE_TEAMS = new Set([
-  "American League", "National League",
-  "AFC", "NFC", "American Football Conference", "National Football Conference",
-  "Team AFC", "Team NFC",
+  "American League", "National League", "AFC", "NFC",
+  "American Football Conference", "National Football Conference", "Team AFC", "Team NFC",
 ]);
 
-function isExhibition(ev: OddsEvent): boolean {
-  return [ev.home_team, ev.away_team].some(
-    n => !n || AGGREGATE_TEAMS.has(n) || /all[- ]star/i.test(n),
-  );
+function isExhibition(homeName: string, awayName: string): boolean {
+  return [homeName, awayName].some(n => !n || AGGREGATE_TEAMS.has(n) || /all[- ]star/i.test(n));
+}
+
+function toDateKey(d: Date): string {
+  return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
 async function fetchLeague(
-  league: { key: string; label: string; group: "US" | "Soccer" },
-  apiKey: string,
-  status: { quotaHit: boolean },
+  league: { sport: string; league: string; label: string; group: "US" | "Soccer" },
 ): Promise<GamePrediction[]> {
   try {
-    const url =
-      `https://api.the-odds-api.com/v4/sports/${league.key}/odds/` +
-      `?apiKey=${apiKey}&regions=us&markets=h2h,spreads,totals&oddsFormat=american`;
-    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(15_000) });
-    if (!res.ok) {
-      const body = (await res.text()).slice(0, 160);
-      if (res.status === 401 && body.includes("OUT_OF_USAGE")) status.quotaHit = true;
-      console.warn(`[sports] ${league.key} odds fetch failed: HTTP ${res.status} ${body}`);
-      return [];
+    const from = new Date();
+    const to   = new Date(Date.now() + 10 * 86_400_000);
+    const dates = `${toDateKey(from)}-${toDateKey(to)}`;
+
+    const [scoreRes, standings] = await Promise.all([
+      fetch(
+        `https://site.api.espn.com/apis/site/v2/sports/${league.sport}/${league.league}/scoreboard?dates=${dates}`,
+        { cache: "no-store", signal: AbortSignal.timeout(12_000) },
+      ),
+      fetchStandings(league.sport, league.league),
+    ]);
+    if (!scoreRes.ok) return [];
+    const data = await scoreRes.json() as EspnScoreboard;
+    const events = (data.events ?? []).filter(e => e.competitions?.[0]?.status?.type?.state === "pre");
+
+    const games: GamePrediction[] = [];
+    for (const ev of events) {
+      const comp = ev.competitions[0];
+      const home = comp.competitors.find(c => c.homeAway === "home");
+      const away = comp.competitors.find(c => c.homeAway === "away");
+      if (!home || !away) continue;
+      if (isExhibition(home.team.displayName, away.team.displayName)) continue;
+
+      const homeRec = standings.get(home.team.id);
+      const awayRec = standings.get(away.team.id);
+      const enoughData = !!homeRec && !!awayRec && homeRec.games >= MIN_GAMES_PLAYED && awayRec.games >= MIN_GAMES_PLAYED;
+
+      let predictedWinner: string | null = null;
+      let winnerConfidence: number | null = null;
+      if (enoughData) {
+        const pHome = log5(homeRec!.winPct, awayRec!.winPct);
+        winnerConfidence = Math.round(Math.max(pHome, 1 - pHome) * 1000) / 10;
+        predictedWinner  = pHome >= 0.5 ? home.team.displayName : away.team.displayName;
+      }
+
+      games.push({
+        id:           ev.id,
+        sportKey:     `${league.sport}_${league.league}`,
+        league:       league.label,
+        leagueGroup:  league.group,
+        commenceTime: ev.date,
+        homeTeam:     home.team.displayName,
+        awayTeam:     away.team.displayName,
+        homeRecord:   recordLabel(homeRec),
+        awayRecord:   recordLabel(awayRec),
+        predictedWinner,
+        winnerConfidence,
+      });
     }
-    const events = await res.json() as OddsEvent[];
-    if (!Array.isArray(events)) return [];
-    return events.filter(ev => !isExhibition(ev)).map(ev => predictGame(ev, league));
+    return games;
   } catch { return []; }
 }
 
-// ── Cache — odds don't move fast enough to justify hitting the API every load ─
+// ── Cache ─────────────────────────────────────────────────────────────────────
 
 let cache: { data: unknown; ts: number } | null = null;
-const CACHE_TTL = 120 * 60 * 1000; // 120 min — 16 leagues x 3 markets ≈ 48 credits/refresh, ~17K/mo on the 20K plan
+const CACHE_TTL = 30 * 60 * 1000; // 30 min — ESPN is free/unauthenticated, no quota to protect
 
 // ── Handler ───────────────────────────────────────────────────────────────────
 
@@ -206,31 +201,14 @@ export async function GET() {
   const session = await auth();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
-  const apiKey = process.env.ODDS_API_KEY;
-  if (!apiKey) {
-    return Response.json({ games: [], configured: false, updatedAt: new Date().toISOString() });
-  }
-
   if (cache && Date.now() - cache.ts < CACHE_TTL) {
     return Response.json(cache.data);
   }
 
-  const status = { quotaHit: false };
-  const results = await Promise.all(LEAGUES.map(l => fetchLeague(l, apiKey, status)));
+  const results = await Promise.all(LEAGUES.map(fetchLeague));
   const games = results.flat().sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
 
-  const payload = {
-    games,
-    configured: true,
-    quotaExhausted: status.quotaHit && games.length === 0,
-    updatedAt: new Date().toISOString(),
-  };
-  if (games.length > 0) {
-    cache = { data: payload, ts: Date.now() };
-  } else {
-    // Cache empty results too (10 min) — without this, every page load refires
-    // 16 upstream requests, which is what burns quota during outages/off-hours.
-    cache = { data: payload, ts: Date.now() - (CACHE_TTL - 10 * 60 * 1000) };
-  }
+  const payload = { games, configured: true, updatedAt: new Date().toISOString() };
+  cache = { data: payload, ts: Date.now() };
   return Response.json(payload);
 }
