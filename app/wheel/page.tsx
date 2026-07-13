@@ -568,7 +568,7 @@ export default function WheelPage() {
                   </div>
                   <p className="text-sm font-bold text-[#F1F5F9] mb-5">Scanner is a Pro feature</p>
                   <a href="/pricing" className="inline-block px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold transition-colors shadow-lg shadow-emerald-500/20">
-                    Upgrade to Pro →
+                    Upgrade to Pro — $5/mo →
                   </a>
                 </div>
               )}

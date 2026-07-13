@@ -312,7 +312,7 @@ export default function SettingsPage() {
                       {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "✓ Email sent!" : "Send Test Email"}
                     </button>
                   ) : (
-                    <p className="text-xs text-[#4B5675]">The daily briefing is included with Pro.</p>
+                    <p className="text-xs text-[#4B5675]">The daily briefing is included with Pro — just $5/mo.</p>
                   )}
                   {testStatus !== "idle" && testStatus !== "sending" && testStatus !== "sent" && (
                     <p className="text-xs text-rose-400">{testStatus}</p>
@@ -361,7 +361,7 @@ export default function SettingsPage() {
                       <line x1="1" y1="10" x2="23" y2="10" />
                     </svg>
                   }
-                  label="Upgrade to Pro"
+                  label="Upgrade to Pro — $5/mo"
                   sublabel="Unlock every AI feature · founding price · cancel anytime"
                   onClick={() => { window.location.href = "/pricing"; }}
                 />

@@ -116,10 +116,10 @@ function PricingContent() {
         {/* Header */}
         <div className="text-center mb-4">
           <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 text-xs text-emerald-400 font-bold mb-6">
-            ⚡ Founding price — locked in for as long as you stay subscribed
+            ⚡ Founding price — $5/mo, locked in for as long as you stay subscribed
           </div>
           <h1 className="reveal text-5xl font-black mb-3 tracking-tight">One price. Everything included.</h1>
-          <p className="reveal reveal-d1 text-[#7B8DB4] text-lg">Start free. Go Pro, flat — no tiers, no upsells, no annual lock-in.</p>
+          <p className="reveal reveal-d1 text-[#7B8DB4] text-lg">Start free. Go Pro for $5 flat — no tiers, no upsells, no annual lock-in.</p>
         </div>
 
         {/* Savings callout */}
@@ -185,9 +185,9 @@ function PricingContent() {
               }
             </div>
             <div className="mb-8">
-              <p className="text-5xl font-black">Flat rate<span className="text-lg font-normal text-[#4B5675]"> /mo</span></p>
+              <p className="text-5xl font-black">$5<span className="text-lg font-normal text-[#4B5675]">/mo</span></p>
               <p className="text-xs text-emerald-400 mt-1.5 font-semibold">Founding price — yours for life while subscribed</p>
-              <p className="text-[11px] text-[#4B5675] mt-0.5">Less than the cost of one bad trade</p>
+              <p className="text-[11px] text-[#4B5675] mt-0.5">That&rsquo;s 16&cent; a day — less than one bad trade</p>
             </div>
 
             <ul className="space-y-3 flex-1 mb-8">
@@ -216,7 +216,7 @@ function PricingContent() {
               <>
                 <button type="button" onClick={handleUpgrade} disabled={loading}
                   className="btn-morph w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 transition-colors text-sm font-bold text-white shadow-lg shadow-emerald-500/20">
-                  {loading ? "One moment…" : session ? "Upgrade to Pro →" : "Get Pro →"}
+                  {loading ? "One moment…" : session ? "Upgrade to Pro — $5/mo →" : "Get Pro — $5/mo →"}
                 </button>
                 {session && (
                   <button type="button" onClick={handleCheckAccess} disabled={checking}
@@ -268,7 +268,7 @@ function PricingContent() {
             {[
               { quote: "Morning briefing alone pays for itself. I know the macro setup before I touch a chart.", name: "Austin L.", role: "Swing trader" },
               { quote: "Finally an app that explains WHY it's a BUY. The AI reasoning is solid.", name: "rangepk3r", role: "Community admin" },
-              { quote: "A fraction of what others charge $49+ for? It's a no-brainer if you trade at all.", name: "Benie K.", role: "Options trader" },
+              { quote: "$5 for what others charge $49+ for? It's a no-brainer if you trade at all.", name: "Benie K.", role: "Options trader" },
             ].map((t, i) => (
               <div key={i} className="bg-[#0D0B1A] border border-[#1C1933] rounded-2xl p-5 space-y-3">
                 <div className="flex gap-0.5">
@@ -296,7 +296,7 @@ function PricingContent() {
             },
             {
               q: "Will the price go up?",
-              a: "As we ship more features, the price for new members may increase — but your founding price is locked in for you for as long as you stay subscribed. Join now, keep it forever.",
+              a: "As we ship more features, the price for new members may increase — but $5/mo is the founding price, and it's locked in for you for as long as you stay subscribed. Join now, keep it forever.",
             },
             {
               q: "Can I cancel anytime?",

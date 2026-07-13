@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: "%s | Traxora AI",
   },
   description:
-    "AI scans the market and fires clear BUY/SELL signals using Smart Money analysis. Order Blocks, FVGs, options plays & daily briefings. 500+ traders. Start free — Go Pro anytime.",
+    "AI scans the market and fires clear BUY/SELL signals using Smart Money analysis. Order Blocks, FVGs, options plays & daily briefings. 500+ traders. Start free — Pro just $5/mo.",
   keywords: [
     "AI trading signals", "best AI trading app", "smart money trading",
     "when to buy stocks", "stock buy sell signals", "order blocks trading",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:       "Traxora AI — Know Exactly When to Buy & Sell",
-    description: "AI fires clear BUY/SELL signals using Smart Money patterns. Order Blocks, FVGs, options plays & daily briefings. 500+ traders trust it. Start free — Go Pro anytime.",
+    description: "AI fires clear BUY/SELL signals using Smart Money patterns. Order Blocks, FVGs, options plays & daily briefings. 500+ traders trust it. Start free — Pro just $5/mo.",
     type:        "website",
     locale:      "en_US",
     url:         "https://traxora-ai.vercel.app",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
   twitter: {
     card:        "summary_large_image",
     title:       "Traxora AI — Smart Money Trading Platform",
-    description: "AI-powered BUY/SELL/HOLD signals. Order Blocks, FVGs, Liquidity sweeps, options plays, morning briefings & AI trade journal. Start free — Go Pro anytime.",
+    description: "AI-powered BUY/SELL/HOLD signals. Order Blocks, FVGs, Liquidity sweeps, options plays, morning briefings & AI trade journal. Start free — Pro just $5/mo.",
     images:      ["/opengraph-image"],
   },
   robots: {
@@ -179,7 +179,7 @@ export default function RootLayout({
                     {
                       "@type": "Question",
                       "name": "What is the best AI app for stock trading signals?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal app that gives you clear BUY, SELL, or HOLD signals in real time. It uses Smart Money methodology — Order Blocks, Fair Value Gaps, and Liquidity Sweeps — to tell you exactly where to enter, where to set your stop loss, and where price is headed. It covers stocks, futures, and options. There is a free plan, and an affordable Pro plan for full access." },
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal app that gives you clear BUY, SELL, or HOLD signals in real time. It uses Smart Money methodology — Order Blocks, Fair Value Gaps, and Liquidity Sweeps — to tell you exactly where to enter, where to set your stop loss, and where price is headed. It covers stocks, futures, and options. There is a free plan, and full Pro access costs just $5/month." },
                     },
                     {
                       "@type": "Question",
@@ -189,7 +189,7 @@ export default function RootLayout({
                     {
                       "@type": "Question",
                       "name": "How much does Traxora AI cost?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI has a free plan, and Traxora Pro is priced well below the $29–$118/mo competitors charge. Pro includes real-time BUY/SELL signals, Smart Money analysis, options plays, a daily AI morning briefing at 8:30am ET, and an AI-powered trade journal. Cancel anytime, no contracts." },
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI has a free plan, and Traxora Pro costs just $5 per month — a fraction of the $29–$118/mo competitors charge. Pro includes real-time BUY/SELL signals, Smart Money analysis, options plays, a daily AI morning briefing at 8:30am ET, and an AI-powered trade journal. Cancel anytime, no contracts." },
                     },
                     {
                       "@type": "Question",

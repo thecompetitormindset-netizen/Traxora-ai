@@ -201,7 +201,7 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {!session && <p className="text-sm text-[#4B5675] mb-8">One-click Google sign-in · No credit card · Upgrade to Pro anytime</p>}
+            {!session && <p className="text-sm text-[#4B5675] mb-8">One-click Google sign-in · No credit card · Pro is just $5/mo</p>}
 
             <div className="hero-enter hero-enter-4 flex items-center gap-6 flex-wrap mt-2">
               {[
@@ -663,9 +663,9 @@ export default function HomePage() {
           <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-4">Pricing</p>
           <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-5">
             Others charge <span className="line-through text-[#4B5675]">$29–$118/mo</span>.<br />
-            <span className="text-emerald-400">Traxora Pro is flat, one price.</span>
+            <span className="text-emerald-400">Traxora Pro is $5. Flat.</span>
           </h2>
-          <p className="text-lg text-[#7B8DB4] max-w-md mx-auto leading-relaxed">Full institutional-grade analysis at a fraction of the cost. No features locked behind higher tiers. Cancel anytime.</p>
+          <p className="text-lg text-[#7B8DB4] max-w-md mx-auto leading-relaxed">Full institutional-grade analysis for 16&cent; a day. No features locked behind higher tiers. Cancel anytime.</p>
         </div>
 
         <div className="reveal-scale bg-[#13112A] border border-emerald-500/25 rounded-3xl overflow-hidden relative">
@@ -677,7 +677,7 @@ export default function HomePage() {
                 <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-400">Pro Plan</span>
                 <span className="text-[10px] text-emerald-300 border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold">Most popular</span>
               </div>
-              <p className="text-4xl font-black">Pro<span className="text-base font-normal text-[#4B5675]"> — flat monthly rate, founding price</span></p>
+              <p className="text-4xl font-black">$5<span className="text-base font-normal text-[#4B5675]">/mo — founding price</span></p>
               <p className="text-xs text-[#4B5675] mt-1">Locked in for as long as you subscribe · cancel anytime · no hidden fees</p>
             </div>
             <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container shrink-0 bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-8 py-3.5 rounded-xl text-sm font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95">
@@ -717,7 +717,7 @@ export default function HomePage() {
             <h2 className="text-4xl font-black tracking-tight reveal">No competitor offers all of this.</h2>
           </div>
           <div className="flex-1 lg:pt-10">
-            <p className="text-lg text-[#7B8DB4] leading-relaxed reveal">Smart Money signals + Claude Sonnet 4.6 AI + an unbeatable price tag. None of them have all three.</p>
+            <p className="text-lg text-[#7B8DB4] leading-relaxed reveal">Smart Money signals + Claude Sonnet 4.6 AI + a $5 price tag. None of them have all three.</p>
           </div>
         </div>
         <div className="overflow-x-auto rounded-2xl border border-[#252345]">
@@ -726,7 +726,7 @@ export default function HomePage() {
               <tr className="border-b border-[#252345]">
                 <th className="text-left py-4 pl-6 pr-4 text-[#4B5675] text-xs uppercase tracking-widest font-medium">Feature</th>
                 {[
-                  { name:"Traxora",     price:"Best value", highlight:true  },
+                  { name:"Traxora",     price:"$5/mo",   highlight:true  },
                   { name:"Trade Ideas", price:"$118/mo", highlight:false },
                   { name:"Signal Stack",price:"$49/mo",  highlight:false },
                   { name:"TrendSpider", price:"$33/mo",  highlight:false },
@@ -812,7 +812,7 @@ export default function HomePage() {
               <h2 className="text-4xl sm:text-5xl font-black tracking-tight mb-4">
                 Institutional-grade analysis.<br /><span className="text-emerald-400">For the price of a coffee.</span>
               </h2>
-              <p className="text-lg text-[#7B8DB4] leading-relaxed">Start free — no credit card, no trial timer. Go Pro flat and lock in the founding price forever.</p>
+              <p className="text-lg text-[#7B8DB4] leading-relaxed">Start free — no credit card, no trial timer. Go Pro for $5/mo flat and lock in the founding price forever.</p>
             </div>
             <div className="flex flex-col gap-4 lg:items-end">
               <button type="button" onMouseDown={ripple} onClick={handleLaunch} className="btn-shimmer ripple-container bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all px-9 py-4 rounded-xl text-base font-bold shadow-lg shadow-emerald-500/20 hover:scale-[1.02] active:scale-95 w-full lg:w-auto">

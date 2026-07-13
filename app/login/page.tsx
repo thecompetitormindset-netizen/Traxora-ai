@@ -223,7 +223,7 @@ function LoginContent() {
                 <span className="text-[var(--accent)]">✓</span> Instant access — no waiting
               </div>
               <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-                <span className="text-[var(--accent)]">✓</span> Free plan included — upgrade to Pro anytime
+                <span className="text-[var(--accent)]">✓</span> Free plan included — Pro just $5/mo
               </div>
             </div>
           </div>
