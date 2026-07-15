@@ -42,11 +42,49 @@ create table if not exists real_positions (
   updated_at  timestamptz default now()
 );
 
+-- ── Sports watchlist ──────────────────────────────────────────────────────────
+-- Stores each user's favorited teams as a JSONB array of { league, team }.
+-- Same shape/pattern as `watchlists` above, separate table since the item
+-- shape differs (team+league, not symbol+name).
+
+create table if not exists sports_watchlist (
+  user_email  text        primary key,
+  items       jsonb,
+  updated_at  timestamptz default now()
+);
+
+-- ── Sports predictions log ───────────────────────────────────────────────────
+-- A shared (not per-user) log of every prediction made, snapshotted by the
+-- sports-track-record cron BEFORE each game starts, then backfilled with the
+-- actual result once the game finishes. Powers the /sports/track-record page
+-- — this is what lets us honestly show "how often has this actually been
+-- right," rather than just asserting confidence numbers with no accountability.
+
+create table if not exists sports_predictions_log (
+  id                text        primary key,   -- ESPN event id
+  league            text        not null,
+  league_group      text        not null,
+  home_team         text        not null,
+  away_team         text        not null,
+  predicted_winner  text,
+  confidence        numeric,
+  commence_time     timestamptz not null,
+  logged_at         timestamptz default now(),
+  actual_winner     text,
+  resolved_at       timestamptz
+);
+
+create index if not exists sports_predictions_log_unresolved
+  on sports_predictions_log (commence_time)
+  where resolved_at is null;
+
 -- ── Row-level security (optional but recommended) ─────────────────────────────
 -- These tables are accessed exclusively via supabaseAdmin (service-role key),
 -- so RLS isn't strictly required. Enable it if you want belt-and-suspenders.
 --
--- alter table watchlists     enable row level security;
--- alter table paper_trades   enable row level security;
--- alter table journal_entries enable row level security;
--- alter table real_positions  enable row level security;
+-- alter table watchlists              enable row level security;
+-- alter table paper_trades            enable row level security;
+-- alter table journal_entries         enable row level security;
+-- alter table real_positions          enable row level security;
+-- alter table sports_watchlist        enable row level security;
+-- alter table sports_predictions_log  enable row level security;

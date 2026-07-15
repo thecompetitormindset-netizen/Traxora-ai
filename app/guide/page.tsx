@@ -442,10 +442,23 @@ const SECTIONS: Section[] = [
         step: "Filter to what matters",
         detail: "Use the Today / Tomorrow / All Upcoming filters to narrow the slate, and the confidence filter to hide toss-ups. The list always sorts highest-confidence first once a confidence filter is active.",
       },
+      {
+        step: "Watchlist a game",
+        detail: "Tap the star on any game card to add it to Your Watchlist, pinned at the top of the page and synced across your devices. If you enable kickoff alerts, you'll get a browser notification about 30 minutes before a watched game starts — this only fires while the Sports tab is open, it isn't a background push notification.",
+      },
+      {
+        step: "Build a combo",
+        detail: "Tap \"+ Combo\" on any game with a pick to add it to the combo bar. It shows the combined probability of every selected pick hitting — each pick's probability multiplied together, so adding more picks always lowers the combined number, never raises it. This is a probability calculator, not a bet: there's no payout, no stake, no money involved anywhere in this app.",
+      },
+      {
+        step: "Check the track record",
+        detail: "The \"See the model's actual track record\" link shows real accuracy: every prediction is logged before its game starts and graded once the game finishes, broken down by confidence tier (does a 70-80% pick actually win 70-80% of the time?) and by league. No cherry-picking — every graded pick counts.",
+      },
     ],
     tips: [
       "This is a season-record model, not a betting system — it's meaningfully weaker than real sportsbook odds. A 70% favorite by record still loses often; never treat a pick here as a sure thing.",
       "Most leagues only show games while their season is active — NFL is empty in July, for example. That's normal, not a bug.",
+      "The combo probability multiplies, so a 3-pick combo of 70% favorites is only about a 34% chance all three hit — check the track record page if a combo number surprises you.",
     ],
   },
   {

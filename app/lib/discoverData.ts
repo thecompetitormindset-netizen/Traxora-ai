@@ -1,5 +1,5 @@
 import { scopedKey, getCurrentUser } from "./userState";
-import type { GamePrediction } from "@/app/api/sports/predictions/route";
+import type { GamePrediction } from "@/app/lib/sportsPredictions";
 import type { CryptoMover } from "@/app/api/market/crypto-movers/route";
 import type { IPOItem } from "@/app/api/ipo/route";
 
