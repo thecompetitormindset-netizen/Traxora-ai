@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import Sidebar from "../../../components/Sidebar";
-import Topbar from "../../../components/Topbar";
+import Sidebar from "../../components/Sidebar";
+import Topbar from "../../components/Topbar";
 
 type CompanyData = {
   symbol: string;
@@ -27,9 +27,10 @@ type CompanyData = {
 export default function CompanyPage({
   params,
 }: {
-  params: { symbol: string };
+  params: Promise<{ symbol: string }>;
 }) {
-  const decodedSymbol = decodeURIComponent(params.symbol);
+  const { symbol } = use(params);
+  const decodedSymbol = decodeURIComponent(symbol);
   const [company, setCompany] = useState<CompanyData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -80,15 +81,17 @@ export default function CompanyPage({
                 )}
 
                 <div>
-                  <h1 className="text-4xl font-bold">{company.name}</h1>
+                  <h1 className="text-4xl font-bold">{company.name || decodedSymbol}</h1>
                   <p className="text-[#4B5675] mt-2">
-                    {company.symbol} · {company.exchange} · {company.country}
+                    {[company.symbol || decodedSymbol, company.exchange, company.country]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </p>
                 </div>
               </div>
 
               <Link
-                href={`/market?symbol=${encodeURIComponent(company.symbol)}`}
+                href={`/market?symbol=${encodeURIComponent(company.symbol || decodedSymbol)}`}
                 className="bg-emerald-600 hover:bg-emerald-500 transition rounded-2xl px-5 py-3 font-semibold text-white"
               >
                 Open in Market
