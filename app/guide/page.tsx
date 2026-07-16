@@ -474,7 +474,7 @@ const SECTIONS: Section[] = [
     steps: [
       {
         step: "Open the Crypto tab",
-        detail: "Go to Explore → Crypto (or click the dashboard's Crypto Radar card). The board covers 12 majors: BTC, ETH, SOL, BNB, XRP, ADA, AVAX, DOGE, LINK, DOT, MATIC, and UNI — with live prices and day change.",
+        detail: "Go to Explore → Crypto (or click the dashboard's Crypto Radar card). The board covers 12 majors: BTC, ETH, SOL, BNB, XRP, ADA, AVAX, DOGE, LINK, DOT, TRX, and UNI — with live prices and day change.",
       },
       {
         step: "'Moving Now' — momentum already in play",

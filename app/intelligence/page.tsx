@@ -52,8 +52,8 @@ function changeColor(v: number | null) {
 }
 
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
+  const uid = useId().replace(/:/g, "");
   if (closes.length < 2) return null;
-  const uid    = useId().replace(/:/g, "");
   const min = Math.min(...closes), max = Math.max(...closes), range = max - min || 1;
   const W = 56, H = 22;
   const pts = closes.map((c, i) => ({

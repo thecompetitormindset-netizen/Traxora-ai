@@ -24,6 +24,7 @@ type CryptoMover = {
   bbWidthPct: number | null;
   squeeze:    boolean;
   bigMove:    boolean;
+  sparkline?: number[];
 };
 
 // ── Static universe ───────────────────────────────────────────────────────────
@@ -39,11 +40,18 @@ const COINS: { symbol: string; ticker: string; name: string; emoji: string }[] =
   { symbol: "DOGE-USD", ticker: "DOGE", name: "Dogecoin",       emoji: "Ð" },
   { symbol: "LINK-USD", ticker: "LINK", name: "Chainlink",      emoji: "⬡" },
   { symbol: "DOT-USD",  ticker: "DOT",  name: "Polkadot",       emoji: "●" },
-  { symbol: "MATIC-USD",ticker: "MATIC",name: "Polygon",        emoji: "⬟" },
+  // MATIC/POL both return stale data on Yahoo since the Polygon migration — TRX is live
+  { symbol: "TRX-USD",  ticker: "TRX",  name: "Tron",           emoji: "⬟" },
   { symbol: "UNI7083-USD", ticker: "UNI", name: "Uniswap",      emoji: "🦄" },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+function ordinal(n: number): string {
+  const v = n % 100;
+  if (v >= 11 && v <= 13) return `${n}th`;
+  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
+}
 
 function fmtPrice(p: number | null): string {
   if (p === null) return "—";
@@ -62,7 +70,29 @@ function fmtCap(n: number | null): string {
 
 // ── Coin card ─────────────────────────────────────────────────────────────────
 
-function CoinCard({ coin, row }: { coin: typeof COINS[0]; row: CoinRow | undefined; loading: boolean }) {
+function MiniSparkline({ closes, up }: { closes: number[]; up: boolean }) {
+  if (closes.length < 2) return null;
+  const W = 100, H = 26;
+  const min = Math.min(...closes), max = Math.max(...closes), range = max - min || 1;
+  const pts = closes
+    .map((c, i) => `${((i / (closes.length - 1)) * W).toFixed(1)},${(H - 2 - ((c - min) / range) * (H - 4)).toFixed(1)}`)
+    .join(" ");
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="w-full h-[26px] mt-2 opacity-70" aria-hidden>
+      <polyline
+        points={pts}
+        fill="none"
+        stroke={up ? "#10B981" : "#F43F5E"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
+}
+
+function CoinCard({ coin, row, sparkline }: { coin: typeof COINS[0]; row: CoinRow | undefined; loading: boolean; sparkline?: number[] }) {
   const up = (row?.change ?? 0) >= 0;
 
   return (
@@ -96,6 +126,8 @@ function CoinCard({ coin, row }: { coin: typeof COINS[0]; row: CoinRow | undefin
       ) : (
         <p className="text-xl font-black font-mono text-[#252345] animate-pulse">——</p>
       )}
+
+      {sparkline && sparkline.length > 1 && <MiniSparkline closes={sparkline} up={up} />}
 
       <p className="text-[9px] text-[#333368] mt-1">AI Analysis →</p>
     </Link>
@@ -211,7 +243,7 @@ export default function CryptoDashboard() {
                 className="bg-[#0D0B1A] rounded-xl border border-l-2 border-sky-500/20 border-l-sky-400 p-3.5 flex flex-col gap-1.5 hover:border-[#333368] transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{m.ticker}</span>
-                  <span className="text-[9px] font-mono font-bold text-sky-400">{m.bbWidthPct}th pctl</span>
+                  <span className="text-[9px] font-mono font-bold text-sky-400">{ordinal(m.bbWidthPct ?? 0)} pctl</span>
                 </div>
                 <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{fmtPrice(m.price)}</span>
               </Link>
@@ -240,7 +272,8 @@ export default function CryptoDashboard() {
           ))
         ) : (
           COINS.map(coin => (
-            <CoinCard key={coin.symbol} coin={coin} row={rowFor(coin.symbol)} loading={loading} />
+            <CoinCard key={coin.symbol} coin={coin} row={rowFor(coin.symbol)} loading={loading}
+              sparkline={movers.find(m => m.symbol === coin.symbol)?.sparkline} />
           ))
         )}
       </div>

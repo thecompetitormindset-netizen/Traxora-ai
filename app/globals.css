@@ -82,6 +82,9 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 3px; height: 3px; }
+/* Hide scrollbars on horizontal chip strips etc. (class used across pages) */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(to bottom, #10b981, #06b6d4);
@@ -493,6 +496,7 @@ html[data-theme="ember"] {
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F1623]"]    { background-color: #FAFAF8 !important; }
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0F172A]"]    { background-color: #FAFAF8 !important; }
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#080E1B]"]    { background-color: #FAFAF8 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#0A0815]"]    { background-color: #FAFAF8 !important; }
 
 /* ── Surface backgrounds — white cards ─────────────────────────────────────── */
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="bg-[#13112A]"]    { background-color: #FFFFFF !important; }
@@ -575,6 +579,30 @@ html[data-theme="ember"] {
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-[#7B8DB4]"]:hover   { color: #475569 !important; }
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:border-[#333368]"]:hover { border-color: #D4C8BB !important; }
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:bg-[#1A1838]"]:hover     { background-color: #F0EDE7 !important; }
+
+/* ── Accent text — the 400/300 shades are tuned for dark backgrounds and wash
+   out on light canvases (~2:1 contrast). Darken to the 600/700 shades. ──────── */
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-emerald-400"] { color: #059669 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-emerald-300"] { color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-rose-400"]    { color: #E11D48 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-rose-300"]    { color: #BE123C !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-amber-400"]   { color: #B45309 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-amber-300"]   { color: #B45309 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-sky-400"]     { color: #0284C7 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-sky-300"]     { color: #0369A1 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-violet-400"]  { color: #7C3AED !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-violet-300"]  { color: #6D28D9 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-cyan-400"]    { color: #0891B2 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-teal-400"]    { color: #0D9488 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-blue-400"]    { color: #2563EB !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-orange-400"]  { color: #EA580C !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-pink-400"]    { color: #DB2777 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="text-yellow-400"]  { color: #A16207 !important; }
+/* hover variants — in light themes "brighter on hover" becomes "darker on hover" */
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-emerald-300"]:hover { color: #065F46 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-emerald-400"]:hover { color: #047857 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-rose-300"]:hover    { color: #9F1239 !important; }
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="hover:text-amber-300"]:hover   { color: #92400E !important; }
 
 /* ── Placeholders ───────────────────────────────────────────────────────────── */
 :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) *[class~="placeholder:text-[#4B5675]"]::placeholder { color: #9AA8BE !important; }
@@ -897,6 +925,7 @@ html[data-theme="ember"] *[class~="bg-[#080614]"]    { background-color: #F7F4F0
 html[data-theme="ember"] *[class~="bg-[#0D1420]"]    { background-color: #F7F4F0 !important; }
 html[data-theme="ember"] *[class~="bg-[#0F1623]"]    { background-color: #F7F4F0 !important; }
 html[data-theme="ember"] *[class~="bg-[#080E1B]"]    { background-color: #F7F4F0 !important; }
+html[data-theme="ember"] *[class~="bg-[#0A0815]"]    { background-color: #F7F4F0 !important; }
 html[data-theme="ember"] *[class~="bg-[#13112A]"]    { background-color: #FDFCFA !important; }
 html[data-theme="ember"] *[class~="bg-[#1C1933]"]    { background-color: #FDFCFA !important; }
 html[data-theme="ember"] *[class~="bg-[#1E1C42]"]    { background-color: #F3EEE8 !important; }
@@ -946,6 +975,7 @@ html[data-theme="clean"] *[class~="bg-[#080614]"]    { background-color: #FAFAF9
 html[data-theme="clean"] *[class~="bg-[#0D1420]"]    { background-color: #FAFAF9 !important; }
 html[data-theme="clean"] *[class~="bg-[#0F1623]"]    { background-color: #FAFAF9 !important; }
 html[data-theme="clean"] *[class~="bg-[#080E1B]"]    { background-color: #FAFAF9 !important; }
+html[data-theme="clean"] *[class~="bg-[#0A0815]"]    { background-color: #FAFAF9 !important; }
 html[data-theme="clean"] *[class~="bg-[#13112A]"]    { background-color: #FFFFFF !important; }
 html[data-theme="clean"] *[class~="bg-[#1C1933]"]    { background-color: #FFFFFF !important; }
 html[data-theme="clean"] *[class~="bg-[#1E1C42]"]    { background-color: #F5F4F2 !important; }

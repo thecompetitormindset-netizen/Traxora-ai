@@ -36,13 +36,17 @@ export default function TrackRecordPage() {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
-  useEffect(() => {
+  function load() {
+    setLoading(true);
+    setFailed(false);
     fetch("/api/sports/track-record", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: TrackRecord | null) => { if (!d) { setFailed(true); return; } setData(d); })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
-  }, []);
+  }
+
+  useEffect(() => { load(); }, []);
 
   if (status === "loading" || status === "unauthenticated") {
     return (
@@ -74,8 +78,15 @@ export default function TrackRecordPage() {
 
           {!loading && (failed || !data) && (
             <div className="text-center py-16">
+              <div className="w-12 h-12 rounded-2xl bg-[#13112A] border border-[#252345] flex items-center justify-center mx-auto mb-4" aria-hidden>
+                <span className="text-xl">📉</span>
+              </div>
               <p className="text-sm font-bold text-[#7B8DB4] mb-1">Couldn&rsquo;t load the track record</p>
-              <p className="text-xs text-[#4B5675]">Try refreshing in a moment.</p>
+              <p className="text-xs text-[#4B5675] mb-5">The data service didn&rsquo;t answer — it usually recovers quickly.</p>
+              <button type="button" onClick={load}
+                className="text-xs font-bold text-emerald-400 border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/15 px-5 py-2.5 rounded-xl transition-colors">
+                ↻ Try again
+              </button>
             </div>
           )}
 

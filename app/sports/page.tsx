@@ -136,18 +136,28 @@ function GameCard({
       </div>
 
       {hasPick ? (
-        <div className="pt-2 border-t border-[#1A1838] flex items-center gap-2">
-          <span className="text-[9px] text-[#4B5675] uppercase tracking-widest font-bold">Pick</span>
-          <span className="text-xs font-bold text-emerald-400 truncate">{g.predictedWinner}</span>
-          <span className="text-[10px] font-mono font-bold text-[#7B8DB4]">{g.winnerConfidence}%</span>
-          <button type="button" onClick={onToggleCombo}
-            className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-lg border transition-colors ${
-              inCombo
-                ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
-                : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-            }`}>
-            {inCombo ? "✓ In Combo" : "+ Combo"}
-          </button>
+        <div className="pt-2 border-t border-[#1A1838] space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-[9px] text-[#4B5675] uppercase tracking-widest font-bold">Pick</span>
+            <span className="text-xs font-bold text-emerald-400 truncate">{g.predictedWinner}</span>
+            <span className="text-[10px] font-mono font-bold text-[#7B8DB4]">{g.winnerConfidence}%</span>
+            <button type="button" onClick={onToggleCombo}
+              className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-lg border transition-colors ${
+                inCombo
+                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
+                  : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
+              }`}>
+              {inCombo ? "✓ In Combo" : "+ Combo"}
+            </button>
+          </div>
+          {/* Win-probability bar — tick marks the 50% coin-flip line */}
+          <div className="relative h-1 rounded-full bg-[#1A1838] overflow-hidden" aria-hidden>
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-500"
+              style={{ width: `${g.winnerConfidence}%` }}
+            />
+            <div className="absolute inset-y-0 left-1/2 w-px bg-[#333368]" />
+          </div>
         </div>
       ) : (
         <div className="pt-2 border-t border-[#1A1838]">

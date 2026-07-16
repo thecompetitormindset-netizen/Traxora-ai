@@ -8,7 +8,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { clearJournal } from "../components/AutoJournal";
-import { getTheme, setTheme, THEME_KEY, type Theme } from "../lib/theme";
+import { getTheme, setTheme, THEME_EVENT, THEME_KEY, type Theme } from "../lib/theme";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -124,8 +124,16 @@ export default function SettingsPage() {
     setNotifPermission(result);
   }
 
+  // Stay in sync when the theme is changed elsewhere (e.g. the topbar toggle)
+  useEffect(() => {
+    const handler = (e: Event) => setThemeState((e as CustomEvent<Theme>).detail);
+    window.addEventListener(THEME_EVENT, handler);
+    return () => window.removeEventListener(THEME_EVENT, handler);
+  }, []);
+
   function toggleTheme() {
-    const next: Theme = theme === "dark" ? "light" : "dark";
+    // "clean" is the canonical light theme (matches the topbar toggle's cycle)
+    const next: Theme = theme === "dark" ? "clean" : "dark";
     setTheme(next);
     setThemeState(next);
   }
@@ -393,10 +401,10 @@ export default function SettingsPage() {
                   </svg>
                 }
                 label="Theme"
-                sublabel={theme === "light" ? "Soft light — low contrast" : "Dark navy"}
+                sublabel={theme === "dark" ? "Dark navy" : "Soft light — low contrast"}
                 value={
-                  <div className={`relative w-10 h-5 rounded-full transition-colors ${theme === "light" ? "bg-emerald-500" : "bg-[#252345]"}`}>
-                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${theme === "light" ? "left-5" : "left-0.5"}`} />
+                  <div className={`relative w-10 h-5 rounded-full transition-colors ${theme !== "dark" ? "bg-emerald-500" : "bg-[#252345]"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${theme !== "dark" ? "left-5" : "left-0.5"}`} />
                   </div>
                 }
                 onClick={toggleTheme}

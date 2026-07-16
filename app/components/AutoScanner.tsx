@@ -201,11 +201,13 @@ export default function AutoScanner() {
 
   return (
     <>
-      <div className="fixed top-[76px] right-[84px] sm:top-[88px] sm:right-[88px] z-50 flex flex-col-reverse items-end gap-2">
+      {/* Mobile: docked bottom-left above the nav (chat FAB owns bottom-right).
+          Desktop: bottom-right, stacked above the chat FAB — never over page headers. */}
+      <div className="fixed bottom-28 left-4 items-start md:bottom-24 md:left-auto md:right-6 md:items-end z-50 flex flex-col gap-2">
 
         {/* Panel */}
         {open && (
-          <div className="w-[290px] sm:w-[340px] lg:w-[380px] bg-[#0B091A]/96 border border-[#252345] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col max-h-[80vh]">
+          <div className="w-[290px] sm:w-[340px] lg:w-[380px] bg-[#0B091A]/96 border border-[#252345] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl flex flex-col max-h-[55vh] md:max-h-[65vh]">
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345] shrink-0">

@@ -22,7 +22,9 @@ export default function WelcomeModal() {
   useEffect(() => {
     if (status !== "authenticated" || !session?.user?.email) return;
     const seen = localStorage.getItem(WELCOME_KEY);
-    if (!seen) setVisible(true);
+    // Wait until the onboarding tour is done so the two modals never stack
+    const onboarded = localStorage.getItem("traxora_onboarded_v2");
+    if (!seen && onboarded) setVisible(true);
   }, [status, session]);
 
   function dismiss() {

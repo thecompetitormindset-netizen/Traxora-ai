@@ -16,6 +16,7 @@ export type CryptoMover = {
   bbWidthPct:  number | null;   // 0-100 percentile rank of current BB width vs its own trailing 90d range
   squeeze:     boolean;         // bbWidthPct in the tightest 20% of its own recent history
   bigMove:     boolean;         // |changePct| >= 5
+  sparkline:   number[];        // last 30 daily closes, for mini charts
 };
 
 // ── Universe — same 12 coins shown on the Crypto tab ──────────────────────────
@@ -31,7 +32,7 @@ const COINS: { symbol: string; ticker: string; name: string }[] = [
   { symbol: "DOGE-USD",    ticker: "DOGE",  name: "Dogecoin"   },
   { symbol: "LINK-USD",    ticker: "LINK",  name: "Chainlink"  },
   { symbol: "DOT-USD",     ticker: "DOT",   name: "Polkadot"   },
-  { symbol: "MATIC-USD",   ticker: "MATIC", name: "Polygon"    },
+  { symbol: "TRX-USD",     ticker: "TRX",   name: "Tron"       },
   { symbol: "UNI7083-USD", ticker: "UNI",   name: "Uniswap"    },
 ];
 
@@ -111,6 +112,7 @@ async function fetchCoin(coin: { symbol: string; ticker: string; name: string })
       bbWidthPct:  bbPct,
       squeeze:     bbPct !== null && bbPct <= SQUEEZE_PERCENTILE,
       bigMove:     changePct !== null && Math.abs(changePct) >= BIG_MOVE_THRESHOLD,
+      sparkline:   closes.slice(-30).map(v => parseFloat(v.toPrecision(6))),
     };
   } catch { return null; }
 }

@@ -83,7 +83,7 @@ export default function DiscoverSection() {
           </div>
           {!loading && data && data.games.length > 0 && (
             <span className="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">
-              {data.games.length} live lines
+              {data.games.length} games
             </span>
           )}
         </div>
@@ -107,11 +107,11 @@ export default function DiscoverSection() {
           )) : (
             <EmptyRow text={data?.sportsConfigured === false
               ? "Predictions warming up — open the Sports tab to see leagues & scores"
-              : "No games with live lines right now — new lines post 1–2 weeks before kickoff"} />
+              : "No upcoming games right now — schedules refresh through the day"} />
           )}
         </div>
         <div className="relative px-5 py-3 border-t border-[#252345]/60 flex items-center justify-between">
-          <span className="text-[10px] text-[#4B5675]">Consensus odds · vig removed</span>
+          <span className="text-[10px] text-[#4B5675]">Season-record model · not betting odds</span>
           <span className="text-[11px] font-semibold text-amber-400 group-hover:text-amber-300 transition-colors">All predictions →</span>
         </div>
       </Link>
