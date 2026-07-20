@@ -14,6 +14,16 @@ type CoinRow = {
   cap?:     number | null;
 };
 
+type BacktestStats = {
+  buyCount:      number;
+  buyHitRate:    number | null;
+  buyAvgReturn:  number | null;
+  sellCount:     number;
+  sellHitRate:   number | null;
+  sellAvgReturn: number | null;
+  baselineAvgReturn: number | null;
+};
+
 type CryptoMover = {
   symbol:     string;
   ticker:     string;
@@ -30,6 +40,9 @@ type CryptoMover = {
   score:      number | null;
   trend5dPct: number | null;
   dailyBias:  "Bullish" | "Bearish" | "Neutral" | null;
+  overbought: boolean;
+  oversold:   boolean;
+  backtest:   BacktestStats | null;
 };
 
 // ── Static universe ───────────────────────────────────────────────────────────
@@ -83,6 +96,23 @@ function directionLabel(signal: CryptoMover["signal"]): { label: string; cls: st
   return { label: "—", cls: "text-[#4B5675] bg-[#1A1838] border-[#252345]", arrow: "" };
 }
 
+// Walk-forward backtest of THIS signal type on THIS coin's own price history —
+// shown next to the badge so a "Bullish" call isn't taken on faith. Compares
+// against the unconditional baseline return so a good-looking hit rate during
+// a broad decline (where almost any SELL "works") doesn't read as skill it
+// doesn't have.
+function backtestReadout(signal: CryptoMover["signal"], bt: BacktestStats | null | undefined): { text: string; cls: string } | null {
+  if (!bt || (signal !== "BUY" && signal !== "SELL")) return null;
+  const count    = signal === "BUY" ? bt.buyCount     : bt.sellCount;
+  const hitRate  = signal === "BUY" ? bt.buyHitRate   : bt.sellHitRate;
+  const avgRet   = signal === "BUY" ? bt.buyAvgReturn : bt.sellAvgReturn;
+  if (count < 10 || hitRate === null || avgRet === null || bt.baselineAvgReturn === null) return null;
+  // For SELL, "beating baseline" means falling MORE than the unconditional average.
+  const edge = signal === "BUY" ? avgRet - bt.baselineAvgReturn : bt.baselineAvgReturn - avgRet;
+  const cls  = edge > 0.15 ? "text-emerald-400/80" : edge < -0.15 ? "text-rose-400/80" : "text-[#4B5675]";
+  return { text: `History: ${hitRate}% right · ${count} signals`, cls };
+}
+
 // ── Coin card ─────────────────────────────────────────────────────────────────
 
 function MiniSparkline({ closes, up }: { closes: number[]; up: boolean }) {
@@ -110,6 +140,8 @@ function MiniSparkline({ closes, up }: { closes: number[]; up: boolean }) {
 function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | undefined; loading: boolean; mover?: CryptoMover }) {
   const up  = (row?.change ?? 0) >= 0;
   const dir = directionLabel(mover?.signal ?? null);
+  const bt  = backtestReadout(mover?.signal ?? null, mover?.backtest);
+  const extended = mover?.overbought ? "Overbought" : mover?.oversold ? "Oversold" : null;
 
   return (
     <Link
@@ -146,14 +178,18 @@ function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | 
       {mover?.sparkline && mover.sparkline.length > 1 && <MiniSparkline closes={mover.sparkline} up={up} />}
 
       {mover?.signal && (
-        <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#1A1838]">
-          <span className={`text-[9px] font-black px-1.5 py-px rounded border ${dir.cls}`}>{dir.arrow} {dir.label}</span>
-          {mover.confidence && <span className="text-[8px] text-[#4B5675] font-semibold">{mover.confidence} conf</span>}
-          {mover.trend5dPct !== null && (
-            <span className={`ml-auto text-[8px] font-mono font-bold ${mover.trend5dPct >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
-              5d {mover.trend5dPct >= 0 ? "+" : ""}{mover.trend5dPct.toFixed(1)}%
-            </span>
-          )}
+        <div className="mt-2.5 pt-2.5 border-t border-[#1A1838] space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className={`text-[9px] font-black px-1.5 py-px rounded border ${dir.cls}`}>{dir.arrow} {dir.label}</span>
+            {mover.confidence && <span className="text-[8px] text-[#4B5675] font-semibold">{mover.confidence} conf</span>}
+            {extended && <span className="text-[8px] text-amber-400/80 font-semibold">{extended}</span>}
+            {mover.trend5dPct !== null && (
+              <span className={`ml-auto text-[8px] font-mono font-bold ${mover.trend5dPct >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
+                5d {mover.trend5dPct >= 0 ? "+" : ""}{mover.trend5dPct.toFixed(1)}%
+              </span>
+            )}
+          </div>
+          {bt && <p className={`text-[8px] font-semibold ${bt.cls}`}>{bt.text}</p>}
         </div>
       )}
 
@@ -297,7 +333,7 @@ export default function CryptoDashboard() {
       <div>
         {!loading && movers.length > 0 && (
           <p className="text-[10px] text-[#4B5675] mb-2.5">
-            Each coin&rsquo;s Bullish/Neutral/Bearish read comes from the same weighted engine behind the stock AI Signals — 5-day trend, today&rsquo;s move, volume, and moving-average alignment — applied to real crypto price data. Not a guarantee; a High-confidence read still fails sometimes.
+            Each coin&rsquo;s Bullish/Neutral/Bearish read comes from the same weighted engine behind the stock AI Signals — 5-day trend, volume, moving-average alignment — computed off the last fully closed day, off real crypto price data. The &ldquo;History&rdquo; line under each pick is a walk-forward backtest of that exact logic against the coin&rsquo;s own past year, checked without hindsight. Read it before the badge: several coins show weak or negative edge once compared to simply doing nothing over the same stretch — this engine was tuned on stock behavior, and crypto doesn&rsquo;t reliably follow the same patterns. Not a guarantee.
           </p>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
