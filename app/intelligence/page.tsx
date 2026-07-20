@@ -14,16 +14,29 @@ import { signalBadgeCls } from "@/app/lib/signalBadge";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type OptionsBacktest = { count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null };
+
 type OptionsPlay = {
-  symbol: string; name: string; play: "CALLS" | "PUTS";
+  symbol: string; name: string; play: "CALLS" | "PUTS"; signal?: "BUY" | "SELL";
   price: number; changePct: number;
-  iv: number | null; expiry: string | null; expiryTs?: number;
+  iv: number | null; delta: number | null; expiry: string | null; expiryTs?: number;
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; pcVolRatio: number | null; score: number; hasOptions: boolean;
+  premiumEst: string | null; premiumReal?: boolean; pcVolRatio: number | null; score: number; hasOptions: boolean;
   dte: number | null; dteWarning: boolean;
+  backtest: OptionsBacktest | null;
 };
+
+// Same walk-forward-vs-baseline framing as the crypto signal backtest — hit
+// rate alone can look good purely from a trending stock; the edge over
+// baseline is what actually says whether the signal is adding anything.
+function optionsBacktestReadout(bt: OptionsBacktest | null, direction: "CALLS" | "PUTS"): { text: string; cls: string } | null {
+  if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
+  const edge = direction === "CALLS" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
+  const cls  = edge > 0.3 ? "text-emerald-400/80" : edge < -0.3 ? "text-rose-400/80" : "text-[#4B5675]";
+  return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, cls };
+}
 
 type FuturesCard = {
   symbol: string; name: string;
@@ -175,7 +188,7 @@ function OptionsPlaysPanel() {
       {loaded && plays.length === 0 && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
           <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
-          <p className="text-[11px] text-[#4B5675] leading-snug">All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE. Check back when the market gives a clear directional move.</p>
+          <p className="text-[11px] text-[#4B5675] leading-snug">All four gates must pass: High confidence signal, live CBOE IV, a real bid/ask premium, and 14+ DTE. Check back when the market gives a clear directional move.</p>
         </div>
       )}
 
@@ -241,13 +254,14 @@ function OptionsPlaysPanel() {
                       {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
                     </p>
 
-                    {/* Trade levels */}
+                    {/* Trade levels — Entry/Target/Stop are the UNDERLYING STOCK's levels
+                        (where the stock needs to go), not the option's own premium path. */}
                     <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${isCalls ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                       {[
-                        { label: "Strike",  value: p.strike,    color: "text-[#F1F5F9]"  },
-                        { label: "Entry",   value: p.entryZone, color: "text-amber-400"   },
-                        { label: "Target",  value: p.target,    color: "text-emerald-400" },
-                        { label: "Stop",    value: p.stop,      color: "text-rose-400"    },
+                        { label: "Strike",     value: p.delta !== null ? `${p.strike} · Δ${p.delta.toFixed(2)}` : p.strike, color: "text-[#F1F5F9]"  },
+                        { label: "Stock entry",value: p.entryZone, color: "text-amber-400"   },
+                        { label: "Stock tgt",  value: p.target,    color: "text-emerald-400" },
+                        { label: "Stock stop", value: p.stop,      color: "text-rose-400"    },
                         ...(p.premiumEst ? [{ label: "Premium", value: p.premiumEst, color: "text-violet-400" }] : []),
                       ].map(({ label, value, color }) => (
                         <div key={label} className="flex items-center justify-between gap-2">
@@ -259,6 +273,10 @@ function OptionsPlaysPanel() {
                         {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
                         {!p.hasOptions && <span className="text-amber-400/70"> · price-based est</span>}
                       </p>
+                      {(() => {
+                        const bt = optionsBacktestReadout(p.backtest, p.play);
+                        return bt ? <p className={`text-[8px] font-semibold pt-0.5 ${bt.cls}`}>{bt.text}</p> : null;
+                      })()}
                     </div>
 
                     {/* Actions */}

@@ -2,7 +2,7 @@ export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
 export const maxDuration = 45;
 
-import { smartMoneyScore, computeCanonicalTrade } from "@/app/lib/smartMoney";
+import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
 import { auth } from "@/auth";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
@@ -11,6 +11,11 @@ function calcClosesEMA(closes: number[], period: number): number | null {
   let ema = closes.slice(0, period).reduce((s, v) => s + v, 0) / period;
   for (let i = period; i < closes.length; i++) ema = closes[i] * k + ema * (1 - k);
   return ema;
+}
+
+// Same EMA used above but windowed for point-in-time backtest use.
+function emaAt(closes: number[], upto: number, period: number): number | null {
+  return calcClosesEMA(closes.slice(0, upto + 1), period);
 }
 
 const UNIVERSE = [
@@ -22,11 +27,14 @@ const UNIVERSE = [
   "SPY","QQQ","IWM",
 ];
 
+const BACKTEST_WARMUP  = 55;  // needs ema50 (50) + trend5d (5) headroom
+const BACKTEST_FORWARD = 14;  // days ahead — matches the 14+ DTE gate below
+
 async function fetchQuote(symbol: string) {
   try {
     const res  = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=60d`,
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000) },
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
+      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(10_000) },
     );
     if (!res.ok) return null;
     const data   = await res.json();
@@ -35,8 +43,11 @@ async function fetchQuote(symbol: string) {
     if (!meta?.regularMarketPrice) return null;
 
     const q       = result?.indicators?.quote?.[0] ?? {};
-    const volumes: number[] = (q.volume ?? []).filter(Boolean);
-    const closes: number[]  = (q.close  ?? []).filter(Boolean);
+    const isNum   = (v: unknown): v is number => typeof v === "number";
+    const volumes: number[] = (q.volume ?? []).filter(isNum);
+    const closes:  number[] = (q.close  ?? []).filter(isNum);
+    const highs:   number[] = (q.high   ?? []).filter(isNum);
+    const lows:    number[] = (q.low    ?? []).filter(isNum);
     const price  = meta.regularMarketPrice as number;
     const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
     const open   = (meta.regularMarketOpen ?? prev) as number;
@@ -63,11 +74,78 @@ async function fetchQuote(symbol: string) {
         : null;
 
     const name = (meta.shortName ?? meta.longName ?? symbol) as string;
-    return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment };
+    return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment, closes, highs, lows, volumes };
   } catch { return null; }
 }
 
-// CBOE delayed quotes — free, no API key, real IV, 15-min delay
+// ── Point-in-time signal + walk-forward backtest ───────────────────────────────
+// Same principle as the crypto direction backtest: replay this exact scoring
+// logic across the stock's own trailing ~1y of daily bars, using only data
+// available up to each point (no lookahead), then check what price actually
+// did over the next BACKTEST_FORWARD days (matched to the 14+ DTE preference
+// below). This validates the DIRECTIONAL call an options play depends on —
+// not a simulation of the option's own premium/theta/IV path, which isn't
+// possible without historical chain data. If the direction is unreliable,
+// the specific strike matters far less.
+
+function signalAt(
+  i: number, closes: number[], highs: number[], lows: number[], vols: number[],
+): SmScore | null {
+  if (i < 21 || i >= closes.length) return null;
+  const price = closes[i], previousClose = closes[i - 1];
+  if (!(previousClose > 0)) return null;
+  const changePercent = ((price - previousClose) / previousClose) * 100;
+  const trend5dPct = i >= 5 && closes[i - 5] > 0 ? ((price - closes[i - 5]) / closes[i - 5]) * 100 : null;
+  const volSlice = vols.slice(Math.max(0, i - 20), i);
+  const avgVolume = volSlice.length >= 15 ? volSlice.reduce((s, v) => s + v, 0) / volSlice.length : null;
+  const windowStart = Math.max(0, i - 365);
+  const highWindow = highs.slice(windowStart, i + 1), lowWindow = lows.slice(windowStart, i + 1);
+  const ema20 = emaAt(closes, i, 20), ema50 = emaAt(closes, i, 50);
+  const emaAlignment: "bullish" | "bearish" | "neutral" | null =
+    ema20 != null && ema50 != null
+      ? (price > ema20 && ema20 > ema50 ? "bullish" : price < ema20 && ema20 < ema50 ? "bearish" : "neutral")
+      : null;
+
+  return smartMoneyScore(
+    {
+      price, previousClose,
+      open: null, high: highs[i] ?? null, low: lows[i] ?? null,
+      volume: vols[i] ?? null, avgVolume,
+      high52w: highWindow.length >= 250 ? Math.max(...highWindow) : null,
+      low52w:  lowWindow.length  >= 250 ? Math.min(...lowWindow)  : null,
+      changePercent,
+    },
+    { trend5dPct, emaAlignment },
+  );
+}
+
+type BacktestStats = {
+  count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null;
+};
+
+function backtestDirection(closes: number[], highs: number[], lows: number[], vols: number[], direction: "BUY" | "SELL"): BacktestStats {
+  const returns: number[] = [], allReturns: number[] = [];
+  const last = closes.length - 1 - BACKTEST_FORWARD;
+  for (let i = BACKTEST_WARMUP; i <= last; i++) {
+    const fwd = closes[i] > 0 ? ((closes[i + BACKTEST_FORWARD] - closes[i]) / closes[i]) * 100 : null;
+    if (fwd === null) continue;
+    allReturns.push(fwd);
+    const sm = signalAt(i, closes, highs, lows, vols);
+    if (!sm || sm.signal !== direction) continue;
+    returns.push(fwd);
+  }
+  const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((s, v) => s + v, 0) / arr.length : null;
+  const avgReturn = avg(returns);
+  const hit = direction === "BUY" ? returns.filter(r => r > 0).length : returns.filter(r => r < 0).length;
+  return {
+    count: returns.length,
+    hitRate: returns.length > 0 ? Math.round((hit / returns.length) * 1000) / 10 : null,
+    avgReturn: avgReturn !== null ? Math.round(avgReturn * 100) / 100 : null,
+    baselineAvgReturn: avg(allReturns) !== null ? Math.round(avg(allReturns)! * 100) / 100 : null,
+  };
+}
+
+// CBOE delayed quotes — free, no API key, real IV + Greeks, 15-min delay
 // iv returned as decimal (0.37 = 37%), same scale as Yahoo impliedVolatility
 async function fetchOptionsIV(symbol: string) {
   try {
@@ -125,12 +203,14 @@ async function fetchOptionsIV(symbol: string) {
     const calls = nearContracts.filter(o => o.type === "C");
     const puts  = nearContracts.filter(o => o.type === "P");
 
-    // ATM IV (decimal): nearest call and put with iv > 0
+    // ATM IV (decimal): nearest call and put with iv > 0 AND a real quoted market
+    // (0DTE/expired-looking contracts can carry nonsense IV with no real bid/ask).
+    const hasRealQuote = (o: { raw: { bid?: number; ask?: number } }) => (o.raw.bid ?? 0) > 0 && (o.raw.ask ?? 0) > 0;
     const atmCall = [...calls]
-      .filter(o => (o.raw.iv as number) > 0)
+      .filter(o => (o.raw.iv as number) > 0 && hasRealQuote(o))
       .sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
     const atmPutCand = [...puts]
-      .filter(o => (o.raw.iv as number) > 0)
+      .filter(o => (o.raw.iv as number) > 0 && hasRealQuote(o))
       .sort((a, b) => Math.abs(a.strike - stockPrice) - Math.abs(b.strike - stockPrice))[0];
     const iv = (atmCall?.raw.iv as number) || (atmPutCand?.raw.iv as number) || 0;
 
@@ -141,6 +221,10 @@ async function fetchOptionsIV(symbol: string) {
     const atmPutMid  = atmPutCand && (atmPutCand.raw.bid as number) > 0 && (atmPutCand.raw.ask as number) > 0
       ? ((atmPutCand.raw.bid as number) + (atmPutCand.raw.ask as number)) / 2
       : null;
+    // Real chain-supplied delta — same field options-chain/route.ts already trusts.
+    // Not a Black-Scholes estimate.
+    const atmCallDelta = typeof atmCall?.raw.delta === "number" ? atmCall.raw.delta : null;
+    const atmPutDelta  = typeof atmPutCand?.raw.delta === "number" ? atmPutCand.raw.delta : null;
 
     const callWall = calls.reduce((best: typeof calls[0] | null, c) =>
       !best || (c.raw.open_interest ?? 0) > (best.raw.open_interest ?? 0) ? c : best, null
@@ -153,7 +237,7 @@ async function fetchOptionsIV(symbol: string) {
     const totalPutVol  = puts.reduce((s,  p) => s + ((p.raw.volume as number) ?? 0), 0);
     const pcVolRatio   = totalCallVol > 0 ? parseFloat((totalPutVol / totalCallVol).toFixed(2)) : null;
 
-    return { iv, expiry, expiryTs, dte, callWall, putWall, atmStrike, atmCallMid, atmPutMid, totalCallVol, totalPutVol, pcVolRatio };
+    return { iv, expiry, expiryTs, dte, callWall, putWall, atmStrike, atmCallMid, atmPutMid, atmCallDelta, atmPutDelta, totalCallVol, totalPutVol, pcVolRatio };
   } catch { return null; }
 }
 
@@ -173,6 +257,7 @@ export async function runOptionsScan() {
     confidence:   "High" | "Medium" | "Low";
     play:         "CALLS" | "PUTS";
     iv:           number | null;
+    delta:        number | null;
     expiry:       string | null;
     callWall:     number | null;
     putWall:      number | null;
@@ -183,11 +268,13 @@ export async function runOptionsScan() {
     stop:         string;
     rrRatio:      string;
     premiumEst:   string | null;
+    premiumReal:  boolean;
     pcVolRatio:   number | null;
     score:        number;
     hasOptions:   boolean;
     dte:          number | null;
     dteWarning:   boolean;
+    backtest:     BacktestStats | null;
   }[] = [];
 
   for (let i = 0; i < UNIVERSE.length; i++) {
@@ -225,28 +312,27 @@ export async function runOptionsScan() {
     const finalConfidence = sm.confidence;
 
     // ── Canonical trade levels — same computation as analyze(); no local math ──
-    // Both this card path and the full breakdown use computeCanonicalTrade() so
-    // direction, entry, target, and stop are always identical for any ticker.
+    // These are UNDERLYING STOCK levels (where the stock needs to go), not the
+    // option's own premium levels — the UI must label them as such.
     const canonTrade = computeCanonicalTrade(sm, q.price);
-    // signal !== "HOLD" is already enforced above; guard for missing dayH/dayL edge cases
     if (!canonTrade) continue;
 
-    // Direction derived from signal — never computed independently
     const isBull = finalSignal === "BUY";
 
     // Strike: use actual ATM strike from CBOE chain, fall back to nearest round number
     const strikeIncrement = q.price > 500 ? 5 : q.price > 100 ? 5 : q.price > 20 ? 2.5 : 1;
     const strikeRaw  = opt?.atmStrike ?? Math.round(q.price / strikeIncrement) * strikeIncrement;
     const strike     = `$${strikeRaw % 1 === 0 ? strikeRaw.toFixed(0) : strikeRaw.toFixed(1)} ATM`;
+    const delta      = isBull ? opt?.atmCallDelta ?? null : opt?.atmPutDelta ?? null;
 
-    // ATM premium: real bid/ask mid from CBOE chain; Bachelier approximation as fallback
     const dte        = opt?.dte ?? (opt?.expiryTs ? Math.max(1, Math.ceil((opt.expiryTs * 1000 - Date.now()) / 86_400_000)) : null);
     const dteWarning = dte !== null && dte < 14;
     const dteForCalc = dte ?? 7;
     const actualMid  = isBull ? opt?.atmCallMid : opt?.atmPutMid;
-    const premiumEst = actualMid
-      ? `~$${Math.round(actualMid * 100)} / contract`
-      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dteForCalc / 365) * 0.4 * 100)} / contract` : null);
+    const premiumReal = actualMid !== null && actualMid !== undefined;
+    const premiumEst = premiumReal
+      ? `~$${Math.round(actualMid! * 100)} / contract`
+      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dteForCalc / 365) * 0.4 * 100)} / contract (est.)` : null);
 
     // Score: signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((sm.score + 20) / 40) * 50;
@@ -256,14 +342,16 @@ export async function runOptionsScan() {
     const score      = normalizedScore + ivScore + momScore + confScore;
 
     // Runtime invariant: direction must match signal — never diverge.
-    // This is guaranteed structurally (play derived from finalSignal), but assert
-    // explicitly so any future regression throws in dev and logs in prod.
     const play = finalSignal === "BUY" ? "CALLS" : "PUTS";
     if (process.env.NODE_ENV !== "production") {
       if ((play === "CALLS") !== (finalSignal === "BUY")) {
         throw new Error(`[options-scan] Invariant: ${q.symbol} play=${play} signal=${finalSignal}`);
       }
     }
+
+    const backtest = q.closes.length >= BACKTEST_WARMUP + BACKTEST_FORWARD + 10
+      ? backtestDirection(q.closes, q.highs, q.lows, q.volumes, finalSignal)
+      : null;
 
     results.push({
       symbol:       q.symbol,
@@ -274,6 +362,7 @@ export async function runOptionsScan() {
       confidence:   finalConfidence,
       play,
       iv:           ivPct ? parseFloat(ivPct.toFixed(1)) : null,
+      delta:        delta !== null ? parseFloat(delta.toFixed(3)) : null,
       expiry:       opt?.expiry ?? null,
       callWall:     opt?.callWall ?? null,
       putWall:      opt?.putWall ?? null,
@@ -284,22 +373,26 @@ export async function runOptionsScan() {
       stop:         canonTrade.stopFmt,
       rrRatio:      `${canonTrade.rrNum}:1 R:R`,
       premiumEst,
+      premiumReal,
       pcVolRatio:   opt?.pcVolRatio ?? null,
       score,
       hasOptions:   !!opt?.iv,
       dte,
       dteWarning,
+      backtest,
     });
   }
 
-  // Hard gates — only surface plays that meet all three criteria.
+  // Hard gates — only surface plays that meet all criteria.
   // No count cap: some days there are 0, some days 6, depends on the market.
   // 1. High confidence (smartMoneyScore ≥ 7 — trend + day + volume all aligned)
   // 2. Real CBOE IV data (no price-based estimates)
-  // 3. At least 14 DTE (near-expiry options decay too fast for directional plays)
+  // 3. Real bid/ask premium (not the Bachelier fallback estimate)
+  // 4. At least 14 DTE (near-expiry options decay too fast for directional plays)
   const premium = results.filter(r =>
     r.confidence === "High" &&
     r.hasOptions &&
+    r.premiumReal &&
     r.dte !== null && r.dte >= 14
   ).sort((a, b) => b.score - a.score);
 

@@ -19,6 +19,11 @@ type OptionContract = {
   openInterest?:     number;
   impliedVolatility: number;
   inTheMoney:        boolean;
+  // Real chain-supplied Greeks (same field CBOE gives options-chain/route.ts) —
+  // preferred over the Black-Scholes estimate below whenever CBOE has them.
+  delta?:            number | null;
+  gamma?:            number | null;
+  theta?:            number | null;
 };
 
 // ── Black-Scholes ATM Greeks ───────────────────────────────────────────────
@@ -174,6 +179,9 @@ async function fetchOptionsChain(symbol: string): Promise<{ expirationDates: num
         openInterest:      (o.raw.open_interest     as number | undefined),
         impliedVolatility: (o.raw.iv                as number) ?? 0, // 0.37 = 37%
         inTheMoney:        o.type === "C" ? o.strike < stockPrice : o.strike > stockPrice,
+        delta:             typeof o.raw.delta === "number" ? o.raw.delta : null,
+        gamma:             typeof o.raw.gamma === "number" ? o.raw.gamma : null,
+        theta:             typeof o.raw.theta === "number" ? o.raw.theta : null,
       };
     }
 
@@ -439,23 +447,32 @@ export async function POST(req: Request) {
   const dteUpTarget = dteMove ? price + dteMove : null;
   const dteDnTarget = dteMove ? price - dteMove : null;
 
-  // ── Black-Scholes ATM Greeks ──────────────────────────────────────────────
+  // ── ATM Greeks — prefer CBOE's real chain-supplied values, Black-Scholes only
+  // as a fallback for contracts CBOE doesn't return greeks for. Using a local
+  // BS estimate when the real number is sitting right there in the same
+  // payload was an avoidable inconsistency with what /api/market/options-chain
+  // shows for the same contract. ──────────────────────────────────────────────
   let greeksCtx = "";
   let straddleCtx = "";
   if (chain && atmIV > 0 && dte !== null && dte > 0) {
     const T = dte / 365;
-    const callG = bsGreeks(price, atmCallStr || price, T, atmIV, true);
-    const putG  = bsGreeks(price, atmPutStr  || price, T, atmIV, false);
-    if (callG && putG) {
-      greeksCtx = `ATM GREEKS (Black-Scholes, ${dte} DTE):
-  Call delta: ${callG.delta.toFixed(3)} — for every $1 stock move, ATM call ≈ +$${(callG.delta * 100).toFixed(0)}/contract
-  Put  delta: ${putG.delta.toFixed(3)} — for every $1 stock move, ATM put  ≈ +$${(Math.abs(putG.delta) * 100).toFixed(0)}/contract
-  Gamma: ${callG.gamma.toFixed(5)} — delta changes by $${(callG.gamma * 100).toFixed(2)}/contract per $1 move${dte <= 7 ? " ⚠ GAMMA RISK ELEVATED near expiry" : ""}
-  Theta: -$${(Math.abs(callG.thetaPerDay) * 100).toFixed(2)}/day per call contract | -$${(Math.abs(putG.thetaPerDay) * 100).toFixed(2)}/day per put contract`;
-    }
     // Straddle price = sum of ATM call + put mids (market's expected absolute move)
     const callMid = chain.calls.find(c => c.strike === (atmCallStr || price));
     const putMid  = chain.puts.find(p => p.strike  === (atmPutStr  || price));
+
+    const hasRealDelta = (c: OptionContract | undefined) => typeof c?.delta === "number" && c.delta !== 0;
+    const realCall = hasRealDelta(callMid) ? { delta: callMid!.delta!, gamma: callMid!.gamma ?? null, thetaPerDay: callMid!.theta ?? null } : null;
+    const realPut  = hasRealDelta(putMid)  ? { delta: putMid!.delta!,  gamma: putMid!.gamma  ?? null, thetaPerDay: putMid!.theta  ?? null } : null;
+    const callG = realCall ?? bsGreeks(price, atmCallStr || price, T, atmIV, true);
+    const putG  = realPut  ?? bsGreeks(price, atmPutStr  || price, T, atmIV, false);
+    const source = realCall && realPut ? "real, CBOE chain" : realCall || realPut ? "mixed — CBOE where available, Black-Scholes elsewhere" : "Black-Scholes estimate";
+    if (callG && putG) {
+      greeksCtx = `ATM GREEKS (${source}, ${dte} DTE):
+  Call delta: ${callG.delta.toFixed(3)} — for every $1 stock move, ATM call ≈ +$${(callG.delta * 100).toFixed(0)}/contract
+  Put  delta: ${putG.delta.toFixed(3)} — for every $1 stock move, ATM put  ≈ +$${(Math.abs(putG.delta) * 100).toFixed(0)}/contract${
+    callG.gamma != null ? `\n  Gamma: ${callG.gamma.toFixed(5)} — delta changes by $${(callG.gamma * 100).toFixed(2)}/contract per $1 move${dte <= 7 ? " ⚠ GAMMA RISK ELEVATED near expiry" : ""}` : ""}${
+    callG.thetaPerDay != null && putG.thetaPerDay != null ? `\n  Theta: -$${(Math.abs(callG.thetaPerDay) * 100).toFixed(2)}/day per call contract | -$${(Math.abs(putG.thetaPerDay) * 100).toFixed(2)}/day per put contract` : ""}`;
+    }
     const callVal = callMid ? (callMid.bid > 0 ? (callMid.bid + callMid.ask) / 2 : callMid.lastPrice) : null;
     const putVal  = putMid  ? (putMid.bid  > 0 ? (putMid.bid  + putMid.ask)  / 2 : putMid.lastPrice)  : null;
     if (callVal && putVal && callVal > 0 && putVal > 0) {

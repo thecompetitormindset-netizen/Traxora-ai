@@ -289,18 +289,32 @@ function loadPaperStats(storageKey: string, accountKey: string): PaperStats {
 
 // ── Top Options Plays ────────────────────────────────────────────────────────
 
+type OptionsBacktest = { count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null };
+
 type OptionsPlay = {
   symbol: string; price: number; changePct: number;
   signal: "BUY" | "SELL"; confidence: "High" | "Medium" | "Low";
-  play: "CALLS" | "PUTS"; iv: number | null; expiry: string | null;
+  play: "CALLS" | "PUTS"; iv: number | null; delta: number | null; expiry: string | null;
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null;
+  premiumEst: string | null; premiumReal: boolean;
   pcVolRatio: number | null;
   score: number; hasOptions: boolean;
   dte: number | null; dteWarning: boolean;
+  backtest: OptionsBacktest | null;
 };
+
+// Same walk-forward-vs-baseline framing used for the crypto signal backtest —
+// hit rate alone can look good purely because a stock trended one way for the
+// whole backtested window; only the edge over baseline says whether the
+// signal itself is adding anything.
+function optionsBacktestReadout(bt: OptionsBacktest | null, direction: "BUY" | "SELL"): { text: string; cls: string } | null {
+  if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
+  const edge = direction === "BUY" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
+  const cls  = edge > 0.3 ? "text-emerald-400/80" : edge < -0.3 ? "text-rose-400/80" : "text-[#4B5675]";
+  return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, cls };
+}
 
 /**
  * Runtime invariant for every options play card.
@@ -460,7 +474,7 @@ function OptionsPlaysSection() {
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
           <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
           <p className="text-[11px] text-[#4B5675] leading-snug">
-            All three gates must pass: High confidence signal, live CBOE IV, and 14+ DTE.<br/>
+            All four gates must pass: High confidence signal, live CBOE IV, a real bid/ask premium, and 14+ DTE.<br/>
             This keeps quality high — check back when the market gives a clear directional move.
           </p>
         </div>
@@ -529,19 +543,27 @@ function OptionsPlaysSection() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Strike</span>
                   <span className="font-bold text-amber-400">{p.strike}</span>
+                  {p.delta !== null && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="text-[9px] text-[#4B5675]">Δ {p.delta.toFixed(2)}</span></>}
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
-                  <span className="font-bold text-[#F1F5F9]">{p.entryZone}</span>
-                  {p.premiumEst && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="font-bold text-violet-400">{p.premiumEst}</span></>}
+                  <span className="font-bold text-violet-400">{p.premiumEst ?? "—"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stock ent</span>
+                  <span className="font-bold text-[#F1F5F9]">{p.entryZone}</span>
+                  <span className="text-[#1C1A3A] shrink-0">·</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">tgt</span>
                   <span className="font-bold text-emerald-400">{p.target}</span>
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">stp</span>
                   <span className="font-bold text-rose-400">{p.stop}</span>
-                  <span className="ml-auto text-[8px] text-[#4B5675]">{p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}</span>
                 </div>
+                <div className="flex items-center gap-1.5 flex-wrap text-[8px] text-[#4B5675]">
+                  <span>{p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}</span>
+                </div>
+                {(() => {
+                  const bt = optionsBacktestReadout(p.backtest, p.signal);
+                  return bt ? <p className={`text-[8px] font-semibold ${bt.cls}`}>{bt.text}</p> : null;
+                })()}
               </div>
 
               <div className="mt-3 flex items-center gap-3">
