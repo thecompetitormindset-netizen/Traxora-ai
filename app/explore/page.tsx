@@ -282,7 +282,7 @@ export default function ExplorePage() {
         {/* ── Header ── */}
         <div className="mt-3 flex items-end justify-between gap-4 flex-wrap">
           <h1 className="reveal section-header text-2xl font-black tracking-tight text-gradient-green">Explore Markets</h1>
-          <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs overflow-x-auto scrollbar-hide">
+          <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs overflow-x-auto scrollbar-hide scroll-fade-x">
             {([
               ["markets",  "🌍 Markets"],
               ["movers",   "🔥 Movers"],

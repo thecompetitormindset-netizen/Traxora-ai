@@ -404,7 +404,7 @@ export default function SportsPage() {
 
           {/* Sport tabs — one per sport */}
           {!loading && games.length > 0 && (
-            <div className="mb-3 -mx-3 px-3 overflow-x-auto scrollbar-hide">
+            <div className="mb-3 -mx-3 px-3 overflow-x-auto scrollbar-hide scroll-fade-x">
               <div className="flex items-center gap-1.5 w-max mx-auto pb-1">
                 {SPORT_TABS.map(t => {
                   const count = tabCounts.get(t.id) ?? 0;

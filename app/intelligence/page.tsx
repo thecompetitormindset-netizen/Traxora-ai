@@ -672,7 +672,7 @@ function IntelligenceContent() {
         {/* Header + tab bar */}
         <div className="mt-3 mb-5">
           <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green mb-4">Markets</h1>
-          <div className="flex gap-0 border-b border-[#252345] overflow-x-auto">
+          <div className="flex gap-0 border-b border-[#252345] overflow-x-auto scroll-fade-x">
             {TABS.map(t => (
               <button
                 key={t.id}

@@ -138,7 +138,7 @@ export default function NewsPage() {
             </div>
 
             {/* Topic pills */}
-            <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
+            <div className="flex gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide scroll-fade-x">
               {TOPICS.map(t => (
                 <button
                   key={t.id}

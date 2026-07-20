@@ -1279,6 +1279,14 @@ details summary { list-style: none; }
   -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
 }
+
+/* Edge-fade hint for user-scrollable tab/pill/table strips — same technique
+   as .ticker-mask, just for manual (not auto) horizontal scroll, so a row
+   that overflows the viewport visually hints there's more before you touch it. */
+.scroll-fade-x {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 16px, #000 calc(100% - 16px), transparent);
+}
 .ticker-track {
   display: flex;
   align-items: center;
