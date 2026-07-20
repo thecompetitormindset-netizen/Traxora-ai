@@ -25,6 +25,11 @@ type CryptoMover = {
   squeeze:    boolean;
   bigMove:    boolean;
   sparkline?: number[];
+  signal:     "BUY" | "HOLD" | "SELL" | null;
+  confidence: "High" | "Medium" | "Low" | null;
+  score:      number | null;
+  trend5dPct: number | null;
+  dailyBias:  "Bullish" | "Bearish" | "Neutral" | null;
 };
 
 // ── Static universe ───────────────────────────────────────────────────────────
@@ -68,6 +73,16 @@ function fmtCap(n: number | null): string {
   return `$${(n / 1e6).toFixed(0)}M`;
 }
 
+// Same weighted engine as the stock "AI Signals" feature (app/lib/smartMoney.ts),
+// fed real crypto price/volume/trend data — BUY reads as "expect up," SELL as
+// "expect down." No LLM involved; this is deterministic math, not a guarantee.
+function directionLabel(signal: CryptoMover["signal"]): { label: string; cls: string; arrow: string } {
+  if (signal === "BUY")  return { label: "Bullish", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25", arrow: "▲" };
+  if (signal === "SELL") return { label: "Bearish", cls: "text-rose-400 bg-rose-500/10 border-rose-500/25",         arrow: "▼" };
+  if (signal === "HOLD") return { label: "Neutral", cls: "text-amber-400 bg-amber-500/10 border-amber-500/25",      arrow: "—" };
+  return { label: "—", cls: "text-[#4B5675] bg-[#1A1838] border-[#252345]", arrow: "" };
+}
+
 // ── Coin card ─────────────────────────────────────────────────────────────────
 
 function MiniSparkline({ closes, up }: { closes: number[]; up: boolean }) {
@@ -92,8 +107,9 @@ function MiniSparkline({ closes, up }: { closes: number[]; up: boolean }) {
   );
 }
 
-function CoinCard({ coin, row, sparkline }: { coin: typeof COINS[0]; row: CoinRow | undefined; loading: boolean; sparkline?: number[] }) {
-  const up = (row?.change ?? 0) >= 0;
+function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | undefined; loading: boolean; mover?: CryptoMover }) {
+  const up  = (row?.change ?? 0) >= 0;
+  const dir = directionLabel(mover?.signal ?? null);
 
   return (
     <Link
@@ -127,9 +143,21 @@ function CoinCard({ coin, row, sparkline }: { coin: typeof COINS[0]; row: CoinRo
         <p className="text-xl font-black font-mono text-[#252345] animate-pulse">——</p>
       )}
 
-      {sparkline && sparkline.length > 1 && <MiniSparkline closes={sparkline} up={up} />}
+      {mover?.sparkline && mover.sparkline.length > 1 && <MiniSparkline closes={mover.sparkline} up={up} />}
 
-      <p className="text-[9px] text-[#333368] mt-1">AI Analysis →</p>
+      {mover?.signal && (
+        <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-[#1A1838]">
+          <span className={`text-[9px] font-black px-1.5 py-px rounded border ${dir.cls}`}>{dir.arrow} {dir.label}</span>
+          {mover.confidence && <span className="text-[8px] text-[#4B5675] font-semibold">{mover.confidence} conf</span>}
+          {mover.trend5dPct !== null && (
+            <span className={`ml-auto text-[8px] font-mono font-bold ${mover.trend5dPct >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
+              5d {mover.trend5dPct >= 0 ? "+" : ""}{mover.trend5dPct.toFixed(1)}%
+            </span>
+          )}
+        </div>
+      )}
+
+      <p className="text-[9px] text-[#333368] mt-1.5">Full analysis →</p>
     </Link>
   );
 }
@@ -159,9 +187,15 @@ export default function CryptoDashboard() {
 
   const bigMovers = movers.filter(m => m.bigMove).sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0));
   const squeezes  = movers.filter(m => m.squeeze).sort((a, b) => (a.bbWidthPct ?? 100) - (b.bbWidthPct ?? 100));
+  const bullish   = movers.filter(m => m.signal === "BUY");
+  const bearish   = movers.filter(m => m.signal === "SELL");
+  const neutral   = movers.filter(m => m.signal === "HOLD");
 
   function rowFor(symbol: string): CoinRow | undefined {
     return rows.find(r => r.symbol === symbol);
+  }
+  function moverFor(symbol: string): CryptoMover | undefined {
+    return movers.find(m => m.symbol === symbol);
   }
 
   // Market overview row
@@ -169,8 +203,6 @@ export default function CryptoDashboard() {
   const eth     = rowFor("ETH-USD");
   const btcUp   = (btc?.change ?? 0) >= 0;
   const ethUp   = (eth?.change ?? 0) >= 0;
-  const cryptoSentiment = btcUp && ethUp ? "Risk On" : !btcUp && !ethUp ? "Risk Off" : "Mixed";
-  const sentimentColor  = cryptoSentiment === "Risk On" ? "text-emerald-400" : cryptoSentiment === "Risk Off" ? "text-rose-400" : "text-amber-400";
 
   return (
     <div className="space-y-5">
@@ -197,11 +229,17 @@ export default function CryptoDashboard() {
               </span>
             </div>
           )}
-          <div className="w-px h-4 bg-[#252345]" />
-          <div>
-            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider mr-2">Crypto Sentiment</span>
-            <span className={`text-[11px] font-black ${sentimentColor}`}>{cryptoSentiment}</span>
-          </div>
+          {movers.length > 0 && (
+            <>
+              <div className="w-px h-4 bg-[#252345]" />
+              <div className="flex items-center gap-2.5">
+                <span className="text-[9px] text-[#4B5675] uppercase tracking-wider">Signals</span>
+                <span className="text-[11px] font-black text-emerald-400">{bullish.length} Bullish</span>
+                <span className="text-[11px] font-black text-amber-400">{neutral.length} Neutral</span>
+                <span className="text-[11px] font-black text-rose-400">{bearish.length} Bearish</span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -256,26 +294,32 @@ export default function CryptoDashboard() {
       )}
 
       {/* Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-        {loading ? (
-          Array.from({ length: 12 }).map((_, i) => (
-            <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 animate-pulse">
-              <div className="flex gap-2 mb-3">
-                <div className="w-8 h-8 bg-[#252345] rounded-xl" />
-                <div className="flex-1 space-y-1.5">
-                  <div className="h-3 bg-[#252345] rounded w-12" />
-                  <div className="h-2 bg-[#252345] rounded w-16" />
-                </div>
-              </div>
-              <div className="h-6 bg-[#252345] rounded w-24" />
-            </div>
-          ))
-        ) : (
-          COINS.map(coin => (
-            <CoinCard key={coin.symbol} coin={coin} row={rowFor(coin.symbol)} loading={loading}
-              sparkline={movers.find(m => m.symbol === coin.symbol)?.sparkline} />
-          ))
+      <div>
+        {!loading && movers.length > 0 && (
+          <p className="text-[10px] text-[#4B5675] mb-2.5">
+            Each coin&rsquo;s Bullish/Neutral/Bearish read comes from the same weighted engine behind the stock AI Signals — 5-day trend, today&rsquo;s move, volume, and moving-average alignment — applied to real crypto price data. Not a guarantee; a High-confidence read still fails sometimes.
+          </p>
         )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+          {loading ? (
+            Array.from({ length: 12 }).map((_, i) => (
+              <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 animate-pulse">
+                <div className="flex gap-2 mb-3">
+                  <div className="w-8 h-8 bg-[#252345] rounded-xl" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3 bg-[#252345] rounded w-12" />
+                    <div className="h-2 bg-[#252345] rounded w-16" />
+                  </div>
+                </div>
+                <div className="h-6 bg-[#252345] rounded w-24" />
+              </div>
+            ))
+          ) : (
+            COINS.map(coin => (
+              <CoinCard key={coin.symbol} coin={coin} row={rowFor(coin.symbol)} loading={loading} mover={moverFor(coin.symbol)} />
+            ))
+          )}
+        </div>
       </div>
 
       <p className="text-center text-[10px] text-[#333368]">
