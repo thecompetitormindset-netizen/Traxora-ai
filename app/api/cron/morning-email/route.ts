@@ -323,6 +323,13 @@ function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>
         <tr><td style="padding:12px 20px">
           <table cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table>
         </td></tr>
+        <tr><td style="padding:0 20px 14px">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#2a1a08;border:1px solid #4d3510;border-radius:8px">
+            <tr><td style="padding:8px 10px">
+              <p style="margin:0;font-size:10px;color:#fbbf24;line-height:1.5"><strong>Educational only — not financial advice.</strong> These are algorithmic signals with an unproven, often weak edge — not a track record. Options can lose 100% of premium, and often do. Verify DTE, IV and earnings before risking real money, and size any position to what you can lose entirely.</p>
+            </td></tr>
+          </table>
+        </td></tr>
         <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, and targets on each card at traxora-ai.vercel.app/dashboard</p></td></tr>
       </table>
     </td>
@@ -362,6 +369,13 @@ function buildFuturesSection(stocks: ReturnType<typeof analyze>[]): string {
         </td></tr>
         <tr><td style="padding:12px 20px">
           <table cellpadding="0" cellspacing="0" border="0" width="100%">${rows}</table>
+        </td></tr>
+        <tr><td style="padding:0 20px 14px">
+          <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#2a1a08;border:1px solid #4d3510;border-radius:8px">
+            <tr><td style="padding:8px 10px">
+              <p style="margin:0;font-size:10px;color:#fbbf24;line-height:1.5"><strong>Educational only — not financial advice.</strong> Leveraged and can move against you fast. Signal accuracy is unproven — size to what you can lose entirely.</p>
+            </td></tr>
+          </table>
         </td></tr>
       </table>
     </td>

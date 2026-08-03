@@ -268,6 +268,7 @@ export async function runOptionsScan() {
     stop:         string;
     rrRatio:      string;
     premiumEst:   string | null;
+    premiumPerContract: number | null;
     premiumReal:  boolean;
     pcVolRatio:   number | null;
     score:        number;
@@ -330,9 +331,12 @@ export async function runOptionsScan() {
     const dteForCalc = dte ?? 7;
     const actualMid  = isBull ? opt?.atmCallMid : opt?.atmPutMid;
     const premiumReal = actualMid !== null && actualMid !== undefined;
-    const premiumEst = premiumReal
-      ? `~$${Math.round(actualMid! * 100)} / contract`
-      : (ivPct ? `~$${Math.round(q.price * (ivPct / 100) * Math.sqrt(dteForCalc / 365) * 0.4 * 100)} / contract (est.)` : null);
+    const premiumPerContract = premiumReal
+      ? Math.round(actualMid! * 100)
+      : (ivPct ? Math.round(q.price * (ivPct / 100) * Math.sqrt(dteForCalc / 365) * 0.4 * 100) : null);
+    const premiumEst = premiumPerContract !== null
+      ? `~$${premiumPerContract} / contract${premiumReal ? "" : " (est.)"}`
+      : null;
 
     // Score: signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((sm.score + 20) / 40) * 50;
@@ -373,6 +377,7 @@ export async function runOptionsScan() {
       stop:         canonTrade.stopFmt,
       rrRatio:      `${canonTrade.rrNum}:1 R:R`,
       premiumEst,
+      premiumPerContract,
       premiumReal,
       pcVolRatio:   opt?.pcVolRatio ?? null,
       score,

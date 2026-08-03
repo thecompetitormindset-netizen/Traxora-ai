@@ -11,6 +11,8 @@ import OptionsChainViewer from "@/app/components/OptionsChainViewer";
 import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
 import OptionsFlow from "@/app/components/OptionsFlow";
 import { signalBadgeCls } from "@/app/lib/signalBadge";
+import { sizeOptionsPosition } from "@/app/lib/positionSizer";
+import RiskSizerBar, { useRiskSettings } from "@/app/components/RiskSizerBar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -23,7 +25,7 @@ type OptionsPlay = {
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; premiumReal?: boolean; pcVolRatio: number | null; score: number; hasOptions: boolean;
+  premiumEst: string | null; premiumPerContract: number | null; premiumReal?: boolean; pcVolRatio: number | null; score: number; hasOptions: boolean;
   dte: number | null; dteWarning: boolean;
   backtest: OptionsBacktest | null;
 };
@@ -101,6 +103,8 @@ function OptionsPlaysPanel() {
   const [err,      setErr]      = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [lastScan, setLastScan] = useState<Date | null>(null);
+  const [cheapOnly, setCheapOnly] = useState(false);
+  const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
 
   const scan = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -162,12 +166,27 @@ function OptionsPlaysPanel() {
             )}
           </div>
         </div>
-        <button type="button" onClick={scan} disabled={loading}
-          className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors disabled:opacity-40">
-          {loading
-            ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Scanning…</>
-            : "Rescan →"}
-        </button>
+        <div className="flex items-center gap-3">
+          {loaded && plays.some(p => p.premiumPerContract !== null && p.premiumPerContract < 50) && (
+            <button
+              type="button"
+              onClick={() => setCheapOnly(v => !v)}
+              className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
+                cheapOnly
+                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
+                  : "bg-transparent text-[#4B5675] border-[#252345] hover:text-[#94A3B8]"
+              }`}
+            >
+              Under $50 only
+            </button>
+          )}
+          <button type="button" onClick={scan} disabled={loading}
+            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors disabled:opacity-40">
+            {loading
+              ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Scanning…</>
+              : "Rescan →"}
+          </button>
+        </div>
       </div>
 
       {err && <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 mb-4"><p className="text-xs text-rose-400">{err}</p></div>}
@@ -215,17 +234,30 @@ function OptionsPlaysPanel() {
               <span className="font-semibold text-amber-300">Educational signals only — not financial advice.</span> Options can lose 100% of their value. Always verify DTE, IV environment, and earnings dates before trading.
             </p>
           </div>
+          <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
+          {cheapOnly && (
+            <div className="mb-3 px-3 py-2.5 rounded-xl bg-violet-500/8 border border-violet-500/20">
+              <p className="text-[11px] text-violet-300/70 leading-snug">
+                <span className="font-semibold text-violet-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line are the only things that speak to direction — not the price.
+              </p>
+            </div>
+          )}
 
           {/* Play cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {plays.map((p, idx) => {
+            {(cheapOnly
+              ? [...plays].filter(p => p.premiumPerContract !== null && p.premiumPerContract < 50)
+                           .sort((a, b) => (a.premiumPerContract ?? 0) - (b.premiumPerContract ?? 0))
+                           .slice(0, 5)
+              : plays
+            ).map((p, idx, arr) => {
               const isCalls   = p.play === "CALLS";
               const borderCls = isCalls ? "border-l-emerald-500/40" : "border-l-rose-500/40";
               const badgeCls  = isCalls
                 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
                 : "bg-rose-500/10 text-rose-400 border-rose-500/25";
               const isSelected = selected === p.symbol;
-              const isOrphan = idx === plays.length - 1 && plays.length % 3 === 1;
+              const isOrphan = idx === arr.length - 1 && arr.length % 3 === 1;
 
               return (
                 <div key={p.symbol} className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} bg-[#13112A] rounded-2xl border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
@@ -276,6 +308,13 @@ function OptionsPlaysPanel() {
                       {(() => {
                         const bt = optionsBacktestReadout(p.backtest, p.play);
                         return bt ? <p className={`text-[8px] font-semibold pt-0.5 ${bt.cls}`}>{bt.text}</p> : null;
+                      })()}
+                      {(() => {
+                        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+                        if (!size) return null;
+                        return size.tooExpensive
+                          ? <p className="text-[8px] font-semibold pt-0.5 text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
+                          : <p className="text-[8px] font-semibold pt-0.5 text-sky-400">Size: {size.contracts} contract{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} ({riskSettings.riskPct}% cap)</p>;
                       })()}
                     </div>
 

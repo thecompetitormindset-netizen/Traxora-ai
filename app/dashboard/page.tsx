@@ -16,6 +16,8 @@ import { haptic } from "../lib/haptics";
 import { signalBadgeCls } from "../lib/signalBadge";
 import { loadTrades, STARTING_CAPITAL, calcPL } from "../lib/paperTrades";
 import type { PaperTrade } from "../lib/paperTrades";
+import { sizeOptionsPosition } from "../lib/positionSizer";
+import RiskSizerBar, { useRiskSettings } from "../components/RiskSizerBar";
 
 type TradeLevels = {
   entryZone:   string;
@@ -298,7 +300,7 @@ type OptionsPlay = {
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; premiumReal: boolean;
+  premiumEst: string | null; premiumPerContract: number | null; premiumReal: boolean;
   pcVolRatio: number | null;
   score: number; hasOptions: boolean;
   dte: number | null; dteWarning: boolean;
@@ -348,6 +350,8 @@ function OptionsPlaysSection() {
   const [lastScan,  setLastScan]  = useState<Date | null>(null);
   const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
   const [showAll,   setShowAll]   = useState(false);
+  const [cheapOnly, setCheapOnly] = useState(false);
+  const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
 
   function copyClaudePrompt(p: OptionsPlay) {
     const side = p.play === "CALLS" ? "buy calls on" : "buy puts on";
@@ -360,6 +364,13 @@ function OptionsPlaysSection() {
       `Stop: ${p.stop}`,
       `Target: ${p.target}`,
       `R:R ${p.rrRatio}${p.premiumEst ? ` — est. premium ${p.premiumEst}` : ""}`,
+      ...(() => {
+        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+        if (!size) return [];
+        return [size.tooExpensive
+          ? `Position size: even 1 contract exceeds your ${riskSettings.riskPct}% risk cap on a $${riskSettings.accountSize} account — skip or resize.`
+          : `Position size: ${size.contracts} contract(s) ≈ $${size.actualRiskDollars} risked (${riskSettings.riskPct}% cap on $${riskSettings.accountSize}).`];
+      })(),
       ``,
       `Before placing any order: confirm current DTE, IV environment, and whether there are earnings within 7 days. Only use a paper account or risk capital you can afford to lose entirely.`,
     ];
@@ -425,7 +436,20 @@ function OptionsPlaysSection() {
         </div>
         <div className="flex items-center gap-3">
           <Link href="/intelligence?section=options" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
-          {loaded && plays.length > 3 && (
+          {loaded && plays.some(p => p.premiumPerContract !== null && p.premiumPerContract < 50) && (
+            <button
+              type="button"
+              onClick={() => setCheapOnly(v => !v)}
+              className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
+                cheapOnly
+                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
+                  : "bg-transparent text-[#4B5675] border-[#252345] hover:text-[#94A3B8]"
+              }`}
+            >
+              Under $50 only
+            </button>
+          )}
+          {loaded && plays.length > 3 && !cheapOnly && (
             <button type="button" onClick={() => setShowAll(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
               {showAll ? "Show less ↑" : `See all ${plays.length} ↓`}
             </button>
@@ -488,8 +512,23 @@ function OptionsPlaysSection() {
             <span className="font-semibold text-amber-300">Educational only — not financial advice.</span> Verify DTE, IV and earnings before trading. Options can lose 100% of value.
           </p>
         </div>
+        <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
+        {cheapOnly && (
+          <div className="mb-3 px-3 py-2 rounded-xl bg-violet-500/8 border border-violet-500/20">
+            <p className="text-[10px] text-violet-300/70 leading-snug">
+              <span className="font-semibold text-violet-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line below are the only things that speak to direction — not the price.
+            </p>
+          </div>
+        )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(() => { const visiblePlays = showAll ? plays : plays.slice(0, 3); return visiblePlays.map((p, i) => {
+          {(() => {
+            const pool = cheapOnly
+              ? [...plays].filter(p => p.premiumPerContract !== null && p.premiumPerContract < 50)
+                           .sort((a, b) => (a.premiumPerContract ?? 0) - (b.premiumPerContract ?? 0))
+                           .slice(0, 5)
+              : plays;
+            const visiblePlays = cheapOnly ? pool : (showAll ? pool : pool.slice(0, 3));
+            return visiblePlays.map((p, i) => {
             const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
             return (
             <Link
@@ -563,6 +602,13 @@ function OptionsPlaysSection() {
                 {(() => {
                   const bt = optionsBacktestReadout(p.backtest, p.signal);
                   return bt ? <p className={`text-[8px] font-semibold ${bt.cls}`}>{bt.text}</p> : null;
+                })()}
+                {(() => {
+                  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+                  if (!size) return null;
+                  return size.tooExpensive
+                    ? <p className="text-[8px] font-semibold text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
+                    : <p className="text-[8px] font-semibold text-sky-400">Size: {size.contracts} contract{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} ({riskSettings.riskPct}% cap)</p>;
                 })()}
               </div>
 
