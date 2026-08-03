@@ -109,7 +109,7 @@ export default function RiskGuard() {
   return (
     <>
       {/* RiskGuard toasts — top-right corner */}
-      <div className="fixed top-20 right-4 sm:right-[180px] z-50 flex flex-col gap-2 w-[300px] sm:w-[320px] pointer-events-none">
+      <div className="fixed top-20 right-4 sm:right-[180px] z-[var(--z-float)] flex flex-col gap-2 w-[300px] sm:w-[320px] pointer-events-none">
         {toasts.map(t => (
           <div
             key={t.id}

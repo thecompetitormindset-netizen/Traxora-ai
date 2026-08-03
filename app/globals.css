@@ -36,6 +36,16 @@
   --grad-purple: linear-gradient(135deg,#06b6d4,#22d3ee);
   --grad-gold:   linear-gradient(135deg,#f59e0b,#fbbf24);
   --grad-cyan:   linear-gradient(135deg,#22d3ee,#67e8f9);
+
+  /* z-index scale: every stacking layer in the app should reference one of
+     these instead of an ad-hoc number, so layers can't silently collide. */
+  --z-nav:            50;  /* persistent chrome: sidebar rail + mobile pill bar */
+  --z-float:           55;  /* floating widgets above nav: chat FAB, toasts, cookie banner */
+  --z-dropdown:        70;  /* in-page popovers: search dropdown, tooltips */
+  --z-fullscreen:      90;  /* in-page fullscreen takeovers: expanded chart */
+  --z-modal-backdrop: 100;  /* modal scrims */
+  --z-modal:          110;  /* modal content */
+  --z-tour:           300;  /* product tour: must outrank modals to point at live UI */
 }
 
 *, *::before, *::after {

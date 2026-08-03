@@ -203,7 +203,7 @@ export default function AutoScanner() {
     <>
       {/* Mobile: docked bottom-left above the nav (chat FAB owns bottom-right).
           Desktop: bottom-right, stacked above the chat FAB — never over page headers. */}
-      <div className="fixed bottom-28 left-4 items-start md:bottom-24 md:left-auto md:right-6 md:items-end z-50 flex flex-col gap-2">
+      <div className="fixed bottom-28 left-4 items-start md:bottom-24 md:left-auto md:right-6 md:items-end z-[var(--z-float)] flex flex-col gap-2">
 
         {/* Panel */}
         {open && (

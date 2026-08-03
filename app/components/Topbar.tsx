@@ -262,7 +262,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
         {/* Dropdown */}
         {open && (results.length > 0 || !query.trim()) && (
-          <div className={`dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-[999] overflow-hidden overflow-y-auto ${query.trim() ? "max-h-80" : "max-h-[72vh]"}`}>
+          <div className={`dropdown-enter absolute top-[calc(100%+6px)] left-0 w-full bg-[#13112A] border border-[#252345] rounded-xl shadow-2xl z-[var(--z-dropdown)] overflow-hidden overflow-y-auto ${query.trim() ? "max-h-80" : "max-h-[72vh]"}`}>
             {/* Command palette — shown when query is empty */}
             {!query.trim() && (
               <>

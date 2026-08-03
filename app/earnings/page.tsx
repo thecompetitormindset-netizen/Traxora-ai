@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
+import Panel from "../components/Panel";
 import Link from "next/link";
 
 type EarningsEvent = {
@@ -43,23 +44,23 @@ function isToday(date: string): boolean {
 
 function EventCard({ ev }: { ev: EarningsEvent }) {
   return (
-    <div className="bg-[#0D0B1A] rounded-xl border border-[#1A1838] hover:border-[#252345] transition-all p-3">
+    <Panel padding="sm">
       <div className="flex items-start justify-between gap-1 mb-1">
-        <span className="text-xs font-black text-[#F1F5F9] leading-tight">{ev.symbol}</span>
+        <span className="text-xs font-black text-[var(--text-primary)] leading-tight">{ev.symbol}</span>
         {ev.estimate !== null && (
           <span className="text-[9px] font-bold text-violet-400 bg-violet-500/10 border border-violet-500/20 px-1.5 py-0.5 rounded shrink-0">
             Est ${ev.estimate.toFixed(2)}
           </span>
         )}
       </div>
-      <p className="text-[10px] text-[#4B5675] leading-snug mb-2 truncate">{ev.name}</p>
+      <p className="text-[10px] text-[var(--text-secondary)] leading-snug mb-2 truncate">{ev.name}</p>
       <Link
         href={`/analysis?symbol=${encodeURIComponent(ev.symbol + ".US")}`}
         className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
       >
         Analyse →
       </Link>
-    </div>
+    </Panel>
   );
 }
 
@@ -70,24 +71,24 @@ function DayColumn({ day, today }: { day: CalendarDay; today: boolean }) {
     <div className={`flex-1 min-w-0 rounded-2xl border p-3 ${
       today
         ? "border-emerald-500/30 bg-emerald-500/[0.04]"
-        : "border-[#252345] bg-[#13112A]"
+        : "border-[var(--border)] bg-[var(--bg-surface)]"
     }`}>
       {/* Day header */}
       <div className="mb-3">
-        <p className={`text-[9px] font-black uppercase tracking-widest ${today ? "text-emerald-400" : "text-[#4B5675]"}`}>
+        <p className={`text-[9px] font-black uppercase tracking-widest ${today ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>
           {day.weekday.slice(0, 3)}
           {today && <span className="ml-1 text-[7px] px-1 py-px rounded bg-emerald-500/20 text-emerald-400 normal-case tracking-normal font-bold">Today</span>}
         </p>
-        <p className={`text-sm font-black mt-0.5 ${today ? "text-emerald-300" : "text-[#CBD5E1]"}`}>{day.label}</p>
+        <p className={`text-sm font-black mt-0.5 ${today ? "text-emerald-300" : "text-[var(--text-primary)]"}`}>{day.label}</p>
         {day.events.length > 0 && (
-          <p className="text-[9px] text-[#4B5675] mt-0.5">{day.events.length} report{day.events.length !== 1 ? "s" : ""}</p>
+          <p className="text-[9px] text-[var(--text-secondary)] mt-0.5">{day.events.length} report{day.events.length !== 1 ? "s" : ""}</p>
         )}
       </div>
 
       {/* Events */}
       <div className="space-y-2">
         {day.events.length === 0 ? (
-          <p className="text-[10px] text-[#333368] text-center py-4">No reports</p>
+          <p className="text-[10px] text-[var(--text-muted)] text-center py-4">No reports</p>
         ) : (
           day.events.map(ev => <EventCard key={ev.symbol} ev={ev} />)
         )}
@@ -100,12 +101,12 @@ function DayColumn({ day, today }: { day: CalendarDay; today: boolean }) {
 
 function SkeletonColumn() {
   return (
-    <div className="flex-1 min-w-0 rounded-2xl border border-[#252345] bg-[#13112A] p-3 animate-pulse">
-      <div className="h-3 bg-[#252345] rounded w-8 mb-1" />
-      <div className="h-4 bg-[#252345] rounded w-14 mb-3" />
+    <div className="flex-1 min-w-0 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 animate-pulse">
+      <div className="h-3 bg-[var(--border)] rounded w-8 mb-1" />
+      <div className="h-4 bg-[var(--border)] rounded w-14 mb-3" />
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-16 bg-[#0D0B1A] rounded-xl border border-[#1A1838]" />
+          <div key={i} className="h-16 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border)]" />
         ))}
       </div>
     </div>
@@ -166,7 +167,7 @@ function EarningsContent() {
             <div>
               <h1 className="text-2xl font-black tracking-tight text-gradient-green">Earnings Calendar</h1>
               {data && (
-                <p className="text-xs text-[#4B5675] mt-0.5">
+                <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                   {data.week} · {totalEvents} report{totalEvents !== 1 ? "s" : ""}
                 </p>
               )}
@@ -176,7 +177,7 @@ function EarningsContent() {
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => navigate(-1)}
                 disabled={loading}
-                className="px-3 py-2 rounded-xl border border-[#252345] text-sm font-bold text-[#7B8DB4] hover:border-[#333368] hover:text-[#F1F5F9] transition-all disabled:opacity-40">
+                className="px-3 py-2 rounded-xl border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-all disabled:opacity-40">
                 ← Prev
               </button>
               <button type="button" onClick={() => router.push("/earnings")}
@@ -186,7 +187,7 @@ function EarningsContent() {
               </button>
               <button type="button" onClick={() => navigate(1)}
                 disabled={loading}
-                className="px-3 py-2 rounded-xl border border-[#252345] text-sm font-bold text-[#7B8DB4] hover:border-[#333368] hover:text-[#F1F5F9] transition-all disabled:opacity-40">
+                className="px-3 py-2 rounded-xl border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-all disabled:opacity-40">
                 Next →
               </button>
             </div>
@@ -214,10 +215,10 @@ function EarningsContent() {
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-5 gap-3">
               {data.days.map(day => (
                 <div key={day.date} className={`rounded-xl border px-3 py-2 text-center ${
-                  isToday(day.date) ? "border-emerald-500/30 bg-emerald-500/5" : "border-[#252345] bg-[#13112A]"
+                  isToday(day.date) ? "border-emerald-500/30 bg-emerald-500/5" : "border-[var(--border)] bg-[var(--bg-surface)]"
                 }`}>
-                  <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{day.weekday.slice(0, 3)}</p>
-                  <p className={`text-lg font-black font-mono ${day.events.length > 0 ? "text-[#F1F5F9]" : "text-[#333368]"}`}>
+                  <p className="text-[9px] text-[var(--text-secondary)] uppercase tracking-widest">{day.weekday.slice(0, 3)}</p>
+                  <p className={`text-lg font-black font-mono ${day.events.length > 0 ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]"}`}>
                     {day.events.length}
                   </p>
                 </div>
@@ -225,7 +226,7 @@ function EarningsContent() {
             </div>
           )}
 
-          <p className="mt-4 text-center text-[10px] text-[#333368]">
+          <p className="mt-4 text-center text-[10px] text-[var(--text-muted)]">
             Data from Alpha Vantage · EPS estimates may differ from actual · Not financial advice
           </p>
         </div>

@@ -1619,7 +1619,7 @@ function DashboardContent() {
                         <button
                           type="button"
                           onClick={(e) => { e.preventDefault(); e.stopPropagation(); removeTicker(stock.symbol); }}
-                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center transition-colors z-10 text-[11px] font-bold shadow-lg leading-none"
+                          className="absolute -top-2 -right-2 w-7 h-7 rounded-full bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center transition-colors z-10 text-sm font-bold shadow-lg leading-none"
                         >
                           ×
                         </button>

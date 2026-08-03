@@ -202,7 +202,7 @@ function AddModal({ prefill, onSave, onClose }: { prefill: Partial<WheelPosition
   const inputCls = "w-full bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm text-[#F1F5F9] placeholder:text-[#4B5675] outline-none focus:border-emerald-500/50 transition-colors";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div className="ios-bounce-in relative w-full max-w-sm modal-glass rounded-2xl p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">

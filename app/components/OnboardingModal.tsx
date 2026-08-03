@@ -96,7 +96,7 @@ export default function OnboardingModal() {
   const PROGRESS_W = ["w-1/5", "w-2/5", "w-3/5", "w-4/5", "w-full"] as const;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm">
       <div className="w-full sm:max-w-sm bg-[#0A0815] border border-[#252345] sm:rounded-3xl rounded-t-3xl overflow-hidden shadow-2xl shadow-black/60">
 
         {/* Progress bar */}

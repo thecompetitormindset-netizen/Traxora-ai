@@ -32,6 +32,12 @@ const Icon = {
       <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/><circle cx="12" cy="12" r="2"/>
     </svg>
   ),
+  Journal: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+    </svg>
+  ),
   More: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"/>
@@ -66,10 +72,10 @@ const SIGNALS_ITEMS = [
 ];
 
 const TRADE_ITEMS = [
-  { name: "Journal",  desc: "AI trade journal",         href: "/journal",  emoji: "📖" },
   { name: "Stats",    desc: "Your performance",         href: "/strategy", emoji: "📈" },
   { name: "Planner",  desc: "Size your positions",      href: "/paper",    emoji: "🎯" },
   { name: "History",  desc: "Closed trades & signals",  href: "/history",  emoji: "🗂️" },
+  { name: "Wheel",    desc: "Options wheel strategy",   href: "/wheel",    emoji: "🎡" },
   { name: "AI Chat",  desc: "Ask the AI anything",      href: "/chat",     emoji: "💬" },
 ];
 
@@ -205,6 +211,13 @@ function DNavGroup({
   );
 }
 
+// Active-state derived directly from the same item arrays used to render each
+// group's links — can't drift out of sync the way separate hand-typed path
+// lists could.
+function groupActive(items: SubItem[], pathname: string | null): boolean {
+  return items.some(i => i.href != null && (pathname === i.href || (pathname?.startsWith(i.href + "/") ?? false)));
+}
+
 // ── Main Sidebar ──────────────────────────────────────────────────────────────
 
 type PanelId = "signals" | "trade" | "settings" | null;
@@ -281,18 +294,18 @@ export default function Sidebar() {
 
   function toggle(id: PanelId) { haptic.tap(); setOpen(prev => prev === id ? null : id); }
 
-  const signalsActive  = ["/analysis","/intelligence","/ipo","/market-sentiment","/earnings","/news","/compare","/sports"].some(p => pathname?.startsWith(p));
-  const tradeActive    = ["/paper","/journal","/history","/strategy","/chat"].some(p => pathname?.startsWith(p));
-  const settingsActive = ["/settings","/guide"].some(p => pathname?.startsWith(p));
   const dashActive     = pathname === "/dashboard";
-  const wheelActive    = pathname?.startsWith("/wheel") ?? false;
+  const journalActive  = pathname?.startsWith("/journal") ?? false;
+  const signalsActive  = groupActive(SIGNALS_ITEMS,  pathname);
+  const tradeActive    = groupActive(TRADE_ITEMS,    pathname);
+  const settingsActive = groupActive(SETTINGS_ITEMS, pathname);
 
   const NAV = [
-    { id: "dash"     as const, label: "Dash",    icon: <Icon.Dashboard />, active: dashActive,                        href: "/dashboard", panel: null              },
-    { id: "signals"  as const, label: "Signals", icon: <Icon.Signals />,  active: signalsActive || open==="signals", href: null,         panel: "signals" as PanelId },
-    { id: "wheel"    as const, label: "Wheel",   icon: <Icon.Wheel />,    active: wheelActive,                        href: "/wheel",     panel: null              },
-    { id: "trade"    as const, label: "Trade",   icon: <Icon.Trade />,    active: tradeActive   || open==="trade",   href: null,         panel: "trade"   as PanelId },
-    { id: "settings" as const, label: "More",    icon: <Icon.More />,     active: settingsActive|| open==="settings",href: null,         panel: "settings"as PanelId },
+    { id: "dash"     as const, label: "Dash",    icon: <Icon.Dashboard />, active: dashActive,                         href: "/dashboard", panel: null              },
+    { id: "signals"  as const, label: "Signals", icon: <Icon.Signals />,  active: signalsActive || open==="signals",  href: null,         panel: "signals" as PanelId },
+    { id: "journal"  as const, label: "Journal", icon: <Icon.Journal />,  active: journalActive,                       href: "/journal",   panel: null              },
+    { id: "trade"    as const, label: "Tools",   icon: <Icon.Trade />,    active: tradeActive    || open==="trade",   href: null,         panel: "trade"   as PanelId },
+    { id: "settings" as const, label: "More",    icon: <Icon.More />,     active: settingsActive || open==="settings",href: null,         panel: "settings"as PanelId },
   ];
 
   const panelItems: Record<string, SubItem[]> = {
@@ -313,7 +326,7 @@ export default function Sidebar() {
       <aside
         onMouseEnter={() => { if (!sidebarOpen) setPeek(true); }}
         onMouseLeave={() => setPeek(false)}
-        className={`sidebar-desktop fixed left-0 top-0 bottom-0 w-[280px] flex-col z-50 bg-[var(--bg-surface)] border-r border-[var(--border)] ${!sidebarOpen && peek ? "sidebar-peek" : ""}`}
+        className={`sidebar-desktop fixed left-0 top-0 bottom-0 w-[280px] flex-col z-[var(--z-nav)] bg-[var(--bg-surface)] border-r border-[var(--border)] ${!sidebarOpen && peek ? "sidebar-peek" : ""}`}
       >
 
         {/* Brand */}
@@ -336,6 +349,7 @@ export default function Sidebar() {
           {/* Main */}
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary,#4B5675)] px-3 pb-2 pt-1">Main</p>
           <DNavLink href="/dashboard" icon={<Icon.Dashboard />} label="Dashboard" active={dashActive} />
+          <DNavLink href="/journal" icon={<Icon.Journal />} label="Journal" active={journalActive} />
 
           {/* Signals group */}
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary,#4B5675)] px-3 pb-2 pt-4">Markets</p>
@@ -348,9 +362,6 @@ export default function Sidebar() {
             items={SIGNALS_ITEMS}
             pathname={pathname ?? ""}
           />
-
-          {/* Wheel */}
-          <DNavLink href="/wheel" icon={<Icon.Wheel />} label="Wheel Strategy" active={wheelActive} />
 
           {/* Trade group */}
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary,#4B5675)] px-3 pb-2 pt-4">Trading</p>
@@ -399,7 +410,7 @@ export default function Sidebar() {
         <button
           type="button"
           onClick={toggleSidebar}
-          className="hidden lg:flex fixed left-3 top-[72px] z-50 w-9 h-9 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[#4B5675] hover:text-[var(--text-primary)] items-center justify-center shadow-lg transition-colors"
+          className="hidden lg:flex fixed left-3 top-[72px] z-[var(--z-nav)] w-9 h-9 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[#4B5675] hover:text-[var(--text-primary)] items-center justify-center shadow-lg transition-colors"
           title="Show sidebar"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -412,7 +423,7 @@ export default function Sidebar() {
       {/* ── Mobile bottom nav — EXACTLY as before, just hidden on lg+ ── */}
       <div
         ref={navRef}
-        className={`sidebar-mobile fixed bottom-0 left-0 right-0 z-50 flex-col items-center pointer-events-none transition-transform duration-300 ease-out ${
+        className={`sidebar-mobile fixed bottom-0 left-0 right-0 z-[var(--z-nav)] flex-col items-center pointer-events-none transition-transform duration-300 ease-out ${
           navHidden && !open ? "translate-y-[115%]" : "translate-y-0"
         }`}
       >
@@ -426,7 +437,7 @@ export default function Sidebar() {
           <div className="sidebar-sub-panel panel-enter glass-strong rounded-2xl border border-white/[0.08] shadow-2xl p-3">
             <div className="flex items-center justify-between mb-2.5 px-1 subpanel-fade">
               <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#4B5675]">
-                {open === "signals" ? "Markets & Analysis" : open === "trade" ? "Journal & Tools" : "Account & Help"}
+                {open === "signals" ? "Markets & Analysis" : open === "trade" ? "Trade Tools" : "Account & Help"}
               </p>
               <button type="button" onClick={() => { haptic.tick(); setOpen(null); }} aria-label="Close"
                 className="press-scale w-5 h-5 rounded-full bg-white/[0.06] flex items-center justify-center text-[#4B5675] hover:text-[#7B8DB4] transition-colors">

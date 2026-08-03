@@ -97,7 +97,7 @@ export default function AutoCoach() {
   const parsed = report ? parseReport(report) : null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden">
 
         {/* Header */}

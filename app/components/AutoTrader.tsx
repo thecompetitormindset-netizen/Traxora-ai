@@ -463,7 +463,7 @@ export default function AutoTrader() {
   return (
     <>
       {/* ── Toasts ───────────────────────────────────────────────────────────── */}
-      <div className="fixed bottom-[168px] left-4 z-50 flex flex-col gap-2 w-[300px] sm:w-[320px] pointer-events-none">
+      <div className="fixed bottom-[168px] left-4 z-[var(--z-float)] flex flex-col gap-2 w-[300px] sm:w-[320px] pointer-events-none">
         {toasts.map(t => {
           const c = toastCfg(t.type);
           return (
@@ -480,7 +480,7 @@ export default function AutoTrader() {
 
       {/* ── Day Recap Modal ───────────────────────────────────────────────────── */}
       {showSummary && (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-4" onClick={() => setShowSummary(false)}>
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-end sm:items-center justify-center p-4" onClick={() => setShowSummary(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative w-full max-w-sm bg-[#13112A] border border-[#252345] rounded-3xl shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#252345]">
@@ -543,7 +543,7 @@ export default function AutoTrader() {
       )}
 
       {/* ── FAB + Panel ──────────────────────────────────────────────────────── */}
-      <div className="fixed top-[76px] right-2 sm:top-[88px] sm:right-4 z-50 flex flex-col-reverse items-end gap-2">
+      <div className="fixed top-[76px] right-2 sm:top-[88px] sm:right-4 z-[var(--z-float)] flex flex-col-reverse items-end gap-2">
         {open && (
           <div className="w-72 bg-[#13112A]/95 border border-[#252345] rounded-2xl shadow-2xl overflow-hidden backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345]">

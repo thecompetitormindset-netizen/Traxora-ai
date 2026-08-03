@@ -503,7 +503,7 @@ export default function JournalPage() {
     {/* Clear-all confirmation modal */}
     {confirmClear && (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
+        className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
         onClick={() => setConfirmClear(false)}
       >
         <div

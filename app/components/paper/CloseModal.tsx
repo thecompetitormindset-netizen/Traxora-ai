@@ -18,7 +18,7 @@ export default function CloseModal({
   const pl = isNaN(ep) ? null : calcPL(trade, ep);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-sm bg-[#13112A] border border-[#252345] rounded-2xl shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#252345]">
           <h2 className="text-base font-bold">Close {trade.symbol}</h2>

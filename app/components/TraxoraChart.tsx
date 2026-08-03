@@ -576,12 +576,12 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const card = (
     <>
     {/* Backdrop */}
-    {fullscreen && <div className="fixed inset-0 z-[199] bg-black/70 backdrop-blur-sm" onClick={() => setFullscreen(false)} />}
+    {fullscreen && <div className="fixed inset-0 z-[var(--z-fullscreen)] bg-black/70 backdrop-blur-sm" onClick={() => setFullscreen(false)} />}
 
     <div
       className={`select-none transition-all duration-300 flex flex-col overflow-hidden ${
         fullscreen
-          ? "fixed inset-0 z-[200] shadow-2xl shadow-black/80"
+          ? "fixed inset-0 z-[calc(var(--z-fullscreen)+1)] shadow-2xl shadow-black/80"
           : "rounded-2xl"
       }`}
       style={{

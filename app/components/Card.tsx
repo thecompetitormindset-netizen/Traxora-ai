@@ -28,12 +28,12 @@ function getValueColor(value: string, accent: CardAccent) {
     case "yellow":
       return "text-yellow-400";
     default:
-      return "text-white";
+      return "text-[var(--text-primary)]";
   }
 }
 
 function getBadgeClasses(badge?: string, accent: CardAccent = "default") {
-  if (!badge) return "bg-[#1E1C42] text-gray-300";
+  if (!badge) return "bg-[var(--bg-elevated)] text-[var(--text-secondary)]";
 
   if (badge.trim().startsWith("+")) {
     return "bg-green-500/15 text-green-400";
@@ -53,7 +53,7 @@ function getBadgeClasses(badge?: string, accent: CardAccent = "default") {
     case "yellow":
       return "bg-yellow-500/15 text-yellow-400";
     default:
-      return "bg-[#1E1C42] text-gray-300";
+      return "bg-[var(--bg-elevated)] text-[var(--text-secondary)]";
   }
 }
 
@@ -70,16 +70,16 @@ export default function Card({
   const badgeClasses = getBadgeClasses(badge, accent);
 
   const content = (
-    <div className="bg-[#1A1838] border border-[#1E1C42] rounded-3xl p-5 h-full hover:bg-[#0F172A] transition">
+    <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl p-5 h-full hover:bg-[var(--bg-elevated)] transition">
       <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-gray-400">{title}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{title}</p>
         {icon ? <span className="text-lg">{icon}</span> : null}
       </div>
 
       <div className="mt-3">
         <p className={`text-2xl font-bold ${valueColor}`}>{value}</p>
         {subtitle ? (
-          <p className="text-sm text-gray-500 mt-1">{subtitle}</p>
+          <p className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</p>
         ) : null}
       </div>
 

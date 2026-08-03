@@ -97,7 +97,7 @@ export default function ProductTour({
 
   if (searching || !rect) {
     return (
-      <div className="fixed inset-0 z-[300] bg-black/60 flex items-center justify-center pointer-events-none">
+      <div className="fixed inset-0 z-[var(--z-tour)] bg-black/60 flex items-center justify-center pointer-events-none">
         <p className="text-xs text-[#7B8DB4]">Finding it…</p>
       </div>
     );
@@ -118,7 +118,7 @@ export default function ProductTour({
   if (cardLeft < 12) cardLeft = 12;
 
   return (
-    <div className="fixed inset-0 z-[300] pointer-events-none">
+    <div className="fixed inset-0 z-[var(--z-tour)] pointer-events-none">
       {/* Dim everywhere except the spotlighted control — box-shadow spread creates the cutout */}
       <div
         className="fixed rounded-xl transition-all duration-300 pointer-events-none"

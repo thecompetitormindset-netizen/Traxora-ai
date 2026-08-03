@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
+import Panel from "../components/Panel";
 
 type NewsItem = {
   title:   string;
@@ -36,20 +37,19 @@ function timeAgo(pubDate: string): string {
 
 function NewsCard({ item }: { item: NewsItem }) {
   return (
-    <a
+    <Panel
       href={item.link}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="card-shine glass surface-sheen bg-[#13112A] rounded-2xl border border-[#252345] hover:border-[#333368] transition-all p-4 flex flex-col gap-2 group"
+      external
+      className="card-shine glass surface-sheen flex flex-col gap-2 group"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest truncate">
+        <span className="text-[9px] font-bold text-[var(--text-secondary)] uppercase tracking-widest truncate">
           {item.source}
         </span>
-        <span className="text-[9px] text-[#333368] font-mono shrink-0">{timeAgo(item.pubDate)}</span>
+        <span className="text-[9px] text-[var(--text-muted)] font-mono shrink-0">{timeAgo(item.pubDate)}</span>
       </div>
 
-      <p className="text-sm font-semibold text-[#E2E8F0] leading-snug line-clamp-3 group-hover:text-white transition-colors">
+      <p className="text-sm font-semibold text-[var(--text-primary)] leading-snug line-clamp-3 group-hover:text-white transition-colors">
         {item.title}
       </p>
 
@@ -61,21 +61,21 @@ function NewsCard({ item }: { item: NewsItem }) {
           <path d="M7 17L17 7M17 7H7M17 7v10"/>
         </svg>
       </div>
-    </a>
+    </Panel>
   );
 }
 
 function SkeletonCard() {
   return (
-    <div className="bg-[#13112A] rounded-2xl border border-[#252345] p-4 skeleton-shimmer">
-      <div className="h-2.5 bg-[#252345] rounded w-20 mb-3" />
+    <Panel hover={false} className="skeleton-shimmer">
+      <div className="h-2.5 bg-[var(--border)] rounded w-20 mb-3" />
       <div className="space-y-1.5 mb-3">
-        <div className="h-3 bg-[#252345] rounded w-full" />
-        <div className="h-3 bg-[#252345] rounded w-5/6" />
-        <div className="h-3 bg-[#252345] rounded w-3/4" />
+        <div className="h-3 bg-[var(--border)] rounded w-full" />
+        <div className="h-3 bg-[var(--border)] rounded w-5/6" />
+        <div className="h-3 bg-[var(--border)] rounded w-3/4" />
       </div>
-      <div className="h-2.5 bg-[#252345] rounded w-10" />
-    </div>
+      <div className="h-2.5 bg-[var(--border)] rounded w-10" />
+    </Panel>
   );
 }
 
@@ -163,10 +163,10 @@ export default function NewsPage() {
                 : items.length > 0
                   ? items.map((item, i) => <NewsCard key={i} item={item} />)
                   : (
-                    <div className="col-span-full bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
+                    <Panel hover={false} padding="md" className="col-span-full p-10 text-center">
                       <p className="text-2xl mb-2">📰</p>
-                      <p className="text-sm text-[#4B5675]">No news found for this topic right now.</p>
-                    </div>
+                      <p className="text-sm text-[var(--text-secondary)]">No news found for this topic right now.</p>
+                    </Panel>
                   )
               }
             </div>

@@ -38,7 +38,7 @@ export default function WelcomeModal() {
   const firstName = rawName.split(" ")[0];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
       <div className="bg-[#13112A] border border-[#252345] rounded-3xl w-full max-w-lg shadow-2xl shadow-black/50 overflow-hidden">
 
         {/* Header */}
