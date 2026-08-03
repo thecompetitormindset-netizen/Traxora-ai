@@ -18,6 +18,42 @@ import { loadTrades, STARTING_CAPITAL, calcPL } from "../lib/paperTrades";
 import type { PaperTrade } from "../lib/paperTrades";
 import { sizeOptionsPosition } from "../lib/positionSizer";
 import RiskSizerBar, { useRiskSettings } from "../components/RiskSizerBar";
+import ProductTour, { type TourStep } from "../components/ProductTour";
+
+const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v1";
+
+const DASHBOARD_TOUR_STEPS: TourStep[] = [
+  {
+    selector: '[data-tour="dashboard-watchlist"]',
+    title: "Your watchlist",
+    desc: "Every ticker here gets scanned continuously for BUY/SELL signals, sorted by strength — best setups float to the top.",
+  },
+  {
+    selector: '[data-tour="watchlist-edit-btn"]',
+    title: "Add or remove tickers",
+    desc: "Tap Edit to type in new symbols or clear ones you don't want scanned anymore.",
+  },
+  {
+    selector: '[data-tour="options-plays-header"]',
+    title: "Options Plays",
+    desc: "Only shows setups that pass 4 gates: high-confidence signal, live IV, a real bid/ask premium, and 14+ days to expiry. Rescan pulls a fresh read anytime.",
+  },
+  {
+    selector: '[data-tour="risk-sizer-bar"]',
+    title: "Position sizer",
+    desc: "Set your account size and max risk % once — every play below then tells you exactly how many contracts fit, or warns you off if even one is too big.",
+  },
+  {
+    selector: '[data-tour="options-cheap-filter"]',
+    title: "Under $50 only",
+    desc: "Filters to the 5 cheapest contracts. Worth knowing: cheap premium usually means lower odds, not a bargain — same signal engine either way.",
+  },
+  {
+    selector: '[data-tour="options-breakdown-link"]',
+    title: "Full breakdown",
+    desc: "Takes you to the Markets page for the complete options/futures screener, chain viewer, and P&L calculator.",
+  },
+];
 
 type TradeLevels = {
   entryZone:   string;
@@ -426,7 +462,7 @@ function OptionsPlaysSection() {
 
   return (
     <section>
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap" data-tour="options-plays-header">
         <div>
           <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
           <p className="text-[9px] text-[#4B5675] mt-0.5">
@@ -435,10 +471,11 @@ function OptionsPlaysSection() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Link href="/intelligence?section=options" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
+          <Link href="/intelligence?section=options" data-tour="options-breakdown-link" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
           {loaded && plays.some(p => p.premiumPerContract !== null && p.premiumPerContract < 50) && (
             <button
               type="button"
+              data-tour="options-cheap-filter"
               onClick={() => setCheapOnly(v => !v)}
               className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
                 cheapOnly
@@ -813,11 +850,30 @@ function ValuePicksSection() {
 
 function DashboardContent() {
   const router = useRouter();
+  const [tourActive, setTourActive] = useState(false);
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
   const [portfolioTrades, setPortfolioTrades] = useState<PaperTrade[]>([]);
   const [takenTrades, setTakenTrades]         = useState<TakenTradeLite[]>([]);
+
+  // Auto-run once for anyone who's past the welcome slideshow but hasn't seen the
+  // button-by-button tour yet — avoids stacking two intro overlays on brand-new accounts.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      try {
+        if (localStorage.getItem("traxora_onboarded_v2") && !localStorage.getItem(DASHBOARD_TOUR_KEY)) {
+          setTourActive(true);
+        }
+      } catch { /* ssr/private mode */ }
+    }, 1400);
+    return () => window.clearTimeout(id);
+  }, []);
+
+  function finishTour() {
+    try { localStorage.setItem(DASHBOARD_TOUR_KEY, "1"); } catch { /* ignore */ }
+    setTourActive(false);
+  }
 
   const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(() =>
     typeof window !== "undefined" ? loadCustomWatchlist() : DEFAULT_WATCHLIST
@@ -1348,6 +1404,7 @@ function DashboardContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <OnboardingModal />
+      <ProductTour steps={DASHBOARD_TOUR_STEPS} active={tourActive} onFinish={finishTour} />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
@@ -1359,6 +1416,13 @@ function DashboardContent() {
               <div className="flex items-center gap-3 min-w-0">
                 <h1 className="reveal text-2xl lg:text-4xl font-black tracking-tight text-gradient-green">Dashboard</h1>
                 <MarketStatus />
+                <button
+                  type="button"
+                  onClick={() => setTourActive(true)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-[#4B5675] hover:text-emerald-400 border border-[#252345] hover:border-emerald-500/30 rounded-lg px-2 py-1 transition-colors"
+                >
+                  ✨ Take the tour
+                </button>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13112A] border border-[#252345]">
@@ -1475,7 +1539,7 @@ function DashboardContent() {
 
             {/* Watchlist — full width */}
             <div className="order-4 lg:order-none lg:col-span-3">
-              <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
+              <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6" data-tour="dashboard-watchlist">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
                   <span className="text-[10px] font-mono text-[#333368]">
@@ -1502,6 +1566,7 @@ function DashboardContent() {
                   )}
                   <button
                     type="button"
+                    data-tour="watchlist-edit-btn"
                     onClick={() => { setEditMode((v) => !v); setAddInput(""); setAddError(null); }}
                     className={`text-xs font-medium transition-colors ${editMode ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
                   >

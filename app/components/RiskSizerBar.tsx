@@ -30,7 +30,7 @@ export default function RiskSizerBar({
   onChange: (next: Partial<RiskSettings>) => void;
 }) {
   return (
-    <div className="mb-3 px-3 py-2.5 rounded-xl bg-[#13112A] border border-[#252345] flex items-center gap-4 flex-wrap">
+    <div data-tour="risk-sizer-bar" className="mb-3 px-3 py-2.5 rounded-xl bg-[#13112A] border border-[#252345] flex items-center gap-4 flex-wrap">
       <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest shrink-0">Position sizer</p>
       <label className="flex items-center gap-1.5 text-[11px] text-[#94A3B8]">
         Account $
