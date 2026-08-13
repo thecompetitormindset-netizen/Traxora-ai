@@ -11,7 +11,8 @@ import OptionsChainViewer from "@/app/components/OptionsChainViewer";
 import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
 import OptionsFlow from "@/app/components/OptionsFlow";
 import { signalBadgeCls } from "@/app/lib/signalBadge";
-import { sizeOptionsPosition } from "@/app/lib/positionSizer";
+import { sizeOptionsPosition, describeSize } from "@/app/lib/positionSizer";
+import type { PreTradeFlag } from "@/app/lib/preTradeChecks";
 import RiskSizerBar, { useRiskSettings } from "@/app/components/RiskSizerBar";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,6 +26,12 @@ type OptionsPlay = {
   callWall: number | null; putWall: number | null;
   expectedMove: number | null; strike: string;
   entryZone: string; target: string; stop: string; rrRatio: string;
+  equityRrRatio: string; rrBasis: "option" | "equity";
+  optionRR: number | null; equityRR: number | null;
+  thetaCost: number | null; spreadCost: number | null; holdingDays: number | null;
+  recommendShares: boolean;
+  entryMid: number; stopRaw: number; riskPerContract: number | null;
+  preTradeFlags: PreTradeFlag[];
   premiumEst: string | null; premiumPerContract: number | null; premiumReal?: boolean; pcVolRatio: number | null; score: number; hasOptions: boolean;
   dte: number | null; dteWarning: boolean;
   backtest: OptionsBacktest | null;
@@ -301,20 +308,41 @@ function OptionsPlaysPanel() {
                           <span className={`text-[10px] font-mono font-bold ${color} text-right`}>{value}</span>
                         </div>
                       ))}
+                      {/* R:R is the CONTRACT's — delta-captured move net of theta
+                          and the bid-ask round trip — not the stock leg's. */}
                       <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5">
-                        {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
+                        {p.rrRatio}
+                        <span className="text-[#333368]"> {p.rrBasis === "option" ? "on the contract" : "on the underlying"}</span>
+                        {p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
                         {!p.hasOptions && <span className="text-amber-400/70"> · price-based est</span>}
                       </p>
+                      {p.rrBasis === "option" && p.thetaCost !== null && p.spreadCost !== null && (
+                        <p className="text-[8px] text-[#4B5675]">
+                          Stock leg {p.equityRrRatio} · friction ~${p.thetaCost} theta ({p.holdingDays}d hold) + ~${p.spreadCost} spread
+                        </p>
+                      )}
+                      {p.recommendShares && (
+                        <p className="text-[8px] font-semibold text-amber-400">
+                          Buy the shares instead — theta and spread cut this contract to {p.rrRatio.replace(" R:R", "")} vs {p.equityRrRatio} on stock
+                        </p>
+                      )}
+                      {p.preTradeFlags?.map(f => (
+                        <p key={f.kind} title={f.detail}
+                           className={`text-[8px] font-semibold ${f.severity === "warn" ? "text-amber-400" : "text-[#4B5675]"}`}>
+                          ⚠ {f.label}
+                        </p>
+                      ))}
                       {(() => {
                         const bt = optionsBacktestReadout(p.backtest, p.play);
                         return bt ? <p className={`text-[8px] font-semibold pt-0.5 ${bt.cls}`}>{bt.text}</p> : null;
                       })()}
                       {(() => {
-                        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+                        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract, {
+                          entry: p.entryMid, stop: p.stopRaw, delta: p.delta, maxPremiumPct: riskSettings.maxPremiumPct,
+                        });
                         if (!size) return null;
-                        return size.tooExpensive
-                          ? <p className="text-[8px] font-semibold pt-0.5 text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
-                          : <p className="text-[8px] font-semibold pt-0.5 text-sky-400">Size: {size.contracts} contract{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} ({riskSettings.riskPct}% cap)</p>;
+                        const d = describeSize(size, riskSettings.riskPct);
+                        return <p className={`text-[8px] font-semibold pt-0.5 ${d.tone === "warn" ? "text-rose-400" : "text-sky-400"}`}>{d.text}</p>;
                       })()}
                     </div>
 

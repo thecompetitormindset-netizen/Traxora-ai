@@ -311,7 +311,7 @@ function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>
       <td style="padding:10px 8px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${p.price.toFixed(2)}</td>
       <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.strike}</td>
       <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.expiry ?? "—"}</td>
-      <td style="padding:10px 0;font-size:10px;color:${dc(p.play)};white-space:nowrap">${p.rrRatio} R:R${p.premiumEst ? ` · ${p.premiumEst}` : ""}</td>
+      <td style="padding:10px 0;font-size:10px;color:${dc(p.play)};white-space:nowrap">${p.rrRatio}${p.premiumEst ? ` · ${p.premiumEst}` : ""}${p.recommendShares ? ` · <span style="color:#fbbf24">shares preferred</span>` : ""}</td>
     </tr>`).join("");
   return `
   <tr>

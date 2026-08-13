@@ -3,6 +3,9 @@ export const dynamic  = "force-dynamic";
 export const maxDuration = 45;
 
 import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
+import { checkQuoteSanity, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { computeOptionRR, type OptionRRResult } from "@/app/lib/optionsRR";
+import { evaluatePreTradeChecks, type PreTradeFlag } from "@/app/lib/preTradeChecks";
 import { auth } from "@/auth";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
@@ -49,8 +52,11 @@ async function fetchQuote(symbol: string) {
     const highs:   number[] = (q.high   ?? []).filter(isNum);
     const lows:    number[] = (q.low    ?? []).filter(isNum);
     const price  = meta.regularMarketPrice as number;
-    const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
-    const open   = (meta.regularMarketOpen ?? prev) as number;
+    // Previous SESSION close. Never meta.chartPreviousClose — for range=1y that
+    // is a price from a year ago, which is what rendered OXY as +32.62% in a
+    // single session and inflated its momentum score to #1.
+    const prev   = resolvePreviousClose(meta, closes);
+    const open   = (meta.regularMarketOpen ?? prev ?? price) as number;
     const high   = (meta.regularMarketDayHigh ?? price) as number;
     const low    = (meta.regularMarketDayLow  ?? price) as number;
     const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
@@ -225,6 +231,15 @@ async function fetchOptionsIV(symbol: string) {
     // Not a Black-Scholes estimate.
     const atmCallDelta = typeof atmCall?.raw.delta === "number" ? atmCall.raw.delta : null;
     const atmPutDelta  = typeof atmPutCand?.raw.delta === "number" ? atmPutCand.raw.delta : null;
+    // Theta and the quoted market — needed to price the friction the contract
+    // pays, which the stock-derived R:R never accounted for.
+    const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const atmCallTheta = num(atmCall?.raw.theta);
+    const atmPutTheta  = num(atmPutCand?.raw.theta);
+    const atmCallBid   = num(atmCall?.raw.bid);
+    const atmCallAsk   = num(atmCall?.raw.ask);
+    const atmPutBid    = num(atmPutCand?.raw.bid);
+    const atmPutAsk    = num(atmPutCand?.raw.ask);
 
     const callWall = calls.reduce((best: typeof calls[0] | null, c) =>
       !best || (c.raw.open_interest ?? 0) > (best.raw.open_interest ?? 0) ? c : best, null
@@ -237,16 +252,47 @@ async function fetchOptionsIV(symbol: string) {
     const totalPutVol  = puts.reduce((s,  p) => s + ((p.raw.volume as number) ?? 0), 0);
     const pcVolRatio   = totalCallVol > 0 ? parseFloat((totalPutVol / totalCallVol).toFixed(2)) : null;
 
-    return { iv, expiry, expiryTs, dte, callWall, putWall, atmStrike, atmCallMid, atmPutMid, atmCallDelta, atmPutDelta, totalCallVol, totalPutVol, pcVolRatio };
+    return {
+      iv, expiry, expiryTs, dte, callWall, putWall, atmStrike, atmCallMid, atmPutMid,
+      atmCallDelta, atmPutDelta, atmCallTheta, atmPutTheta,
+      atmCallBid, atmCallAsk, atmPutBid, atmPutAsk,
+      totalCallVol, totalPutVol, pcVolRatio,
+    };
   } catch { return null; }
+}
+
+// Calendar events for the automated pre-trade checks. Same quoteSummary module
+// the earnings route already uses; returns unix seconds.
+async function fetchCalendar(symbol: string): Promise<{ earningsTs: number | null; exDividendTs: number | null }> {
+  const empty = { earningsTs: null, exDividendTs: null };
+  try {
+    const res = await fetch(
+      `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(symbol)}?modules=calendarEvents`,
+      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) },
+    );
+    if (!res.ok) return empty;
+    const events = (await res.json())?.quoteSummary?.result?.[0]?.calendarEvents;
+    const raw = (v: unknown): number | null =>
+      typeof v === "number" && Number.isFinite(v) ? v : null;
+    const dates = events?.earnings?.earningsDate;
+    return {
+      earningsTs:   Array.isArray(dates) && dates.length > 0 ? raw(dates[0]?.raw) : null,
+      exDividendTs: raw(events?.exDividendDate?.raw),
+    };
+  } catch { return empty; }
 }
 
 // Exported so the morning-email cron can call it directly (no HTTP round-trip / auth needed)
 export async function runOptionsScan() {
-  const [quotes, optionsData] = await Promise.all([
+  const [quotes, optionsData, calendars] = await Promise.all([
     Promise.all(UNIVERSE.map(fetchQuote)),
     Promise.all(UNIVERSE.map(fetchOptionsIV)),
+    Promise.all(UNIVERSE.map(fetchCalendar)),
   ]);
+
+  // Quotes rejected by the plausibility gate — surfaced so a data outage is
+  // visible rather than silently shrinking the scan.
+  const suspect: { symbol: string; reason: string }[] = [];
 
   const results: {
     symbol:       string;
@@ -266,7 +312,23 @@ export async function runOptionsScan() {
     entryZone:    string;
     target:       string;
     stop:         string;
+    /** R:R of the instrument on the card — the contract, net of friction. */
     rrRatio:      string;
+    /** R:R of the stock leg, for the shares-instead comparison. */
+    equityRrRatio: string;
+    /** Which instrument rrRatio describes. */
+    rrBasis:      "option" | "equity";
+    optionRR:     number | null;
+    equityRR:     number | null;
+    thetaCost:    number | null;
+    spreadCost:   number | null;
+    holdingDays:  number | null;
+    recommendShares: boolean;
+    /** Underlying levels, so the client sizes from the same numbers. */
+    entryMid:     number;
+    stopRaw:      number;
+    riskPerContract: number | null;
+    preTradeFlags: PreTradeFlag[];
     premiumEst:   string | null;
     premiumPerContract: number | null;
     premiumReal:  boolean;
@@ -284,11 +346,23 @@ export async function runOptionsScan() {
 
     const opt = optionsData[i]; // may be null — that's fine
 
-    const changePct = ((q.price - q.prev) / q.prev) * 100;
+    // Plausibility gate BEFORE scoring: a bogus percent change feeds the
+    // momentum term of the score, so a bad quote corrupts the whole ranking,
+    // not just its own card. Every name in UNIVERSE is a large cap or a major
+    // index ETF, so the 20% single-session gate applies to all of them.
+    const sanity = checkQuoteSanity({ symbol: q.symbol, price: q.price, previousClose: q.prev, isLargeCap: true });
+    if (!sanity.ok) {
+      console.error(`[options-scan] suspect quote excluded from ranking — ${sanity.reason}`);
+      suspect.push({ symbol: q.symbol, reason: sanity.reason });
+      continue;
+    }
+    const changePct = sanity.changePct;
+    const prevClose = q.prev as number;
+
     const sm = smartMoneyScore(
       {
         price:         q.price,
-        previousClose: q.prev,
+        previousClose: prevClose,
         open:          q.open,
         high:          q.high,
         low:           q.low,
@@ -338,6 +412,39 @@ export async function runOptionsScan() {
       ? `~$${premiumPerContract} / contract${premiumReal ? "" : " (est.)"}`
       : null;
 
+    // ── R:R on the instrument actually being traded ───────────────────────────
+    // canonTrade's ratio describes the STOCK leg. The card offers a contract, so
+    // it must show the contract's own ratio, net of theta over the expected hold
+    // and the bid-ask round trip. The stock ratio is kept alongside it so the
+    // card can recommend shares when friction has eaten the option's edge.
+    const theta = isBull ? opt?.atmCallTheta ?? null : opt?.atmPutTheta ?? null;
+    const bid   = isBull ? opt?.atmCallBid   ?? null : opt?.atmPutBid   ?? null;
+    const ask   = isBull ? opt?.atmCallAsk   ?? null : opt?.atmPutAsk   ?? null;
+
+    const rr: OptionRRResult | null =
+      delta !== null && premiumPerContract !== null
+        ? computeOptionRR({
+            entry:  canonTrade.entryMid,
+            stop:   canonTrade.stopRaw,
+            target: canonTrade.targetRaw,
+            delta,
+            dte: dteForCalc,
+            premiumPerContract,
+            theta,
+            bid,
+            ask,
+            expectedDailyMove: dailyMove,
+          })
+        : null;
+
+    // Automated pre-trade calendar checks — no longer the user's job to remember.
+    const preTradeFlags: PreTradeFlag[] = evaluatePreTradeChecks({
+      earningsTs:   calendars[i]?.earningsTs ?? null,
+      exDividendTs: calendars[i]?.exDividendTs ?? null,
+      expiryTs:     opt?.expiryTs ?? null,
+      hasShortLeg:  false, // long single-leg calls/puts only in this scan
+    });
+
     // Score: signal strength + IV quality (bonus if available) + momentum + confidence
     const normalizedScore = ((sm.score + 20) / 40) * 50;
     const ivScore    = ivPct ? (ivPct >= 25 && ivPct <= 80 ? 30 : ivPct > 80 ? 15 : 5) : 0;
@@ -375,7 +482,22 @@ export async function runOptionsScan() {
       entryZone:    canonTrade.entryZone,
       target:       canonTrade.targetFmt,
       stop:         canonTrade.stopFmt,
-      rrRatio:      `${canonTrade.rrNum}:1 R:R`,
+      // When the chain gives us delta and a real premium, the card's ratio is
+      // the contract's. Without them we fall back to the stock ratio and label
+      // it as such rather than passing a stock number off as the contract's.
+      rrRatio:      rr ? `${rr.optionRR.toFixed(1)}:1 R:R` : `${canonTrade.rrNum}:1 R:R`,
+      equityRrRatio: rr ? `${rr.equityRR.toFixed(1)}:1` : `${canonTrade.rrNum}:1`,
+      rrBasis:      rr ? "option" : "equity",
+      optionRR:     rr ? parseFloat(rr.optionRR.toFixed(2)) : null,
+      equityRR:     rr ? parseFloat(rr.equityRR.toFixed(2)) : null,
+      thetaCost:    rr ? Math.round(rr.thetaCost)  : null,
+      spreadCost:   rr ? Math.round(rr.spreadCost) : null,
+      holdingDays:  rr ? rr.holdingDays : null,
+      recommendShares: rr?.recommendShares ?? false,
+      entryMid:     canonTrade.entryMid,
+      stopRaw:      canonTrade.stopRaw,
+      riskPerContract: rr ? parseFloat(rr.optionRisk.toFixed(2)) : null,
+      preTradeFlags,
       premiumEst,
       premiumPerContract,
       premiumReal,
@@ -401,7 +523,13 @@ export async function runOptionsScan() {
     r.dte !== null && r.dte >= 14
   ).sort((a, b) => b.score - a.score);
 
-  return { plays: premium, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length };
+  return {
+    plays: premium,
+    scanned: UNIVERSE.length,
+    found: results.length,
+    withIV: results.filter(r => r.hasOptions).length,
+    suspect,
+  };
 }
 
 export async function GET(req: Request) {
