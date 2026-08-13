@@ -267,7 +267,7 @@ function OptionsPlaysPanel() {
               const isOrphan = idx === arr.length - 1 && arr.length % 3 === 1;
 
               return (
-                <div key={p.symbol} className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} bg-[#13112A] rounded-2xl border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
+                <div key={p.symbol} className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} bg-[#13112A] rounded-lg border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
                   <div className="p-5">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-3">
@@ -275,10 +275,10 @@ function OptionsPlaysPanel() {
                         <div className="flex items-center gap-1.5">
                           <p className="font-bold tracking-tight">{p.symbol}</p>
                           {p.dte !== null && (
-                            <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
+                            <span className={`text-[8px] font-bold tabular-nums px-1.5 py-px rounded-md border ${
                               p.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
                               p.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                                           "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                           "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                             }`}>{p.dte}d</span>
                           )}
                         </div>
@@ -288,24 +288,24 @@ function OptionsPlaysPanel() {
                     </div>
 
                     {/* Price */}
-                    <p className="text-xl font-bold font-mono text-[#F1F5F9]">${p.price.toFixed(2)}</p>
-                    <p className={`text-xs font-mono mt-0.5 ${changeColor(p.changePct)}`}>
+                    <p className="text-xl font-bold font-mono tabular-nums text-[#F1F5F9]">${p.price.toFixed(2)}</p>
+                    <p className={`text-xs font-mono tabular-nums mt-0.5 ${changeColor(p.changePct)}`}>
                       {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
                     </p>
 
                     {/* Trade levels — Entry/Target/Stop are the UNDERLYING STOCK's levels
                         (where the stock needs to go), not the option's own premium path. */}
-                    <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${isCalls ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
+                    <div className={`mt-3 rounded-lg p-2.5 space-y-1.5 border ${isCalls ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                       {[
                         { label: "Strike",     value: p.delta !== null ? `${p.strike} · Δ${p.delta.toFixed(2)}` : p.strike, color: "text-[#F1F5F9]"  },
                         { label: "Stock entry",value: p.entryZone, color: "text-amber-400"   },
                         { label: "Stock tgt",  value: p.target,    color: "text-emerald-400" },
                         { label: "Stock stop", value: p.stop,      color: "text-rose-400"    },
-                        ...(p.premiumEst ? [{ label: "Premium", value: p.premiumEst, color: "text-violet-400" }] : []),
+                        ...(p.premiumEst ? [{ label: "Premium", value: p.premiumEst, color: "text-indigo-400" }] : []),
                       ].map(({ label, value, color }) => (
                         <div key={label} className="flex items-center justify-between gap-2">
                           <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">{label}</span>
-                          <span className={`text-[10px] font-mono font-bold ${color} text-right`}>{value}</span>
+                          <span className={`text-[10px] font-mono tabular-nums font-bold ${color} text-right`}>{value}</span>
                         </div>
                       ))}
                       {/* R:R is the CONTRACT's — delta-captured move net of theta
@@ -342,7 +342,7 @@ function OptionsPlaysPanel() {
                         });
                         if (!size) return null;
                         const d = describeSize(size, riskSettings.riskPct);
-                        return <p className={`text-[8px] font-semibold pt-0.5 ${d.tone === "warn" ? "text-rose-400" : "text-sky-400"}`}>{d.text}</p>;
+                        return <p className={`text-[8px] font-semibold pt-0.5 ${d.tone === "warn" ? "text-rose-400" : "text-indigo-400"}`}>{d.text}</p>;
                       })()}
                     </div>
 

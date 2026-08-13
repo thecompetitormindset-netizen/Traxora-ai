@@ -562,9 +562,9 @@ function OptionsPlaysSection() {
         </div>
         <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
         {cheapOnly && (
-          <div className="mb-3 px-3 py-2 rounded-xl bg-violet-500/8 border border-violet-500/20">
-            <p className="text-[10px] text-violet-300/70 leading-snug">
-              <span className="font-semibold text-violet-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line below are the only things that speak to direction — not the price.
+          <div className="mb-3 px-3 py-2 rounded-lg bg-indigo-500/8 border border-indigo-500/20">
+            <p className="text-[10px] text-indigo-300/70 leading-snug">
+              <span className="font-semibold text-indigo-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line below are the only things that speak to direction — not the price.
             </p>
           </div>
         )}
@@ -582,7 +582,7 @@ function OptionsPlaysSection() {
             <Link
               key={p.symbol}
               href={`/intelligence?section=analyze&sym=${encodeURIComponent(p.symbol)}`}
-              className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
+              className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} group bg-[#13112A] rounded-lg p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
                 p.play === "CALLS" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
               }`}
             >
@@ -591,12 +591,12 @@ function OptionsPlaysSection() {
                 <div>
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold tracking-tight">{p.symbol}</p>
-                    <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">OPTIONS</span>
+                    <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">OPTIONS</span>
                     {p.dte !== null && (
-                      <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
+                      <span className={`text-[8px] font-bold tabular-nums px-1.5 py-px rounded-md border ${
                         p.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
                         p.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                                     "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                                     "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
                       }`}>{p.dte}d</span>
                     )}
                   </div>
@@ -616,15 +616,15 @@ function OptionsPlaysSection() {
               </div>
 
               {/* Price + change — same as watchlist */}
-              <p className="text-xl font-bold font-mono text-[#F1F5F9]">
+              <p className="text-xl font-bold font-mono tabular-nums text-[#F1F5F9]">
                 ${p.price.toFixed(2)}
               </p>
-              <p className={`text-xs mt-1 font-medium font-mono ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+              <p className={`text-xs mt-1 font-medium font-mono tabular-nums ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
                 {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
               </p>
 
               {/* Trade details */}
-              <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono space-y-1.5 ${
+              <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono tabular-nums space-y-1.5 ${
                 p.play === "CALLS" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
               }`}>
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -632,7 +632,7 @@ function OptionsPlaysSection() {
                   <span className="font-bold text-amber-400">{p.strike}</span>
                   {p.delta !== null && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="text-[9px] text-[#4B5675]">Δ {p.delta.toFixed(2)}</span></>}
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="font-bold text-violet-400">{p.premiumEst ?? "—"}</span>
+                  <span className="font-bold text-indigo-400">{p.premiumEst ?? "—"}</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stock ent</span>
@@ -680,7 +680,7 @@ function OptionsPlaysSection() {
                   });
                   if (!size) return null;
                   const d = describeSize(size, riskSettings.riskPct);
-                  return <p className={`text-[8px] font-semibold ${d.tone === "warn" ? "text-rose-400" : "text-sky-400"}`}>{d.text}</p>;
+                  return <p className={`text-[8px] font-semibold ${d.tone === "warn" ? "text-rose-400" : "text-indigo-400"}`}>{d.text}</p>;
                 })()}
               </div>
 
