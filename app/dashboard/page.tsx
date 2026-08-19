@@ -1491,7 +1491,12 @@ function DashboardContent() {
               </div>
             </div>
 
-            {/* Market Sentiment — second */}
+            {/* Options Plays — the app's primary focus, leads the dashboard right under the brief */}
+            <div className="lg:col-span-3">
+              <OptionsPlaysSection />
+            </div>
+
+            {/* Market Sentiment */}
             <div className="lg:col-span-3">
               <SentimentWidget horizontal />
             </div>
@@ -1506,18 +1511,6 @@ function DashboardContent() {
             {/* Discover — sports betting, crypto & IPO feature cards */}
             <div className="lg:col-span-3">
               <DiscoverSection />
-            </div>
-
-            {/* ── Section divider: Options ── */}
-            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-              <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Options</span>
-              <div className="flex-1 h-px bg-[#252345]" />
-            </div>
-
-            {/* Options Plays — moved to top (daily driver) */}
-            <div className="lg:col-span-3">
-              <OptionsPlaysSection />
             </div>
 
             {/* ── Section divider: Value ── */}

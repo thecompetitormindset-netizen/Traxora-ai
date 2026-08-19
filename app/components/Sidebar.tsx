@@ -38,6 +38,11 @@ const Icon = {
       <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
     </svg>
   ),
+  Options: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="12" width="4" height="9" rx="1"/><rect x="10" y="7" width="4" height="14" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>
+    </svg>
+  ),
   More: () => (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="3"/>
@@ -60,10 +65,10 @@ const Icon = {
 // ── Sub-item data ─────────────────────────────────────────────────────────────
 
 const SIGNALS_ITEMS = [
+  { name: "Options",   desc: "Options plays, futures & backtest", href: "/intelligence?section=options", emoji: "📊", event: null },
   { name: "Sentiment", desc: "Market pulse & deep report",    href: "/market-sentiment",  emoji: "🌡️", event: null },
   { name: "Analyse",   desc: "Deep AI signal for any ticker", href: "/analysis",          emoji: "⚡",  event: null },
   { name: "Compare",   desc: "Compare two stocks side by side", href: "/compare",         emoji: "⚖️",  event: null },
-  { name: "Markets",   desc: "Futures, options & plays",      href: "/intelligence",      emoji: "📊",  event: null },
   { name: "Earnings",  desc: "Upcoming earnings calendar",    href: "/earnings",          emoji: "📅",  event: null },
   { name: "News",      desc: "Filterable market news feed",   href: "/news",              emoji: "📰",  event: null },
   { name: "IPO",       desc: "New listings & outlook",        href: "/ipo",               emoji: "🚀",  event: null },
@@ -115,7 +120,7 @@ function SubPanel({ items, onClose, pathname }: { items: SubItem[]; onClose: () 
   return (
     <div className="stagger-container flex flex-wrap justify-center gap-2 p-1">
       {items.map((item) => {
-        const active = item.href && (pathname === item.href || pathname?.startsWith(item.href + "/"));
+        const active = isHrefActive(item.href, pathname);
         return (
           <button
             key={item.name}
@@ -179,7 +184,7 @@ function DNavGroup({
       {open && (
         <div className="mt-0.5 ml-2 space-y-0.5">
           {items.filter(i => i.href !== null || i.event).map((item) => {
-            const isActive = item.href && (pathname === item.href || pathname?.startsWith(item.href + "/"));
+            const isActive = isHrefActive(item.href, pathname);
             const cls = `d-nav-item d-nav-sub ${isActive ? "d-nav-sub-active" : ""}`;
             const inner = (
               <>
@@ -211,11 +216,19 @@ function DNavGroup({
   );
 }
 
+// Strips any query string before comparing so links like `/intelligence?section=options`
+// still correctly light up when the pathname matches, regardless of query params.
+function isHrefActive(href: string | null | undefined, pathname: string | null): boolean {
+  if (!href) return false;
+  const base = href.split("?")[0];
+  return pathname === base || (pathname?.startsWith(base + "/") ?? false);
+}
+
 // Active-state derived directly from the same item arrays used to render each
 // group's links — can't drift out of sync the way separate hand-typed path
 // lists could.
 function groupActive(items: SubItem[], pathname: string | null): boolean {
-  return items.some(i => i.href != null && (pathname === i.href || (pathname?.startsWith(i.href + "/") ?? false)));
+  return items.some(i => isHrefActive(i.href, pathname));
 }
 
 // ── Main Sidebar ──────────────────────────────────────────────────────────────
@@ -296,6 +309,7 @@ export default function Sidebar() {
 
   const dashActive     = pathname === "/dashboard";
   const journalActive  = pathname?.startsWith("/journal") ?? false;
+  const optionsActive  = pathname?.startsWith("/intelligence") ?? false;
   const signalsActive  = groupActive(SIGNALS_ITEMS,  pathname);
   const tradeActive    = groupActive(TRADE_ITEMS,    pathname);
   const settingsActive = groupActive(SETTINGS_ITEMS, pathname);
@@ -349,6 +363,7 @@ export default function Sidebar() {
           {/* Main */}
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--text-tertiary,#4B5675)] px-3 pb-2 pt-1">Main</p>
           <DNavLink href="/dashboard" icon={<Icon.Dashboard />} label="Dashboard" active={dashActive} />
+          <DNavLink href="/intelligence?section=options" icon={<Icon.Options />} label="Options" active={optionsActive} />
           <DNavLink href="/journal" icon={<Icon.Journal />} label="Journal" active={journalActive} />
 
           {/* Signals group */}
@@ -384,7 +399,7 @@ export default function Sidebar() {
               href={item.href!}
               icon={<span className="text-base leading-none">{item.emoji}</span>}
               label={item.name}
-              active={!!(item.href && pathname?.startsWith(item.href))}
+              active={isHrefActive(item.href, pathname)}
             />
           ))}
           <div className="px-1 pt-3">

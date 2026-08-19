@@ -299,20 +299,36 @@ async function fetchOptionsPlays() {
   } catch { return []; }
 }
 
+// Mirrors the dashboard's optionsBacktestReadout() — same thresholds, same framing —
+// so the email and the app never disagree about what a signal's real track record is.
+function backtestLine(bt: Awaited<ReturnType<typeof fetchOptionsPlays>>[number]["backtest"], direction: "BUY" | "SELL"): { text: string; color: string } | null {
+  if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
+  const edge = direction === "BUY" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
+  const color = edge > 0.3 ? "#34d399" : edge < -0.3 ? "#f87171" : "#64748b";
+  return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, color };
+}
+
 function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>>): string {
   if (plays.length === 0) return "";
   const dc = (p: string) => p === "CALLS" ? "#10b981" : "#f87171";
-  const rows = plays.map((p, i) => `
-    <tr style="border-bottom:1px solid #1a1838">
-      <td style="padding:10px 8px 10px 0;font-family:monospace;font-size:12px;font-weight:700;color:#f1f5f9;white-space:nowrap">${i + 1}. ${p.symbol}</td>
-      <td style="padding:10px 8px">
+  const dteColor = (dte: number | null) => dte === null ? "#64748b" : dte < 7 ? "#fb7185" : dte < 14 ? "#fbbf24" : "#38bdf8";
+  const rows = plays.map((p, i) => {
+    const bt = backtestLine(p.backtest, p.signal);
+    return `
+    <tr style="border-bottom:${bt ? "none" : "1px solid #1a1838"}">
+      <td style="padding:10px 8px 2px 0;font-family:monospace;font-size:12px;font-weight:700;color:#f1f5f9;white-space:nowrap">${i + 1}. ${p.symbol}</td>
+      <td style="padding:10px 8px 2px">
         <span style="background:${p.play === "CALLS" ? "#0a1f17" : "#200f0f"};color:${dc(p.play)};border:1px solid ${dc(p.play)}40;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:800;font-family:monospace">${p.play}</span>
       </td>
-      <td style="padding:10px 8px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${p.price.toFixed(2)}</td>
-      <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.strike}</td>
-      <td style="padding:10px 8px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.expiry ?? "—"}</td>
-      <td style="padding:10px 0;font-size:10px;color:${dc(p.play)};white-space:nowrap">${p.rrRatio} R:R${p.premiumEst ? ` · ${p.premiumEst}` : ""}</td>
-    </tr>`).join("");
+      <td style="padding:10px 8px 2px;font-family:monospace;font-size:11px;color:#f1f5f9;white-space:nowrap">$${p.price.toFixed(2)}</td>
+      <td style="padding:10px 8px 2px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.strike}</td>
+      <td style="padding:10px 8px 2px;font-size:10px;color:#94a3b8;white-space:nowrap">${p.expiry ?? "—"}${p.dte !== null ? ` · <span style="color:${dteColor(p.dte)}">${p.dte}d</span>` : ""}</td>
+      <td style="padding:10px 0 2px;font-size:10px;color:${dc(p.play)};white-space:nowrap">${p.rrRatio} R:R${p.premiumEst ? ` · ${p.premiumEst}` : ""}</td>
+    </tr>
+    <tr style="border-bottom:1px solid #1a1838">
+      <td colspan="6" style="padding:0 0 10px;font-size:9px;color:${bt ? bt.color : "#4b5675"}">${bt ? bt.text : "History: not enough signals yet to rate this setup"}</td>
+    </tr>`;
+  }).join("");
   return `
   <tr>
     <td style="padding-bottom:24px">
@@ -330,7 +346,7 @@ function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>
             </td></tr>
           </table>
         </td></tr>
-        <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, and targets on each card at traxora-ai.vercel.app/dashboard</p></td></tr>
+        <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, targets, and a position sizer that caps contracts to your risk % are on each card at traxora-ai.vercel.app/dashboard</p></td></tr>
       </table>
     </td>
   </tr>`;
