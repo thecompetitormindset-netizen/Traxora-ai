@@ -18,7 +18,9 @@ function emaAt(closes: number[], upto: number, period: number): number | null {
   return calcClosesEMA(closes.slice(0, upto + 1), period);
 }
 
-const UNIVERSE = [
+// Exported so the options engine reuses the exact same universe/quotes instead
+// of independently re-deriving price/trend data for the same symbols.
+export const UNIVERSE = [
   "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","ORCL",
   "JPM","BAC","GS","V","MA",
   "LLY","UNH","JNJ","PFE","ABBV",
@@ -27,10 +29,12 @@ const UNIVERSE = [
   "SPY","QQQ","IWM",
 ];
 
-const BACKTEST_WARMUP  = 55;  // needs ema50 (50) + trend5d (5) headroom
-const BACKTEST_FORWARD = 14;  // days ahead — matches the 14+ DTE gate below
+export const BACKTEST_WARMUP  = 55;  // needs ema50 (50) + trend5d (5) headroom
+export const BACKTEST_FORWARD = 14;  // days ahead — matches the 14+ DTE gate below
 
-async function fetchQuote(symbol: string) {
+// Exported so the options engine reuses this exact fetch (same silent-divergence
+// risk this whole feature exists to close — no independent re-derivation).
+export async function fetchQuote(symbol: string) {
   try {
     const res  = await fetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
@@ -48,6 +52,7 @@ async function fetchQuote(symbol: string) {
     const closes:  number[] = (q.close  ?? []).filter(isNum);
     const highs:   number[] = (q.high   ?? []).filter(isNum);
     const lows:    number[] = (q.low    ?? []).filter(isNum);
+    const opens:   number[] = (q.open   ?? []).filter(isNum);
     const price  = meta.regularMarketPrice as number;
     const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
     const open   = (meta.regularMarketOpen ?? prev) as number;
@@ -74,7 +79,7 @@ async function fetchQuote(symbol: string) {
         : null;
 
     const name = (meta.shortName ?? meta.longName ?? symbol) as string;
-    return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment, closes, highs, lows, volumes };
+    return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment, closes, highs, lows, volumes, opens };
   } catch { return null; }
 }
 
@@ -119,11 +124,13 @@ function signalAt(
   );
 }
 
-type BacktestStats = {
+export type BacktestStats = {
   count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null;
 };
 
-function backtestDirection(closes: number[], highs: number[], lows: number[], vols: number[], direction: "BUY" | "SELL"): BacktestStats {
+// Exported so the options engine's `meta` sidecar uses the exact same
+// walk-forward backtest math instead of a second, possibly-drifting copy.
+export function backtestDirection(closes: number[], highs: number[], lows: number[], vols: number[], direction: "BUY" | "SELL"): BacktestStats {
   const returns: number[] = [], allReturns: number[] = [];
   const last = closes.length - 1 - BACKTEST_FORWARD;
   for (let i = BACKTEST_WARMUP; i <= last; i++) {

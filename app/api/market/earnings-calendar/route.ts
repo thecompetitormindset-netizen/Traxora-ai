@@ -23,7 +23,9 @@ export type CalendarDay = {
 let avCache: { csv: string; ts: number } | null = null;
 const AV_TTL = 60 * 60 * 1000; // 1 hour
 
-async function fetchAVCalendar(): Promise<string> {
+// Exported so the options engine can reuse the same 1-hour-cached fetch instead
+// of burning separate Alpha Vantage free-tier quota (25 calls/day, shared).
+export async function fetchAVCalendar(): Promise<string> {
   if (avCache && Date.now() - avCache.ts < AV_TTL) return avCache.csv;
 
   const key = process.env.ALPHA_VANTAGE_API_KEY;
@@ -39,9 +41,9 @@ async function fetchAVCalendar(): Promise<string> {
   return csv;
 }
 
-type RawEvent = EarningsEvent & { reportDate: string };
+export type RawEvent = EarningsEvent & { reportDate: string };
 
-function parseCSV(csv: string): RawEvent[] {
+export function parseCSV(csv: string): RawEvent[] {
   const lines = csv.trim().split("\n").slice(1); // skip header
   const events: RawEvent[] = [];
   for (const line of lines) {

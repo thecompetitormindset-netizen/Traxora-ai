@@ -19,6 +19,7 @@ import type { PaperTrade } from "../lib/paperTrades";
 import { sizeOptionsPosition } from "../lib/positionSizer";
 import RiskSizerBar, { useRiskSettings } from "../components/RiskSizerBar";
 import ProductTour, { type TourStep } from "../components/ProductTour";
+import type { EnginePlay, OptionsEngineRun } from "../api/market/options-engine/route";
 
 const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v1";
 
@@ -327,48 +328,27 @@ function loadPaperStats(storageKey: string, accountKey: string): PaperStats {
 
 // ── Top Options Plays ────────────────────────────────────────────────────────
 
-type OptionsBacktest = { count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null };
-
-type OptionsPlay = {
-  symbol: string; price: number; changePct: number;
-  signal: "BUY" | "SELL"; confidence: "High" | "Medium" | "Low";
-  play: "CALLS" | "PUTS"; iv: number | null; delta: number | null; expiry: string | null;
-  callWall: number | null; putWall: number | null;
-  expectedMove: number | null; strike: string;
-  entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; premiumPerContract: number | null; premiumReal: boolean;
-  pcVolRatio: number | null;
-  score: number; hasOptions: boolean;
-  dte: number | null; dteWarning: boolean;
-  backtest: OptionsBacktest | null;
-};
-
-// Same walk-forward-vs-baseline framing used for the crypto signal backtest —
-// hit rate alone can look good purely because a stock trended one way for the
-// whole backtested window; only the edge over baseline says whether the
-// signal itself is adding anything.
-function optionsBacktestReadout(bt: OptionsBacktest | null, direction: "BUY" | "SELL"): { text: string; cls: string } | null {
+// Backtest lives in the run's `meta` sidecar (per-symbol), not on the play
+// itself — it's deliberately not the model's job to originate a track record,
+// only to reason over numbers it's given.
+function optionsBacktestReadout(
+  bt: OptionsEngineRun["meta"][string]["backtest"], direction: "long" | "short",
+): { text: string; cls: string } | null {
   if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
-  const edge = direction === "BUY" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
+  const edge = direction === "long" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
   const cls  = edge > 0.3 ? "text-emerald-400/80" : edge < -0.3 ? "text-rose-400/80" : "text-[#4B5675]";
   return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, cls };
 }
 
 /**
- * Runtime invariant for every options play card.
- * The scan/ranking pipeline must never compute direction locally; it must
- * always derive `play` directly from the signal returned by computeCanonicalTrade().
- * This guard is the last line of defense — the bug should be impossible at the
- * source now, but we still verify before rendering any card.
- *
- * Dev: throws so the contradiction is immediately visible.
- * Prod: suppresses the card and logs — never ship a contradictory card.
+ * Client-side defense-in-depth. The server already drops any play whose
+ * direction doesn't match its source candidate or whose probability falls
+ * outside [20,75] before persisting (see options-engine/route.ts's
+ * sanitizePlays) — this just re-verifies the bounds survived the trip.
  */
-function assertOptionPlayIntegrity(p: OptionsPlay): boolean {
-  const expectedPlay = p.signal === "BUY" ? "CALLS" : "PUTS";
-  if (p.play !== expectedPlay) {
-    const msg = `[Options invariant] ${p.symbol}: card.play=${p.play} but signal=${p.signal}. ` +
-                `The scan path must not compute direction independently.`;
+function assertOptionPlayIntegrity(p: EnginePlay): boolean {
+  if (p.probability < 20 || p.probability > 75) {
+    const msg = `[Options invariant] ${p.symbol}: probability=${p.probability} outside [20,75].`;
     if (process.env.NODE_ENV === "development") throw new Error(msg);
     console.error(msg);
     return false;
@@ -376,32 +356,36 @@ function assertOptionPlayIntegrity(p: OptionsPlay): boolean {
   return true;
 }
 
+function structureLabel(s: EnginePlay["structure"]): string {
+  return { long_call: "LONG CALL", long_put: "LONG PUT", debit_spread: "DEBIT SPREAD", credit_spread: "CREDIT SPREAD" }[s] ?? s;
+}
+
 function OptionsPlaysSection() {
-  const [plays,     setPlays]     = useState<OptionsPlay[]>([]);
+  const [run,       setRun]       = useState<OptionsEngineRun | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [loaded,    setLoaded]    = useState(false);
-  const [scanned,   setScanned]   = useState(0);
-  const [withIV,    setWithIV]    = useState(0);
   const [err,       setErr]       = useState<string | null>(null);
-  const [lastScan,  setLastScan]  = useState<Date | null>(null);
+  const [cooldown,  setCooldown]  = useState<number | null>(null);
   const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
   const [showAll,   setShowAll]   = useState(false);
   const [cheapOnly, setCheapOnly] = useState(false);
   const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
 
-  function copyClaudePrompt(p: OptionsPlay) {
-    const side = p.play === "CALLS" ? "buy calls on" : "buy puts on";
-    const dteNote = p.dte !== null ? `${p.dte} DTE` : "unknown DTE";
+  const plays = run?.result.plays ?? [];
+
+  function copyClaudePrompt(p: EnginePlay) {
+    const side = p.direction === "long" ? "buy calls on" : "buy puts on";
     const lines = [
       `⚠️ EDUCATIONAL SIGNAL — verify before trading. Not financial advice. Options can lose 100% of value.`,
       ``,
-      `Signal: ${side} ${p.symbol} (${p.strike} strike${p.expiry ? `, exp ${p.expiry} · ${dteNote}` : ""}).`,
-      `Entry zone: ${p.entryZone}`,
-      `Stop: ${p.stop}`,
-      `Target: ${p.target}`,
-      `R:R ${p.rrRatio}${p.premiumEst ? ` — est. premium ${p.premiumEst}` : ""}`,
+      `Signal: ${side} ${p.symbol} (${structureLabel(p.structure)}, $${p.contract.strike} strike, exp ${p.contract.expiry} · ${p.contract.dte} DTE).`,
+      `Probability: ${p.probability}% (${p.probability_math})`,
+      `Target: $${p.target.price} — ${p.target.level_name}`,
+      `Invalidation: $${p.invalidation.price} — ${p.invalidation.level_name}`,
+      `Thesis: ${p.thesis}`,
+      ...(p.dissent.length > 0 ? [`Dissent: ${p.dissent.join("; ")}`] : []),
       ...(() => {
-        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.max_risk_per_contract);
         if (!size) return [];
         return [size.tooExpensive
           ? `Position size: even 1 contract exceeds your ${riskSettings.riskPct}% risk cap on a $${riskSettings.accountSize} account — skip or resize.`
@@ -416,31 +400,51 @@ function OptionsPlaysSection() {
     });
   }
 
-  async function scan() {
+  async function load() {
     setLoading(true);
     setErr(null);
     try {
-      const res  = await fetch("/api/market/options-scan", { cache: "no-store" });
+      const res = await fetch("/api/market/options-engine", { cache: "no-store" });
       if (!res.ok) { setErr(`Server error ${res.status}`); return; }
-      const data = await res.json();
-      // Enforce direction invariant: suppress any card where play ≠ signal direction.
-      // This should never trigger after the canonical-trade fix, but guards regressions.
-      const validated = (data.plays ?? []).filter(assertOptionPlayIntegrity);
-      setPlays(validated);
-      setScanned(data.scanned ?? 0);
-      setWithIV(data.withIV ?? 0);
+      const data = await res.json() as OptionsEngineRun;
+      data.result.plays = (data.result.plays ?? []).filter(assertOptionPlayIntegrity);
+      setRun(data);
       setLoaded(true);
-      setLastScan(new Date());
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Network error — try again");
     } finally { setLoading(false); }
   }
 
-  // Auto-load on mount + refresh every 5 minutes
+  // Rescan regenerates the SHARED persisted row (rate-limited), not a private
+  // per-tab refresh — everyone who loads after you sees the same update.
+  async function rescan() {
+    setLoading(true);
+    setErr(null);
+    try {
+      const res = await fetch("/api/market/options-engine", { method: "POST" });
+      if (res.status === 429) {
+        const body = await res.json() as { retryAfterSeconds?: number };
+        setCooldown(body.retryAfterSeconds ?? null);
+        setErr(`Next rescan available in ${Math.ceil((body.retryAfterSeconds ?? 0) / 60)}m — today's run was just regenerated.`);
+        return;
+      }
+      if (!res.ok) { setErr(`Server error ${res.status}`); return; }
+      const data = await res.json() as OptionsEngineRun;
+      data.result.plays = (data.result.plays ?? []).filter(assertOptionPlayIntegrity);
+      setRun(data);
+      setLoaded(true);
+      setCooldown(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Network error — try again");
+    } finally { setLoading(false); }
+  }
+
+  // Auto-load on mount + refresh every 15 minutes — the shared run only
+  // changes once a day or when someone rescans, not every few minutes.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    scan();
-    const id = setInterval(scan, 5 * 60 * 1000);
+    load();
+    const id = setInterval(load, 15 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -466,13 +470,13 @@ function OptionsPlaysSection() {
         <div>
           <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
           <p className="text-[9px] text-[#4B5675] mt-0.5">
-            {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : loading ? "Scanning…" : "High confidence · 14+ DTE"}
-            {lastScan && <span> · as of {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+            {loaded && run ? `${plays.length} setups · ${run.candidate_count} candidates · ${run.model}` : loading ? "Loading…" : "One shared run per day"}
+            {run && <span> · as of {new Date(run.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/intelligence?section=options" data-tour="options-breakdown-link" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
-          {loaded && plays.some(p => p.premiumPerContract !== null && p.premiumPerContract < 50) && (
+          {loaded && plays.some(p => p.max_risk_per_contract < 50) && (
             <button
               type="button"
               data-tour="options-cheap-filter"
@@ -495,7 +499,7 @@ function OptionsPlaysSection() {
             <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">Market closed</span>
           )}
           {loaded && (
-            <button type="button" onClick={scan} disabled={loading} className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
+            <button type="button" onClick={rescan} disabled={loading || cooldown !== null} title={cooldown !== null ? `Regenerates the shared run for everyone — next rescan in ${Math.ceil(cooldown / 60)}m` : "Regenerates today's shared run for everyone, not just you"} className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
               {loading ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Scanning…</> : "Rescan →"}
             </button>
           )}
@@ -535,8 +539,8 @@ function OptionsPlaysSection() {
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
           <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
           <p className="text-[11px] text-[#4B5675] leading-snug">
-            All four gates must pass: High confidence signal, live CBOE IV, a real bid/ask premium, and 14+ DTE.<br/>
-            This keeps quality high — check back when the market gives a clear directional move.
+            {run ? `The engine screened ${run.candidate_count} candidates against liquidity, spread, DTE, confidence, and IV gates — nothing cleared all of them.` : "Waiting on today's run."}<br/>
+            No minimum play count — an empty result is a valid, expected output, not an error.
           </p>
         </div>
       )}
@@ -560,19 +564,20 @@ function OptionsPlaysSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {(() => {
             const pool = cheapOnly
-              ? [...plays].filter(p => p.premiumPerContract !== null && p.premiumPerContract < 50)
-                           .sort((a, b) => (a.premiumPerContract ?? 0) - (b.premiumPerContract ?? 0))
+              ? [...plays].filter(p => p.max_risk_per_contract < 50)
+                           .sort((a, b) => a.max_risk_per_contract - b.max_risk_per_contract)
                            .slice(0, 5)
               : plays;
             const visiblePlays = cheapOnly ? pool : (showAll ? pool : pool.slice(0, 3));
             return visiblePlays.map((p, i) => {
             const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
+            const m = run?.meta[p.symbol];
             return (
             <Link
               key={p.symbol}
               href={`/intelligence?section=analyze&sym=${encodeURIComponent(p.symbol)}`}
               className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
-                p.play === "CALLS" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
+                p.direction === "long" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
               }`}
             >
               {/* Header — same structure as watchlist */}
@@ -581,67 +586,61 @@ function OptionsPlaysSection() {
                   <div className="flex items-center gap-1.5">
                     <p className="font-bold tracking-tight">{p.symbol}</p>
                     <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">OPTIONS</span>
-                    {p.dte !== null && (
-                      <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
-                        p.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
-                        p.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                                     "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                      }`}>{p.dte}d</span>
-                    )}
+                    <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
+                      p.contract.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
+                      p.contract.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
+                                   "bg-sky-500/10 text-sky-400 border-sky-500/20"
+                    }`}>{p.contract.dte}d</span>
                   </div>
-                  <p className="text-xs text-[#4B5675] mt-0.5">#{i + 1} ranked setup</p>
+                  <p className="text-xs text-[#4B5675] mt-0.5">#{p.rank} ranked setup</p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${
-                    p.play === "CALLS"
+                    p.direction === "long"
                       ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
                       : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                  }`}>{p.play}</span>
-                  <span className={`text-[9px] font-semibold ${
-                    p.confidence === "High"   ? "text-emerald-400" :
-                    p.confidence === "Medium" ? "text-amber-400"   : "text-[#4B5675]"
-                  }`}>{p.confidence}</span>
+                  }`}>{structureLabel(p.structure)}</span>
+                  <span className="text-[9px] font-semibold text-violet-400">{p.probability}% probability</span>
                 </div>
               </div>
 
-              {/* Price + change — same as watchlist */}
+              {/* Price + change */}
               <p className="text-xl font-bold font-mono text-[#F1F5F9]">
-                ${p.price.toFixed(2)}
+                ${(m?.price ?? 0).toFixed(2)}
               </p>
-              <p className={`text-xs mt-1 font-medium font-mono ${p.changePct >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
+              <p className={`text-xs mt-1 font-medium font-mono ${(m?.changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {(m?.changePct ?? 0) >= 0 ? "+" : ""}{(m?.changePct ?? 0).toFixed(2)}% today
               </p>
 
               {/* Trade details */}
               <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono space-y-1.5 ${
-                p.play === "CALLS" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
+                p.direction === "long" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
               }`}>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Strike</span>
-                  <span className="font-bold text-amber-400">{p.strike}</span>
-                  {p.delta !== null && <><span className="text-[#1C1A3A] shrink-0">·</span><span className="text-[9px] text-[#4B5675]">Δ {p.delta.toFixed(2)}</span></>}
+                  <span className="font-bold text-amber-400">${p.contract.strike} · exp {p.contract.expiry}</span>
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="font-bold text-violet-400">{p.premiumEst ?? "—"}</span>
+                  <span className="text-[9px] text-[#4B5675]">Δ {p.contract.delta.toFixed(2)}</span>
+                  <span className="text-[#1C1A3A] shrink-0">·</span>
+                  <span className="font-bold text-violet-400">~${p.max_risk_per_contract}/contract</span>
                 </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stock ent</span>
-                  <span className="font-bold text-[#F1F5F9]">{p.entryZone}</span>
-                  <span className="text-[#1C1A3A] shrink-0">·</span>
                   <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">tgt</span>
-                  <span className="font-bold text-emerald-400">{p.target}</span>
+                  <span className="font-bold text-emerald-400">${p.target.price} ({p.target.level_name})</span>
                   <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">stp</span>
-                  <span className="font-bold text-rose-400">{p.stop}</span>
+                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">inval</span>
+                  <span className="font-bold text-rose-400">${p.invalidation.price}</span>
                 </div>
-                <div className="flex items-center gap-1.5 flex-wrap text-[8px] text-[#4B5675]">
-                  <span>{p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}</span>
-                </div>
+                <p className="text-[9px] text-[#94A3B8] leading-snug">{p.thesis}</p>
+                {p.dissent.length > 0 && (
+                  <p className="text-[8px] text-amber-400/80 leading-snug">⚠ {p.dissent.join("; ")}</p>
+                )}
                 {(() => {
-                  const bt = optionsBacktestReadout(p.backtest, p.signal);
+                  const bt = optionsBacktestReadout(m?.backtest ?? null, p.direction);
                   return bt ? <p className={`text-[8px] font-semibold ${bt.cls}`}>{bt.text}</p> : null;
                 })()}
                 {(() => {
-                  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
+                  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.max_risk_per_contract);
                   if (!size) return null;
                   return size.tooExpensive
                     ? <p className="text-[8px] font-semibold text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
