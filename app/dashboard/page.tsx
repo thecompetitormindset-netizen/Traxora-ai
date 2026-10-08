@@ -19,7 +19,9 @@ import type { PaperTrade } from "../lib/paperTrades";
 import { sizeOptionsPosition } from "../lib/positionSizer";
 import RiskSizerBar, { useRiskSettings } from "../components/RiskSizerBar";
 import ProductTour, { type TourStep } from "../components/ProductTour";
-import type { EnginePlay, OptionsEngineRun } from "../api/market/options-engine/route";
+import type { OptionsAnalysisResponse } from "../api/market/options-engine/route";
+import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
+import type { AnalysisOutput } from "../lib/optionsAnalysis/schema";
 
 const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v1";
 
@@ -36,18 +38,13 @@ const DASHBOARD_TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="options-plays-header"]',
-    title: "Options Plays",
-    desc: "Only shows setups that pass 4 gates: high-confidence signal, live IV, a real bid/ask premium, and 14+ days to expiry. Rescan pulls a fresh read anytime.",
+    title: "Options Analysis",
+    desc: "A rules-based check of every symbol. A paper candidate only appears when every gate passes — fresh quotes, liquidity, a defined exit, no event before expiry. Otherwise you see why not.",
   },
   {
     selector: '[data-tour="risk-sizer-bar"]',
     title: "Position sizer",
-    desc: "Set your account size and max risk % once — every play below then tells you exactly how many contracts fit, or warns you off if even one is too big.",
-  },
-  {
-    selector: '[data-tour="options-cheap-filter"]',
-    title: "Under $50 only",
-    desc: "Filters to the 5 cheapest contracts. Worth knowing: cheap premium usually means lower odds, not a bargain — same signal engine either way.",
+    desc: "Set your account size and max risk % once — each paper candidate then shows how many lots fit its app-computed max loss, or warns you off if even one is too big.",
   },
   {
     selector: '[data-tour="options-breakdown-link"]',
@@ -328,182 +325,287 @@ function loadPaperStats(storageKey: string, accountKey: string): PaperStats {
 
 // ── Top Options Plays ────────────────────────────────────────────────────────
 
-// Backtest lives in the run's `meta` sidecar (per-symbol), not on the play
-// itself — it's deliberately not the model's job to originate a track record,
-// only to reason over numbers it's given.
-function optionsBacktestReadout(
-  bt: OptionsEngineRun["meta"][string]["backtest"], direction: "long" | "short",
-): { text: string; cls: string } | null {
-  if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
-  const edge = direction === "long" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
-  const cls  = edge > 0.3 ? "text-emerald-400/80" : edge < -0.3 ? "text-rose-400/80" : "text-[#4B5675]";
-  return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, cls };
+// v4.1 options analysis card. Everything shown comes from the server's
+// display gate: only PAPER_CANDIDATE entries carry legs and pricing, and the
+// pricing is application-computed (natural fill) — the analyst never outputs
+// financial figures. No probability is shown; confidence is a qualitative
+// evidence band backed by the 7-item checklist.
+
+const NO_TRADE_LABEL: Record<string, string> = {
+  G1_DATA: "Missing data",
+  G2_FRESHNESS: "Quotes not fresh",
+  G3_SESSION: "Market closed",
+  G4_EVENT: "Event before expiry",
+  G6_UNSUPPORTED: "Unsupported structure",
+  G7_EXIT: "No complete exit plan",
+  WELLBEING: "Wellbeing",
+  CONFLICTING_SIGNALS: "Signals conflict",
+  LOW_CHECKLIST: "Too little evidence",
+  NO_EDGE: "No edge",
+};
+
+function strategyLabel(s: string): string {
+  return s.replace(/_/g, " ");
 }
 
-/**
- * Client-side defense-in-depth. The server already drops any play whose
- * direction doesn't match its source candidate or whose probability falls
- * outside [20,75] before persisting (see options-engine/route.ts's
- * sanitizePlays) — this just re-verifies the bounds survived the trip.
- */
-function assertOptionPlayIntegrity(p: EnginePlay): boolean {
-  if (p.probability < 20 || p.probability > 75) {
-    const msg = `[Options invariant] ${p.symbol}: probability=${p.probability} outside [20,75].`;
-    if (process.env.NODE_ENV === "development") throw new Error(msg);
-    console.error(msg);
-    return false;
-  }
-  return true;
+function bandCls(band: "LOW" | "MODERATE" | "HIGH"): string {
+  return band === "HIGH" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+    : band === "MODERATE" ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
+    : "bg-[#252345] text-[#94A3B8] border-[#333368]";
 }
 
-function structureLabel(s: EnginePlay["structure"]): string {
-  return { long_call: "LONG CALL", long_put: "LONG PUT", debit_spread: "DEBIT SPREAD", credit_spread: "CREDIT SPREAD" }[s] ?? s;
+function dirCls(dir: "BULLISH" | "BEARISH" | "NEUTRAL"): string {
+  return dir === "BULLISH" ? "text-emerald-400" : dir === "BEARISH" ? "text-rose-400" : "text-sky-400";
+}
+
+function ChecklistDots({ checklist }: { checklist: AnalysisOutput["checklist"] }) {
+  return (
+    <div className="flex items-center gap-1" aria-label={`${checklist.filter(c => c.result === "PASS").length} of 7 checklist items pass`}>
+      {checklist.map(c => (
+        <span
+          key={c.item}
+          title={`${c.item}: ${c.result} — ${c.reason}`}
+          className={`h-1.5 w-4 rounded-full ${c.result === "PASS" ? "bg-emerald-400/80" : "bg-[#333368]"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CandidateCard({ a, riskSettings, copied, onCopy }: {
+  a: DisplayAnalysis;
+  riskSettings: { accountSize: number; riskPct: number };
+  copied: boolean;
+  onCopy: () => void;
+}) {
+  const o = a.output!;
+  const ps = o.proposed_structure!;
+  const pr = a.pricing!;
+  const expiry = ps.legs[0].expiry;
+  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, pr.max_loss);
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${
+      o.canonical_direction === "BULLISH" ? "border-l-emerald-500/40" : o.canonical_direction === "BEARISH" ? "border-l-rose-500/40" : "border-l-sky-500/40"
+    }`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-bold tracking-tight">{a.symbol}</p>
+            <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/25">PAPER ONLY</span>
+          </div>
+          <p className={`text-[11px] font-semibold mt-0.5 ${dirCls(o.canonical_direction)}`}>{strategyLabel(ps.strategy)}</p>
+          <p className="text-[10px] text-[#4B5675] font-mono">exp {expiry}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${bandCls(o.confidence_band)}`}>{o.confidence_band} evidence</span>
+          <ChecklistDots checklist={o.checklist} />
+        </div>
+      </div>
+
+      <div className="rounded-lg px-2.5 py-2 border border-[#252345] bg-[#0D0B1A] text-[10px] font-mono space-y-1">
+        {ps.legs.map(l => (
+          <p key={l.contract_id} className={l.action === "BUY" ? "text-emerald-400" : "text-rose-400"}>
+            {l.action} 1 {l.type} {l.strike}
+          </p>
+        ))}
+      </div>
+
+      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono">
+        <dt className="text-[#4B5675]">{pr.net_type === "DEBIT" ? "Debit" : "Credit"} (natural)</dt>
+        <dd className="text-right text-[#F1F5F9]">${pr.natural_net.toFixed(2)}</dd>
+        <dt className="text-[#4B5675]">Max loss / 1-lot</dt>
+        <dd className="text-right text-rose-400">${pr.max_loss.toFixed(2)}</dd>
+        <dt className="text-[#4B5675]">Max gain / 1-lot</dt>
+        <dd className="text-right text-emerald-400">{pr.max_gain === null ? "Uncapped" : `$${pr.max_gain.toFixed(2)}`}</dd>
+        <dt className="text-[#4B5675]">Breakeven</dt>
+        <dd className="text-right text-[#94A3B8]">{pr.breakevens.map(b => b.toFixed(2)).join(" / ")}</dd>
+      </dl>
+      <p className="text-[8px] text-[#4B5675] mt-1">Figures are app-computed from delayed quotes at the natural fill. Fees, fills and early assignment can change real results.</p>
+
+      <div className="mt-2 space-y-1 text-[10px]">
+        {ps.profit_plan.target_level !== null && (
+          <p><span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Target </span><span className="text-emerald-400 font-mono">{ps.profit_plan.target_level}</span></p>
+        )}
+        {o.key_levels.invalidation && (
+          <p className="text-[#94A3B8]"><span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Invalidation </span>{o.key_levels.invalidation.condition}</p>
+        )}
+        <p className="text-[#94A3B8]">
+          <span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Time rule </span>
+          {ps.time_rule.type === "REVIEW_AT_DTE" ? `Review at ${ps.time_rule.dte} DTE` : `Exit by ${ps.time_rule.date}`}
+        </p>
+      </div>
+
+      <p className="text-[10px] text-[#94A3B8] leading-snug mt-2">{o.thesis}</p>
+
+      {size && (
+        size.tooExpensive
+          ? <p className="text-[9px] font-semibold text-rose-400 mt-2">Max loss on 1 lot exceeds your {riskSettings.riskPct}% cap</p>
+          : <p className="text-[9px] font-semibold text-sky-400 mt-2">Paper size: {size.contracts} lot{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} max loss ({riskSettings.riskPct}% cap)</p>
+      )}
+
+      <div className="mt-3 flex items-center gap-3 flex-wrap">
+        <button type="button" onClick={() => setOpen(v => !v)} className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+          {open ? "Hide evidence ↑" : "Evidence & risks ↓"}
+        </button>
+        <button type="button" onClick={onCopy} title="Copy the analysis (with disclaimer) to paste into Claude" className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors">
+          {copied ? "Copied!" : "Send to Claude →"}
+        </button>
+      </div>
+
+      {open && (
+        <div className="mt-3 pt-3 border-t border-[#252345] space-y-2">
+          <ul className="space-y-1">
+            {o.checklist.map(c => (
+              <li key={c.item} className="text-[10px] leading-snug">
+                <span className={`font-bold ${c.result === "PASS" ? "text-emerald-400" : "text-[#4B5675]"}`}>{c.result === "PASS" ? "✓" : "✗"} {c.item.replace("_", " ")}</span>
+                <span className="text-[#94A3B8]"> — {c.reason}</span>
+              </li>
+            ))}
+          </ul>
+          {o.risks.length > 0 && (
+            <ul className="space-y-0.5">
+              {o.risks.map(r => <li key={r} className="text-[9px] text-amber-400/80 leading-snug">⚠ {r}</li>)}
+            </ul>
+          )}
+          <p className="text-[9px] text-[#94A3B8] leading-snug">{o.user_note}</p>
+          <p className="text-[8px] text-[#4B5675] leading-snug">{o.disclaimer}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NoTradeRow({ a }: { a: DisplayAnalysis }) {
+  const o = a.output;
+  if (!o) return null;
+  const passes = o.checklist.filter(c => c.result === "PASS").length;
+  return (
+    <li className="flex items-start justify-between gap-3 py-2 border-b border-[#252345] last:border-0">
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold">
+          {a.symbol} <span className={`font-semibold text-[10px] ${dirCls(o.canonical_direction)}`}>{o.canonical_direction.toLowerCase()}</span>
+        </p>
+        <p className="text-[10px] text-[#4B5675] leading-snug">{o.no_trade_reason?.detail}</p>
+      </div>
+      <div className="flex flex-col items-end gap-1 shrink-0">
+        <span className="text-[9px] font-semibold text-[#94A3B8]">{NO_TRADE_LABEL[o.no_trade_reason?.code ?? ""] ?? o.no_trade_reason?.code}</span>
+        <span className="text-[9px] text-[#4B5675]">{passes}/7 checks</span>
+      </div>
+    </li>
+  );
 }
 
 function OptionsPlaysSection() {
-  const [run,       setRun]       = useState<OptionsEngineRun | null>(null);
+  const [data,      setData]      = useState<OptionsAnalysisResponse | null>(null);
   const [loading,   setLoading]   = useState(true);
-  const [loaded,    setLoaded]    = useState(false);
   const [err,       setErr]       = useState<string | null>(null);
   const [cooldown,  setCooldown]  = useState<number | null>(null);
   const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
-  const [showAll,   setShowAll]   = useState(false);
-  const [cheapOnly, setCheapOnly] = useState(false);
+  const [showAllNoTrade, setShowAllNoTrade] = useState(false);
   const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
 
-  const plays = run?.result.plays ?? [];
+  const analyses   = data?.analyses ?? [];
+  const candidates = analyses.filter(a => a.status === "PAPER_CANDIDATE" && a.output?.proposed_structure && a.pricing);
+  const stale      = analyses.filter(a => a.status === "STALE_CANDIDATE");
+  const noTrade    = analyses.filter(a => a.status === "NO_TRADE" && a.output);
+  const hidden     = analyses.filter(a => a.status === "UNAVAILABLE").length;
 
-  function copyClaudePrompt(p: EnginePlay) {
-    const side = p.direction === "long" ? "buy calls on" : "buy puts on";
+  // Most common no-trade reason — the one-line answer to "why is this empty?"
+  const topReason = (() => {
+    const counts = new Map<string, { n: number; detail: string }>();
+    for (const a of noTrade) {
+      const code = a.output!.no_trade_reason?.code ?? "NO_EDGE";
+      const c = counts.get(code) ?? { n: 0, detail: a.output!.no_trade_reason?.detail ?? "" };
+      counts.set(code, { ...c, n: c.n + 1 });
+    }
+    const [code, v] = [...counts.entries()].sort((x, y) => y[1].n - x[1].n)[0] ?? [];
+    return code ? { code, ...v! } : null;
+  })();
+
+  function copyClaudePrompt(a: DisplayAnalysis) {
+    const o = a.output!, ps = o.proposed_structure!, pr = a.pricing!;
     const lines = [
-      `⚠️ EDUCATIONAL SIGNAL — verify before trading. Not financial advice. Options can lose 100% of value.`,
+      `⚠️ PAPER TRADING ONLY — educational analysis, not financial advice. Options involve risk of loss, including the full amount invested.`,
       ``,
-      `Signal: ${side} ${p.symbol} (${structureLabel(p.structure)}, $${p.contract.strike} strike, exp ${p.contract.expiry} · ${p.contract.dte} DTE).`,
-      `Probability: ${p.probability}% (${p.probability_math})`,
-      `Target: $${p.target.price} — ${p.target.level_name}`,
-      `Invalidation: $${p.invalidation.price} — ${p.invalidation.level_name}`,
-      `Thesis: ${p.thesis}`,
-      ...(p.dissent.length > 0 ? [`Dissent: ${p.dissent.join("; ")}`] : []),
-      ...(() => {
-        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.max_risk_per_contract);
-        if (!size) return [];
-        return [size.tooExpensive
-          ? `Position size: even 1 contract exceeds your ${riskSettings.riskPct}% risk cap on a $${riskSettings.accountSize} account — skip or resize.`
-          : `Position size: ${size.contracts} contract(s) ≈ $${size.actualRiskDollars} risked (${riskSettings.riskPct}% cap on $${riskSettings.accountSize}).`];
-      })(),
+      `${a.symbol}: ${strategyLabel(ps.strategy)} (${o.canonical_direction.toLowerCase()}), exp ${ps.legs[0].expiry}`,
+      ...ps.legs.map(l => `  ${l.action} 1 ${l.type} ${l.strike} (${l.contract_id})`),
+      `App-computed at natural fill: ${pr.net_type.toLowerCase()} ${pr.natural_net.toFixed(2)}, max loss ${pr.max_loss.toFixed(2)}, max gain ${pr.max_gain === null ? "uncapped" : pr.max_gain.toFixed(2)}, breakeven ${pr.breakevens.join(" / ")}`,
+      `Evidence: ${o.confidence_band} (${o.checklist.filter(c => c.result === "PASS").length}/7 checks pass)`,
+      ...o.checklist.map(c => `  ${c.result} ${c.item}: ${c.reason}`),
+      ...(o.key_levels.invalidation ? [`Invalidation: ${o.key_levels.invalidation.condition}`] : []),
+      `Time rule: ${ps.time_rule.type === "REVIEW_AT_DTE" ? `review at ${ps.time_rule.dte} DTE` : `exit by ${ps.time_rule.date}`}`,
+      `Thesis: ${o.thesis}`,
+      ...(o.risks.length ? [`Risks: ${o.risks.join("; ")}`] : []),
       ``,
-      `Before placing any order: confirm current DTE, IV environment, and whether there are earnings within 7 days. Only use a paper account or risk capital you can afford to lose entirely.`,
+      `Analysis as of ${a.as_of}. Quotes are delayed; re-check them before acting, even on paper.`,
     ];
     navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      setCopiedSymbol(p.symbol);
-      setTimeout(() => setCopiedSymbol((s) => (s === p.symbol ? null : s)), 2000);
+      setCopiedSymbol(a.symbol);
+      setTimeout(() => setCopiedSymbol((s) => (s === a.symbol ? null : s)), 2000);
     });
   }
 
-  async function load() {
+  async function fetchRun(method: "GET" | "POST") {
     setLoading(true);
     setErr(null);
     try {
-      const res = await fetch("/api/market/options-engine", { cache: "no-store" });
-      if (!res.ok) { setErr(`Server error ${res.status}`); return; }
-      const data = await res.json() as OptionsEngineRun;
-      data.result.plays = (data.result.plays ?? []).filter(assertOptionPlayIntegrity);
-      setRun(data);
-      setLoaded(true);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Network error — try again");
-    } finally { setLoading(false); }
-  }
-
-  // Rescan regenerates the SHARED persisted row (rate-limited), not a private
-  // per-tab refresh — everyone who loads after you sees the same update.
-  async function rescan() {
-    setLoading(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/market/options-engine", { method: "POST" });
+      const res = await fetch("/api/market/options-engine", method === "GET" ? { cache: "no-store" } : { method: "POST" });
       if (res.status === 429) {
         const body = await res.json() as { retryAfterSeconds?: number };
         setCooldown(body.retryAfterSeconds ?? null);
-        setErr(`Next rescan available in ${Math.ceil((body.retryAfterSeconds ?? 0) / 60)}m — today's run was just regenerated.`);
+        setErr(`Just refreshed — next rescan available in ${Math.max(1, Math.ceil((body.retryAfterSeconds ?? 0) / 60))}m.`);
         return;
       }
       if (!res.ok) { setErr(`Server error ${res.status}`); return; }
-      const data = await res.json() as OptionsEngineRun;
-      data.result.plays = (data.result.plays ?? []).filter(assertOptionPlayIntegrity);
-      setRun(data);
-      setLoaded(true);
+      setData(await res.json() as OptionsAnalysisResponse);
       setCooldown(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Network error — try again");
     } finally { setLoading(false); }
   }
 
-  // Auto-load on mount + refresh every 15 minutes — the shared run only
-  // changes once a day or when someone rescans, not every few minutes.
+  // Auto-load on mount + refresh every 5 minutes — the server re-runs the
+  // analysis when its shared result is older than its freshness window.
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    load();
-    const id = setInterval(load, 15 * 60 * 1000);
+    fetchRun("GET");
+    const id = setInterval(() => fetchRun("GET"), 5 * 60 * 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Detect if market is closed — uses proper ET time with DST
-  const marketClosed = (() => {
-    const now = new Date();
-    if (now.getUTCDay() === 0 || now.getUTCDay() === 6) return true; // weekend
-    // US DST: 2nd Sun March → 1st Sun November
-    const y = now.getUTCFullYear();
-    const m1 = new Date(Date.UTC(y, 2, 1));
-    const dstStart = new Date(Date.UTC(y, 2, 1 + ((7 - m1.getUTCDay()) % 7) + 7, 7));
-    const n1 = new Date(Date.UTC(y, 10, 1));
-    const dstEnd   = new Date(Date.UTC(y, 10, 1 + ((7 - n1.getUTCDay()) % 7), 6));
-    const etOff    = (now >= dstStart && now < dstEnd) ? -4 : -5;
-    const etMins   = (now.getUTCHours() + 24 + etOff) % 24 * 60 + now.getUTCMinutes();
-    // NYSE regular session 9:30–16:00 ET
-    return etMins < 570 || etMins >= 960;
-  })();
+  const visibleNoTrade = showAllNoTrade ? noTrade : noTrade.slice(0, 5);
 
   return (
     <section>
       <div className="flex items-center justify-between gap-2 mb-4 flex-wrap" data-tour="options-plays-header">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
+          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Analysis</h2>
           <p className="text-[9px] text-[#4B5675] mt-0.5">
-            {loaded && run ? `${plays.length} setups · ${run.candidate_count} candidates · ${run.model}` : loading ? "Loading…" : "One shared run per day"}
-            {run && <span> · as of {new Date(run.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
+            {data
+              ? `${candidates.length} paper candidate${candidates.length === 1 ? "" : "s"} · ${analyses.length} symbols checked · rules-based, no AI calls`
+              : loading ? "Loading…" : "Shared analysis, refreshed every few minutes"}
+            {data?.as_of && <span> · as of {new Date(data.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link href="/intelligence?section=options" data-tour="options-breakdown-link" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
-          {loaded && plays.some(p => p.max_risk_per_contract < 50) && (
-            <button
-              type="button"
-              data-tour="options-cheap-filter"
-              onClick={() => setCheapOnly(v => !v)}
-              className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
-                cheapOnly
-                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
-                  : "bg-transparent text-[#4B5675] border-[#252345] hover:text-[#94A3B8]"
-              }`}
-            >
-              Under $50 only
-            </button>
-          )}
-          {loaded && plays.length > 3 && !cheapOnly && (
-            <button type="button" onClick={() => setShowAll(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
-              {showAll ? "Show less ↑" : `See all ${plays.length} ↓`}
-            </button>
-          )}
-          {marketClosed && loaded && (
+          {data && data.session.status !== "OPEN" && (
             <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">Market closed</span>
           )}
-          {loaded && (
-            <button type="button" onClick={rescan} disabled={loading || cooldown !== null} title={cooldown !== null ? `Regenerates the shared run for everyone — next rescan in ${Math.ceil(cooldown / 60)}m` : "Regenerates today's shared run for everyone, not just you"} className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
+          {data && (
+            <button type="button" onClick={() => fetchRun("POST")} disabled={loading || cooldown !== null} title="Re-runs the shared analysis for everyone" className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
               {loading ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Scanning…</> : "Rescan →"}
             </button>
           )}
         </div>
+      </div>
+
+      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-center gap-2">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <p className="text-[10px] text-amber-300/70 leading-snug">
+          <span className="font-semibold text-amber-300">Paper trading only.</span> Educational analysis, not financial advice. Options involve risk of loss, including the full amount invested.
+        </p>
       </div>
 
       {err && (
@@ -512,158 +614,65 @@ function OptionsPlaysSection() {
         </div>
       )}
 
-      {loading && (
+      {loading && !data && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 animate-pulse">
-              <div className="flex items-start justify-between mb-4">
-                <div className="space-y-1.5">
-                  <div className="h-4 bg-[#252345] rounded w-14" />
-                  <div className="h-3 bg-[#252345] rounded w-24" />
-                </div>
-                <div className="h-5 bg-[#252345] rounded w-14" />
-              </div>
-              <div className="h-6 bg-[#252345] rounded w-20 mb-1" />
-              <div className="h-3 bg-[#252345] rounded w-16 mb-3" />
-              <div className="space-y-1.5 mt-3">
+              <div className="h-4 bg-[#252345] rounded w-14 mb-2" />
+              <div className="h-3 bg-[#252345] rounded w-28 mb-4" />
+              <div className="space-y-1.5">
                 <div className="h-3 bg-[#252345] rounded w-full" />
                 <div className="h-3 bg-[#252345] rounded w-full" />
-                <div className="h-3 bg-[#252345] rounded w-full" />
+                <div className="h-3 bg-[#252345] rounded w-2/3" />
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {loaded && plays.length === 0 && (
-        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6 text-center">
-          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
-          <p className="text-[11px] text-[#4B5675] leading-snug">
-            {run ? `The engine screened ${run.candidate_count} candidates against liquidity, spread, DTE, confidence, and IV gates — nothing cleared all of them.` : "Waiting on today's run."}<br/>
-            No minimum play count — an empty result is a valid, expected output, not an error.
+      {data && candidates.length > 0 && (
+        <>
+          <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
+            {candidates.map(a => (
+              <CandidateCard key={a.symbol} a={a} riskSettings={riskSettings} copied={copiedSymbol === a.symbol} onCopy={() => copyClaudePrompt(a)} />
+            ))}
+          </div>
+        </>
+      )}
+
+      {data && candidates.length === 0 && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-3">
+          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No paper candidates right now</p>
+          <p className="text-[11px] text-[#94A3B8] leading-snug">
+            {topReason
+              ? <>Most common reason ({topReason.n} of {analyses.length}): <span className="font-semibold text-[#F1F5F9]">{NO_TRADE_LABEL[topReason.code] ?? topReason.code}</span> — {topReason.detail.replace(/^\d+ candidate structures? considered; none cleared every gate\. /, "")}{/bid\/ask timestamp/.test(topReason.detail) ? ". The free option feed doesn't time-stamp each bid and ask, so no quote can be confirmed as current." : "."}</>
+              : "Waiting on the first analysis."}
           </p>
+          <p className="text-[10px] text-[#4B5675] leading-snug mt-1">An empty result is an expected outcome, not an error — nothing is shown unless every gate passes on supplied evidence.</p>
         </div>
       )}
 
-      {loaded && plays.length > 0 && (
-        <>
-        <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-center gap-2">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-          <p className="text-[10px] text-amber-300/70 leading-snug">
-            <span className="font-semibold text-amber-300">Educational only — not financial advice.</span> Verify DTE, IV and earnings before trading. Options can lose 100% of value.
-          </p>
+      {stale.length > 0 && (
+        <p className="text-[10px] text-[#4B5675] mb-2">
+          {stale.length} earlier candidate{stale.length === 1 ? "" : "s"} ({stale.map(s => s.symbol).join(", ")}) no longer current — hidden until a fresh run confirms {stale.length === 1 ? "it" : "them"}.
+        </p>
+      )}
+
+      {noTrade.length > 0 && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-4 py-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675] pt-1">No trade · why</p>
+          <ul>{visibleNoTrade.map(a => <NoTradeRow key={a.symbol} a={a} />)}</ul>
+          {noTrade.length > 5 && (
+            <button type="button" onClick={() => setShowAllNoTrade(v => !v)} className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium py-2 transition-colors">
+              {showAllNoTrade ? "Show less ↑" : `See all ${noTrade.length} ↓`}
+            </button>
+          )}
         </div>
-        <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
-        {cheapOnly && (
-          <div className="mb-3 px-3 py-2 rounded-xl bg-violet-500/8 border border-violet-500/20">
-            <p className="text-[10px] text-violet-300/70 leading-snug">
-              <span className="font-semibold text-violet-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line below are the only things that speak to direction — not the price.
-            </p>
-          </div>
-        )}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {(() => {
-            const pool = cheapOnly
-              ? [...plays].filter(p => p.max_risk_per_contract < 50)
-                           .sort((a, b) => a.max_risk_per_contract - b.max_risk_per_contract)
-                           .slice(0, 5)
-              : plays;
-            const visiblePlays = cheapOnly ? pool : (showAll ? pool : pool.slice(0, 3));
-            return visiblePlays.map((p, i) => {
-            const isOrphan = i === visiblePlays.length - 1 && visiblePlays.length % 3 === 1;
-            const m = run?.meta[p.symbol];
-            return (
-            <Link
-              key={p.symbol}
-              href={`/intelligence?section=analyze&sym=${encodeURIComponent(p.symbol)}`}
-              className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} group bg-[#13112A] rounded-2xl p-5 border border-l-2 hover:border-[#333368] hover:bg-[#1A1838] transition-colors border-[#252345] ${
-                p.direction === "long" ? "border-l-emerald-500/40" : "border-l-rose-500/40"
-              }`}
-            >
-              {/* Header — same structure as watchlist */}
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="font-bold tracking-tight">{p.symbol}</p>
-                    <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">OPTIONS</span>
-                    <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
-                      p.contract.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
-                      p.contract.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                                   "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                    }`}>{p.contract.dte}d</span>
-                  </div>
-                  <p className="text-xs text-[#4B5675] mt-0.5">#{p.rank} ranked setup</p>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${
-                    p.direction === "long"
-                      ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                      : "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                  }`}>{structureLabel(p.structure)}</span>
-                  <span className="text-[9px] font-semibold text-violet-400">{p.probability}% probability</span>
-                </div>
-              </div>
+      )}
 
-              {/* Price + change */}
-              <p className="text-xl font-bold font-mono text-[#F1F5F9]">
-                ${(m?.price ?? 0).toFixed(2)}
-              </p>
-              <p className={`text-xs mt-1 font-medium font-mono ${(m?.changePct ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                {(m?.changePct ?? 0) >= 0 ? "+" : ""}{(m?.changePct ?? 0).toFixed(2)}% today
-              </p>
-
-              {/* Trade details */}
-              <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono space-y-1.5 ${
-                p.direction === "long" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"
-              }`}>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Strike</span>
-                  <span className="font-bold text-amber-400">${p.contract.strike} · exp {p.contract.expiry}</span>
-                  <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[9px] text-[#4B5675]">Δ {p.contract.delta.toFixed(2)}</span>
-                  <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="font-bold text-violet-400">~${p.max_risk_per_contract}/contract</span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">tgt</span>
-                  <span className="font-bold text-emerald-400">${p.target.price} ({p.target.level_name})</span>
-                  <span className="text-[#1C1A3A] shrink-0">·</span>
-                  <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">inval</span>
-                  <span className="font-bold text-rose-400">${p.invalidation.price}</span>
-                </div>
-                <p className="text-[9px] text-[#94A3B8] leading-snug">{p.thesis}</p>
-                {p.dissent.length > 0 && (
-                  <p className="text-[8px] text-amber-400/80 leading-snug">⚠ {p.dissent.join("; ")}</p>
-                )}
-                {(() => {
-                  const bt = optionsBacktestReadout(m?.backtest ?? null, p.direction);
-                  return bt ? <p className={`text-[8px] font-semibold ${bt.cls}`}>{bt.text}</p> : null;
-                })()}
-                {(() => {
-                  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.max_risk_per_contract);
-                  if (!size) return null;
-                  return size.tooExpensive
-                    ? <p className="text-[8px] font-semibold text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
-                    : <p className="text-[8px] font-semibold text-sky-400">Size: {size.contracts} contract{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} ({riskSettings.riskPct}% cap)</p>;
-                })()}
-              </div>
-
-              <div className="mt-3 flex items-center gap-3">
-                <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 transition-colors font-medium">Analyse options →</p>
-                <button
-                  type="button"
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); copyClaudePrompt(p); }}
-                  title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                  className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
-                >
-                  {copiedSymbol === p.symbol ? "Copied!" : "Send to Claude →"}
-                </button>
-              </div>
-            </Link>
-            );
-          }); })()}
-        </div>
-        </>
+      {hidden > 0 && (
+        <p className="text-[9px] text-[#4B5675] mt-2">{hidden} symbol{hidden === 1 ? "" : "s"} failed application checks and {hidden === 1 ? "is" : "are"} not shown.</p>
       )}
     </section>
   );

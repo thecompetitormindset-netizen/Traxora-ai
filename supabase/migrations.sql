@@ -118,6 +118,29 @@ create table if not exists options_iv_history (
   primary key (symbol, as_of_date)
 );
 
+-- ── Options analyses (v4.1, deterministic) ────────────────────────────────────
+-- Replaces options_engine_runs as the dashboard's source (that table is kept
+-- for history, no longer written). One row per UNIVERSE symbol per ET trading
+-- day; each regeneration overwrites the day's row. Stores the exact input,
+-- output and application review so every displayed result is auditable.
+
+create table if not exists options_analyses (
+  run_date        date        not null,           -- ET trading date
+  symbol          text        not null,
+  as_of           timestamptz not null,
+  engine          text        not null,           -- 'deterministic' (a model run would be named here)
+  policy_version  text        not null,           -- 'options-analysis-v4.1'
+  rules_version   text        not null,
+  input           jsonb       not null,
+  output          jsonb,                          -- null only if the engine threw
+  review_status   text        not null,           -- APPROVED_CANDIDATE | NO_TRADE | REJECTED
+  review_errors   jsonb       not null default '[]'::jsonb,
+  pricing         jsonb,                          -- server-computed, approved candidates only
+  generated_by    text,
+  updated_at      timestamptz default now(),
+  primary key (run_date, symbol)
+);
+
 -- ── Row-level security (optional but recommended) ─────────────────────────────
 -- These tables are accessed exclusively via supabaseAdmin (service-role key),
 -- so RLS isn't strictly required. Enable it if you want belt-and-suspenders.
@@ -130,3 +153,4 @@ create table if not exists options_iv_history (
 -- alter table sports_predictions_log  enable row level security;
 -- alter table options_engine_runs     enable row level security;
 -- alter table options_iv_history      enable row level security;
+-- alter table options_analyses        enable row level security;
