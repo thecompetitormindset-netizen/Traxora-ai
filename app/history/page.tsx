@@ -2,7 +2,7 @@
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -43,7 +43,7 @@ function fmtDate(iso: string) {
 }
 
 export default function HistoryPage() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const [trades,      setTrades]      = useState<Trade[]>([]);
   const [journal,     setJournal]     = useState<JournalEntry[]>([]);
   const [view,        setView]        = useState<"roundtrip" | "raw" | "signals">("roundtrip");

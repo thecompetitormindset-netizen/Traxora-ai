@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
@@ -26,7 +26,7 @@ function pct(correct: number, total: number): string {
 }
 
 export default function TrackRecordPage() {
-  const { status } = useSession();
+  const { status } = useAppSession();
   const router = useRouter();
   const [data,    setData]    = useState<TrackRecord | null>(null);
   const [loading, setLoading] = useState(true);

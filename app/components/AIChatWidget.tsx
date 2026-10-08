@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Link from "next/link";
 
 const GUEST_LIMIT = 3;
@@ -17,7 +17,7 @@ type Message = {
 };
 
 export default function AIChatWidget() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAppSession();
   const isGuest = status !== "loading" && !session?.user;
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);

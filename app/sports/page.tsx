@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
@@ -171,7 +171,7 @@ function GameCard({
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SportsPage() {
-  const { status, data: session } = useSession();
+  const { status, data: session } = useAppSession();
   const router = useRouter();
 
   const [games,      setGames]      = useState<GamePrediction[]>([]);

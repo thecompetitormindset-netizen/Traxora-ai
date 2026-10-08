@@ -6,11 +6,11 @@
 // Invisible component — no UI.
 
 import { useEffect, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { getPortfolio, savePortfolio, PORTFOLIO_UPDATED_EVENT } from "../lib/trading";
 
 export default function PortfolioSync() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const syncedRef   = useRef(false);
 

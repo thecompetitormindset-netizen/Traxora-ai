@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -391,7 +391,7 @@ type Tab    = "scanner" | "mywheel";
 type Filter = "all" | "highiv" | "bullish";
 
 export default function WheelPage() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAppSession();
   const router = useRouter();
 
   useEffect(() => {

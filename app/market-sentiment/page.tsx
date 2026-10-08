@@ -2,7 +2,7 @@
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { getPortfolio } from "../lib/trading";
@@ -215,7 +215,7 @@ function ScoreBar({ score }: { score: number }) {
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export default function MarketSentimentPage() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const [md,          setMd]          = useState<MarketData | null>(null);
   const [mdLoading,   setMdLoading]   = useState(true);
   const [mdError,     setMdError]     = useState<string | null>(null);

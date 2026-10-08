@@ -1,8 +1,8 @@
-import { auth } from "@/auth";
+import { GUEST_COOKIE, GUEST_HEADER, isValidGuestId } from "@/app/lib/guest";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-function applySecurityHeaders(res: NextResponse, req: NextRequest) {
+function applySecurityHeaders(res: NextResponse) {
   res.headers.set("X-Frame-Options", "DENY");
   res.headers.set("X-Content-Type-Options", "nosniff");
   res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -24,33 +24,33 @@ function applySecurityHeaders(res: NextResponse, req: NextRequest) {
   return res;
 }
 
-export default auth((req) => {
+export default function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Landing page, login, informational pages, next-auth callbacks, cron jobs, and public market data are public
-  const isPublic =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/guide" ||
-    pathname === "/pricing" ||
-    pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/api/cron/") ||
-    pathname === "/api/market/tickers" ||
-    pathname === "/api/ai/chat";
-
-  if (!req.auth && !isPublic) {
-    // Show the landing page (with its built-in sign-in button) instead of the bare /login screen
-    return NextResponse.redirect(new URL("/", req.url));
-  }
-
-  // Logged-in user hitting /login → send to dashboard (unless signing out)
-  const signedOut = req.nextUrl.searchParams.get("signedOut");
-  if (req.auth && pathname === "/login" && !signedOut) {
+  // Open access: sign-in and pricing pages are retired — send people straight to the app.
+  if (pathname === "/login" || pathname === "/pricing") {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  return applySecurityHeaders(NextResponse.next(), req);
-});
+  // Give every visitor an anonymous guest id so per-user features keep working without sign-in.
+  const existing = req.cookies.get(GUEST_COOKIE)?.value;
+  if (isValidGuestId(existing)) {
+    return applySecurityHeaders(NextResponse.next());
+  }
+
+  const id = crypto.randomUUID();
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set(GUEST_HEADER, id); // visible to auth() on this very first request
+  const res = NextResponse.next({ request: { headers: requestHeaders } });
+  res.cookies.set(GUEST_COOKIE, id, {
+    path:     "/",
+    maxAge:   60 * 60 * 24 * 365 * 2, // 2 years
+    sameSite: "lax",
+    secure:   process.env.NODE_ENV === "production",
+    httpOnly: false, // read client-side by useAppSession
+  });
+  return applySecurityHeaders(res);
+}
 
 export const config = {
   // Exclude Next.js internals, all static files in /public (sw.js, icons, SVGs, manifest),

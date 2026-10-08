@@ -1,11 +1,12 @@
 import { auth } from "@/auth";
+import { isGuestEmail } from "@/app/lib/guest";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user?.email) {
-    return Response.json({ error: "Not authenticated" }, { status: 401 });
+  if (!session?.user?.email || isGuestEmail(session.user.email)) {
+    return Response.json({ error: "Email briefing needs a real email address" }, { status: 400 });
   }
 
   const cronSecret = process.env.CRON_SECRET;

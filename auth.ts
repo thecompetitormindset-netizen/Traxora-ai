@@ -2,6 +2,9 @@ import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { Resend } from "resend";
+import type { Session } from "next-auth";
+import { cookies, headers } from "next/headers";
+import { GUEST_COOKIE, GUEST_HEADER, guestUser, isValidGuestId } from "@/app/lib/guest";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -212,7 +215,7 @@ function loginEmailHtml(params: {
 </html>`;
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
+const nextAuth = NextAuth({
   providers: [
     Google,
     // Local-only sign-in path: Google OAuth can't complete against localhost,
@@ -279,3 +282,29 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+export const { handlers, signIn, signOut } = nextAuth;
+
+/**
+ * Open-access session lookup. Returns the Google session if one still exists,
+ * otherwise an anonymous guest session tied to the visitor's guest cookie
+ * (set by proxy.ts). No one is ever required to sign in.
+ */
+export async function auth(): Promise<Session | null> {
+  try {
+    const real = await nextAuth.auth();
+    if (real?.user?.email) return real;
+  } catch { /* no/invalid auth cookie → fall through to guest */ }
+
+  let id: string | undefined;
+  try {
+    id = (await cookies()).get(GUEST_COOKIE)?.value;
+    if (!isValidGuestId(id)) id = (await headers()).get(GUEST_HEADER) ?? undefined;
+  } catch { /* called outside a request scope */ }
+  if (!isValidGuestId(id)) return null;
+
+  return {
+    user: guestUser(id),
+    expires: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+  } as Session;
+}

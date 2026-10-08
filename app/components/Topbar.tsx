@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { signIn, signOut, useSession } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import { isGuestEmail } from "@/app/lib/guest";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { THEME_KEY } from "../lib/theme";
 import ThemeToggle from "./ThemeToggle";
 import { useRouter } from "next/navigation";
@@ -115,7 +117,7 @@ type TopbarProps = {
 };
 
 export default function Topbar({ onSearch }: TopbarProps) {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const router = useRouter();
 
   const [query, setQuery] = useState("");
@@ -499,8 +501,8 @@ export default function Topbar({ onSearch }: TopbarProps) {
           )}
         </Link>
 
-        {/* User */}
-        {session?.user ? (
+        {/* User — only shown for legacy Google sessions; guests need no account */}
+        {session?.user && !isGuestEmail(session.user.email) && (
           <div className="flex items-center gap-2.5 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-1.5">
             <Link href="/settings">
               {session.user.image ? (
@@ -527,20 +529,12 @@ export default function Topbar({ onSearch }: TopbarProps) {
             </Link>
             <button
               type="button"
-              onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login" }); }}
+              onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/" }); }}
               className="hidden sm:block text-[10px] text-[#4B5675] hover:text-rose-400 transition-colors ml-1 font-medium"
             >
               Sign out
             </button>
           </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white"
-          >
-            Sign in
-          </button>
         )}
       </div>
     </div>

@@ -2,7 +2,7 @@
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useRef, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PriceAlerts from "../components/PriceAlerts";
@@ -30,7 +30,7 @@ function timeAgo(ms: number) {
 }
 
 export default function NotificationsPage() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const [tab,        setTab]        = useState<Tab>("signals");
   const [alerts,     setAlerts]     = useState<Alert[]>([]);
   const [paused,     setPaused]     = useState(false);

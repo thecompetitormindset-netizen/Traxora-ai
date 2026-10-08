@@ -10,7 +10,7 @@ import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 
 const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
@@ -450,7 +450,7 @@ function PositionSizer({
 
 function TradePlannerContent() {
   const params = useSearchParams();
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const userEmail = session?.user?.email ?? null;
 
   const [account, setAccount]           = useState<{ size: number; riskPct: number }>({ size: 100000, riskPct: 1 });

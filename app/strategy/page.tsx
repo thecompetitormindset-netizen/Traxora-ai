@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
@@ -120,7 +120,7 @@ function StrategyContent() {
   const [coachLoading, setCoachLoading] = useState(false);
   const [tab, setTab] = useState<"overview" | "breakdown" | "trades">("overview");
 
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
 
   useEffect(() => {
     if (session === undefined) return; // wait for session so scoped keys resolve

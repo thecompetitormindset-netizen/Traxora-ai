@@ -2,7 +2,9 @@
 import PaywallGuard from "@/app/components/PaywallGuard";
 
 import Image from "next/image";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { signOut } from "next-auth/react";
+import { isGuestEmail } from "@/app/lib/guest";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -79,13 +81,12 @@ function Badge({ children, color = "default" }: { children: React.ReactNode; col
 }
 
 export default function SettingsPage() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   const [notifPermission, setNotifPermission] = useState<NotificationPermission | "unsupported">("default");
   const [resetInput, setResetInput] = useState("");
   const [resetDone, setResetDone] = useState(false);
   const [alertCount, setAlertCount] = useState(0);
   const [theme, setThemeState] = useState<Theme>("dark");
-  const [plan, setPlan] = useState<"pro" | "free" | null>(null);
   const [subscribed, setSubscribed] = useState(false);
   const [subEmail, setSubEmail]     = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | string>("idle");
@@ -105,12 +106,7 @@ export default function SettingsPage() {
     const raw = localStorage.getItem(scopedKey("traxora_alerts"));
     try { setAlertCount(raw ? JSON.parse(raw).length : 0); } catch { /* ignore */ }
 
-    // Load plan + email subscription status in parallel
-    fetch("/api/user/plan")
-      .then(r => r.json())
-      .then(({ plan: p }) => setPlan(p === "pro" ? "pro" : "free"))
-      .catch(() => setPlan("free"));
-
+    // Load email briefing status
     fetch("/api/settings/email")
       .then(r => r.json())
       .then(d => { setSubscribed(!!d.subscribed); setSubEmail(d.subscribedEmail ?? null); })
@@ -185,7 +181,7 @@ export default function SettingsPage() {
 
             {/* Profile */}
             <Section title="Account">
-              {session?.user ? (
+              {session?.user && !isGuestEmail(session.user.email) ? (
                 <>
                   <div className="flex items-center gap-4 px-5 py-5 border-b border-[#252345]">
                     {session.user.image ? (
@@ -211,7 +207,7 @@ export default function SettingsPage() {
                     }
                     label="Sign out"
                     danger
-                    onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/login?signedOut=1" }); }}
+                    onClick={() => { localStorage.removeItem(THEME_KEY); sessionStorage.clear(); signOut({ callbackUrl: "/" }); }}
                   />
                 </>
               ) : (
@@ -223,9 +219,8 @@ export default function SettingsPage() {
                       <line x1="15" y1="12" x2="3" y2="12" />
                     </svg>
                   }
-                  label="Sign in with Google"
-                  sublabel="Connect your Google account to save your data"
-                  onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                  label="No account needed"
+                  sublabel="Traxora is free for everyone. Your data is saved in this browser."
                 />
               )}
             </Section>
@@ -306,7 +301,7 @@ export default function SettingsPage() {
                 )}
 
                 {subscribed && (
-                  <p className="text-xs text-emerald-400 mb-3">✓ Automatically enrolled — included with your Pro plan</p>
+                  <p className="text-xs text-emerald-400 mb-3">✓ Automatically enrolled</p>
                 )}
 
                 <div className="flex items-center gap-3 flex-wrap">
@@ -320,7 +315,7 @@ export default function SettingsPage() {
                       {testStatus === "sending" ? "Sending…" : testStatus === "sent" ? "✓ Email sent!" : "Send Test Email"}
                     </button>
                   ) : (
-                    <p className="text-xs text-[#4B5675]">The daily briefing is included with Pro — just $5/mo.</p>
+                    <p className="text-xs text-[#4B5675]">The daily email briefing isn&apos;t available without an account.</p>
                   )}
                   {testStatus !== "idle" && testStatus !== "sending" && testStatus !== "sent" && (
                     <p className="text-xs text-rose-400">{testStatus}</p>
@@ -328,52 +323,6 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-            </Section>
-
-            {/* Subscription */}
-            <Section title="Subscription">
-              <Row
-                icon={
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="12" y1="1" x2="12" y2="23" />
-                    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                  </svg>
-                }
-                label="Current plan"
-                sublabel={plan === "pro" ? "Pro · full AI access" : "Free · limited access"}
-                value={
-                  plan === "pro"
-                    ? <Badge color="green">Pro</Badge>
-                    : plan === "free"
-                    ? <Badge color="amber">Free</Badge>
-                    : <Badge>—</Badge>
-                }
-              />
-              {plan === "pro" ? (
-                <Row
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                      <line x1="1" y1="10" x2="23" y2="10" />
-                    </svg>
-                  }
-                  label="Manage subscription"
-                  sublabel="View billing or cancel — opens your Ko-fi account"
-                  onClick={() => window.open("https://ko-fi.com/settings/memberships", "_blank")}
-                />
-              ) : (
-                <Row
-                  icon={
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-                      <line x1="1" y1="10" x2="23" y2="10" />
-                    </svg>
-                  }
-                  label="Upgrade to Pro — $5/mo"
-                  sublabel="Unlock every AI feature · founding price · cancel anytime"
-                  onClick={() => { window.location.href = "/pricing"; }}
-                />
-              )}
             </Section>
 
             {/* PWA */}

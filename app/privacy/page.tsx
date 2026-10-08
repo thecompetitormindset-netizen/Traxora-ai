@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="2. Information We Collect">
-          <p><strong className="text-[#CBD5E1]">Account data:</strong> When you sign in with Google, we receive your name, email address, and profile picture from Google OAuth. We do not store passwords.</p>
+          <p><strong className="text-[#CBD5E1]">Account data:</strong> Traxora does not require an account. Each browser is given a random anonymous identifier (stored in a cookie) so your watchlist, journal and portfolio can be saved. We do not collect your name, email address or password.</p>
           <p><strong className="text-[#CBD5E1]">Usage data:</strong> We log which features you use, signals you view, and general usage patterns to improve the product.</p>
           <p><strong className="text-[#CBD5E1]">Stored data:</strong> Your watchlist, trade journal entries, and settings are stored in your browser&apos;s localStorage and in our database (Supabase) linked to your account email. No financial account information is collected.</p>
           <p><strong className="text-[#CBD5E1]">Payment data:</strong> Subscriptions are processed by Ko-fi. We receive confirmation of subscription status only — no card or billing details ever reach our servers.</p>

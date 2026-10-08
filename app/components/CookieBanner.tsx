@@ -29,7 +29,7 @@ export default function CookieBanner() {
         <div className="flex-1">
           <p className="text-xs font-bold text-[#F1F5F9] mb-1">🍪 We use cookies</p>
           <p className="text-[11px] text-[#7B8DB4] leading-relaxed">
-            We use cookies to keep you signed in and improve your experience. No tracking or ads — ever.
+            We use cookies to save your watchlist and settings in this browser. No tracking or ads — ever.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">

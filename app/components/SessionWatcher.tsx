@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import { setCurrentUser } from "../lib/userState";
 
 export default function SessionWatcher() {
-  const { data: session } = useSession();
+  const { data: session } = useAppSession();
   useEffect(() => {
     setCurrentUser(session?.user?.email ?? null);
   }, [session]);

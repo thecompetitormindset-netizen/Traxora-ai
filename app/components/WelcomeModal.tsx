@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useAppSession } from "@/app/lib/useAppSession";
 import Link from "next/link";
 
 const WELCOME_KEY = "traxora_welcome_seen";
@@ -16,7 +16,7 @@ const FEATURES = [
 ];
 
 export default function WelcomeModal() {
-  const { data: session, status } = useSession();
+  const { data: session, status } = useAppSession();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {

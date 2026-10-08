@@ -1,12 +1,13 @@
 import { auth } from "@/auth";
 import { getUserPlan } from "@/app/lib/subscription";
+import { isGuestEmail } from "@/app/lib/guest";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   const session = await auth();
   const email   = session?.user?.email ?? null;
-  if (!email) return Response.json({ subscribed: false, subscribedEmail: null });
+  if (!email || isGuestEmail(email)) return Response.json({ subscribed: false, subscribedEmail: null });
 
   const plan       = await getUserPlan(email);
   const subscribed = plan === "pro";
