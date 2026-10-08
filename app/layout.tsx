@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     template: "%s | Traxora AI",
   },
   description:
-    "AI scans the market and fires clear BUY/SELL signals using Smart Money analysis. Order Blocks, FVGs, options plays & daily briefings. 500+ traders. Start free — Pro just $5/mo.",
+    "AI scans the market and fires clear BUY/SELL signals using Smart Money analysis. Order Blocks, FVGs, options plays & daily briefings. 500+ traders. Free for everyone, no sign-in.",
   keywords: [
     "AI trading signals", "best AI trading app", "smart money trading",
     "when to buy stocks", "stock buy sell signals", "order blocks trading",
@@ -49,7 +49,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:       "Traxora AI — Know Exactly When to Buy & Sell",
-    description: "AI fires clear BUY/SELL signals using Smart Money patterns. Order Blocks, FVGs, options plays & daily briefings. 500+ traders trust it. Start free — Pro just $5/mo.",
+    description: "AI fires clear BUY/SELL signals using Smart Money patterns. Order Blocks, FVGs, options plays & daily briefings. 500+ traders trust it. Free for everyone, no sign-in.",
     type:        "website",
     locale:      "en_US",
     url:         "https://traxora-ai.vercel.app",
@@ -64,7 +64,7 @@ export const metadata: Metadata = {
   twitter: {
     card:        "summary_large_image",
     title:       "Traxora AI — Smart Money Trading Platform",
-    description: "AI-powered BUY/SELL/HOLD signals. Order Blocks, FVGs, Liquidity sweeps, options plays, morning briefings & AI trade journal. Start free — Pro just $5/mo.",
+    description: "AI-powered BUY/SELL/HOLD signals. Order Blocks, FVGs, Liquidity sweeps, options plays, morning briefings & AI trade journal. Free for everyone, no sign-in.",
     images:      ["/opengraph-image"],
   },
   robots: {
@@ -179,7 +179,7 @@ export default function RootLayout({
                     {
                       "@type": "Question",
                       "name": "What is the best AI app for stock trading signals?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal app that gives you clear BUY, SELL, or HOLD signals in real time. It uses Smart Money methodology — Order Blocks, Fair Value Gaps, and Liquidity Sweeps — to tell you exactly where to enter, where to set your stop loss, and where price is headed. It covers stocks, futures, and options. There is a free plan, and full Pro access costs just $5/month." },
+                      "acceptedAnswer": { "@type": "Answer", "text": "Traxora AI is an AI-powered trading signal app that gives you clear BUY, SELL, or HOLD signals in real time. It uses Smart Money methodology — Order Blocks, Fair Value Gaps, and Liquidity Sweeps — to tell you exactly where to enter, where to set your stop loss, and where price is headed. It covers stocks, futures, and options. It is completely free, with every feature included and no sign-in required." },
                     },
                     {
                       "@type": "Question",

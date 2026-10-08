@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -49,7 +48,7 @@ export default function TopCompaniesPage() {
     : companies;
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="app-ambient min-w-0 flex-1 p-6 xl:p-8 !pb-36 page-enter">
@@ -114,6 +113,6 @@ export default function TopCompaniesPage() {
         </div>
       </main>
     </div>
-    </PaywallGuard>
+    </>
   );
 }

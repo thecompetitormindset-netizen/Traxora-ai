@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -142,7 +141,7 @@ export default function JournalPage() {
     : "0.0";
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
@@ -540,6 +539,6 @@ export default function JournalPage() {
         </div>
       </div>
     )}
-    </PaywallGuard>
+    </>
   );
 }

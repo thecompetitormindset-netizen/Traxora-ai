@@ -46,10 +46,10 @@ export default function OGImage() {
           {/* Price badge */}
           <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div style={{ background: "#059669", borderRadius: "14px", padding: "14px 28px", fontSize: "22px", fontWeight: 900, color: "#ffffff" }}>
-              $5/MO
+              FREE
             </div>
             <div style={{ fontSize: "16px", color: "#4b5675", lineHeight: 1.5 }}>
-              <div style={{ color: "#10b981", fontWeight: 700 }}>✓  Flat $5/month — everything included</div>
+              <div style={{ color: "#10b981", fontWeight: 700 }}>✓  100% free — everything included</div>
               <div style={{ marginTop: "4px" }}>vs $29–$118/mo elsewhere</div>
             </div>
           </div>

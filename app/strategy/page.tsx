@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useAppSession } from "@/app/lib/useAppSession";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import { loadTrades, calcPL, STARTING_CAPITAL, type PaperTrade } from "@/app/lib/paperTrades";
 import { scopedKey, setCurrentUser } from "@/app/lib/userState";
 import PortfolioAllocationChart from "@/app/components/PortfolioAllocationChart";
@@ -494,8 +493,8 @@ function StrategyContent() {
 
 export default function StrategyPage() {
   return (
-    <PaywallGuard>
+    <>
       <StrategyContent />
-    </PaywallGuard>
+    </>
   );
 }

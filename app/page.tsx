@@ -30,22 +30,12 @@ const TICKER = [
 ];
 
 export default function HomePage() {
-  const { data: session, status } = useAppSession();
+  const { data: session } = useAppSession();
   const router = useRouter();
 
   function handleLaunch() {
     router.push("/dashboard");
   }
-
-  useEffect(() => {
-    if (status !== "authenticated") return;
-    fetch("/api/user/plan")
-      .then(r => r.json())
-      .then(({ plan }) => {
-        if (plan === "pro") router.replace("/dashboard");
-      })
-      .catch(() => {});
-  }, [status, router]);
 
   const [signalIdx, setSignalIdx] = useState(0);
   const [signalFade, setSignalFade] = useState(true);

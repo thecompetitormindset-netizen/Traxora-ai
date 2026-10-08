@@ -3,7 +3,6 @@
 import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Sidebar from "../components/Sidebar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Topbar from "../components/Topbar";
 import dynamic from "next/dynamic";
 const StockChart = dynamic(() => import("../components/StockChart"), { ssr: false });
@@ -303,7 +302,7 @@ function MarketContent() {
 
 export default function MarketPage() {
   return (
-    <PaywallGuard>
+    <>
       <Suspense fallback={
         <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
           <div className="text-[#4B5675] text-sm">Loading…</div>
@@ -311,6 +310,6 @@ export default function MarketPage() {
       }>
         <MarketContent />
       </Suspense>
-    </PaywallGuard>
+    </>
   );
 }
