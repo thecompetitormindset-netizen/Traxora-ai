@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import Image from "next/image";
 import { signOut } from "next-auth/react";
@@ -164,7 +163,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
@@ -435,6 +434,6 @@ export default function SettingsPage() {
         </main>
       </div>
     </div>
-    </PaywallGuard>
+    </>
   );
 }

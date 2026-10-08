@@ -6,7 +6,6 @@ import { Suspense } from "react";
 import dynamic from "next/dynamic";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
@@ -1139,10 +1138,10 @@ function TradePlannerContent() {
 
 export default function TradePlannerPage() {
   return (
-    <PaywallGuard>
+    <>
       <Suspense>
         <TradePlannerContent />
       </Suspense>
-    </PaywallGuard>
+    </>
   );
 }

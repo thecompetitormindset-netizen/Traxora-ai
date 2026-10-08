@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
@@ -2120,8 +2119,8 @@ function DashboardContent() {
 
 export default function DashboardPage() {
   return (
-    <PaywallGuard>
+    <>
       <DashboardContent />
-    </PaywallGuard>
+    </>
   );
 }

@@ -9,10 +9,6 @@
       "schedule": "0 14 * * 1-5"
     },
     {
-      "path": "/api/cron/check-subscriptions",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/sports-track-record",
       "schedule": "15 10 * * *"
     }

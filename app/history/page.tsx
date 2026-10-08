@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import { useAppSession } from "@/app/lib/useAppSession";
@@ -135,7 +134,7 @@ export default function HistoryPage() {
   const sellCount  = trades.filter(t => t.side === "SELL").length;
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
@@ -572,6 +571,6 @@ export default function HistoryPage() {
         </div>
       </main>
     </div>
-    </PaywallGuard>
+    </>
   );
 }

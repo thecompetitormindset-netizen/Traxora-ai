@@ -3,7 +3,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 import type { QuoteStats } from "@/app/api/market/quote-stats/route";
 
@@ -421,7 +420,7 @@ export default function ComparePage() {
     && (stockB.quote || stockB.stats);
 
   return (
-    <PaywallGuard>
+    <>
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
         <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
@@ -467,6 +466,6 @@ export default function ComparePage() {
           </div>
         </main>
       </div>
-    </PaywallGuard>
+    </>
   );
 }

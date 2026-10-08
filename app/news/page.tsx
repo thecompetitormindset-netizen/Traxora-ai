@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Panel from "../components/Panel";
 
 type NewsItem = {
@@ -108,7 +107,7 @@ export default function NewsPage() {
   }, [topic, load]);
 
   return (
-    <PaywallGuard>
+    <>
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
         <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
@@ -177,6 +176,6 @@ export default function NewsPage() {
           </div>
         </main>
       </div>
-    </PaywallGuard>
+    </>
   );
 }

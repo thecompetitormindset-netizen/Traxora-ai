@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -271,7 +270,7 @@ export default function ExplorePage() {
     : null;
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
 
@@ -560,6 +559,6 @@ export default function ExplorePage() {
         </div>
       </main>
     </div>
-    </PaywallGuard>
+    </>
   );
 }

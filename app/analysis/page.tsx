@@ -18,7 +18,6 @@ import ProAnalysisPanel from "@/app/components/analysis/ProAnalysisPanel";
 import MarketDepth from "@/app/components/analysis/MarketDepth";
 import type { VolumeProfile } from "@/app/api/volume-profile/route";
 import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import AnalystRatings from "@/app/components/AnalystRatings";
 import TechnicalsCard from "@/app/components/TechnicalsCard";
 import type { QuoteStats } from "@/app/api/market/quote-stats/route";
@@ -853,7 +852,7 @@ function AnalysisContent() {
 
 export default function AnalysisPage() {
   return (
-    <PaywallGuard>
+    <>
       <Suspense
         fallback={
           <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
@@ -863,6 +862,6 @@ export default function AnalysisPage() {
       >
         <AnalysisContent />
       </Suspense>
-    </PaywallGuard>
+    </>
   );
 }

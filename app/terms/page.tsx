@@ -66,7 +66,6 @@ export default function TermsPage() {
 
         <Section title="4. Accounts and Access">
           <p>Traxora AI is free to use and does not require an account. Your watchlist, journal and portfolio are tied to an anonymous identifier stored in your browser. We reserve the right to limit or suspend access for abuse or violations of these terms.</p>
-          <p>Pro features require an active paid subscription via Ko-fi. Subscriptions are personal and non-transferable.</p>
         </Section>
 
         <Section title="5. Acceptable Use">

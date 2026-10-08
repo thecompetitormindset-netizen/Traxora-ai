@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -186,7 +185,7 @@ export default function ChatPage() {
   const isEmpty = messages.length === 0;
 
   return (
-    <PaywallGuard>
+    <>
       <div className="flex min-h-screen text-[#F1F5F9]">
         <Sidebar />
         <main className="app-ambient min-w-0 flex-1 flex flex-col chat-main-height">
@@ -278,6 +277,6 @@ export default function ChatPage() {
           </div>
         </main>
       </div>
-    </PaywallGuard>
+    </>
   );
 }

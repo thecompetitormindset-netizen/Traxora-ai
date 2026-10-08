@@ -1,5 +1,4 @@
 "use client";
-import PaywallGuard from "@/app/components/PaywallGuard";
 
 import { useEffect, useState } from "react";
 import Sidebar from "../components/Sidebar";
@@ -411,7 +410,7 @@ export default function IPOPage() {
   const recentLosers   = data?.recent.filter(i => (i.perfPct ?? 0) < 0).length   ?? 0;
 
   return (
-    <PaywallGuard>
+    <>
     <div className="flex min-h-screen text-[#F1F5F9]">
       <Sidebar />
       <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
@@ -512,6 +511,6 @@ export default function IPOPage() {
         </div>
       </main>
     </div>
-    </PaywallGuard>
+    </>
   );
 }

@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsTab from "@/app/components/paper/OptionsTab";
 import OptionsChainViewer from "@/app/components/OptionsChainViewer";
 import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
@@ -772,7 +771,7 @@ function IntelligenceContent() {
 
 export default function IntelligencePage() {
   return (
-    <PaywallGuard>
+    <>
       <Suspense fallback={
         <div className="flex min-h-screen items-center justify-center text-[#4B5675] text-sm animate-pulse">
           Loading…
@@ -780,6 +779,6 @@ export default function IntelligencePage() {
       }>
         <IntelligenceContent />
       </Suspense>
-    </PaywallGuard>
+    </>
   );
 }

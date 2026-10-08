@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import PaywallGuard from "@/app/components/PaywallGuard";
 import Panel from "../components/Panel";
 import Link from "next/link";
 
@@ -239,7 +238,7 @@ function EarningsContent() {
 
 export default function EarningsPage() {
   return (
-    <PaywallGuard>
+    <>
       <Suspense fallback={
         <div className="flex min-h-screen text-[#F1F5F9] items-center justify-center">
           <div className="text-[#4B5675] text-sm animate-pulse">Loading calendar…</div>
@@ -247,6 +246,6 @@ export default function EarningsPage() {
       }>
         <EarningsContent />
       </Suspense>
-    </PaywallGuard>
+    </>
   );
 }
