@@ -232,3 +232,9 @@ export function plainReason(d: Pick<DisplayAnalysis, "status" | "output">, sessi
     default: return "Nothing worth doing right now";
   }
 }
+
+/** Strongest ideas first: most checklist items passed, then alphabetical. */
+export function rankIdeas<T extends { symbol: string; output: { checklist?: { result: string }[] } | null }>(ideas: T[]): T[] {
+  const score = (a: T) => a.output?.checklist?.filter(c => c.result === "PASS").length ?? 0;
+  return [...ideas].sort((a, b) => score(b) - score(a) || a.symbol.localeCompare(b.symbol));
+}

@@ -8,13 +8,14 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import UserDataSection from "../components/fieldnotes/UserDataSection";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
-import { stateOf } from "../components/fieldnotes/uiState";
+import { rankIdeas, stateOf } from "../components/fieldnotes/uiState";
 import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
 
 // Options, in plain words. One sentence says whether there's anything worth
 // looking at; ideas (if any) come next; the full list of checked stocks is
 // folded away. Analysis rules are unchanged (app/lib/optionsAnalysis).
 
+const PAGE = 8;
 const card = "rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)]";
 const fmt = (n: number | null) => (n == null ? "—" : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 
@@ -51,7 +52,8 @@ function Overview() {
 
   const data = state.kind === "ready" ? state.data : null;
   const rows = useMemo(() => data?.analyses ?? [], [data]);
-  const ideas = rows.filter(a => stateOf(a) === "validated");
+  const ideas = rankIdeas(rows.filter(a => stateOf(a) === "validated"));
+  const [showN, setShowN] = useState(PAGE);
   const scan = data?.scan ?? null;
   const marketOpen = data?.session.status === "OPEN";
   const reasons = data?.reasons ?? [];
@@ -117,7 +119,14 @@ function Overview() {
       {ideas.length > 0 && (
         <section aria-labelledby="ideas-h" className="space-y-3">
           <h2 id="ideas-h" className="text-[18px]">Ideas to practise</h2>
-          <ul className="grid sm:grid-cols-2 gap-3">{ideas.map(a => <IdeaCard key={a.symbol} a={a} onOpen={openSymbol} />)}</ul>
+          <p className="text-[13px] text-[var(--mx-text-3)]">Strongest first.</p>
+          <ul className="grid sm:grid-cols-2 gap-3">{ideas.slice(0, showN).map(a => <IdeaCard key={a.symbol} a={a} onOpen={openSymbol} />)}</ul>
+          {ideas.length > showN && (
+            <button type="button" onClick={() => setShowN(n => n + PAGE)}
+              className="h-10 px-5 rounded-full border border-[var(--mx-line)] text-[14px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
+              Show more ideas
+            </button>
+          )}
         </section>
       )}
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useOptionsList, type ListState } from "./useOptionsList";
-import { stateOf } from "./uiState";
+import { rankIdeas, stateOf } from "./uiState";
 
 // Dashboard summary of the options check, in one or two plain sentences.
 // Ideas that passed every check are listed; otherwise we say why not.
@@ -16,7 +16,7 @@ export default function OptionsAttention() {
 export function OptionsAttentionView({ state }: { state: ListState }) {
   const data = state.kind === "ready" ? state.data : null;
   const rows = data?.analyses ?? [];
-  const ideas = rows.filter(a => stateOf(a) === "validated");
+  const ideas = rankIdeas(rows.filter(a => stateOf(a) === "validated"));
 
   const top = data?.reasons?.[0]?.reason ?? null;
 
