@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useOptionsList, type ListState } from "./useOptionsList";
-import { plainReason, stateOf } from "./uiState";
+import { stateOf } from "./uiState";
 
 // Dashboard summary of the options check, in one or two plain sentences.
 // Ideas that passed every check are listed; otherwise we say why not.
@@ -15,15 +15,11 @@ export default function OptionsAttention() {
 /** Same summary, fed by a list the parent already fetched (avoids a second poll). */
 export function OptionsAttentionView({ state }: { state: ListState }) {
   const data = state.kind === "ready" ? state.data : null;
-  const open = data?.session.status === "OPEN";
   const rows = data?.analyses ?? [];
   const ideas = rows.filter(a => stateOf(a) === "validated");
 
-  const top = (() => {
-    const m = new Map<string, number>();
-    for (const a of rows) if (stateOf(a) !== "validated") { const r = plainReason(a, open); m.set(r, (m.get(r) ?? 0) + 1); }
-    return [...m.entries()].sort((x, y) => y[1] - x[1])[0]?.[0] ?? null;
-  })();
+  const top = data?.reasons?.[0]?.reason ?? null;
+  const checked = data?.scan ? data.scan.thin + data.scan.checked + data.scan.unavailable : rows.length;
 
   return (
     <section className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5 text-[var(--mx-text)]" aria-labelledby="opt-attn-h">
@@ -38,9 +34,9 @@ export function OptionsAttentionView({ state }: { state: ListState }) {
       {data && (ideas.length === 0 ? (
         <p className="mt-2 text-[14.5px] text-[var(--mx-text-2)]">
           No option ideas right now.{" "}
-          {top === "Market is closed"
+          {data.session.status !== "OPEN"
             ? "The market is closed — we’ll check again after it opens."
-            : `None of the ${rows.length} stocks we checked passed every safety check${top ? ` (most often: ${top.toLowerCase()})` : ""}.`}
+            : `None of the ${checked.toLocaleString("en-US")} stocks we’ve checked passed every safety check${top ? ` (most often: ${top.toLowerCase()})` : ""}.`}
         </p>
       ) : (
         <>

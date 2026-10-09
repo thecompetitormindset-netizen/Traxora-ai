@@ -8,7 +8,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import UserDataSection from "../components/fieldnotes/UserDataSection";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
-import { plainReason, stateOf } from "../components/fieldnotes/uiState";
+import { stateOf } from "../components/fieldnotes/uiState";
 import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
 
 // Options, in plain words. One sentence says whether there's anything worth
@@ -38,7 +38,7 @@ function IdeaCard({ a, onOpen }: { a: DisplayAnalysis; onOpen: (s: string) => vo
 
 function Overview() {
   const router = useRouter();
-  const { state, refresh } = useOptionsList();
+  const { state, refresh, reload } = useOptionsList();
   const [query, setQuery] = useState("");
   const [queryError, setQueryError] = useState<string | null>(null);
   const [supplySignal, setSupplySignal] = useState(0);
@@ -50,16 +50,20 @@ function Overview() {
   }, []);
 
   const data = state.kind === "ready" ? state.data : null;
-  const open = data?.session.status === "OPEN";
   const rows = useMemo(() => data?.analyses ?? [], [data]);
   const ideas = rows.filter(a => stateOf(a) === "validated");
+  const scan = data?.scan ?? null;
+  const marketOpen = data?.session.status === "OPEN";
+  const reasons = data?.reasons ?? [];
+  const top = reasons[0] ? [reasons[0].reason, reasons[0].count] as const : null;
+  const n = (x: number) => x.toLocaleString("en-US");
 
-  // The most common reason nothing qualified, for the headline.
-  const top = useMemo(() => {
-    const m = new Map<string, number>();
-    for (const a of rows) if (stateOf(a) !== "validated") { const r = plainReason(a, !!open); m.set(r, (m.get(r) ?? 0) + 1); }
-    return [...m.entries()].sort((x, y) => y[1] - x[1])[0] ?? null;
-  }, [rows, open]);
+  // Keep the progress line moving while the background scan runs.
+  useEffect(() => {
+    if (!scan?.running) return;
+    const id = window.setInterval(() => { if (document.visibilityState === "visible") reload(); }, 20_000);
+    return () => window.clearInterval(id);
+  }, [scan?.running, reload]);
 
   const openSymbol = (s: string) => router.push(`/options/${encodeURIComponent(s)}`);
   function submit(e: React.FormEvent) {
@@ -74,8 +78,12 @@ function Overview() {
     : ideas.length > 0 ? `${ideas.length} option ${ideas.length === 1 ? "idea" : "ideas"} passed every check.`
     : "No option ideas right now.";
   const why = !data || ideas.length > 0 ? null
-    : top?.[0] === "Market is closed" ? "The market is closed, so prices aren’t fresh enough to check safely. We’ll look again after it opens at 9:30 AM ET."
-    : `We checked ${rows.length} popular stocks and none passed all our safety checks${top ? ` (most often: ${top[0].toLowerCase()})` : ""}. That’s normal — waiting is often the right call.`;
+    : !marketOpen ? "The market is closed, so prices aren’t fresh enough to check safely. We’ll look again after it opens at 9:30 AM ET."
+    : `None of the stocks we’ve checked passed all our safety checks${top ? ` (most often: ${top[0].toLowerCase()})` : ""}. That’s normal — waiting is often the right call.`;
+  const progress = !scan ? null
+    : scan.finished ? `We checked all ${n(scan.total)} US stocks and funds that have options.`
+    : !scan.running && scan.checked === 0 ? `When the market opens, we check all ${n(scan.total)} US stocks and funds that have options.`
+    : `Checked ${n(scan.thin + scan.checked + scan.unavailable)} of ${n(scan.total)} US stocks and funds with options so far${scan.running ? " — still going" : ""}.`;
 
   return (
     <div className="space-y-6">
@@ -83,7 +91,7 @@ function Overview() {
         <div>
           <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]" style={{ fontWeight: 450 }}>Options</h1>
           <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[60ch]">
-            We check popular stocks for option trades that pass strict safety rules. Practice only — never real money.
+            We check every US stock and fund that has options for trades that pass strict safety rules. Practice only — never real money.
           </p>
         </div>
         <button type="button" onClick={refresh} disabled={state.kind !== "ready" || state.refreshing}
@@ -106,6 +114,16 @@ function Overview() {
           <>
             <p className="text-[24px] sm:text-[28px] leading-tight tracking-[-0.02em]" style={{ fontWeight: 450 }}>{headline}</p>
             {why && <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)] max-w-[64ch]">{why}</p>}
+            {progress && (
+              <div className="mt-4">
+                <p className="text-[13px] text-[var(--mx-text-3)]">{progress}</p>
+                {scan && !scan.finished && scan.total > 0 && (
+                  <div className="mt-2 h-1 max-w-sm rounded-full bg-[var(--mx-raised-2)] overflow-hidden" aria-hidden="true">
+                    <div className="h-full bg-[var(--mx-text)] transition-[width] duration-700" style={{ width: `${Math.min(100, ((scan.thin + scan.checked + scan.unavailable) / scan.total) * 100)}%` }} />
+                  </div>
+                )}
+              </div>
+            )}
             {state.kind === "ready" && state.message && <p className="mt-2 text-[13px] text-[var(--mx-text-3)]">{state.message}</p>}
           </>
         )}
@@ -131,29 +149,22 @@ function Overview() {
         {queryError && <p id="opt-sym-err" className="mt-2 text-[13px] text-[var(--mx-down)]">{queryError}</p>}
       </form>
 
-      {/* Everything we checked, folded away */}
-      {rows.length > 0 && (
+      {/* Why the rest didn't pass */}
+      {reasons.length > 0 && (
         <details className={`${card} group`}>
           <summary className="cursor-pointer list-none flex items-center justify-between p-5 text-[15px]">
-            <span>All {rows.length} stocks we checked</span>
+            <span>Why the others didn’t pass</span>
             <span aria-hidden="true" className="text-[var(--mx-text-3)] transition-transform group-open:rotate-45 text-[18px]">+</span>
           </summary>
           <ul className="border-t border-[var(--mx-line)] divide-y divide-[var(--mx-line)]">
-            {rows.map(a => (
-              <li key={a.symbol}>
-                <Link href={`/options/${encodeURIComponent(a.symbol)}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-[var(--mx-raised)]">
-                  <span className="min-w-0">
-                    <span className="text-[15px]">{a.symbol}</span>
-                    <span className="block text-[13px] text-[var(--mx-text-3)] truncate">{plainReason(a, !!open)}</span>
-                  </span>
-                  <span className="shrink-0 text-right tabular-nums">
-                    <span className="block text-[14px]">{fmt(a.price)}</span>
-                    {a.change_pct != null && <span className={`block text-[12.5px] ${a.change_pct >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}`}>{a.change_pct >= 0 ? "+" : "−"}{Math.abs(a.change_pct).toFixed(2)}%</span>}
-                  </span>
-                </Link>
+            {reasons.map(r => (
+              <li key={r.reason} className="flex items-center justify-between gap-3 px-5 py-3">
+                <span className="text-[14px] text-[var(--mx-text-2)]">{r.reason}</span>
+                <span className="text-[14px] text-[var(--mx-text-3)] shrink-0">{n(r.count)} {r.count === 1 ? "stock" : "stocks"}</span>
               </li>
             ))}
           </ul>
+          <p className="px-5 pb-4 text-[12.5px] text-[var(--mx-text-3)]">Want the details for one company? Use “Check a stock” above.</p>
         </details>
       )}
 

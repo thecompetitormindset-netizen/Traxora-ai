@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/sports-track-record",
       "schedule": "15 10 * * *"
+    },
+    {
+      "path": "/api/cron/options-scan",
+      "schedule": "0 14 * * 1-5"
     }
   ]
 }

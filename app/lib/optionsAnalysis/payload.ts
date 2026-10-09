@@ -364,16 +364,53 @@ export function buildAnalysisInput(a: BuildArgs): AnalysisInput {
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+// CBOE's public quote CDN blocks bursts (429 for a few minutes). Space its
+// requests out per server instance and back off when it pushes back. The
+// whole-universe scan reads `cboeBlocked` to stop early instead of piling on.
+const CBOE_GAP_MS = 450;
+let cboeNext = 0;
+let cboeStrikes = 0;
+export function cboeBlocked(): boolean { return cboeStrikes >= 3; }
+export function resetCboe() { cboeStrikes = 0; cboeNext = Date.now(); }
+async function cboeTurn() {
+  const now = Date.now();
+  const wait = Math.max(0, cboeNext - now);
+  cboeNext = Math.max(now, cboeNext) + CBOE_GAP_MS;
+  if (wait) await new Promise(r => setTimeout(r, wait));
+}
+
 export async function fetchAnalysisSources(symbol: string): Promise<{ chainJson: unknown; barsJson: unknown }> {
+  // One polite retry when a provider says "slow down" (429) — the whole-universe
+  // scan makes thousands of these calls.
   const get = async (url: string, headers: Record<string, string>) => {
-    try {
-      const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(10_000) });
-      return res.ok ? await res.json() : null;
-    } catch { return null; }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, { cache: "no-store", headers, signal: AbortSignal.timeout(10_000) });
+        if (res.status === 429 && attempt === 0) { await new Promise(r => setTimeout(r, 1500)); continue; }
+        return res.ok ? await res.json() : null;
+      } catch { return null; }
+    }
+    return null;
+  };
+  const cboe = async () => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await cboeTurn();
+      try {
+        const res = await fetch(`https://cdn-api.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(symbol)}.json`,
+          { cache: "no-store", headers: { "User-Agent": UA, Referer: "https://www.cboe.com/", Accept: "application/json" }, signal: AbortSignal.timeout(10_000) });
+        if (res.status === 429) {
+          cboeStrikes++;
+          cboeNext = Date.now() + 10_000; // everyone waits 10s
+          continue;
+        }
+        cboeStrikes = 0;
+        return res.ok ? await res.json() : null;
+      } catch { return null; }
+    }
+    return null;
   };
   const [chainJson, barsJson] = await Promise.all([
-    get(`https://cdn.cboe.com/api/global/delayed_quotes/options/${encodeURIComponent(symbol)}.json`,
-      { "User-Agent": UA, Referer: "https://www.cboe.com/", Accept: "application/json" }),
+    cboe(),
     get(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=6mo`,
       { "User-Agent": "Mozilla/5.0" }),
   ]);

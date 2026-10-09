@@ -25,7 +25,7 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
   const data = options.kind === "ready" ? options.data : null;
   const states = (data?.analyses ?? []).map(stateOf);
   const validated = states.filter(s => s === "validated").length;
-  const analyzed = states.length;
+  const analyzed = data?.scan ? data.scan.thin + data.scan.checked + data.scan.unavailable : states.length;
   const open = data?.session.status === "OPEN";
 
   const headline = validated > 0
@@ -35,13 +35,13 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       : "Nothing needs your attention right now.";
 
   const lede = [
-    data ? (validated ? `${validated} of ${analyzed} stocks have an option idea that passed every check.` : `We checked ${analyzed} stocks for option ideas — none passed today.`) : "Checking options…",
+    data ? (validated ? `${validated} option ${validated === 1 ? "idea" : "ideas"} passed every check (out of ${analyzed.toLocaleString("en-US")} stocks checked).` : `We checked ${analyzed.toLocaleString("en-US")} stocks for option ideas — none passed today.`) : "Checking options…",
     `${watchCount} ${watchCount === 1 ? "stock" : "stocks"} on your watchlist${watchSignals ? `, ${watchSignals} with a strong signal` : ""}.`,
     data && !open ? "The market opens at 9:30 AM ET." : null,
   ].filter(Boolean).join(" ");
 
   const stats = [
-    { k: "Options", v: data ? String(validated) : "—", s: data ? `${validated === 1 ? "idea" : "ideas"} · ${analyzed} stocks checked` : "checking…", href: "/options" },
+    { k: "Options", v: data ? String(validated) : "—", s: data ? `${validated === 1 ? "idea" : "ideas"} · ${analyzed.toLocaleString("en-US")} stocks checked` : "checking…", href: "/options" },
     { k: "Watchlist", v: String(watchCount), s: `${watchSignals} strong signal${watchSignals === 1 ? "" : "s"}`, href: "#watchlist" },
     { k: "Practice trading", v: String(paperOpen), s: paperValue !== null ? `open · $${Math.round(paperValue).toLocaleString("en-US")} pretend money` : "open trades", href: "/paper" },
   ];
