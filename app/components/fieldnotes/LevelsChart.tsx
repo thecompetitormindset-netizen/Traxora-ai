@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { CandlestickSeries, ColorType, CrosshairMode, LineStyle, createChart, type IChartApi, type ISeriesApi } from "lightweight-charts";
 import { THEME_EVENT } from "../../lib/theme";
 import { fmtLevel, fmtNum } from "./format";
+import { appFontFamily } from "../../lib/appFont";
 
 export type ChartLevel = { price: number; label: string; group: OverlayGroup; tone: "pos" | "neg" | "copper" | "info" | "muted"; style: "solid" | "dashed" | "dotted" };
 export type OverlayGroup = "plan" | "levels" | "strikes" | "expected";
@@ -59,7 +60,7 @@ export default function LevelsChart({ bars, levels, todayLabel, dataLabel }: {
       const pos = cssVar(host, "--fn-pos"), neg = cssVar(host, "--fn-neg"), muted = cssVar(host, "--fn-muted");
       const chart = createChart(host, {
         autoSize: true,
-        layout: { background: { type: ColorType.Solid, color: surface }, textColor: text, fontSize: 12, attributionLogo: false },
+        layout: { background: { type: ColorType.Solid, color: surface }, textColor: text, fontSize: 12, fontFamily: appFontFamily(), attributionLogo: false },
         grid: { vertLines: { color: rule }, horzLines: { color: rule } },
         crosshair: {
           mode: CrosshairMode.Normal,

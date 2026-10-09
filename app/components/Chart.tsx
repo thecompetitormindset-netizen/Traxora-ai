@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createChart, LineSeries, ColorType } from "lightweight-charts";
+import { appFontFamily } from "../lib/appFont";
 
 type ChartProps = {
   symbol: string;
@@ -31,6 +32,7 @@ export default function Chart({ symbol }: ChartProps) {
         autoSize: true,
         height: 380,
         layout: {
+          fontFamily: appFontFamily(),
           background: { type: ColorType.Solid, color: "#13112A" },
           textColor: "#94A3B8",
         },

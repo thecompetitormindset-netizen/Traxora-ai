@@ -8,6 +8,7 @@ import {
   type UTCTimestamp,
 } from "lightweight-charts";
 import { getPortfolio, STARTING_BALANCE, PORTFOLIO_UPDATED_EVENT, type Trade } from "../lib/trading";
+import { appFontFamily } from "../lib/appFont";
 
 type Point = { time: UTCTimestamp; value: number };
 
@@ -145,6 +146,7 @@ export default function PortfolioChart() {
     const chart = createChart(containerRef.current, {
       autoSize: true,
       layout: {
+        fontFamily: appFontFamily(),
         background: { type: ColorType.Solid, color: "transparent" },
         textColor: "#4B5675",
         fontSize: 11,

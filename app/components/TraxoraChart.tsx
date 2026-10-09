@@ -9,6 +9,7 @@ import {
   type CandlestickSeriesPartialOptions, type IPriceLine,
   type Time,
 } from "lightweight-charts";
+import { appFontFamily } from "../lib/appFont";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -352,7 +353,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       layout: {
         background: { type: ColorType.Solid, color: C.bg },
         textColor:  C.mid,
-        fontFamily: "ui-sans-serif, system-ui, sans-serif",
+        fontFamily: appFontFamily(),
         fontSize:   11,
       },
       grid: { vertLines: { visible: false }, horzLines: { visible: false } },

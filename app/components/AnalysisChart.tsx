@@ -8,6 +8,7 @@ import {
   LineSeries,
   ColorType,
 } from "lightweight-charts";
+import { appFontFamily } from "../lib/appFont";
 
 type AnalysisChartProps = {
   symbol: string;
@@ -36,6 +37,7 @@ export default function AnalysisChart({ symbol }: AnalysisChartProps) {
         autoSize: true,
         height: 520,
         layout: {
+          fontFamily: appFontFamily(),
           background: { type: ColorType.Solid, color: "#13112A" },
           textColor: "#94A3B8",
         },

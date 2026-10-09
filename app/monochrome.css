@@ -283,3 +283,8 @@ html[data-theme] .ping-live { background: var(--mx-up) !important; }
 
 /* The top bar's logo is redundant next to the desktop sidebar (app pages only). */
 @media (min-width: 1024px) { body.app-mode .topbar-logo { display: none !important; } }
+
+/* SVG labels (gauges, P&L diagrams) set font-family as an attribute; CSS
+   outranks presentation attributes, so they follow the app fonts too. */
+html[data-theme] svg text { font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif; }
+html[data-theme] svg text[font-family*="mono"] { font-family: var(--font-mono-custom), ui-monospace, monospace; }

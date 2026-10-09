@@ -1,5 +1,11 @@
 "use client";
 
+import { Geist, Geist_Mono } from "next/font/google";
+
+// This page replaces the root layout, so it loads the app fonts itself.
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
+const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono-custom", display: "swap" });
+
 export default function GlobalError({
   error,
   reset,
@@ -8,8 +14,8 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0, background: "#0D0B1A", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "sans-serif" }}>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
+      <body style={{ margin: 0, background: "#0D0B1A", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", fontFamily: "var(--font-geist), ui-sans-serif, system-ui, sans-serif" }}>
         <div style={{ textAlign: "center", color: "#F1F5F9", maxWidth: 360, padding: "0 24px" }}>
           <div style={{ width: 48, height: 48, background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.25)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#F43F5E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -19,7 +25,7 @@ export default function GlobalError({
           <p style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Something went wrong</p>
           <p style={{ fontSize: 13, color: "#4B5675", marginBottom: 4 }}>A critical error occurred. Your data is safe.</p>
           {error.digest && (
-            <p style={{ fontSize: 11, color: "#333368", marginBottom: 20, fontFamily: "monospace" }}>ref: {error.digest}</p>
+            <p style={{ fontSize: 11, color: "#333368", marginBottom: 20, fontFamily: "var(--font-mono-custom), ui-monospace, monospace" }}>ref: {error.digest}</p>
           )}
           <button
             type="button"

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  --font-jakarta: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-jakarta: var(--font-geist), ui-sans-serif, system-ui, sans-serif; /* legacy name; app font is Geist */
 
   --bg-canvas:   #040F14;
   --bg-surface:  #071C25;
@@ -102,9 +102,9 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(to bottom, #34d399, #22d3ee); }
 
-/* Monospace for numbers — JetBrains Mono for prices/data */
+/* Monospace for numbers — Geist Mono for prices/data */
 .font-mono, [data-price] {
-  font-family: var(--font-mono-custom), "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+  font-family: var(--font-mono-custom), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum", "zero";
 }
