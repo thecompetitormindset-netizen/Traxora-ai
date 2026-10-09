@@ -12,13 +12,10 @@ const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), {
 import MarketStatus from "@/app/components/MarketStatus";
 import { getPortfolio } from "@/app/lib/trading";
 import { scopedKey } from "@/app/lib/userState";
-import type { AIAnalysis, DeepAnalysis, TradePlan } from "@/app/components/analysis/types";
-import DeepMarketPanel from "@/app/components/analysis/DeepMarketPanel";
-import ProAnalysisPanel from "@/app/components/analysis/ProAnalysisPanel";
-import type { ProAnalysisResult } from "@/app/api/ai/pro-analysis/route";
+import type { AIAnalysis, TradePlan } from "@/app/components/analysis/types";
 import PaywallGuard from "@/app/components/PaywallGuard";
-import AnalystRatings from "@/app/components/AnalystRatings";
-import TechnicalsCard from "@/app/components/TechnicalsCard";
+import { PlainAnalysts, PlainTechnicals, PlanWhy, WhyList } from "@/app/components/analysis/PlainDetails";
+import Link from "next/link";
 
 // ── Main Analysis Component ───────────────────────────────────────────────────
 
@@ -29,31 +26,6 @@ function AnalysisContent() {
   const [analysis, setAnalysis] = useState<AIAnalysis | null>(null);
   const [loadingAnalysis, setLoadingAnalysis] = useState(false);
 
-  const [deepAnalysis, setDeepAnalysis] = useState<DeepAnalysis | null>(null);
-  const [loadingDeep, setLoadingDeep] = useState(false);
-  const [deepStep, setDeepStep]       = useState(0);
-  const [deepError, setDeepError] = useState<string | null>(null);
-  const [overrideInfo, setOverrideInfo] = useState<{ from: string; to: string } | null>(null);
-
-  const [proAnalysis, setProAnalysis]     = useState<ProAnalysisResult | null>(null);
-  const [loadingPro, setLoadingPro]       = useState(false);
-  const [proStep, setProStep]             = useState(0);
-  const [proError, setProError]           = useState<string | null>(null);
-
-  const DEEP_STEPS = ["Fetching market data…", "Computing indicators…", "Running AI…", "Parsing results…"];
-  const PRO_STEPS  = ["Gathering data…", "Checking risk gates…", "Running AI…", "Finalizing…"];
-
-  useEffect(() => {
-    if (!loadingDeep) { setDeepStep(0); return; }
-    const timers = [1500, 6000, 12000].map((ms, i) => setTimeout(() => setDeepStep(i + 1), ms));
-    return () => timers.forEach(clearTimeout);
-  }, [loadingDeep]);
-
-  useEffect(() => {
-    if (!loadingPro) { setProStep(0); return; }
-    const timers = [2000, 8000, 16000].map((ms, i) => setTimeout(() => setProStep(i + 1), ms));
-    return () => timers.forEach(clearTimeout);
-  }, [loadingPro]);
 
 
   type NewsItem = { title: string; link: string; pubDate: string; source: string };
@@ -74,21 +46,6 @@ function AnalysisContent() {
     return () => window.removeEventListener("portfolio-updated", loadHolding);
   }, [symbol]);
 
-  // Keep the quick-signal panel in sync with the deep analysis result so they never contradict
-  useEffect(() => {
-    if (!deepAnalysis) return;
-    const mapped: "BUY" | "HOLD" | "SELL" =
-      deepAnalysis.overallBias === "BULLISH" ? "BUY" :
-      deepAnalysis.overallBias === "BEARISH" ? "SELL" : "HOLD";
-    setAnalysis(prev => {
-      if (prev && prev.signal !== mapped) {
-        setOverrideInfo({ from: prev.signal, to: mapped });
-      }
-      return prev
-        ? { ...prev, signal: mapped, confidence: deepAnalysis.confidence }
-        : { signal: mapped, confidence: deepAnalysis.confidence, summary: deepAnalysis.biasReasoning, keyPoints: [], risk: "Medium" as const };
-    });
-  }, [deepAnalysis]);
 
   useEffect(() => {
     setNewsLoading(true);
@@ -109,55 +66,6 @@ function AnalysisContent() {
     } catch { /* ignore */ }
   }, [symbol]);
 
-  async function runDeepAnalysis() {
-    setLoadingDeep(true);
-    setDeepError(null);
-    setDeepAnalysis(null);
-    try {
-      const res = await fetch("/api/ai/deep-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
-      });
-      const data = await res.json();
-      if (data.reason === "AI_UNAVAILABLE") {
-        setDeepError("AI unavailable — all providers failed. Check your API keys in settings.");
-        return;
-      }
-      if (!res.ok || data.error) {
-        setDeepError(data.error ?? "Analysis failed");
-        return;
-      }
-      setDeepAnalysis(data as DeepAnalysis);
-    } catch (e) {
-      setDeepError(e instanceof Error ? e.message : "Network error");
-    } finally {
-      setLoadingDeep(false);
-    }
-  }
-
-  async function runProAnalysis() {
-    setLoadingPro(true);
-    setProError(null);
-    setProAnalysis(null);
-    try {
-      const res = await fetch("/api/ai/pro-analysis", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ symbol }),
-      });
-      const text = await res.text();
-      let data: Record<string, unknown>;
-      try { data = JSON.parse(text); }
-      catch { setProError(`Server error (${res.status}) — check Vercel logs`); return; }
-      if (!res.ok || data.error) { setProError(String(data.error ?? "Pro analysis failed")); return; }
-      setProAnalysis(data as unknown as ProAnalysisResult);
-    } catch (e) {
-      setProError(e instanceof Error ? e.message : "Network error");
-    } finally {
-      setLoadingPro(false);
-    }
-  }
 
   const [expandChart, setExpandChart] = useState(false);
   const [chartHeight, setChartHeight] = useState(460);
@@ -347,9 +255,6 @@ function AnalysisContent() {
                   </div>
                 </>
               )}
-              {overrideInfo && (
-                <p className="mt-4 text-[13px] text-[var(--mx-text-3)]">The deeper check changed this read from {overrideInfo.from} to {overrideInfo.to}.</p>
-              )}
             </section>
 
             {/* Chart */}
@@ -388,48 +293,20 @@ function AnalysisContent() {
               )}
             </section>
 
-            {/* Everything technical, folded away */}
+            {/* More detail, still in plain words */}
             <details className={`${card} group`}>
               <summary className="cursor-pointer list-none flex items-center justify-between p-5 text-[15px]">
-                <span>More details <span className="text-[13px] text-[var(--mx-text-3)]">— indicators, analysts and the full reasoning</span></span>
+                <span>More details <span className="text-[13px] text-[var(--mx-text-3)]">— why we think this</span></span>
                 <span aria-hidden="true" className="text-[var(--mx-text-3)] transition-transform group-open:rotate-45 text-[18px]">+</span>
               </summary>
-              <div className="px-5 pb-5 space-y-4">
-                {analysis?.summary && <p className="text-[14px] leading-relaxed text-[var(--mx-text-2)]">{analysis.summary}</p>}
-                {plan && (
-                  <ul className="space-y-1.5 text-[13px] text-[var(--mx-text-2)]">
-                    <li><span className="text-[var(--mx-text-3)]">Why this entry:</span> {plan.entryReason}</li>
-                    <li><span className="text-[var(--mx-text-3)]">Why this safety level:</span> {plan.stopReason}</li>
-                    <li><span className="text-[var(--mx-text-3)]">Why this goal:</span> {plan.tpReason}</li>
-                    <li><span className="text-[var(--mx-text-3)]">Reward vs risk:</span> {plan.rrRatio}</li>
-                  </ul>
-                )}
-                {analysis?.keyPoints && analysis.keyPoints.length > 0 && (
-                  <ul className="space-y-1.5 text-[13px] text-[var(--mx-text-2)] list-disc pl-5">
-                    {analysis.keyPoints.map((p, i) => <li key={i}>{p}</li>)}
-                  </ul>
-                )}
-                <AnalystRatings symbol={symbol} currentPrice={quoteData.price} />
-                <TechnicalsCard symbol={symbol} />
-
-                <div className="pt-4 border-t border-[var(--mx-line)]">
-                  <p className="text-[14px]">Want a deeper look?</p>
-                  <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)]">These use an AI model and need you to sign in.</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" onClick={runDeepAnalysis} disabled={loadingDeep}
-                      className="h-9 px-4 rounded-full border border-[var(--mx-line-strong)] text-[13px] disabled:opacity-50">
-                      {loadingDeep ? DEEP_STEPS[deepStep] : deepAnalysis ? "Run again" : "Deep analysis"}
-                    </button>
-                    <button type="button" onClick={runProAnalysis} disabled={loadingPro}
-                      className="h-9 px-4 rounded-full border border-[var(--mx-line)] text-[13px] text-[var(--mx-text-2)] disabled:opacity-50">
-                      {loadingPro ? PRO_STEPS[proStep] : proAnalysis ? "Run again" : "Second opinion"}
-                    </button>
-                  </div>
-                  {deepError && <p className="mt-3 text-[13px] text-[var(--mx-down)]">{deepError}</p>}
-                  {proError && <p className="mt-3 text-[13px] text-[var(--mx-down)]">{proError}</p>}
-                </div>
-                {deepAnalysis && <DeepMarketPanel data={deepAnalysis} symbol={symbol} />}
-                {proAnalysis && <ProAnalysisPanel data={proAnalysis} symbol={symbol} />}
+              <div className="px-5 pb-5 space-y-6">
+                {analysis?.keyPoints && <WhyList points={analysis.keyPoints} />}
+                {plan && analysis && analysis.signal !== "HOLD" && <PlanWhy plan={plan} side={analysis.signal} />}
+                <PlainTechnicals symbol={symbol} />
+                <PlainAnalysts symbol={symbol} price={quoteData.price} />
+                <p className="pt-4 border-t border-[var(--mx-line)] text-[14px] text-[var(--mx-text-2)]">
+                  Still have a question about {ticker}? <Link href="/chat" className="underline">Ask AI</Link> <span className="text-[var(--mx-text-3)]">(needs sign-in)</span>
+                </p>
               </div>
             </details>
           </div>
