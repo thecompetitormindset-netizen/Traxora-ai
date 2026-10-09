@@ -95,11 +95,6 @@ export default function WelcomeModal() {
           </div>
         </div>
 
-        {/* Pricing note */}
-        <div className="px-6 py-4 mx-6 mb-4 mt-3 bg-emerald-500/5 border border-emerald-500/20 rounded-xl">
-          <p className="text-xs text-emerald-400 font-semibold">⚡ Start free — Pro is just $5/mo</p>
-          <p className="text-[10px] text-[#4B5675] mt-0.5">Unlock everything — deep signals, scanner, briefings, paper trading — for less than one bad trade.</p>
-        </div>
 
         {/* Actions */}
         <div className="px-6 pb-6 flex gap-3">

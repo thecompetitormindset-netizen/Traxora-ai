@@ -218,7 +218,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
     <div className="topbar-glass flex flex-col shrink-0 sticky top-0 z-30">
     <div className="h-[60px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
       {/* Logo — links back to landing page */}
-      <Link href="/" className={`${searchFocused ? "hidden sm:flex" : "flex"} lg:hidden items-center gap-2 shrink-0 group`}>
+      <Link href="/" className={`topbar-logo ${searchFocused ? "hidden sm:flex" : "flex"} items-center gap-2 shrink-0 group`}>
         <div className="logo-icon-bg w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
@@ -229,7 +229,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
       </Link>
 
       {/* Search */}
-      <div className="flex-1 min-w-0 max-w-xl relative">
+      <div data-tour="search" className="flex-1 min-w-0 max-w-xl relative">
         <div className="focus-ring glass surface-sheen flex items-center gap-2.5 border border-[#252345] hover:border-[#333368] rounded-xl px-4 py-2.5 transition-all duration-100 focus-within:border-emerald-500/40">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="11" cy="11" r="8" />

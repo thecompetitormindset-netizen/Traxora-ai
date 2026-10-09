@@ -31,10 +31,13 @@ const PRINCIPLES = [
 ];
 
 const FAQ = [
-  { q: "Do I need trading experience?", a: "No. Every result explains itself in plain words — what was observed, what passed, what didn’t — so beginners learn as they go." },
+  { q: "What is Traxora?", a: "A research workspace for stocks, options, futures and crypto. It reads public market data, checks it against clear rules, and shows either a setup worth practising on paper or the reason there isn’t one." },
+  { q: "Why do I so often see “No trade”?", a: "Because waiting is usually the right call. A candidate only appears when every check passes — fresh quotes, enough liquidity, no event before expiry, a defined exit. Otherwise you see exactly which check failed and what would change it." },
+  { q: "Is the market data live?", a: "No. It comes from free public sources and is typically delayed around 15 minutes. Every price shows its source and time, and anything missing is labelled “Unavailable” rather than guessed." },
+  { q: "Can I place real trades from Traxora?", a: "No. Options analysis is paper-trading only, and the paper portfolio uses simulated money. Traxora is for research and practice, not order placement." },
+  { q: "Does it use AI?", a: "The options analysis is rule-based — the same inputs always give the same answer, with no AI model involved. A few optional tools, like Ask AI and journal coaching, use an AI model and say so." },
+  { q: "Do I need trading experience?", a: "No. Every result explains itself in plain words — what was observed, what passed and what didn’t — so beginners learn as they go. The guide covers the basics." },
   { q: "Is this financial advice?", a: "No. Traxora is an educational research tool built on public market data. Do your own research and consult a licensed professional before investing." },
-  { q: "Can I cancel Pro anytime?", a: "Yes — from Settings, with no contracts. You keep access until the end of the current billing period." },
-  { q: "How fast does Pro activate?", a: "As soon as your payment confirms. Refresh the page and everything is available." },
 ];
 
 function Wordmark() {
@@ -112,7 +115,6 @@ export default function HomePage() {
           <div className="hidden md:flex items-center gap-7 text-[14px] text-[var(--mx-text-2)]">
             <a href="#how" className="hover:text-[var(--mx-text)]">How it works</a>
             <a href="#markets" className="hover:text-[var(--mx-text)]">Markets</a>
-            <a href="#pricing" className="hover:text-[var(--mx-text)]">Pricing</a>
             <a href="#faq" className="hover:text-[var(--mx-text)]">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
@@ -210,22 +212,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── Pricing ── */}
-        <section id="pricing" className="max-w-6xl mx-auto px-5 sm:px-8 pb-20 sm:pb-28 scroll-mt-16">
-          <div className="rounded-[16px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-6 sm:p-10 grid md:grid-cols-[1fr_auto] gap-8 items-center">
-            <div>
-              <p className="mx-label">Pricing</p>
-              <p className="mt-4 text-[32px] sm:text-[40px] leading-none tracking-[-0.03em]" style={{ fontWeight: 450 }}>
-                $5 <span className="text-[16px] text-[var(--mx-text-3)]">per month · founding price</span>
-              </p>
-              <p className="mt-3 text-[15px] text-[var(--mx-text-2)] max-w-[52ch]">Pro unlocks the full workspace. Cancel anytime from Settings — no contracts.</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button type="button" onClick={launch} className="h-11 px-5 rounded-[9px] bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[15px]">{primaryLabel}</button>
-              <Link href="/pricing" className="h-11 px-5 inline-flex items-center rounded-[9px] border border-[var(--mx-line-strong)] text-[15px]">Plan details</Link>
-            </div>
-          </div>
-        </section>
 
         {/* ── FAQ ── */}
         <section id="faq" className="border-t border-[var(--mx-line)] scroll-mt-16">
@@ -266,7 +252,6 @@ export default function HomePage() {
           <p>© {new Date().getFullYear()} Traxora · Educational analysis, not financial advice.</p>
           <nav className="flex flex-wrap gap-5" aria-label="Footer">
             <Link href="/guide" className="hover:text-[var(--mx-text)]">Guide</Link>
-            <Link href="/pricing" className="hover:text-[var(--mx-text)]">Pricing</Link>
             <Link href="/privacy" className="hover:text-[var(--mx-text)]">Privacy</Link>
             <Link href="/terms" className="hover:text-[var(--mx-text)]">Terms</Link>
           </nav>

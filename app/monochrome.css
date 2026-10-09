@@ -280,3 +280,6 @@ html[data-theme] .badge-premium {
   color: var(--mx-text) !important; box-shadow: none !important;
 }
 html[data-theme] .ping-live { background: var(--mx-up) !important; }
+
+/* The top bar's logo is redundant next to the desktop sidebar (app pages only). */
+@media (min-width: 1024px) { body.app-mode .topbar-logo { display: none !important; } }

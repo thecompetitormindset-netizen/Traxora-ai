@@ -70,18 +70,18 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           {actions}
-          <button type="button" onClick={onTour} className="h-8 px-3 rounded-[7px] border border-[var(--mx-line)] text-[12.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] hover:border-[var(--mx-line-strong)] transition-colors">
+          <button type="button" data-tour="tour-button" onClick={onTour} className="h-8 px-3 rounded-[7px] border border-[var(--mx-line)] text-[12.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] hover:border-[var(--mx-line-strong)] transition-colors">
             Tour
           </button>
         </div>
       </div>
 
-      <h1 className="mt-4 text-[32px] lg:text-[44px] leading-[1.06] tracking-[-0.03em] text-[var(--mx-text)] max-w-[20ch]" style={{ fontWeight: 450 }}>
+      <h1 data-tour="overview-headline" className="mt-4 text-[32px] lg:text-[44px] leading-[1.06] tracking-[-0.03em] text-[var(--mx-text)] max-w-[20ch]" style={{ fontWeight: 450 }}>
         {headline}
       </h1>
       <p className="mt-3 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">{lede}</p>
 
-      <dl className="mt-8 grid grid-cols-2 lg:grid-cols-4 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] overflow-hidden" aria-label="Summary">
+      <dl data-tour="overview-stats" className="mt-8 grid grid-cols-2 lg:grid-cols-4 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] overflow-hidden" aria-label="Summary">
         {stats.map((x, i) => (
           <Link
             key={x.k}

@@ -20,7 +20,7 @@ const GRANTED_EMAILS = new Set(
 // ── FREE LAUNCH MODE ──────────────────────────────────────────────────────────
 // Flip to true to make everything free (audience-building mode). When false,
 // the $5/mo Pro plan is live and all gating logic below applies.
-export const FREE_LAUNCH = false;
+export const FREE_LAUNCH = true;
 
 export async function getUserPlan(email: string): Promise<Plan> {
   if (FREE_LAUNCH) return "pro";

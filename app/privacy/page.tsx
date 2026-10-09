@@ -49,7 +49,7 @@ export default function PrivacyPage() {
           <p><strong className="text-[#CBD5E1]">Account data:</strong> When you sign in with Google, we receive your name, email address, and profile picture from Google OAuth. We do not store passwords.</p>
           <p><strong className="text-[#CBD5E1]">Usage data:</strong> We log which features you use, signals you view, and general usage patterns to improve the product.</p>
           <p><strong className="text-[#CBD5E1]">Stored data:</strong> Your watchlist, trade journal entries, and settings are stored in your browser&apos;s localStorage and in our database (Supabase) linked to your account email. No financial account information is collected.</p>
-          <p><strong className="text-[#CBD5E1]">Payment data:</strong> Subscriptions are processed by Ko-fi. We receive confirmation of subscription status only — no card or billing details ever reach our servers.</p>
+          <p><strong className="text-[#CBD5E1]">Payment data:</strong> Traxora is free and does not collect payments. Earlier Ko-fi memberships were processed by Ko-fi; we only ever received membership status — no card or billing details reached our servers.</p>
         </Section>
 
         <Section title="3. How We Use Your Information">
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
           <p>We use the following third-party services whose own privacy policies govern their data handling:</p>
           <ul className="list-disc list-inside space-y-1 text-[#4B5675]">
             <li>Google OAuth (authentication)</li>
-            <li>Ko-fi (payment processing)</li>
+            <li>Ko-fi (earlier memberships only)</li>
             <li>Anthropic Claude (AI analysis)</li>
             <li>Resend (transactional email)</li>
             <li>Supabase (database)</li>

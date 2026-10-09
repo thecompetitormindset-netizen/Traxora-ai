@@ -1,156 +1,194 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type TourStep = {
-  selector: string; // e.g. '[data-tour="watchlist-edit-btn"]'
+  // CSS selector; may list alternatives ("[data-tour=a], [data-tour=b]").
+  // The first *visible* match is used, so one step can point at the desktop
+  // sidebar or the mobile tab bar, whichever is on screen.
+  selector: string;
   title: string;
   desc: string;
 };
 
-type Rect = { left: number; top: number; right: number; bottom: number; width: number; height: number };
+type Rect = { left: number; top: number; width: number; height: number };
 
-function measure(el: HTMLElement): Rect {
-  const r = el.getBoundingClientRect();
-  return { left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height };
+const PAD = 6;
+const GAP = 12;
+const EDGE = 12;
+
+function visibleTarget(selector: string): HTMLElement | null {
+  for (const el of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+    const r = el.getBoundingClientRect();
+    const cs = getComputedStyle(el);
+    if (r.width > 0 && r.height > 0 && cs.visibility !== "hidden" && cs.display !== "none") return el;
+  }
+  return null;
 }
 
-// Points at real, live buttons on the page (like a game's first-run tutorial) instead
-// of describing them in a modal — a step is skipped if its target never appears (data
-// still loading, or the gated content just isn't there today).
-export default function ProductTour({
-  steps,
-  active,
-  onFinish,
-}: {
+function bottomInset(): number {
+  // Leave room for the mobile tab bar when it is on screen.
+  const bar = document.querySelector<HTMLElement>(".sidebar-mobile");
+  if (!bar || getComputedStyle(bar).display === "none") return 0;
+  return bar.getBoundingClientRect().height;
+}
+
+// Points at real controls on the page. Works the same on phones and desktop:
+// it uses whichever target is visible, keeps the explanation card inside the
+// viewport (and above the mobile tab bar), restarts from step 1 every time,
+// and can be driven from the keyboard (→ / Enter next, ← back, Esc to close).
+export default function ProductTour({ steps, active, onFinish }: {
   steps: TourStep[];
   active: boolean;
   onFinish: () => void;
 }) {
-  const [stepIdx, setStepIdx] = useState(0);
+  const [idx, setIdx] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
-  const [searching, setSearching] = useState(true);
+  const [cardPos, setCardPos] = useState<{ left: number; top: number } | null>(null);
+  const [usable, setUsable] = useState<TourStep[]>([]);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const targetRef = useRef<HTMLElement | null>(null);
 
-  const step = steps[stepIdx];
+  // Each run starts from the first step, with steps whose target exists now.
+  useEffect(() => {
+    if (!active) return;
+    let tries = 0;
+    let cancelled = false;
+    function collect() {
+      if (cancelled) return;
+      const found = steps.filter(s => visibleTarget(s.selector));
+      // Give late-loading content a moment, then go with what is there.
+      if (found.length < steps.length && tries++ < 10) { window.setTimeout(collect, 200); return; }
+      if (found.length === 0) { onFinish(); return; }
+      setUsable(found);
+      setIdx(0);
+    }
+    collect();
+    return () => { cancelled = true; setUsable([]); setRect(null); setCardPos(null); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+
+  const step = usable[idx];
+
+  const place = useCallback(() => {
+    const el = targetRef.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight - bottomInset();
+    // Clamp the spotlight to the viewport so tall sections still read well.
+    const top = Math.max(r.top, 4), bottom = Math.min(r.bottom, vh - 4);
+    const spot = { left: Math.max(r.left, 4), top, width: Math.min(r.right, vw - 4) - Math.max(r.left, 4), height: Math.max(bottom - top, 24) };
+    setRect(spot);
+
+    const card = cardRef.current;
+    const cw = card?.offsetWidth ?? Math.min(320, vw - EDGE * 2);
+    const ch = card?.offsetHeight ?? 160;
+    let left = Math.min(Math.max(spot.left, EDGE), vw - cw - EDGE);
+    let cTop: number;
+    if (spot.top + spot.height + PAD + GAP + ch <= vh - EDGE) cTop = spot.top + spot.height + PAD + GAP;      // below
+    else if (spot.top - PAD - GAP - ch >= EDGE) cTop = spot.top - PAD - GAP - ch;                           // above
+    else { cTop = vh - ch - EDGE; left = Math.max(EDGE, (vw - cw) / 2); }                                     // pinned bottom
+    setCardPos({ left, top: cTop });
+  }, []);
+
+  // Locate, scroll to and measure the current step's target.
+  useEffect(() => {
+    if (!active || !step) return;
+    const el = visibleTarget(step.selector);
+    if (!el) {
+      // Target vanished since collection — move on.
+      const t = window.setTimeout(() => { if (idx < usable.length - 1) setIdx(i => i + 1); else onFinish(); }, 0);
+      return () => window.clearTimeout(t);
+    }
+    targetRef.current = el;
+    const tall = el.getBoundingClientRect().height > window.innerHeight * 0.6;
+    el.scrollIntoView({ block: tall ? "start" : "center", behavior: "instant" as ScrollBehavior });
+    const id = requestAnimationFrame(() => requestAnimationFrame(place));
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, step, idx]);
+
+  // Re-measure once the card has rendered (its height decides above/below).
+  const measured = rect !== null;
+  useLayoutEffect(() => { if (active && measured) place(); }, [active, idx, measured, place]);
 
   useEffect(() => {
     if (!active) return;
-    let cancelled = false;
-    let tries = 0;
-    setSearching(true);
-    setRect(null);
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [active, place]);
 
-    function attempt() {
-      if (cancelled) return;
-      const el = document.querySelector(step.selector) as HTMLElement | null;
-      if (el) {
-        // Instant scroll + a couple of animation frames so the rect we measure
-        // reflects the settled layout, not a mid-flight smooth-scroll position.
-        el.scrollIntoView({ block: "center", behavior: "instant" as ScrollBehavior });
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (cancelled) return;
-            setRect(measure(el));
-            setSearching(false);
-          });
-        });
-        return;
-      }
-      tries += 1;
-      if (tries > 16) {
-        // Give up on this step — skip straight to the next one.
-        if (stepIdx < steps.length - 1) setStepIdx((i) => i + 1);
-        else onFinish();
-        return;
-      }
-      window.setTimeout(attempt, 200);
-    }
-    attempt();
-
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIdx, step?.selector]);
+  const next = useCallback(() => { if (idx < usable.length - 1) setIdx(i => i + 1); else onFinish(); }, [idx, usable.length, onFinish]);
+  const back = useCallback(() => setIdx(i => Math.max(0, i - 1)), []);
 
   useEffect(() => {
-    if (!active || searching) return;
-    function reposition() {
-      const el = document.querySelector(step.selector) as HTMLElement | null;
-      if (el) setRect(measure(el));
+    if (!active) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { e.preventDefault(); onFinish(); }
+      else if (e.key === "ArrowRight") { e.preventDefault(); next(); }
+      else if (e.key === "ArrowLeft") { e.preventDefault(); back(); }
     }
-    window.addEventListener("resize", reposition);
-    window.addEventListener("scroll", reposition, true);
-    return () => {
-      window.removeEventListener("resize", reposition);
-      window.removeEventListener("scroll", reposition, true);
-    };
-  }, [active, searching, step?.selector]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [active, next, back, onFinish]);
+
+  // Keep focus on the card's main action so keyboard users can follow along.
+  useEffect(() => { if (active && cardPos) nextRef.current?.focus({ preventScroll: true }); }, [active, idx, cardPos]);
 
   if (!active) return null;
 
-  function goNext() {
-    if (stepIdx < steps.length - 1) setStepIdx((i) => i + 1);
-    else onFinish();
-  }
-  function goBack() {
-    if (stepIdx > 0) setStepIdx((i) => i - 1);
-  }
-
-  if (searching || !rect) {
+  if (!step || !rect) {
     return (
-      <div className="fixed inset-0 z-[var(--z-tour)] bg-black/60 flex items-center justify-center pointer-events-none">
-        <p className="text-xs text-[#7B8DB4]">Finding it…</p>
+      <div className="fixed inset-0 z-[var(--z-tour)] bg-black/50 grid place-items-center" role="status" aria-live="polite">
+        <p className="text-[13px] text-white/80">Preparing the tour…</p>
       </div>
     );
   }
 
-  const pad = 6;
-  const spotLeft = rect.left - pad;
-  const spotTop = rect.top - pad;
-  const spotW = rect.width + pad * 2;
-  const spotH = rect.height + pad * 2;
-
-  const viewportH = window.innerHeight;
-  const viewportW = window.innerWidth;
-  const cardW = Math.min(300, viewportW - 24);
-  const placeBelow = viewportH - rect.bottom > 170 || rect.top < 170;
-  let cardLeft = rect.left;
-  if (cardLeft + cardW > viewportW - 12) cardLeft = viewportW - cardW - 12;
-  if (cardLeft < 12) cardLeft = 12;
-
+  const last = idx === usable.length - 1;
   return (
     <div className="fixed inset-0 z-[var(--z-tour)] pointer-events-none">
-      {/* Dim everywhere except the spotlighted control — box-shadow spread creates the cutout */}
+      {/* Dim everything except the target (box-shadow cut-out). */}
       <div
-        className="fixed rounded-xl transition-all duration-300 pointer-events-none"
-        style={{ left: spotLeft, top: spotTop, width: spotW, height: spotH, boxShadow: "0 0 0 9999px rgba(5,4,15,0.78)" }}
+        className="fixed rounded-[10px] transition-[left,top,width,height] duration-200 motion-reduce:transition-none"
+        style={{ left: rect.left - PAD, top: rect.top - PAD, width: rect.width + PAD * 2, height: rect.height + PAD * 2, boxShadow: "0 0 0 9999px rgb(0 0 0 / 0.62)", outline: "2px solid var(--mx-text)", outlineOffset: 0 }}
       />
       <div
-        className="fixed rounded-xl ring-2 ring-emerald-400 pointer-events-none transition-all duration-300"
-        style={{ left: spotLeft, top: spotTop, width: spotW, height: spotH }}
-      />
-
-      <div
-        className="fixed w-[300px] max-w-[90vw] bg-[#0A0815] border border-emerald-500/30 rounded-2xl shadow-2xl shadow-black/60 p-4 pointer-events-auto"
-        style={placeBelow ? { left: cardLeft, top: rect.bottom + 14 } : { left: cardLeft, bottom: viewportH - rect.top + 14 }}
+        ref={cardRef}
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby="tour-title"
+        aria-describedby="tour-desc"
+        className="fixed w-[320px] max-w-[calc(100vw-24px)] rounded-[12px] border border-[var(--mx-line-strong)] bg-[var(--mx-surface)] text-[var(--mx-text)] p-4 shadow-[var(--mx-shadow)] pointer-events-auto"
+        style={cardPos ? { left: cardPos.left, top: cardPos.top } : { left: EDGE, bottom: EDGE, visibility: "hidden" }}
       >
-        <p className="text-[9px] text-emerald-400 font-bold uppercase tracking-widest mb-1">Step {stepIdx + 1} of {steps.length}</p>
-        <h3 className="text-sm font-bold text-[#F1F5F9] mb-1">{step.title}</h3>
-        <p className="text-xs text-[#7B8DB4] leading-snug mb-3">{step.desc}</p>
-        <div className="flex items-center justify-between">
-          <button type="button" onClick={onFinish} className="text-[10px] text-[#4B5675] hover:text-[#94A3B8] transition-colors">
-            Skip tour
+        <p className="mx-label">Step {idx + 1} of {usable.length}</p>
+        <h3 id="tour-title" className="mt-2 text-[16px] tracking-[-0.01em]" style={{ fontWeight: 500 }}>{step.title}</h3>
+        <p id="tour-desc" className="mt-1 text-[14px] leading-snug text-[var(--mx-text-2)]">{step.desc}</p>
+        <div className="mt-3 flex items-center gap-1" aria-hidden="true">
+          {usable.map((_, i) => (
+            <span key={i} className={`h-1 rounded-full ${i === idx ? "w-5 bg-[var(--mx-text)]" : "w-2 bg-[var(--mx-line-strong)]"}`} />
+          ))}
+        </div>
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <button type="button" onClick={onFinish} className="h-9 px-2 text-[13px] text-[var(--mx-text-3)] hover:text-[var(--mx-text)]">
+            Skip
           </button>
           <div className="flex items-center gap-2">
-            {stepIdx > 0 && (
-              <button type="button" onClick={goBack} className="text-[10px] px-2.5 py-1.5 rounded-lg border border-[#252345] text-[#7B8DB4] hover:border-[#333368] transition-colors">
+            {idx > 0 && (
+              <button type="button" onClick={back} className="h-9 px-3 rounded-[8px] border border-[var(--mx-line-strong)] text-[13px] hover:border-[var(--mx-control)]">
                 Back
               </button>
             )}
-            <button type="button" onClick={goNext} className="text-[10px] px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-colors">
-              {stepIdx === steps.length - 1 ? "Done" : "Next →"}
+            <button ref={nextRef} type="button" onClick={next} className="h-9 px-4 rounded-[8px] bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[13px]">
+              {last ? "Done" : "Next"}
             </button>
           </div>
         </div>
+        <p className="mt-3 text-[11.5px] text-[var(--mx-text-3)] hidden sm:block">Use ← → to move, Esc to close.</p>
       </div>
     </div>
   );

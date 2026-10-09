@@ -230,7 +230,7 @@ export default function Sidebar() {
           <Wordmark />
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 pb-4 space-y-6" aria-label="Main navigation">
+        <nav data-tour="nav" className="flex-1 overflow-y-auto px-3 pb-4 space-y-6" aria-label="Main navigation">
           {GROUPS.filter(g => g.id !== "account").map(g => (
             <div key={g.id}>
               <p className="mx-label px-2.5 pb-1.5 pt-2">{g.label}</p>
@@ -291,7 +291,7 @@ export default function Sidebar() {
             {sheet === "more" && <div className="px-4 pb-4 pt-1"><ThemeToggle /></div>}
           </div>
         )}
-        <nav className="grid grid-cols-5 bg-[var(--mx-rail)] border-t border-[var(--mx-line)] nav-safe-area" aria-label="Main navigation">
+        <nav data-tour="nav" className="grid grid-cols-5 bg-[var(--mx-rail)] border-t border-[var(--mx-line)] nav-safe-area" aria-label="Main navigation">
           {TABS.map(t => {
             const inner = (
               <span className={`flex flex-col items-center gap-1 py-2 text-[11px] ${t.on ? "text-[var(--mx-text)]" : "text-[var(--mx-text-3)]"}`}>

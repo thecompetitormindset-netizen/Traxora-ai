@@ -66,7 +66,7 @@ export default function TermsPage() {
 
         <Section title="4. Accounts and Access">
           <p>You must sign in with a Google account to use Traxora AI. You are responsible for maintaining the security of your Google account. We reserve the right to suspend or terminate access for violations of these terms.</p>
-          <p>Pro features require an active paid subscription via Ko-fi. Subscriptions are personal and non-transferable.</p>
+          <p>Traxora AI is currently free to use. There are no paid plans.</p>
         </Section>
 
         <Section title="5. Acceptable Use">

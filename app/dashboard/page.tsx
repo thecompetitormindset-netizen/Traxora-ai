@@ -8,7 +8,6 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import SentimentWidget from "../components/SentimentWidget";
 import DiscoverSection from "../components/DiscoverSection";
-import MarketStatus from "../components/MarketStatus";
 import OnboardingModal from "../components/OnboardingModal";
 import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
@@ -21,28 +20,48 @@ import { OptionsAttentionView } from "../components/fieldnotes/OptionsAttention"
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
 import OverviewHeader from "../components/OverviewHeader";
 
-const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v1";
+const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v2";
 
 const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
-    selector: '[data-tour="dashboard-watchlist"]',
-    title: "Your watchlist",
-    desc: "Every ticker here gets scanned continuously for BUY/SELL signals, sorted by strength — best setups float to the top.",
+    selector: '[data-tour="overview-headline"]',
+    title: "Start here",
+    desc: "This sentence tells you whether anything needs your attention right now — a validated options candidate or a strong watchlist signal. Most days the honest answer is “nothing”.",
   },
   {
-    selector: '[data-tour="watchlist-edit-btn"]',
-    title: "Add or remove tickers",
-    desc: "Tap Edit to type in new symbols or clear ones you don't want scanned anymore.",
+    selector: '[data-tour="overview-stats"]',
+    title: "The four numbers",
+    desc: "Options, watchlist, paper portfolio and journal at a glance. Tap any of them to jump to the detail.",
   },
   {
     selector: '[data-tour="options-plays-header"]',
     title: "Options",
-    desc: "A rules-based check of every symbol. A validated estimate only appears when every gate passes — fresh quotes, liquidity, a defined exit, no event before expiry. Otherwise you see why not.",
+    desc: "Every symbol is checked against the same rules. You see a candidate only when all checks pass — otherwise the most common reason why not.",
   },
   {
-    selector: '[data-tour="options-breakdown-link"]',
-    title: "Candidates",
-    desc: "Opens every symbol's analysis grouped by state, with research pages that show the evidence, legs, estimated risk and exit plan.",
+    selector: '[data-tour="dashboard-watchlist"]',
+    title: "Your watchlist",
+    desc: "Buy, hold or sell reads for the symbols you follow, with entry, stop and target levels.",
+  },
+  {
+    selector: '[data-tour="watchlist-edit-btn"]',
+    title: "Add or remove symbols",
+    desc: "Use Edit to change which symbols are on your watchlist.",
+  },
+  {
+    selector: '[data-tour="search"]',
+    title: "Search anything",
+    desc: "Type a ticker or company name to open its analysis.",
+  },
+  {
+    selector: '[data-tour="nav"]',
+    title: "Find your way",
+    desc: "Workspace holds your daily tools; Markets has stocks, crypto, futures, sports and more; Tools has the screener, wheel planner and AI chat. On phones, Markets and More open a list.",
+  },
+  {
+    selector: '[data-tour="tour-button"]',
+    title: "Replay any time",
+    desc: "Open this tour again from the Tour button. The guide explains each area in more depth.",
   },
 ];
 
