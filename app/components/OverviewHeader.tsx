@@ -18,13 +18,12 @@ type Props = {
   paperOpen: number;
   paperValue: number | null;
   refreshIn: number;
-  onTour: () => void;
   actions?: React.ReactNode;  // alerts controls, rendered quietly on the right
 };
 
 const etDate = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric" });
 
-export default function OverviewHeader({ options, watchCount, watchSignals, paperOpen, paperValue, refreshIn, onTour, actions }: Props) {
+export default function OverviewHeader({ options, watchCount, watchSignals, paperOpen, paperValue, refreshIn, actions }: Props) {
   const [saved, setSaved] = useState<number | null>(null);
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -70,9 +69,6 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
         </p>
         <div className="flex items-center gap-2 flex-wrap">
           {actions}
-          <button type="button" data-tour="tour-button" onClick={onTour} className="h-8 px-3 rounded-[7px] border border-[var(--mx-line)] text-[12.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] hover:border-[var(--mx-line-strong)] transition-colors">
-            Tour
-          </button>
         </div>
       </div>
 

@@ -15,56 +15,10 @@ import { haptic } from "../lib/haptics";
 import { signalBadgeCls } from "../lib/signalBadge";
 import { loadTrades, STARTING_CAPITAL, calcPL } from "../lib/paperTrades";
 import type { PaperTrade } from "../lib/paperTrades";
-import ProductTour, { type TourStep } from "../components/ProductTour";
 import { OptionsAttentionView } from "../components/fieldnotes/OptionsAttention";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
 import OverviewHeader from "../components/OverviewHeader";
 import { syncFetch } from "../lib/syncFetch";
-
-const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v2";
-
-const DASHBOARD_TOUR_STEPS: TourStep[] = [
-  {
-    selector: '[data-tour="overview-headline"]',
-    title: "Start here",
-    desc: "This sentence tells you whether anything needs your attention right now — a validated options candidate or a strong watchlist signal. Most days the honest answer is “nothing”.",
-  },
-  {
-    selector: '[data-tour="overview-stats"]',
-    title: "The four numbers",
-    desc: "Options, watchlist, paper portfolio and journal at a glance. Tap any of them to jump to the detail.",
-  },
-  {
-    selector: '[data-tour="options-plays-header"]',
-    title: "Options",
-    desc: "Every symbol is checked against the same rules. You see a candidate only when all checks pass — otherwise the most common reason why not.",
-  },
-  {
-    selector: '[data-tour="dashboard-watchlist"]',
-    title: "Your watchlist",
-    desc: "Buy, hold or sell reads for the symbols you follow, with entry, stop and target levels.",
-  },
-  {
-    selector: '[data-tour="watchlist-edit-btn"]',
-    title: "Add or remove symbols",
-    desc: "Use Edit to change which symbols are on your watchlist.",
-  },
-  {
-    selector: '[data-tour="search"]',
-    title: "Search anything",
-    desc: "Type a ticker or company name to open its analysis.",
-  },
-  {
-    selector: '[data-tour="nav"]',
-    title: "Find your way",
-    desc: "Workspace holds your daily tools; Markets has stocks, crypto, futures, sports and more; Tools has the screener, compare and AI chat. On phones, Markets and More open a list.",
-  },
-  {
-    selector: '[data-tour="tour-button"]',
-    title: "Replay any time",
-    desc: "Open this tour again from the Tour button. The guide explains each area in more depth.",
-  },
-];
 
 type TradeLevels = {
   entryZone:   string;
@@ -518,31 +472,12 @@ function ValuePicksSection() {
 
 function DashboardContent() {
   const router = useRouter();
-  const [tourActive, setTourActive] = useState(false);
   const optionsList = useOptionsList();
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
   const [portfolioTrades, setPortfolioTrades] = useState<PaperTrade[]>([]);
   const [takenTrades, setTakenTrades]         = useState<TakenTradeLite[]>([]);
-
-  // Auto-run once for anyone who's past the welcome slideshow but hasn't seen the
-  // button-by-button tour yet — avoids stacking two intro overlays on brand-new accounts.
-  useEffect(() => {
-    const id = window.setTimeout(() => {
-      try {
-        if (localStorage.getItem("traxora_onboarded_v2") && !localStorage.getItem(DASHBOARD_TOUR_KEY)) {
-          setTourActive(true);
-        }
-      } catch { /* ssr/private mode */ }
-    }, 1400);
-    return () => window.clearTimeout(id);
-  }, []);
-
-  function finishTour() {
-    try { localStorage.setItem(DASHBOARD_TOUR_KEY, "1"); } catch { /* ignore */ }
-    setTourActive(false);
-  }
 
   const [watchlist, setWatchlist]           = useState<Array<{ symbol: string; name: string }>>(() =>
     typeof window !== "undefined" ? loadCustomWatchlist() : DEFAULT_WATCHLIST
@@ -1073,7 +1008,6 @@ function DashboardContent() {
   return (
     <div className="flex min-h-screen text-[#F1F5F9]">
       <OnboardingModal />
-      <ProductTour steps={DASHBOARD_TOUR_STEPS} active={tourActive} onFinish={finishTour} />
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
@@ -1087,7 +1021,6 @@ function DashboardContent() {
               paperOpen={paperStats.openCount}
               paperValue={paperStats.accountValue}
               refreshIn={refreshCountdown}
-              onTour={() => setTourActive(true)}
               actions={<>
               {notifPermission === "default" && (
                 <button type="button" onClick={requestNotifications}

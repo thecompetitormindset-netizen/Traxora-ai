@@ -102,11 +102,10 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    id: "settings", group: "Reference", title: "Tours, themes and settings",
+    id: "settings", group: "Reference", title: "Themes and settings",
     summary: "Small things that make the app easier to use.",
     items: [
       { h: "Do I need an account?", t: "No. Everything works without signing in. Sign in with Google only to use the AI features (Ask AI, deep analysis, the morning brief, journal coaching) and to keep your data in sync across devices." },
-      { h: "Tours", t: "Overview and Options each have a short tour. Replay it from the Tour button; on a keyboard use ← → to move and Esc to close." },
       { h: "Light and dark", t: "Switch theme from the top bar or the sidebar. Both themes use the same layout." },
       { h: "Notifications", t: "Allow browser notifications to get signal and price alerts. You can pause them from the Overview header." },
       { h: "Install the app", t: "Add Traxora to your home screen from Settings for a full-screen app." },
