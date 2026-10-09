@@ -19,7 +19,7 @@ import { SYMBOL_PATTERN, analyzeLiveSymbol, loadEarnings } from "@/app/lib/optio
 import { POLICY_VERSION } from "@/app/lib/optionsAnalysis/policy";
 import { RULES_VERSION } from "@/app/lib/optionsAnalysis/rules";
 import { after } from "next/server";
-import { getScanState, isRunning, lastScanError, readCandidates, readSummaries, recheckSymbols, type ScanState } from "@/app/lib/optionsAnalysis/scan";
+import { STATE_SYMBOL, getScanState, isRunning, lastScanError, readCandidates, readSummaries, recheckSymbols, type ScanState } from "@/app/lib/optionsAnalysis/scan";
 import { buildUniverse } from "@/app/lib/optionsAnalysis/universe";
 import { plainReason } from "@/app/components/fieldnotes/uiState";
 
@@ -261,7 +261,7 @@ async function readToday(): Promise<{ rows: Row[]; persisted: boolean }> {
   const { data, error } = await db
     .from("options_analyses")
     .select("run_date, symbol, as_of, input, output, review_status, review_errors, pricing")
-    .eq("run_date", runDate);
+    .eq("run_date", runDate).neq("symbol", STATE_SYMBOL);
   if (error) {
     noteStoreError("read", error);
     return { rows: cached, persisted: false };

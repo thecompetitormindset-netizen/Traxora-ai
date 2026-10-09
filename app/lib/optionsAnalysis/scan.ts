@@ -2,8 +2,8 @@
 //
 // A pass is too long for one serverless request, so it runs in chunks: each
 // request analyzes symbols for ~45 seconds, saves them, and asks for the next
-// chunk. Progress lives in the (otherwise retired) options_engine_runs row for
-// the day, so no schema change is needed. Without a database (local dev) the
+// chunk. Progress lives in a reserved row (symbol "__SCAN__") of the day's
+// options_analyses, so no schema change is needed. Without a database (local dev) the
 // same flow runs against an in-memory store.
 //
 // Storage stays small: each saved row keeps only what the overview and the
@@ -44,6 +44,8 @@ const KEEP_DAYS = 3;          // older scan rows are deleted at the start of a p
 const STALE_MS = 3 * 60_000;  // a pass with no progress for this long is considered stopped
 
 type Db = ReturnType<typeof supabaseAdmin>;
+/** Reserved options_analyses row that holds the day's scan progress. */
+export const STATE_SYMBOL = "__SCAN__";
 function tryDb(): Db | null { try { return supabaseAdmin(); } catch { return null; } }
 
 // In-memory fallback (local dev without a database).
@@ -56,16 +58,15 @@ export async function getScanState(): Promise<ScanState | null> {
   const db = tryDb();
   const today = etTradingDate();
   if (!db) return memState?.run_date === today ? memState : null;
-  const { data, error } = await db.from("options_engine_runs").select("run_id, payload, result").eq("run_date", today).maybeSingle();
+  const { data, error } = await db.from("options_analyses").select("input").eq("run_date", today).eq("symbol", STATE_SYMBOL).maybeSingle();
   if (error) {
     lastScanError = `read scan progress: ${error.code ? `[${error.code}] ` : ""}${(error.message ?? "unknown").slice(0, 160)}`;
     console.error("[options-scan]", lastScanError);
     return null;
   }
-  if (!data || data.run_id === null) return null;
-  const p = data.payload as Partial<ScanState> & { kind?: string };
-  if (p.kind !== "options-scan") return null;
-  return { ...(p as ScanState), ...(data.result as Partial<ScanState>), run_id: data.run_id as string };
+  if (lastScanError?.startsWith("read")) lastScanError = null;
+  const st = data?.input as (ScanState & { kind?: string }) | undefined;
+  return st?.kind === "options-scan" ? st : null;
 }
 
 /** Last database error from saving scan progress, reported by the API so a broken store is visible. */
@@ -74,14 +75,12 @@ export let lastScanError: string | null = null;
 async function saveScanState(s: ScanState, actor: string) {
   const db = tryDb();
   if (!db) { memState = s; return; }
-  const { deep, earnings, total, thin, started_at, run_date } = s;
-  const { error } = await db.from("options_engine_runs").upsert({
-    run_date, run_id: s.run_id, as_of: s.updated_at,
-    prompt_version: "options-scan-v1", model: "deterministic",
-    payload: { kind: "options-scan", deep, earnings, total, thin, started_at, run_date },
-    result: { offset: s.offset, checked: s.checked, unavailable: s.unavailable, updated_at: s.updated_at, finished_at: s.finished_at },
-    candidate_count: s.deep.length, generated_by: actor, updated_at: s.updated_at,
-  }, { onConflict: "run_date" });
+  const { error } = await db.from("options_analyses").upsert({
+    run_date: s.run_date, symbol: STATE_SYMBOL, as_of: s.updated_at, engine: "scan",
+    policy_version: POLICY_VERSION, rules_version: RULES_VERSION,
+    input: { ...s, kind: "options-scan" }, output: null, review_status: "SCAN_STATE", review_errors: [], pricing: null,
+    generated_by: actor, updated_at: s.updated_at,
+  }, { onConflict: "run_date,symbol" });
   if (error) {
     lastScanError = `save scan progress: ${error.code ? `[${error.code}] ` : ""}${(error.message ?? "unknown").slice(0, 160)}`;
     console.error("[options-scan]", lastScanError);
@@ -213,7 +212,7 @@ export async function readSummaries(): Promise<{ symbol: string; review_status: 
   const out: { symbol: string; review_status: string; code: string | null; detail: string | null }[] = [];
   for (let from = 0; ; from += 1000) {
     const { data, error } = await db.from("options_analyses")
-      .select("symbol, review_status, reason:output->no_trade_reason").eq("run_date", today).range(from, from + 999);
+      .select("symbol, review_status, reason:output->no_trade_reason").eq("run_date", today).neq("symbol", STATE_SYMBOL).range(from, from + 999);
     if (error || !data?.length) break;
     for (const r of data as { symbol: string; review_status: string; reason: { code?: string; detail?: string } | null }[]) {
       out.push({ symbol: r.symbol, review_status: r.review_status, code: r.reason?.code ?? null, detail: r.reason?.detail ?? null });
