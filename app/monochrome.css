@@ -1,0 +1,282 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Traxora Monochrome — the app-wide visual layer. Loaded after globals.css.
+
+   Black, white and greys carry the interface; colour only carries meaning:
+   green = up / positive, red = down / loss, muted tan = waiting / caution.
+   Everything is tokens, so dark and light share one geometry.
+
+   How it reaches every page without rewriting each one:
+   1. --mx-* tokens below (dark default, light under data-theme).
+   2. Legacy tokens (--bg-surface, --text-primary, …) re-pointed to them.
+   3. Tailwind palette variables re-mapped: blue/violet/cyan/teal/sky → greys,
+      emerald → up, rose → down, amber/orange → tan.
+   4. monochrome.generated.css maps the legacy hard-coded hex classes.
+   5. Decorative glows, gradients, glass and grain are flattened.
+   New code should use the --mx-* tokens directly.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --mx-canvas: #000000;
+  --mx-well: #070707;
+  --mx-surface: #0E0E0E;
+  --mx-raised: #161616;
+  --mx-raised-2: #1F1F1F;
+  --mx-line: #232323;
+  --mx-line-strong: #353535;
+  --mx-control: #5E5E5E;
+  --mx-text: #FAFAFA;
+  --mx-text-2: #C7C7C7;
+  --mx-text-3: #959595;
+  --mx-up: #7FD1A5;
+  --mx-down: #F2A3A3;
+  --mx-wait: #CDB88E;
+  --mx-primary-bg: #FAFAFA;
+  --mx-primary-fg: #000000;
+  --mx-rail: #000000;
+  --mx-radius: 10px;
+  --mx-radius-lg: 14px;
+  --mx-shadow: 0 1px 0 rgb(255 255 255 / 0.03), 0 16px 40px -24px rgb(0 0 0 / 0.8);
+  --mx-sidebar-w: 248px;
+}
+
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) {
+  --mx-canvas: #EDEDED;
+  --mx-well: #F6F6F6;
+  --mx-surface: #FFFFFF;
+  --mx-raised: #F5F5F5;
+  --mx-raised-2: #EBEBEB;
+  --mx-line: #E1E1E1;
+  --mx-line-strong: #CFCFCF;
+  --mx-control: #8A8A8A;
+  --mx-text: #0A0A0A;
+  --mx-text-2: #3D3D3D;
+  --mx-text-3: #6B6B6B;
+  --mx-up: #1E6B46;
+  --mx-down: #A3333F;
+  --mx-wait: #6E5A2E;
+  --mx-primary-bg: #0A0A0A;
+  --mx-primary-fg: #FFFFFF;
+  --mx-rail: #FFFFFF;
+  --mx-shadow: 0 1px 0 rgb(0 0 0 / 0.02), 0 16px 32px -24px rgb(0 0 0 / 0.25);
+}
+
+/* ── 2. Legacy tokens → monochrome ─────────────────────────────────────────── */
+:root, :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) {
+  --bg-canvas: var(--mx-canvas);
+  --bg-surface: var(--mx-surface);
+  --bg-elevated: var(--mx-raised);
+  --bg-hover: var(--mx-raised-2);
+  --border: var(--mx-line);
+  --border-hover: var(--mx-line-strong);
+  --text-primary: var(--mx-text);
+  --text-secondary: var(--mx-text-2);
+  --text-muted: var(--mx-text-3);
+  --text-tertiary: var(--mx-text-3);
+  --accent: var(--mx-text);
+  --accent-hover: var(--mx-text-2);
+  --buy: var(--mx-up);
+  --sell: var(--mx-down);
+  --hold: var(--mx-wait);
+  --glow-buy: transparent; --glow-sell: transparent; --glow-hold: transparent; --glow-accent: transparent;
+  --glass-bg: var(--mx-surface);
+  --glass-border: var(--mx-line);
+  --grad-buy: var(--mx-up); --grad-sell: var(--mx-down); --grad-purple: var(--mx-text-2); --grad-gold: var(--mx-wait); --grad-cyan: var(--mx-text-2);
+  --nav-active-bg: var(--mx-raised-2);
+  --font-jakarta: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ── 3. Tailwind palette ───────────────────────────────────────────────────── */
+:root {
+  --color-emerald-50: #EAF7F0; --color-emerald-100: #D3EFE0; --color-emerald-200: #B1E3C9; --color-emerald-300: #93D9B4; --color-emerald-400: #7FD1A5; --color-emerald-500: #5FBF8D; --color-emerald-600: #3F9A6C; --color-emerald-700: #2F7A55; --color-emerald-800: #245E42; --color-emerald-900: #1B4632; --color-emerald-950: #0F2A1E;
+  --color-green-50: #EAF7F0; --color-green-100: #D3EFE0; --color-green-200: #B1E3C9; --color-green-300: #93D9B4; --color-green-400: #7FD1A5; --color-green-500: #5FBF8D; --color-green-600: #3F9A6C; --color-green-700: #2F7A55; --color-green-800: #245E42; --color-green-900: #1B4632; --color-green-950: #0F2A1E;
+  --color-lime-50: #EAF7F0; --color-lime-100: #D3EFE0; --color-lime-200: #B1E3C9; --color-lime-300: #93D9B4; --color-lime-400: #7FD1A5; --color-lime-500: #5FBF8D; --color-lime-600: #3F9A6C; --color-lime-700: #2F7A55; --color-lime-800: #245E42; --color-lime-900: #1B4632; --color-lime-950: #0F2A1E;
+  --color-rose-50: #FBEDED; --color-rose-100: #F7DADA; --color-rose-200: #F4C3C3; --color-rose-300: #F3B3B3; --color-rose-400: #F2A3A3; --color-rose-500: #E07F84; --color-rose-600: #C25A62; --color-rose-700: #9C434B; --color-rose-800: #77333A; --color-rose-900: #55252A; --color-rose-950: #33161A;
+  --color-red-50: #FBEDED; --color-red-100: #F7DADA; --color-red-200: #F4C3C3; --color-red-300: #F3B3B3; --color-red-400: #F2A3A3; --color-red-500: #E07F84; --color-red-600: #C25A62; --color-red-700: #9C434B; --color-red-800: #77333A; --color-red-900: #55252A; --color-red-950: #33161A;
+  --color-pink-50: #FBEDED; --color-pink-100: #F7DADA; --color-pink-200: #F4C3C3; --color-pink-300: #F3B3B3; --color-pink-400: #F2A3A3; --color-pink-500: #E07F84; --color-pink-600: #C25A62; --color-pink-700: #9C434B; --color-pink-800: #77333A; --color-pink-900: #55252A; --color-pink-950: #33161A;
+  --color-amber-50: #F6F1E6; --color-amber-100: #EEE5D0; --color-amber-200: #E2D4B4; --color-amber-300: #D8C6A0; --color-amber-400: #CDB88E; --color-amber-500: #B39E72; --color-amber-600: #8E7B54; --color-amber-700: #6E5F41; --color-amber-800: #524731; --color-amber-900: #3A3223; --color-amber-950: #221D14;
+  --color-yellow-50: #F6F1E6; --color-yellow-100: #EEE5D0; --color-yellow-200: #E2D4B4; --color-yellow-300: #D8C6A0; --color-yellow-400: #CDB88E; --color-yellow-500: #B39E72; --color-yellow-600: #8E7B54; --color-yellow-700: #6E5F41; --color-yellow-800: #524731; --color-yellow-900: #3A3223; --color-yellow-950: #221D14;
+  --color-orange-50: #F6F1E6; --color-orange-100: #EEE5D0; --color-orange-200: #E2D4B4; --color-orange-300: #D8C6A0; --color-orange-400: #CDB88E; --color-orange-500: #B39E72; --color-orange-600: #8E7B54; --color-orange-700: #6E5F41; --color-orange-800: #524731; --color-orange-900: #3A3223; --color-orange-950: #221D14;
+  --color-violet-50: #F5F5F5; --color-violet-100: #E8E8E8; --color-violet-200: #DADADA; --color-violet-300: #D0D0D0; --color-violet-400: #BDBDBD; --color-violet-500: #8F8F8F; --color-violet-600: #3A3A3A; --color-violet-700: #2E2E2E; --color-violet-800: #232323; --color-violet-900: #1A1A1A; --color-violet-950: #111111;
+  --color-purple-50: #F5F5F5; --color-purple-100: #E8E8E8; --color-purple-200: #DADADA; --color-purple-300: #D0D0D0; --color-purple-400: #BDBDBD; --color-purple-500: #8F8F8F; --color-purple-600: #3A3A3A; --color-purple-700: #2E2E2E; --color-purple-800: #232323; --color-purple-900: #1A1A1A; --color-purple-950: #111111;
+  --color-indigo-50: #F5F5F5; --color-indigo-100: #E8E8E8; --color-indigo-200: #DADADA; --color-indigo-300: #D0D0D0; --color-indigo-400: #BDBDBD; --color-indigo-500: #8F8F8F; --color-indigo-600: #3A3A3A; --color-indigo-700: #2E2E2E; --color-indigo-800: #232323; --color-indigo-900: #1A1A1A; --color-indigo-950: #111111;
+  --color-fuchsia-50: #F5F5F5; --color-fuchsia-100: #E8E8E8; --color-fuchsia-200: #DADADA; --color-fuchsia-300: #D0D0D0; --color-fuchsia-400: #BDBDBD; --color-fuchsia-500: #8F8F8F; --color-fuchsia-600: #3A3A3A; --color-fuchsia-700: #2E2E2E; --color-fuchsia-800: #232323; --color-fuchsia-900: #1A1A1A; --color-fuchsia-950: #111111;
+  --color-sky-50: #F5F5F5; --color-sky-100: #E8E8E8; --color-sky-200: #DADADA; --color-sky-300: #D0D0D0; --color-sky-400: #BDBDBD; --color-sky-500: #8F8F8F; --color-sky-600: #3A3A3A; --color-sky-700: #2E2E2E; --color-sky-800: #232323; --color-sky-900: #1A1A1A; --color-sky-950: #111111;
+  --color-cyan-50: #F5F5F5; --color-cyan-100: #E8E8E8; --color-cyan-200: #DADADA; --color-cyan-300: #D0D0D0; --color-cyan-400: #BDBDBD; --color-cyan-500: #8F8F8F; --color-cyan-600: #3A3A3A; --color-cyan-700: #2E2E2E; --color-cyan-800: #232323; --color-cyan-900: #1A1A1A; --color-cyan-950: #111111;
+  --color-teal-50: #F5F5F5; --color-teal-100: #E8E8E8; --color-teal-200: #DADADA; --color-teal-300: #D0D0D0; --color-teal-400: #BDBDBD; --color-teal-500: #8F8F8F; --color-teal-600: #3A3A3A; --color-teal-700: #2E2E2E; --color-teal-800: #232323; --color-teal-900: #1A1A1A; --color-teal-950: #111111;
+  --color-blue-50: #F5F5F5; --color-blue-100: #E8E8E8; --color-blue-200: #DADADA; --color-blue-300: #D0D0D0; --color-blue-400: #BDBDBD; --color-blue-500: #8F8F8F; --color-blue-600: #3A3A3A; --color-blue-700: #2E2E2E; --color-blue-800: #232323; --color-blue-900: #1A1A1A; --color-blue-950: #111111;
+}
+:is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) {
+  --color-emerald-50: #EEF6F1; --color-emerald-100: #DCEDE3; --color-emerald-200: #B9D9C6; --color-emerald-300: #1E6B46; --color-emerald-400: #1E6B46; --color-emerald-500: #1E6B46; --color-emerald-600: #1A5E3D; --color-emerald-700: #164F33; --color-emerald-800: #123F29; --color-emerald-900: #0E3020; --color-emerald-950: #082013;
+  --color-green-50: #EEF6F1; --color-green-100: #DCEDE3; --color-green-200: #B9D9C6; --color-green-300: #1E6B46; --color-green-400: #1E6B46; --color-green-500: #1E6B46; --color-green-600: #1A5E3D; --color-green-700: #164F33; --color-green-800: #123F29; --color-green-900: #0E3020; --color-green-950: #082013;
+  --color-lime-50: #EEF6F1; --color-lime-100: #DCEDE3; --color-lime-200: #B9D9C6; --color-lime-300: #1E6B46; --color-lime-400: #1E6B46; --color-lime-500: #1E6B46; --color-lime-600: #1A5E3D; --color-lime-700: #164F33; --color-lime-800: #123F29; --color-lime-900: #0E3020; --color-lime-950: #082013;
+  --color-rose-50: #FBEFF0; --color-rose-100: #F5DCDF; --color-rose-200: #EBBCC1; --color-rose-300: #A3333F; --color-rose-400: #A3333F; --color-rose-500: #A3333F; --color-rose-600: #8E2C37; --color-rose-700: #78252E; --color-rose-800: #621E26; --color-rose-900: #4C171D; --color-rose-950: #330F13;
+  --color-red-50: #FBEFF0; --color-red-100: #F5DCDF; --color-red-200: #EBBCC1; --color-red-300: #A3333F; --color-red-400: #A3333F; --color-red-500: #A3333F; --color-red-600: #8E2C37; --color-red-700: #78252E; --color-red-800: #621E26; --color-red-900: #4C171D; --color-red-950: #330F13;
+  --color-pink-50: #FBEFF0; --color-pink-100: #F5DCDF; --color-pink-200: #EBBCC1; --color-pink-300: #A3333F; --color-pink-400: #A3333F; --color-pink-500: #A3333F; --color-pink-600: #8E2C37; --color-pink-700: #78252E; --color-pink-800: #621E26; --color-pink-900: #4C171D; --color-pink-950: #330F13;
+  --color-amber-50: #F7F3EA; --color-amber-100: #EEE6D3; --color-amber-200: #DDCDA8; --color-amber-300: #6E5A2E; --color-amber-400: #6E5A2E; --color-amber-500: #6E5A2E; --color-amber-600: #5E4D27; --color-amber-700: #4E4021; --color-amber-800: #3E331A; --color-amber-900: #2E2613; --color-amber-950: #1E190C;
+  --color-yellow-50: #F7F3EA; --color-yellow-100: #EEE6D3; --color-yellow-200: #DDCDA8; --color-yellow-300: #6E5A2E; --color-yellow-400: #6E5A2E; --color-yellow-500: #6E5A2E; --color-yellow-600: #5E4D27; --color-yellow-700: #4E4021; --color-yellow-800: #3E331A; --color-yellow-900: #2E2613; --color-yellow-950: #1E190C;
+  --color-orange-50: #F7F3EA; --color-orange-100: #EEE6D3; --color-orange-200: #DDCDA8; --color-orange-300: #6E5A2E; --color-orange-400: #6E5A2E; --color-orange-500: #6E5A2E; --color-orange-600: #5E4D27; --color-orange-700: #4E4021; --color-orange-800: #3E331A; --color-orange-900: #2E2613; --color-orange-950: #1E190C;
+  --color-violet-50: #F7F7F7; --color-violet-100: #EFEFEF; --color-violet-200: #E0E0E0; --color-violet-300: #3D3D3D; --color-violet-400: #3D3D3D; --color-violet-500: #555555; --color-violet-600: #1A1A1A; --color-violet-700: #141414; --color-violet-800: #0F0F0F; --color-violet-900: #0A0A0A; --color-violet-950: #050505;
+  --color-purple-50: #F7F7F7; --color-purple-100: #EFEFEF; --color-purple-200: #E0E0E0; --color-purple-300: #3D3D3D; --color-purple-400: #3D3D3D; --color-purple-500: #555555; --color-purple-600: #1A1A1A; --color-purple-700: #141414; --color-purple-800: #0F0F0F; --color-purple-900: #0A0A0A; --color-purple-950: #050505;
+  --color-indigo-50: #F7F7F7; --color-indigo-100: #EFEFEF; --color-indigo-200: #E0E0E0; --color-indigo-300: #3D3D3D; --color-indigo-400: #3D3D3D; --color-indigo-500: #555555; --color-indigo-600: #1A1A1A; --color-indigo-700: #141414; --color-indigo-800: #0F0F0F; --color-indigo-900: #0A0A0A; --color-indigo-950: #050505;
+  --color-fuchsia-50: #F7F7F7; --color-fuchsia-100: #EFEFEF; --color-fuchsia-200: #E0E0E0; --color-fuchsia-300: #3D3D3D; --color-fuchsia-400: #3D3D3D; --color-fuchsia-500: #555555; --color-fuchsia-600: #1A1A1A; --color-fuchsia-700: #141414; --color-fuchsia-800: #0F0F0F; --color-fuchsia-900: #0A0A0A; --color-fuchsia-950: #050505;
+  --color-sky-50: #F7F7F7; --color-sky-100: #EFEFEF; --color-sky-200: #E0E0E0; --color-sky-300: #3D3D3D; --color-sky-400: #3D3D3D; --color-sky-500: #555555; --color-sky-600: #1A1A1A; --color-sky-700: #141414; --color-sky-800: #0F0F0F; --color-sky-900: #0A0A0A; --color-sky-950: #050505;
+  --color-cyan-50: #F7F7F7; --color-cyan-100: #EFEFEF; --color-cyan-200: #E0E0E0; --color-cyan-300: #3D3D3D; --color-cyan-400: #3D3D3D; --color-cyan-500: #555555; --color-cyan-600: #1A1A1A; --color-cyan-700: #141414; --color-cyan-800: #0F0F0F; --color-cyan-900: #0A0A0A; --color-cyan-950: #050505;
+  --color-teal-50: #F7F7F7; --color-teal-100: #EFEFEF; --color-teal-200: #E0E0E0; --color-teal-300: #3D3D3D; --color-teal-400: #3D3D3D; --color-teal-500: #555555; --color-teal-600: #1A1A1A; --color-teal-700: #141414; --color-teal-800: #0F0F0F; --color-teal-900: #0A0A0A; --color-teal-950: #050505;
+  --color-blue-50: #F7F7F7; --color-blue-100: #EFEFEF; --color-blue-200: #E0E0E0; --color-blue-300: #3D3D3D; --color-blue-400: #3D3D3D; --color-blue-500: #555555; --color-blue-600: #1A1A1A; --color-blue-700: #141414; --color-blue-800: #0F0F0F; --color-blue-900: #0A0A0A; --color-blue-950: #050505;
+}
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+html, :is(html[data-theme="light"], html[data-theme="clean"], html[data-theme="ember"]) body,
+body { background: var(--mx-canvas) !important; color: var(--mx-text); }
+body {
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: normal;
+  letter-spacing: -0.006em;
+}
+.font-mono, [data-price], code, kbd {
+  font-family: var(--font-mono-custom), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+:focus-visible { outline: 2px solid var(--mx-text) !important; outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--mx-text) 22%, transparent); }
+::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb:hover { background: var(--mx-line-strong) !important; }
+
+/* Headings: large and calm — regular weight, tight tracking. */
+html[data-theme] main h1 { font-weight: 450 !important; letter-spacing: -0.025em !important; }
+main h2 { letter-spacing: -0.012em; }
+html[data-theme] main .font-black, html[data-theme] main .font-extrabold { font-weight: 600 !important; }
+
+/* ── 5. Flatten decoration ─────────────────────────────────────────────────── */
+body::before { display: none !important; }                       /* grain */
+html[data-theme] .ambient-orb,
+html[data-theme] .cosmic-bg,
+html[data-theme] .bg-dot-grid::before { display: none !important; }
+html[data-theme] .app-ambient,
+html[data-theme] .app-ambient::before,
+html[data-theme] .app-ambient::after { background: transparent !important; }
+html[data-theme] .text-gradient-green,
+html[data-theme] .text-gradient-purple,
+html[data-theme] .text-gradient-rose,
+html[data-theme] .text-gradient-gold,
+html[data-theme] .text-gradient-animate,
+html[data-theme] .logo-text {
+  background: none !important;
+  -webkit-text-fill-color: currentColor !important;
+  color: var(--mx-text) !important;
+  animation: none !important;
+}
+html[data-theme] .glass,
+html[data-theme] .glass-strong,
+html[data-theme] .modal-glass,
+html[data-theme] .topbar-glass,
+html[data-theme] .surface-sheen,
+html[data-theme] .card-premium,
+html[data-theme] .aurora-card,
+html[data-theme] .gradient-border-card,
+html[data-theme] .table-row-premium {
+  background: var(--mx-surface) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-color: var(--mx-line) !important;
+  box-shadow: none !important;
+}
+html[data-theme] .surface-sheen::before,
+html[data-theme] .surface-sheen::after,
+html[data-theme] .card-shine::before,
+html[data-theme] .card-shine::after,
+html[data-theme] .glass-shimmer::before,
+html[data-theme] .glass-shimmer::after,
+html[data-theme] .aurora-card::before,
+html[data-theme] .aurora-card::after,
+html[data-theme] .gradient-border-card::before,
+html[data-theme] .gradient-border-card::after,
+html[data-theme] .card-premium::before,
+html[data-theme] .card-premium::after,
+html[data-theme] .heading-underline::after,
+html[data-theme] .neon-underline::after,
+html[data-theme] .btn-shimmer::after,
+html[data-theme] .shimmer-line { display: none !important; }
+html[data-theme] .card-glow,
+html[data-theme] .card-hover-glow:hover,
+html[data-theme] .glow-green,
+html[data-theme] .glow-accent,
+html[data-theme] .glow-buy,
+html[data-theme] .glow-sell,
+html[data-theme] .glow-hold,
+html[data-theme] .badge-glow-green,
+html[data-theme] .badge-glow-red,
+html[data-theme] .badge-glow-amber,
+html[data-theme] .btn-cta-glow,
+html[data-theme] .icon-glow-green,
+html[data-theme] .icon-glow-red,
+html[data-theme] .icon-glow-amber,
+html[data-theme] .icon-glow-purple,
+html[data-theme] .sidebar-active-glow,
+html[data-theme] .sidebar-nav-glow,
+html[data-theme] .stat-glow,
+html[data-theme] .input-glow:focus,
+html[data-theme] .pricing-glow-border,
+html[data-theme] .price-glow-up,
+html[data-theme] .price-glow-down,
+html[data-theme] .num-glow-green,
+html[data-theme] .num-glow-red {
+  box-shadow: none !important;
+  text-shadow: none !important;
+  filter: none !important;
+  animation: none !important;
+}
+html[data-theme] [class*="drop-shadow-["],
+html[data-theme] [class*="shadow-emerald"],
+html[data-theme] [class*="shadow-violet"],
+html[data-theme] [class*="shadow-rose"],
+html[data-theme] [class*="shadow-amber"] {
+  --tw-drop-shadow: none !important; --tw-shadow-color: transparent !important; filter: none !important;
+}
+html[data-theme] .progress-gradient { background: var(--mx-text) !important; }
+html[data-theme] .logo-icon-bg { background: var(--mx-text) !important; color: var(--mx-canvas) !important; box-shadow: none !important; }
+html[data-theme] .logo-icon-bg svg { stroke: var(--mx-canvas) !important; color: var(--mx-canvas) !important; }
+/* Gradient fills become a flat fill of their starting colour (keeps progress
+html[data-theme] bars and swatches visible,
+html[data-theme] drops the decorative blend). */
+[class*="bg-gradient-to-"],
+html[data-theme] [class*="bg-linear-to-"] {
+  background-image: linear-gradient(var(--tw-gradient-from, transparent), var(--tw-gradient-from, transparent)) !important;
+}
+
+/* Cards: flat, hairline, consistent radius. */
+.rounded-2xl { border-radius: var(--mx-radius-lg); }
+
+/* ── Navigation geometry ───────────────────────────────────────────────────── */
+@media (min-width: 1024px) {
+  body.app-mode { padding-left: var(--mx-sidebar-w); }
+  body.app-mode.sidebar-collapsed { padding-left: 0; }
+}
+.sidebar-desktop { width: var(--mx-sidebar-w) !important; background: var(--mx-rail) !important; border-right: 1px solid var(--mx-line) !important; }
+.d-nav-item {
+  padding: 7px 10px; border-radius: 7px; font-size: 13.5px; font-weight: 450; gap: 10px;
+  color: var(--mx-text-2);
+}
+.d-nav-item:hover { color: var(--mx-text); background: var(--mx-raised); }
+.d-nav-item-active { color: var(--mx-text) !important; background: var(--mx-raised-2) !important; }
+
+/* Mono micro-labels used across the new frame. */
+.mx-label {
+  font-family: var(--font-mono-custom), ui-monospace, monospace;
+  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--mx-text-3);
+}
+
+/* ── Neutralise the legacy clean/ember orange branding ─────────────────────── */
+html[data-theme] ::-webkit-scrollbar-thumb,
+html[data-theme] ::-webkit-scrollbar-thumb:hover { background: var(--mx-line-strong) !important; }
+html[data-theme] .tab-pill-active {
+  background: var(--mx-raised-2) !important; border: 1px solid var(--mx-line-strong) !important;
+  color: var(--mx-text) !important; box-shadow: none !important;
+}
+html[data-theme] .tab-active-indicator::after { background: var(--mx-text) !important; }
+html[data-theme] .section-header::after { background: var(--mx-line) !important; }
+html[data-theme] .focus-ring:focus-within { box-shadow: 0 0 0 2px color-mix(in srgb, var(--mx-text) 14%, transparent) !important; border-color: var(--mx-control) !important; }
+html[data-theme] .data-row:hover { background: var(--mx-raised) !important; box-shadow: none !important; }
+html[data-theme] .card-glow:hover { box-shadow: none !important; border-color: var(--mx-line-strong) !important; }
+html[data-theme] .badge-premium {
+  border-color: var(--mx-line-strong) !important; background: var(--mx-raised) !important;
+  color: var(--mx-text) !important; box-shadow: none !important;
+}
+html[data-theme] .ping-live { background: var(--mx-up) !important; }

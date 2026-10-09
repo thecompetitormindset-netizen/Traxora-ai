@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -121,6 +121,15 @@ function YearBar({ pct }: { pct: number | null | undefined }) {
 export default function AutoScanner() {
   const pathname = usePathname();
   const [open, setOpen]       = useState(false);
+
+  // Opened from the top bar (desktop) or More → Deep scan (mobile).
+  useEffect(() => {
+    const toggle = () => setOpen(o => !o);
+    const close = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("traxora-open-scanner", toggle);
+    window.addEventListener("keydown", close);
+    return () => { window.removeEventListener("traxora-open-scanner", toggle); window.removeEventListener("keydown", close); };
+  }, []);
   const [scanning, setScanning] = useState(false);
   const [step, setStep]       = useState("");
   const [progress, setProgress] = useState(0);
@@ -198,12 +207,13 @@ export default function AutoScanner() {
   }
 
   if (pathname === "/" || pathname === "/login" || pathname === "/pricing") return null;
+  if (!open) return null;
 
   return (
     <>
-      {/* Mobile: docked bottom-left above the nav (chat FAB owns bottom-right).
-          Desktop: bottom-right, stacked above the chat FAB — never over page headers. */}
-      <div className="fixed bottom-28 left-4 items-start md:bottom-24 md:left-auto md:right-6 md:items-end z-[var(--z-float)] flex flex-col gap-2">
+      {/* Opened from the top bar's Scan button (or More → Deep scan on mobile);
+          drops down under the top bar instead of floating over content. */}
+      <div className="fixed top-[64px] left-3 right-3 sm:left-auto sm:right-6 items-end z-[var(--z-dropdown)] flex flex-col gap-2">
 
         {/* Panel */}
         {open && (
@@ -456,16 +466,6 @@ export default function AutoScanner() {
           </div>
         )}
 
-        {/* FAB */}
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          title="Deep Market Scanner"
-          className="flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold shadow-lg transition-all hover:scale-105 active:scale-95 bg-[#13112A]/90 border border-[#252345] hover:border-emerald-500/40 text-[#7B8DB4] hover:text-[#F1F5F9] backdrop-blur-xl"
-        >
-          <span className="text-sm">📡</span>
-          Scan
-        </button>
       </div>
     </>
   );

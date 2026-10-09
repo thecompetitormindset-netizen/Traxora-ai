@@ -16,12 +16,10 @@ import { haptic } from "../lib/haptics";
 import { signalBadgeCls } from "../lib/signalBadge";
 import { loadTrades, STARTING_CAPITAL, calcPL } from "../lib/paperTrades";
 import type { PaperTrade } from "../lib/paperTrades";
-import { sizeOptionsPosition } from "../lib/positionSizer";
-import RiskSizerBar, { useRiskSettings } from "../components/RiskSizerBar";
 import ProductTour, { type TourStep } from "../components/ProductTour";
-import type { OptionsAnalysisResponse } from "../api/market/options-engine/route";
-import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
-import type { AnalysisOutput } from "../lib/optionsAnalysis/schema";
+import { OptionsAttentionView } from "../components/fieldnotes/OptionsAttention";
+import { useOptionsList } from "../components/fieldnotes/useOptionsList";
+import OverviewHeader from "../components/OverviewHeader";
 
 const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v1";
 
@@ -38,18 +36,13 @@ const DASHBOARD_TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="options-plays-header"]',
-    title: "Options Analysis",
-    desc: "A rules-based check of every symbol. A paper candidate only appears when every gate passes — fresh quotes, liquidity, a defined exit, no event before expiry. Otherwise you see why not.",
-  },
-  {
-    selector: '[data-tour="risk-sizer-bar"]',
-    title: "Position sizer",
-    desc: "Set your account size and max risk % once — each paper candidate then shows how many lots fit its app-computed max loss, or warns you off if even one is too big.",
+    title: "Options",
+    desc: "A rules-based check of every symbol. A validated estimate only appears when every gate passes — fresh quotes, liquidity, a defined exit, no event before expiry. Otherwise you see why not.",
   },
   {
     selector: '[data-tour="options-breakdown-link"]',
-    title: "Full breakdown",
-    desc: "Takes you to the Markets page for the complete options/futures screener, chain viewer, and P&L calculator.",
+    title: "Candidates",
+    desc: "Opens every symbol's analysis grouped by state, with research pages that show the evidence, legs, estimated risk and exit plan.",
   },
 ];
 
@@ -325,359 +318,6 @@ function loadPaperStats(storageKey: string, accountKey: string): PaperStats {
 
 // ── Top Options Plays ────────────────────────────────────────────────────────
 
-// v4.1 options analysis card. Everything shown comes from the server's
-// display gate: only PAPER_CANDIDATE entries carry legs and pricing, and the
-// pricing is application-computed (natural fill) — the analyst never outputs
-// financial figures. No probability is shown; confidence is a qualitative
-// evidence band backed by the 7-item checklist.
-
-const NO_TRADE_LABEL: Record<string, string> = {
-  G1_DATA: "Missing data",
-  G2_FRESHNESS: "Quotes not fresh",
-  G3_SESSION: "Market closed",
-  G4_EVENT: "Event before expiry",
-  G6_UNSUPPORTED: "Unsupported structure",
-  G7_EXIT: "No complete exit plan",
-  WELLBEING: "Wellbeing",
-  CONFLICTING_SIGNALS: "Signals conflict",
-  LOW_CHECKLIST: "Too little evidence",
-  NO_EDGE: "No edge",
-};
-
-function strategyLabel(s: string): string {
-  return s.replace(/_/g, " ");
-}
-
-function bandCls(band: "LOW" | "MODERATE" | "HIGH"): string {
-  return band === "HIGH" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-    : band === "MODERATE" ? "bg-sky-500/10 text-sky-400 border-sky-500/20"
-    : "bg-[#252345] text-[#94A3B8] border-[#333368]";
-}
-
-function dirCls(dir: "BULLISH" | "BEARISH" | "NEUTRAL"): string {
-  return dir === "BULLISH" ? "text-emerald-400" : dir === "BEARISH" ? "text-rose-400" : "text-sky-400";
-}
-
-function ChecklistDots({ checklist }: { checklist: AnalysisOutput["checklist"] }) {
-  return (
-    <div className="flex items-center gap-1" aria-label={`${checklist.filter(c => c.result === "PASS").length} of 7 checklist items pass`}>
-      {checklist.map(c => (
-        <span
-          key={c.item}
-          title={`${c.item}: ${c.result} — ${c.reason}`}
-          className={`h-1.5 w-4 rounded-full ${c.result === "PASS" ? "bg-emerald-400/80" : "bg-[#333368]"}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-function CandidateCard({ a, riskSettings, copied, onCopy }: {
-  a: DisplayAnalysis;
-  riskSettings: { accountSize: number; riskPct: number };
-  copied: boolean;
-  onCopy: () => void;
-}) {
-  const o = a.output!;
-  const ps = o.proposed_structure!;
-  const pr = a.pricing!;
-  const expiry = ps.legs[0].expiry;
-  const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, pr.max_loss);
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] ${
-      o.canonical_direction === "BULLISH" ? "border-l-emerald-500/40" : o.canonical_direction === "BEARISH" ? "border-l-rose-500/40" : "border-l-sky-500/40"
-    }`}>
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-bold tracking-tight">{a.symbol}</p>
-            <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/25">PAPER ONLY</span>
-          </div>
-          <p className={`text-[11px] font-semibold mt-0.5 ${dirCls(o.canonical_direction)}`}>{strategyLabel(ps.strategy)}</p>
-          <p className="text-[10px] text-[#4B5675] font-mono">exp {expiry}</p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${bandCls(o.confidence_band)}`}>{o.confidence_band} evidence</span>
-          <ChecklistDots checklist={o.checklist} />
-        </div>
-      </div>
-
-      <div className="rounded-lg px-2.5 py-2 border border-[#252345] bg-[#0D0B1A] text-[10px] font-mono space-y-1">
-        {ps.legs.map(l => (
-          <p key={l.contract_id} className={l.action === "BUY" ? "text-emerald-400" : "text-rose-400"}>
-            {l.action} 1 {l.type} {l.strike}
-          </p>
-        ))}
-      </div>
-
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] font-mono">
-        <dt className="text-[#4B5675]">{pr.net_type === "DEBIT" ? "Debit" : "Credit"} (natural)</dt>
-        <dd className="text-right text-[#F1F5F9]">${pr.natural_net.toFixed(2)}</dd>
-        <dt className="text-[#4B5675]">Max loss / 1-lot</dt>
-        <dd className="text-right text-rose-400">${pr.max_loss.toFixed(2)}</dd>
-        <dt className="text-[#4B5675]">Max gain / 1-lot</dt>
-        <dd className="text-right text-emerald-400">{pr.max_gain === null ? "Uncapped" : `$${pr.max_gain.toFixed(2)}`}</dd>
-        <dt className="text-[#4B5675]">Breakeven</dt>
-        <dd className="text-right text-[#94A3B8]">{pr.breakevens.map(b => b.toFixed(2)).join(" / ")}</dd>
-      </dl>
-      <p className="text-[8px] text-[#4B5675] mt-1">Figures are app-computed from delayed quotes at the natural fill. Fees, fills and early assignment can change real results.</p>
-
-      <div className="mt-2 space-y-1 text-[10px]">
-        {ps.profit_plan.target_level !== null && (
-          <p><span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Target </span><span className="text-emerald-400 font-mono">{ps.profit_plan.target_level}</span></p>
-        )}
-        {o.key_levels.invalidation && (
-          <p className="text-[#94A3B8]"><span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Invalidation </span>{o.key_levels.invalidation.condition}</p>
-        )}
-        <p className="text-[#94A3B8]">
-          <span className="text-[#4B5675] uppercase tracking-wider text-[9px]">Time rule </span>
-          {ps.time_rule.type === "REVIEW_AT_DTE" ? `Review at ${ps.time_rule.dte} DTE` : `Exit by ${ps.time_rule.date}`}
-        </p>
-      </div>
-
-      <p className="text-[10px] text-[#94A3B8] leading-snug mt-2">{o.thesis}</p>
-
-      {size && (
-        size.tooExpensive
-          ? <p className="text-[9px] font-semibold text-rose-400 mt-2">Max loss on 1 lot exceeds your {riskSettings.riskPct}% cap</p>
-          : <p className="text-[9px] font-semibold text-sky-400 mt-2">Paper size: {size.contracts} lot{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} max loss ({riskSettings.riskPct}% cap)</p>
-      )}
-
-      <div className="mt-3 flex items-center gap-3 flex-wrap">
-        <button type="button" onClick={() => setOpen(v => !v)} className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
-          {open ? "Hide evidence ↑" : "Evidence & risks ↓"}
-        </button>
-        <button type="button" onClick={onCopy} title="Copy the analysis (with disclaimer) to paste into Claude" className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors">
-          {copied ? "Copied!" : "Send to Claude →"}
-        </button>
-      </div>
-
-      {open && (
-        <div className="mt-3 pt-3 border-t border-[#252345] space-y-2">
-          <ul className="space-y-1">
-            {o.checklist.map(c => (
-              <li key={c.item} className="text-[10px] leading-snug">
-                <span className={`font-bold ${c.result === "PASS" ? "text-emerald-400" : "text-[#4B5675]"}`}>{c.result === "PASS" ? "✓" : "✗"} {c.item.replace("_", " ")}</span>
-                <span className="text-[#94A3B8]"> — {c.reason}</span>
-              </li>
-            ))}
-          </ul>
-          {o.risks.length > 0 && (
-            <ul className="space-y-0.5">
-              {o.risks.map(r => <li key={r} className="text-[9px] text-amber-400/80 leading-snug">⚠ {r}</li>)}
-            </ul>
-          )}
-          <p className="text-[9px] text-[#94A3B8] leading-snug">{o.user_note}</p>
-          <p className="text-[8px] text-[#4B5675] leading-snug">{o.disclaimer}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NoTradeRow({ a }: { a: DisplayAnalysis }) {
-  const o = a.output;
-  if (!o) return null;
-  const passes = o.checklist.filter(c => c.result === "PASS").length;
-  return (
-    <li className="flex items-start justify-between gap-3 py-2 border-b border-[#252345] last:border-0">
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold">
-          {a.symbol} <span className={`font-semibold text-[10px] ${dirCls(o.canonical_direction)}`}>{o.canonical_direction.toLowerCase()}</span>
-        </p>
-        <p className="text-[10px] text-[#4B5675] leading-snug">{o.no_trade_reason?.detail}</p>
-      </div>
-      <div className="flex flex-col items-end gap-1 shrink-0">
-        <span className="text-[9px] font-semibold text-[#94A3B8]">{NO_TRADE_LABEL[o.no_trade_reason?.code ?? ""] ?? o.no_trade_reason?.code}</span>
-        <span className="text-[9px] text-[#4B5675]">{passes}/7 checks</span>
-      </div>
-    </li>
-  );
-}
-
-function OptionsPlaysSection() {
-  const [data,      setData]      = useState<OptionsAnalysisResponse | null>(null);
-  const [loading,   setLoading]   = useState(true);
-  const [err,       setErr]       = useState<string | null>(null);
-  const [cooldown,  setCooldown]  = useState<number | null>(null);
-  const [copiedSymbol, setCopiedSymbol] = useState<string | null>(null);
-  const [showAllNoTrade, setShowAllNoTrade] = useState(false);
-  const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
-
-  const analyses   = data?.analyses ?? [];
-  const candidates = analyses.filter(a => a.status === "PAPER_CANDIDATE" && a.output?.proposed_structure && a.pricing);
-  const stale      = analyses.filter(a => a.status === "STALE_CANDIDATE");
-  const noTrade    = analyses.filter(a => a.status === "NO_TRADE" && a.output);
-  const hidden     = analyses.filter(a => a.status === "UNAVAILABLE").length;
-
-  // Most common no-trade reason — the one-line answer to "why is this empty?"
-  const topReason = (() => {
-    const counts = new Map<string, { n: number; detail: string }>();
-    for (const a of noTrade) {
-      const code = a.output!.no_trade_reason?.code ?? "NO_EDGE";
-      const c = counts.get(code) ?? { n: 0, detail: a.output!.no_trade_reason?.detail ?? "" };
-      counts.set(code, { ...c, n: c.n + 1 });
-    }
-    const [code, v] = [...counts.entries()].sort((x, y) => y[1].n - x[1].n)[0] ?? [];
-    return code ? { code, ...v! } : null;
-  })();
-
-  function copyClaudePrompt(a: DisplayAnalysis) {
-    const o = a.output!, ps = o.proposed_structure!, pr = a.pricing!;
-    const lines = [
-      `⚠️ PAPER TRADING ONLY — educational analysis, not financial advice. Options involve risk of loss, including the full amount invested.`,
-      ``,
-      `${a.symbol}: ${strategyLabel(ps.strategy)} (${o.canonical_direction.toLowerCase()}), exp ${ps.legs[0].expiry}`,
-      ...ps.legs.map(l => `  ${l.action} 1 ${l.type} ${l.strike} (${l.contract_id})`),
-      `App-computed at natural fill: ${pr.net_type.toLowerCase()} ${pr.natural_net.toFixed(2)}, max loss ${pr.max_loss.toFixed(2)}, max gain ${pr.max_gain === null ? "uncapped" : pr.max_gain.toFixed(2)}, breakeven ${pr.breakevens.join(" / ")}`,
-      `Evidence: ${o.confidence_band} (${o.checklist.filter(c => c.result === "PASS").length}/7 checks pass)`,
-      ...o.checklist.map(c => `  ${c.result} ${c.item}: ${c.reason}`),
-      ...(o.key_levels.invalidation ? [`Invalidation: ${o.key_levels.invalidation.condition}`] : []),
-      `Time rule: ${ps.time_rule.type === "REVIEW_AT_DTE" ? `review at ${ps.time_rule.dte} DTE` : `exit by ${ps.time_rule.date}`}`,
-      `Thesis: ${o.thesis}`,
-      ...(o.risks.length ? [`Risks: ${o.risks.join("; ")}`] : []),
-      ``,
-      `Analysis as of ${a.as_of}. Quotes are delayed; re-check them before acting, even on paper.`,
-    ];
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      setCopiedSymbol(a.symbol);
-      setTimeout(() => setCopiedSymbol((s) => (s === a.symbol ? null : s)), 2000);
-    });
-  }
-
-  async function fetchRun(method: "GET" | "POST") {
-    setLoading(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/market/options-engine", method === "GET" ? { cache: "no-store" } : { method: "POST" });
-      if (res.status === 429) {
-        const body = await res.json() as { retryAfterSeconds?: number };
-        setCooldown(body.retryAfterSeconds ?? null);
-        setErr(`Just refreshed — next rescan available in ${Math.max(1, Math.ceil((body.retryAfterSeconds ?? 0) / 60))}m.`);
-        return;
-      }
-      if (!res.ok) { setErr(`Server error ${res.status}`); return; }
-      setData(await res.json() as OptionsAnalysisResponse);
-      setCooldown(null);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Network error — try again");
-    } finally { setLoading(false); }
-  }
-
-  // Auto-load on mount + refresh every 5 minutes — the server re-runs the
-  // analysis when its shared result is older than its freshness window.
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchRun("GET");
-    const id = setInterval(() => fetchRun("GET"), 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const visibleNoTrade = showAllNoTrade ? noTrade : noTrade.slice(0, 5);
-
-  return (
-    <section>
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap" data-tour="options-plays-header">
-        <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Analysis</h2>
-          <p className="text-[9px] text-[#4B5675] mt-0.5">
-            {data
-              ? `${candidates.length} paper candidate${candidates.length === 1 ? "" : "s"} · ${analyses.length} symbols checked · rules-based, no AI calls`
-              : loading ? "Loading…" : "Shared analysis, refreshed every few minutes"}
-            {data?.as_of && <span> · as of {new Date(data.as_of).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/intelligence?section=options" data-tour="options-breakdown-link" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">Full breakdown →</Link>
-          {data && data.session.status !== "OPEN" && (
-            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">Market closed</span>
-          )}
-          {data && (
-            <button type="button" onClick={() => fetchRun("POST")} disabled={loading || cooldown !== null} title="Re-runs the shared analysis for everyone" className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium disabled:opacity-50">
-              {loading ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>Scanning…</> : "Rescan →"}
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-3 px-3 py-2 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-center gap-2">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        <p className="text-[10px] text-amber-300/70 leading-snug">
-          <span className="font-semibold text-amber-300">Paper trading only.</span> Educational analysis, not financial advice. Options involve risk of loss, including the full amount invested.
-        </p>
-      </div>
-
-      {err && (
-        <div className="bg-rose-500/5 border border-rose-500/20 rounded-2xl p-4 mb-3">
-          <p className="text-sm text-rose-400">{err}</p>
-        </div>
-      )}
-
-      {loading && !data && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 animate-pulse">
-              <div className="h-4 bg-[#252345] rounded w-14 mb-2" />
-              <div className="h-3 bg-[#252345] rounded w-28 mb-4" />
-              <div className="space-y-1.5">
-                <div className="h-3 bg-[#252345] rounded w-full" />
-                <div className="h-3 bg-[#252345] rounded w-full" />
-                <div className="h-3 bg-[#252345] rounded w-2/3" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {data && candidates.length > 0 && (
-        <>
-          <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
-            {candidates.map(a => (
-              <CandidateCard key={a.symbol} a={a} riskSettings={riskSettings} copied={copiedSymbol === a.symbol} onCopy={() => copyClaudePrompt(a)} />
-            ))}
-          </div>
-        </>
-      )}
-
-      {data && candidates.length === 0 && (
-        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 mb-3">
-          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No paper candidates right now</p>
-          <p className="text-[11px] text-[#94A3B8] leading-snug">
-            {topReason
-              ? <>Most common reason ({topReason.n} of {analyses.length}): <span className="font-semibold text-[#F1F5F9]">{NO_TRADE_LABEL[topReason.code] ?? topReason.code}</span> — {topReason.detail.replace(/^\d+ candidate structures? considered; none cleared every gate\. /, "")}{/bid\/ask timestamp/.test(topReason.detail) ? ". The free option feed doesn't time-stamp each bid and ask, so no quote can be confirmed as current." : "."}</>
-              : "Waiting on the first analysis."}
-          </p>
-          <p className="text-[10px] text-[#4B5675] leading-snug mt-1">An empty result is an expected outcome, not an error — nothing is shown unless every gate passes on supplied evidence.</p>
-        </div>
-      )}
-
-      {stale.length > 0 && (
-        <p className="text-[10px] text-[#4B5675] mb-2">
-          {stale.length} earlier candidate{stale.length === 1 ? "" : "s"} ({stale.map(s => s.symbol).join(", ")}) no longer current — hidden until a fresh run confirms {stale.length === 1 ? "it" : "them"}.
-        </p>
-      )}
-
-      {noTrade.length > 0 && (
-        <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-4 py-2">
-          <p className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675] pt-1">No trade · why</p>
-          <ul>{visibleNoTrade.map(a => <NoTradeRow key={a.symbol} a={a} />)}</ul>
-          {noTrade.length > 5 && (
-            <button type="button" onClick={() => setShowAllNoTrade(v => !v)} className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium py-2 transition-colors">
-              {showAllNoTrade ? "Show less ↑" : `See all ${noTrade.length} ↓`}
-            </button>
-          )}
-        </div>
-      )}
-
-      {hidden > 0 && (
-        <p className="text-[9px] text-[#4B5675] mt-2">{hidden} symbol{hidden === 1 ? "" : "s"} failed application checks and {hidden === 1 ? "is" : "are"} not shown.</p>
-      )}
-    </section>
-  );
-}
-
 // ── Value Picks Dashboard Section ────────────────────────────────────────────
 
 type DashValueStock = {
@@ -859,6 +499,7 @@ function ValuePicksSection() {
 function DashboardContent() {
   const router = useRouter();
   const [tourActive, setTourActive] = useState(false);
+  const optionsList = useOptionsList();
   const [paperStats, setPaperStats] = useState<PaperStats>({
     accountValue: PAPER_START, realizedPL: 0, openCount: 0, closedCount: 0, winRate: null,
   });
@@ -1419,24 +1060,15 @@ function DashboardContent() {
         <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 overflow-y-auto !pb-36 page-enter">
           <div className="max-w-7xl mx-auto w-full">
 
-            {/* ── PAGE HEADER ── */}
-            <div className="flex items-center justify-between gap-3 mb-5 lg:mb-7 flex-wrap">
-              <div className="flex items-center gap-3 min-w-0">
-                <h1 className="reveal text-2xl lg:text-4xl font-black tracking-tight text-gradient-green">Dashboard</h1>
-                <MarketStatus />
-                <button
-                  type="button"
-                  onClick={() => setTourActive(true)}
-                  className="flex items-center gap-1 text-[10px] font-semibold text-[#4B5675] hover:text-emerald-400 border border-[#252345] hover:border-emerald-500/30 rounded-lg px-2 py-1 transition-colors"
-                >
-                  ✨ Take the tour
-                </button>
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#13112A] border border-[#252345]">
-                <span className="ping-live w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span className="text-[10px] font-mono text-[#4B5675]">Live · refreshes in <span className="text-emerald-400 font-bold">{refreshCountdown}s</span></span>
-              </div>
+            <OverviewHeader
+              options={optionsList.state}
+              watchCount={watchlist.length}
+              watchSignals={stocks.filter(c => (c.signal === "BUY" || c.signal === "SELL") && c.confidence === "High").length}
+              paperOpen={paperStats.openCount}
+              paperValue={paperStats.accountValue}
+              refreshIn={refreshCountdown}
+              onTour={() => setTourActive(true)}
+              actions={<>
               {notifPermission === "default" && (
                 <button type="button" onClick={requestNotifications}
                   className="flex items-center gap-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium transition-all">
@@ -1476,32 +1108,15 @@ function DashboardContent() {
               {notifPermission === "denied" && (
                 <span title="Browser notifications are blocked — enable them in your browser settings to receive alerts" className="flex items-center gap-2 bg-[#1A1838] border border-[#252345] text-[#4B5675] px-3 py-1.5 rounded-xl text-xs font-medium">Alerts blocked</span>
               )}
-            </div>
-            </div>
+              </>}
+            />
 
             {/* ── BENTO GRID ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
-            {/* Morning Brief — very top */}
-            <div className="lg:col-span-3">
-              <div
-                className="reveal flex items-center gap-4 lg:gap-6 bg-gradient-to-r from-emerald-600/10 to-teal-600/10 border border-emerald-500/20 rounded-2xl px-5 lg:px-7 py-4 lg:py-5 cursor-pointer hover:border-emerald-500/40 transition-all group"
-                onClick={() => window.dispatchEvent(new Event("traxora-show-briefing"))}
-              >
-                <div className="hover-float w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center shrink-0 group-hover:bg-emerald-500/25 transition-colors">
-                  <span className="text-xl lg:text-2xl">🌅</span>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm lg:text-base font-bold text-[#F1F5F9]">Today&apos;s Market Brief</p>
-                  <p className="text-xs lg:text-sm text-[#4B5675] mt-0.5">Full AI briefing — macro, top plays, options setups &amp; risk levels</p>
-                </div>
-                <span className="text-xs lg:text-sm text-emerald-400 font-semibold shrink-0 group-hover:text-emerald-300 transition-colors">Open →</span>
-              </div>
-            </div>
-
             {/* Options Plays — the app's primary focus, leads the dashboard right under the brief */}
             <div className="lg:col-span-3">
-              <OptionsPlaysSection />
+              <OptionsAttentionView state={optionsList.state} />
             </div>
 
             {/* Market Sentiment */}
@@ -1539,7 +1154,7 @@ function DashboardContent() {
             </div>
 
             {/* Watchlist — full width */}
-            <div className="order-4 lg:order-none lg:col-span-3">
+            <div id="watchlist" className="order-4 lg:order-none lg:col-span-3 scroll-mt-20">
               <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6" data-tour="dashboard-watchlist">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
                   <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>

@@ -76,7 +76,7 @@ export default function DiscoverSection() {
       <Link href="/sports" className="group relative overflow-hidden bg-[#13112A] rounded-2xl border border-amber-500/20 hover:border-amber-500/45 transition-all flex flex-col">
         <div className="absolute -top-14 -right-14 w-44 h-44 rounded-full bg-amber-500/10 blur-3xl group-hover:bg-amber-500/20 transition-colors pointer-events-none" />
         <div className="relative p-5 pb-3 flex items-start gap-3">
-          <div className="hover-float w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0 text-xl">🏆</div>
+          <div aria-hidden="true" className="w-11 h-11 rounded-[10px] bg-[var(--mx-raised)] border border-[var(--mx-line)] flex items-center justify-center shrink-0 font-mono text-[9.5px] tracking-[0.06em] uppercase text-[var(--mx-text-2)]">Spo</div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black tracking-tight text-[#F1F5F9]">Sports Betting</p>
             <p className="text-[11px] text-[#7B8DB4] mt-0.5 leading-snug">AI game predictions with confidence — NFL, NBA, soccer &amp; more</p>
@@ -120,7 +120,7 @@ export default function DiscoverSection() {
       <Link href="/explore?view=crypto" className="group relative overflow-hidden bg-[#13112A] rounded-2xl border border-violet-500/20 hover:border-violet-500/45 transition-all flex flex-col">
         <div className="absolute -top-14 -right-14 w-44 h-44 rounded-full bg-violet-500/10 blur-3xl group-hover:bg-violet-500/20 transition-colors pointer-events-none" />
         <div className="relative p-5 pb-3 flex items-start gap-3">
-          <div className="hover-float w-11 h-11 rounded-2xl bg-violet-500/15 border border-violet-500/25 flex items-center justify-center shrink-0 text-xl">₿</div>
+          <div aria-hidden="true" className="w-11 h-11 rounded-[10px] bg-[var(--mx-raised)] border border-[var(--mx-line)] flex items-center justify-center shrink-0 font-mono text-[9.5px] tracking-[0.06em] uppercase text-[var(--mx-text-2)]">Cry</div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black tracking-tight text-[#F1F5F9]">Crypto Radar</p>
             <p className="text-[11px] text-[#7B8DB4] mt-0.5 leading-snug">Big moves happening now &amp; coiled setups about to break</p>
@@ -170,7 +170,7 @@ export default function DiscoverSection() {
       <Link href="/ipo" className="group relative overflow-hidden bg-[#13112A] rounded-2xl border border-sky-500/20 hover:border-sky-500/45 transition-all flex flex-col">
         <div className="absolute -top-14 -right-14 w-44 h-44 rounded-full bg-sky-500/10 blur-3xl group-hover:bg-sky-500/20 transition-colors pointer-events-none" />
         <div className="relative p-5 pb-3 flex items-start gap-3">
-          <div className="hover-float w-11 h-11 rounded-2xl bg-sky-500/15 border border-sky-500/25 flex items-center justify-center shrink-0 text-xl">🚀</div>
+          <div aria-hidden="true" className="w-11 h-11 rounded-[10px] bg-[var(--mx-raised)] border border-[var(--mx-line)] flex items-center justify-center shrink-0 font-mono text-[9.5px] tracking-[0.06em] uppercase text-[var(--mx-text-2)]">IPO</div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-black tracking-tight text-[#F1F5F9]">IPO Calendar</p>
             <p className="text-[11px] text-[#7B8DB4] mt-0.5 leading-snug">Upcoming listings rated Strong, Watch or Speculative</p>

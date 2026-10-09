@@ -1,24 +1,23 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import "./monochrome.css";
+import "./monochrome.generated.css";
 import { Analytics } from "@vercel/analytics/next";
 import Providers from "./providers";
 import CookieBanner from "./components/CookieBanner";
 import ServiceWorkerRegistrar from "./components/ServiceWorkerRegistrar";
-import CosmicBackground from "./components/CosmicBackground";
 import ThemeProvider from "./components/ThemeProvider";
 import AppShell from "./components/AppShell";
 
-const jakarta = Plus_Jakarta_Sans({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-  variable: "--font-jakarta",
+  variable: "--font-geist",
   display: "swap",
 });
 
-const jetbrainsMono = JetBrains_Mono({
+const geistMono = Geist_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   variable: "--font-mono-custom",
   display: "swap",
 });
@@ -93,7 +92,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${jakarta.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} ${geistMono.variable}`} suppressHydrationWarning>
       <body>
         {/* Theme script runs before paint to prevent flash */}
         <script
@@ -204,7 +203,6 @@ export default function RootLayout({
         />
         <ThemeProvider />
         {/* Fixed universe background — behind all content */}
-        <CosmicBackground />
         {/* All page content sits above the cosmic layer */}
         <div className="relative z-10">
           <Providers>

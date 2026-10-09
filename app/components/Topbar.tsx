@@ -216,9 +216,9 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
   return (
     <div className="topbar-glass flex flex-col shrink-0 sticky top-0 z-30">
-    <div className="h-[68px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
+    <div className="h-[60px] flex items-center justify-between gap-4 px-4 sm:px-6 relative">
       {/* Logo — links back to landing page */}
-      <Link href="/" className={`${searchFocused ? "hidden sm:flex" : "flex"} items-center gap-2 shrink-0 group`}>
+      <Link href="/" className={`${searchFocused ? "hidden sm:flex" : "flex"} lg:hidden items-center gap-2 shrink-0 group`}>
         <div className="logo-icon-bg w-7 h-7 rounded-lg bg-emerald-600 group-hover:bg-emerald-500 transition-colors flex items-center justify-center">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
@@ -470,16 +470,17 @@ export default function Topbar({ onSearch }: TopbarProps) {
       {/* Right side — hidden on phones while searching so the input gets full width */}
       <div className={`${searchFocused ? "hidden sm:flex" : "flex"} items-center gap-2`}>
         {/* Scan shortcut */}
-        <Link
-          href="/intelligence"
-          className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-emerald-500/40 hover:text-emerald-400 text-[#7B8DB4] transition-all duration-100 shrink-0"
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event("traxora-open-scanner"))}
+          className="hidden sm:flex items-center gap-1.5 h-9 px-3 rounded-lg bg-[#0D0B1A] border border-[#252345] hover:border-[#333368] hover:text-[#F1F5F9] text-[#7B8DB4] transition-colors shrink-0"
         >
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             <line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
           <span className="text-[11px] font-semibold">Scan</span>
-        </Link>
+        </button>
         {/* Theme toggle */}
         <ThemeToggle />
         {/* Notifications */}
@@ -493,7 +494,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           {alertCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full text-white text-[9px] flex items-center justify-center font-bold bounce-in">
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[var(--mx-text)] rounded-full text-[var(--mx-canvas)] text-[9px] flex items-center justify-center font-bold">
               {alertCount > 99 ? "99+" : alertCount}
             </span>
           )}
@@ -512,7 +513,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
                   className="w-7 h-7 rounded-lg object-cover"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-lg bg-emerald-600 flex items-center justify-center text-xs font-bold text-white">
+                <div className="w-7 h-7 rounded-lg bg-[var(--mx-text)] flex items-center justify-center text-xs font-semibold text-[var(--mx-canvas)]">
                   {session.user.name?.[0] ?? "U"}
                 </div>
               )}
