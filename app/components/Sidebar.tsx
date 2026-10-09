@@ -38,9 +38,8 @@ const GROUPS: NavGroup[] = [
   },
   {
     id: "tools", label: "Tools", items: [
-      { name: "Options screener", href: "/intelligence?section=options" },
       { name: "Compare",          href: "/compare" },
-      { name: "Stats",            href: "/strategy" },
+      { name: "Results",          href: "/strategy" },
       { name: "History",          href: "/history" },
       { name: "Ask AI",           href: "/chat" },
       { name: "Morning brief",    href: null, event: "traxora-show-briefing" },

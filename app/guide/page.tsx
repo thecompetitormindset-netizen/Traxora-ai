@@ -75,9 +75,8 @@ const SECTIONS: Section[] = [
     id: "tools", group: "Tools", title: "Tools",
     summary: "Extra utilities, under Tools on desktop and More on phones.",
     items: [
-      { h: "Options screener", t: "A broader options and futures scan with chain viewer and P&L calculator." },
-      { h: "Compare", t: "Two stocks side by side." },
-      { h: "Stats and history", t: "Performance statistics and the full list of closed trades." },
+      { h: "Compare", t: "Two stocks side by side, each fact explained in plain words." },
+      { h: "Results and history", t: "How your practice trades have gone, and every buy and sell you’ve made." },
       { h: "Ask AI", t: "Chat about markets and the app. It uses an AI model and says so; it can be wrong." },
       { h: "Morning brief and deep scan", t: "A pre-market summary, and an on-demand scan of many tickers. The scan opens from Scan in the top bar." },
     ],

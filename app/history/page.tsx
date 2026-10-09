@@ -146,17 +146,17 @@ export default function HistoryPage() {
           {/* Header */}
           <div className="mt-3 flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Trade History</h1>
+              <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">History</h1>
             </div>
             {/* View toggle */}
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
-              {([["roundtrip","Round Trips"],["raw","All Trades"],["signals","AI Signals"]] as const).map(([v, label]) => (
+              {([["roundtrip","Finished trades"],["raw","Every buy and sell"],["signals","Past signals"]] as const).map(([v, label]) => (
                 <button
                   key={v}
                   type="button"
                   onClick={() => setView(v)}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                    view === v ? "bg-emerald-600 text-white" : "text-[#4B5675] hover:text-[#7B8DB4]"
+                    view === v ? "bg-[var(--mx-text)] text-[var(--mx-canvas)]" : "text-[var(--mx-text-3)] hover:text-[var(--mx-text)]"
                   }`}
                 >
                   {label}
@@ -168,10 +168,10 @@ export default function HistoryPage() {
           {/* Stats strip — hidden on signals tab */}
           <div className={`grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 ${view === "signals" ? "hidden" : ""}`}>
             {[
-              { label: "Total Trades",     value: trades.length.toString(),                       color: "text-emerald-400" },
-              { label: "Completed Pairs",  value: roundTrips.length.toString(),                    color: "text-emerald-400" },
-              { label: "Win Rate",         value: roundTrips.length ? `${winRate}%` : "—",          color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
-              { label: "Realised P&L",     value: roundTrips.length ? `${totalPL >= 0 ? "+" : ""}$${fmt(totalPL)}` : "—", color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
+              { label: "Buys and sells",   value: trades.length.toString(),                       color: "text-emerald-400" },
+              { label: "Finished trades",  value: roundTrips.length.toString(),                    color: "text-emerald-400" },
+              { label: "Made money",       value: roundTrips.length ? `${winRate}%` : "—",          color: winRate >= 50 ? "text-emerald-400" : "text-rose-400" },
+              { label: "Total result",     value: roundTrips.length ? `${totalPL >= 0 ? "+" : ""}$${fmt(totalPL)}` : "—", color: totalPL >= 0 ? "text-emerald-400" : "text-rose-400" },
             ].map(s => (
               <div key={s.label} className="card-shine card-hover-lift glass surface-sheen border border-[#252345] rounded-2xl p-4 text-center">
                 <p className={`num-reveal text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
@@ -188,7 +188,7 @@ export default function HistoryPage() {
                 <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
                   <p className="text-3xl mb-3"><Glyph e="📊" /></p>
                   <p className="font-semibold text-[#F1F5F9]">No completed trades yet</p>
-                  <p className="text-[#4B5675] text-sm mt-2">A round trip is one BUY matched to one SELL of the same symbol.</p>
+                  <p className="text-[#4B5675] text-sm mt-2">A trade is finished once you’ve bought and then sold the same stock.</p>
                 </div>
               )}
 
@@ -433,7 +433,7 @@ export default function HistoryPage() {
 
           {trades.length > 0 && view !== "signals" && (
             <p className="text-center text-[10px] text-[#333368] mt-3">
-              {buyCount} buys · {sellCount} sells · {roundTrips.length} completed round trips
+              {buyCount} buys · {sellCount} sells · {roundTrips.length} finished trades
             </p>
           )}
 
@@ -489,10 +489,10 @@ export default function HistoryPage() {
                       </div>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         {[
-                          { label: "Overall accuracy", value: `${accuracy}%`, color: accuracy >= 60 ? "text-emerald-400" : accuracy >= 45 ? "text-amber-400" : "text-rose-400", sub: `${correct.length}/${measured.length} correct` },
-                          { label: "BUY accuracy",     value: buyAcc  != null ? `${buyAcc}%`  : "—", color: buyAcc  != null ? (buyAcc  >= 60 ? "text-emerald-400" : buyAcc  >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `${buysM.length} measured` },
-                          { label: "SELL accuracy",    value: sellAcc != null ? `${sellAcc}%` : "—", color: sellAcc != null ? (sellAcc >= 60 ? "text-emerald-400" : sellAcc >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `${sellsM.length} measured` },
-                          { label: "Avg return",       value: avgReturn != null ? `${avgReturn >= 0 ? "+" : ""}${avgReturn.toFixed(2)}%` : "—", color: avgReturn != null ? (avgReturn >= 0 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]", sub: highConfAcc != null ? `High conf: ${highConfAcc}%` : "3-day since signal" },
+                          { label: "Signals that were right", value: `${accuracy}%`, color: accuracy >= 60 ? "text-emerald-400" : accuracy >= 45 ? "text-amber-400" : "text-rose-400", sub: `${correct.length} of ${measured.length}` },
+                          { label: "Buy signals right", value: buyAcc  != null ? `${buyAcc}%`  : "—", color: buyAcc  != null ? (buyAcc  >= 60 ? "text-emerald-400" : buyAcc  >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `out of ${buysM.length}` },
+                          { label: "Sell signals right", value: sellAcc != null ? `${sellAcc}%` : "—", color: sellAcc != null ? (sellAcc >= 60 ? "text-emerald-400" : sellAcc >= 45 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]", sub: `out of ${sellsM.length}` },
+                          { label: "Average move after", value: avgReturn != null ? `${avgReturn >= 0 ? "+" : ""}${avgReturn.toFixed(2)}%` : "—", color: avgReturn != null ? (avgReturn >= 0 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]", sub: "over the 3 days after" },
                         ].map(s => (
                           <div key={s.label} className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-4 py-3">
                             <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>

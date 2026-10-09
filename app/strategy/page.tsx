@@ -51,12 +51,12 @@ function EquityCurve({ points }: { points: number[] }) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 
-function Stat({ label, value, sub, color = "text-[#F1F5F9]" }: { label: string; value: string; sub?: string; color?: string }) {
+function Stat({ label, value, sub, color = "text-[var(--mx-text)]" }: { label: string; value: string; sub?: string; color?: string }) {
   return (
-    <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-4 py-4">
-      <p className="text-[9px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{label}</p>
-      <p className={`num-reveal text-xl font-black font-mono ${color}`}>{value}</p>
-      {sub && <p className="text-[10px] text-[#333368] mt-0.5">{sub}</p>}
+    <div className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] px-4 py-4">
+      <p className="text-[12px] text-[var(--mx-text-3)] mb-1">{label}</p>
+      <p className={`text-[20px] ${color}`}>{value}</p>
+      {sub && <p className="text-[12px] text-[var(--mx-text-3)] mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -202,8 +202,8 @@ function StrategyContent() {
   const longs  = trades.filter(t => t.direction === "LONG");
   const shorts = trades.filter(t => t.direction === "SHORT");
   const dirStats = [
-    { label: "LONG",  trades: longs,  wr: longs.length  ? longs.filter(t => t.pl > 0).length  / longs.length  * 100 : 0 },
-    { label: "SHORT", trades: shorts, wr: shorts.length ? shorts.filter(t => t.pl > 0).length / shorts.length * 100 : 0 },
+    { label: "Buying",  trades: longs,  wr: longs.length  ? longs.filter(t => t.pl > 0).length  / longs.length  * 100 : 0 },
+    { label: "Selling short", trades: shorts, wr: shorts.length ? shorts.filter(t => t.pl > 0).length / shorts.length * 100 : 0 },
   ];
 
   // ── AI Coaching ───────────────────────────────────────────────────────────
@@ -246,18 +246,15 @@ function StrategyContent() {
         <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
           <Topbar />
           <div className="mt-3 max-w-6xl mx-auto">
-            <h1 className="text-3xl font-black mb-2">Your Stats</h1>
-            <p className="text-[#7B8DB4] text-sm mb-8">Your trade performance at a glance.</p>
+            <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em] mb-2">Your results</h1>
+            <p className="text-[var(--mx-text-2)] text-[15px] mb-8">How your practice trades have gone, in one place.</p>
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
               <p className="text-4xl mb-3"><Glyph e="📊" /></p>
-              <p className="text-sm font-semibold mb-1">No closed trades yet</p>
-              <p className="text-xs text-[#4B5675] mb-6">Get a signal from the dashboard, log it in the planner, then close it to see your analytics here.</p>
+              <p className="text-[16px] mb-1">No finished trades yet</p>
+              <p className="text-xs text-[#4B5675] mb-6">Make a practice trade and sell it — your results will show up here.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
-                <a href="/dashboard" className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 transition-colors border border-emerald-500/20 bg-emerald-500/8 px-4 py-2 rounded-xl">
-                  Get signals →
-                </a>
-                <a href="/paper" className="text-xs font-semibold text-[#7B8DB4] hover:text-[#F1F5F9] transition-colors border border-[#252345] px-4 py-2 rounded-xl">
-                  Trade planner →
+                <a href="/paper" className="h-10 px-5 inline-flex items-center rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[14px]">
+                  Start practice trading
                 </a>
               </div>
             </div>
@@ -277,7 +274,7 @@ function StrategyContent() {
           {/* Header */}
           <div className="flex items-end justify-between flex-wrap gap-4">
             <div>
-              <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">Your Stats</h1>
+              <h1 className="reveal text-2xl font-black tracking-tight ">Your results</h1>
               <p className="text-[#7B8DB4] text-sm mt-1">{trades.length} closed trades · account started at ${STARTING_CAPITAL.toLocaleString()}</p>
             </div>
             <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs">
@@ -298,7 +295,7 @@ function StrategyContent() {
               {/* Equity curve */}
               <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
                 <div className="flex items-center justify-between mb-3">
-                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Equity Curve</p>
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Your account over time</p>
                   <p className={`text-sm font-mono font-bold ${equity >= STARTING_CAPITAL ? "text-emerald-400" : "text-rose-400"}`}>
                     ${equity.toFixed(2)} · {money(totalPL)}
                   </p>
@@ -313,20 +310,13 @@ function StrategyContent() {
 
               {/* Key stats grid */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Stat label="Win Rate"      value={`${winRate.toFixed(1)}%`}
-                  sub={`${wins.length}W · ${losses.length}L`}
-                  color={winRate >= 50 ? "text-emerald-400" : "text-rose-400"} />
-                <Stat label="Profit Factor" value={profitFactor.toFixed(2)}
-                  sub="avg win / avg loss"
-                  color={profitFactor >= 1.5 ? "text-emerald-400" : profitFactor >= 1 ? "text-amber-400" : "text-rose-400"} />
-                <Stat label="Avg Win"       value={`$${avgWin.toFixed(2)}`}   color="text-emerald-400" sub={`${wins.length} winners`} />
-                <Stat label="Avg Loss"      value={`$${Math.abs(avgLoss).toFixed(2)}`} color="text-rose-400" sub={`${losses.length} losers`} />
-                <Stat label="Total P&L"     value={money(totalPL)}
-                  color={totalPL >= 0 ? "text-emerald-400" : "text-rose-400"} sub="closed trades only" />
-                <Stat label="Max Drawdown"  value={`${maxDD.toFixed(1)}%`}
-                  color={maxDD > 20 ? "text-rose-400" : maxDD > 10 ? "text-amber-400" : "text-emerald-400"} />
-                <Stat label="Avg Hold"      value={`${avgHold.toFixed(1)}d`}  color="text-[#F1F5F9]" sub="per trade" />
-                <Stat label="Trades"        value={`${trades.length}`}         color="text-violet-400" sub={`${longs.length} long · ${shorts.length} short`} />
+                <Stat label="Trades that made money" value={`${wins.length} of ${trades.length}`}
+                  sub={`${winRate.toFixed(0)}% of your trades`} />
+                <Stat label="Total result" value={money(totalPL)}
+                  color={totalPL >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"} sub="from finished trades" />
+                <Stat label="Biggest dip" value={`${maxDD.toFixed(1)}%`}
+                  sub="largest fall from a high point" />
+                <Stat label="Time held" value={`${avgHold.toFixed(1)} days`} sub="on average" />
               </div>
 
               {/* Best / Worst */}
@@ -364,7 +354,7 @@ function StrategyContent() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-violet-400">✦</span>
-                    <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">AI Coaching</p>
+                    <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Tips from AI</p>
                   </div>
                   <button type="button" onClick={getCoaching} disabled={coachLoading}
                     className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 font-medium transition-colors disabled:opacity-40">
@@ -385,7 +375,7 @@ function StrategyContent() {
             <div className="space-y-5">
               {/* Direction breakdown */}
               <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
-                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-4">By Direction</p>
+                <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-4">Buying vs selling short</p>
                 <div className="grid grid-cols-2 gap-3">
                   {dirStats.map(d => {
                     const pl = d.trades.reduce((s, t) => s + t.pl, 0);
@@ -409,7 +399,7 @@ function StrategyContent() {
                 <div className="grid grid-cols-5 gap-2 px-5 py-3 border-b border-[#252345] text-[9px] text-[#4B5675] uppercase tracking-widest font-semibold">
                   <span className="col-span-2">Symbol</span>
                   <span className="text-right">Trades</span>
-                  <span className="text-right">Win Rate</span>
+                  <span className="text-right">Made money</span>
                   <span className="text-right">P&L</span>
                 </div>
                 <div className="divide-y divide-[#252345]">
@@ -435,12 +425,12 @@ function StrategyContent() {
                 for (const t of trades) { reasons[t.exitReason ?? "manual"]++; }
                 return (
                   <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-3">Exit Discipline</p>
+                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-3">How trades ended</p>
                     <div className="grid grid-cols-3 gap-3">
                       {[
-                        { label: "Target Hit", count: reasons.target_hit, color: "text-emerald-400", emoji: "🎯" },
-                        { label: "Stop Hit",   count: reasons.stop_hit,   color: "text-rose-400",    emoji: "🛑" },
-                        { label: "Manual",     count: reasons.manual,     color: "text-amber-400",   emoji: "✋" },
+                        { label: "Reached goal", count: reasons.target_hit, color: "text-emerald-400", emoji: "🎯" },
+                        { label: "Hit safety level", count: reasons.stop_hit,   color: "text-rose-400",    emoji: "🛑" },
+                        { label: "You sold", count: reasons.manual,     color: "text-amber-400",   emoji: "✋" },
                       ].map(r => (
                         <div key={r.label} className="text-center">
                           <p className="text-2xl mb-1"><Glyph e={r.emoji} /></p>

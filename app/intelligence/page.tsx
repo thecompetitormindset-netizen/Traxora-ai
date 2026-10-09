@@ -1,44 +1,11 @@
 "use client";
 
 import { useEffect, useId, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
-import OptionsTab from "@/app/components/paper/OptionsTab";
-import OptionsChainViewer from "@/app/components/OptionsChainViewer";
-import OptionsPLCalculator from "@/app/components/OptionsPLCalculator";
-import OptionsFlow from "@/app/components/OptionsFlow";
-import { signalBadgeCls } from "@/app/lib/signalBadge";
-import { sizeOptionsPosition } from "@/app/lib/positionSizer";
-import RiskSizerBar, { useRiskSettings } from "@/app/components/RiskSizerBar";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-type OptionsBacktest = { count: number; hitRate: number | null; avgReturn: number | null; baselineAvgReturn: number | null };
-
-type OptionsPlay = {
-  symbol: string; name: string; play: "CALLS" | "PUTS"; signal?: "BUY" | "SELL";
-  price: number; changePct: number;
-  iv: number | null; delta: number | null; expiry: string | null; expiryTs?: number;
-  callWall: number | null; putWall: number | null;
-  expectedMove: number | null; strike: string;
-  entryZone: string; target: string; stop: string; rrRatio: string;
-  premiumEst: string | null; premiumPerContract: number | null; premiumReal?: boolean; pcVolRatio: number | null; score: number; hasOptions: boolean;
-  dte: number | null; dteWarning: boolean;
-  backtest: OptionsBacktest | null;
-};
-
-// Same walk-forward-vs-baseline framing as the crypto signal backtest — hit
-// rate alone can look good purely from a trending stock; the edge over
-// baseline is what actually says whether the signal is adding anything.
-function optionsBacktestReadout(bt: OptionsBacktest | null, direction: "CALLS" | "PUTS"): { text: string; cls: string } | null {
-  if (!bt || bt.count < 10 || bt.hitRate === null || bt.avgReturn === null || bt.baselineAvgReturn === null) return null;
-  const edge = direction === "CALLS" ? bt.avgReturn - bt.baselineAvgReturn : bt.baselineAvgReturn - bt.avgReturn;
-  const cls  = edge > 0.3 ? "text-emerald-400/80" : edge < -0.3 ? "text-rose-400/80" : "text-[#4B5675]";
-  return { text: `History: ${bt.hitRate}% right · ${bt.count} signals`, cls };
-}
 
 type FuturesCard = {
   symbol: string; name: string;
@@ -50,21 +17,16 @@ type FuturesCard = {
 };
 
 const FUTURES_LIST = [
-  { symbol: "ES.COMM",  name: "E-mini S&P 500"    },
-  { symbol: "NQ.COMM",  name: "E-mini NASDAQ-100"  },
-  { symbol: "YM.COMM",  name: "E-mini Dow Jones"   },
-  { symbol: "RTY.COMM", name: "E-mini Russell 2000" },
+  { symbol: "ES.COMM",  name: "S&P 500"          },
+  { symbol: "NQ.COMM",  name: "Nasdaq 100"        },
+  { symbol: "YM.COMM",  name: "Dow Jones"         },
+  { symbol: "RTY.COMM", name: "Russell 2000 (small companies)" },
   { symbol: "GC.COMM",  name: "Gold"               },
   { symbol: "SI.COMM",  name: "Silver"             },
-  { symbol: "CL.COMM",  name: "Crude Oil (WTI)"    },
+  { symbol: "CL.COMM",  name: "Oil"                },
   { symbol: "NG.COMM",  name: "Natural Gas"         },
 ];
 
-
-function changeColor(v: number | null) {
-  if (v === null) return "text-[#4B5675]";
-  return v >= 0 ? "text-emerald-400" : "text-rose-400";
-}
 
 function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }) {
   const uid = useId().replace(/:/g, "");
@@ -89,262 +51,6 @@ function Sparkline({ closes, positive }: { closes: number[]; positive: boolean }
       <polygon points={`0,${H} ${ptsStr} ${W},${H}`} fill={`url(#${gradId})`} />
       <polyline points={ptsStr} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="sparkline-path" />
     </svg>
-  );
-}
-
-// ── Options Plays Panel ───────────────────────────────────────────────────────
-
-function OptionsPlaysPanel() {
-  const [plays,    setPlays]    = useState<OptionsPlay[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [loaded,   setLoaded]   = useState(false);
-  const [scanned,  setScanned]  = useState(0);
-  const [withIV,   setWithIV]   = useState(0);
-  const [err,      setErr]      = useState<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
-  const [lastScan, setLastScan] = useState<Date | null>(null);
-  const [cheapOnly, setCheapOnly] = useState(false);
-  const { settings: riskSettings, update: updateRiskSettings } = useRiskSettings();
-
-  const scan = useCallback(async () => {
-    setLoading(true); setErr(null);
-    try {
-      const res  = await fetch("/api/market/options-scan", { cache: "no-store" });
-      if (!res.ok) { setErr(`Scan failed (${res.status})`); return; }
-      const data = await res.json();
-      setPlays(data.plays ?? []);
-      setScanned(data.scanned ?? 0);
-      setWithIV(data.withIV ?? 0);
-      setLoaded(true);
-      setLastScan(new Date());
-    } catch (e) { setErr(e instanceof Error ? e.message : "Network error"); }
-    finally { setLoading(false); }
-  }, []);
-
-  // Load on mount + auto-refresh every 5 minutes
-  useEffect(() => {
-    scan();
-    const id = setInterval(scan, 5 * 60 * 1000);
-    return () => clearInterval(id);
-  }, [scan]);
-
-  const marketClosed = (() => {
-    const now = new Date();
-    if (now.getUTCDay() === 0 || now.getUTCDay() === 6) return true;
-    const y = now.getUTCFullYear();
-    const m1 = new Date(Date.UTC(y, 2, 1));
-    const dstStart = new Date(Date.UTC(y, 2, 1 + ((7 - m1.getUTCDay()) % 7) + 7, 7));
-    const n1 = new Date(Date.UTC(y, 10, 1));
-    const dstEnd   = new Date(Date.UTC(y, 10, 1 + ((7 - n1.getUTCDay()) % 7), 6));
-    const etOff    = (now >= dstStart && now < dstEnd) ? -4 : -5;
-    const etMins   = (now.getUTCHours() + 24 + etOff) % 24 * 60 + now.getUTCMinutes();
-    return etMins < 570 || etMins >= 960;
-  })();
-
-  const calls = plays.filter(p => p.play === "CALLS");
-  const puts  = plays.filter(p => p.play === "PUTS");
-
-  return (
-    <div className="scan-panel">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Options Plays</h2>
-          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-            <p className="text-xs text-[#4B5675]">
-              {loaded ? `${plays.length} setups · ${scanned} scanned · ${withIV} with live IV` : "Scanning 30 liquid stocks…"}
-            </p>
-            {lastScan && (
-              <span className="text-[9px] font-mono text-[#333368]">
-                · {lastScan.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            )}
-            {marketClosed && loaded && (
-              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded border bg-amber-500/10 text-amber-400 border-amber-500/25">
-                Market closed
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {loaded && plays.some(p => p.premiumPerContract !== null && p.premiumPerContract < 50) && (
-            <button
-              type="button"
-              onClick={() => setCheapOnly(v => !v)}
-              className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition-colors ${
-                cheapOnly
-                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
-                  : "bg-transparent text-[#4B5675] border-[#252345] hover:text-[#94A3B8]"
-              }`}
-            >
-              Under $50 only
-            </button>
-          )}
-          <button type="button" onClick={scan} disabled={loading}
-            className="flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors disabled:opacity-40">
-            {loading
-              ? <><svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Scanning…</>
-              : "Rescan →"}
-          </button>
-        </div>
-      </div>
-
-      {err && <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3 mb-4"><p className="text-xs text-rose-400">{err}</p></div>}
-
-      {loading && !loaded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5 animate-pulse">
-              <div className="h-4 bg-[#252345] rounded w-14 mb-2" />
-              <div className="h-3 bg-[#252345] rounded w-24 mb-4" />
-              <div className="h-6 bg-[#252345] rounded w-20 mb-3" />
-              <div className="space-y-1.5"><div className="h-3 bg-[#252345] rounded" /><div className="h-3 bg-[#252345] rounded" /></div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {loaded && plays.length === 0 && (
-        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-8 text-center">
-          <p className="text-sm font-medium text-[#F1F5F9] mb-1">No premium setups right now</p>
-          <p className="text-[11px] text-[#4B5675] leading-snug">All four gates must pass: High confidence signal, live CBOE IV, a real bid/ask premium, and 14+ DTE. Check back when the market gives a clear directional move.</p>
-        </div>
-      )}
-
-      {loaded && plays.length > 0 && (
-        <>
-          {/* Summary strip */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
-            {[
-              { label: "Calls",    value: calls.length, color: "text-emerald-400" },
-              { label: "Puts",     value: puts.length,  color: "text-rose-400"    },
-              { label: "With IV",  value: withIV,       color: "text-violet-400"  },
-            ].map(s => (
-              <div key={s.label} className="card-shine glass surface-sheen border border-[#252345] rounded-xl px-4 py-3 text-center">
-                <p className={`num-reveal text-2xl font-black font-mono ${s.color}`}>{s.value}</p>
-                <p className="text-[9px] text-[#4B5675] uppercase tracking-widest mt-0.5">{s.label}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Disclaimer */}
-          <div className="mb-3 px-3 py-2.5 rounded-xl bg-amber-500/8 border border-amber-500/20 flex items-start gap-2">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400 mt-0.5 shrink-0"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            <p className="text-[11px] text-amber-300/80 leading-snug">
-              <span className="font-semibold text-amber-300">Educational signals only — not financial advice.</span> Options can lose 100% of their value. Always verify DTE, IV environment, and earnings dates before trading.
-            </p>
-          </div>
-          <RiskSizerBar settings={riskSettings} onChange={updateRiskSettings} />
-          {cheapOnly && (
-            <div className="mb-3 px-3 py-2.5 rounded-xl bg-violet-500/8 border border-violet-500/20">
-              <p className="text-[11px] text-violet-300/70 leading-snug">
-                <span className="font-semibold text-violet-300">Cheap premium isn&apos;t a bargain.</span> A contract usually costs less because the market is pricing it as less likely to pay off — further out-of-the-money or shorter-dated. Same signal engine, same unproven edge, just a smaller bet. The confidence badge and history line are the only things that speak to direction — not the price.
-              </p>
-            </div>
-          )}
-
-          {/* Play cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {(cheapOnly
-              ? [...plays].filter(p => p.premiumPerContract !== null && p.premiumPerContract < 50)
-                           .sort((a, b) => (a.premiumPerContract ?? 0) - (b.premiumPerContract ?? 0))
-                           .slice(0, 5)
-              : plays
-            ).map((p, idx, arr) => {
-              const isCalls   = p.play === "CALLS";
-              const borderCls = isCalls ? "border-l-emerald-500/40" : "border-l-rose-500/40";
-              const badgeCls  = isCalls
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
-                : "bg-rose-500/10 text-rose-400 border-rose-500/25";
-              const isSelected = selected === p.symbol;
-              const isOrphan = idx === arr.length - 1 && arr.length % 3 === 1;
-
-              return (
-                <div key={p.symbol} className={`${isOrphan ? "sm:col-span-2 xl:col-span-3" : ""} bg-[#13112A] rounded-2xl border border-l-2 border-[#252345] ${borderCls} overflow-hidden`}>
-                  <div className="p-5">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold tracking-tight">{p.symbol}</p>
-                          {p.dte !== null && (
-                            <span className={`text-[8px] font-bold px-1.5 py-px rounded-md border ${
-                              p.dte < 7  ? "bg-rose-500/15 text-rose-400 border-rose-500/30" :
-                              p.dte < 14 ? "bg-amber-500/15 text-amber-400 border-amber-500/30" :
-                                           "bg-sky-500/10 text-sky-400 border-sky-500/20"
-                            }`}>{p.dte}d</span>
-                          )}
-                        </div>
-                        <p className="text-[10px] text-[#4B5675] mt-0.5 truncate max-w-[130px]">{p.name}</p>
-                      </div>
-                      <span className={`text-[11px] font-black px-2 py-0.5 rounded-lg border ${badgeCls}`}>{p.play}</span>
-                    </div>
-
-                    {/* Price */}
-                    <p className="text-xl font-bold font-mono text-[#F1F5F9]">${p.price.toFixed(2)}</p>
-                    <p className={`text-xs font-mono mt-0.5 ${changeColor(p.changePct)}`}>
-                      {p.changePct >= 0 ? "+" : ""}{p.changePct.toFixed(2)}% today
-                    </p>
-
-                    {/* Trade levels — Entry/Target/Stop are the UNDERLYING STOCK's levels
-                        (where the stock needs to go), not the option's own premium path. */}
-                    <div className={`mt-3 rounded-xl p-2.5 space-y-1.5 border ${isCalls ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
-                      {[
-                        { label: "Strike",     value: p.delta !== null ? `${p.strike} · Δ${p.delta.toFixed(2)}` : p.strike, color: "text-[#F1F5F9]"  },
-                        { label: "Stock entry",value: p.entryZone, color: "text-amber-400"   },
-                        { label: "Stock tgt",  value: p.target,    color: "text-emerald-400" },
-                        { label: "Stock stop", value: p.stop,      color: "text-rose-400"    },
-                        ...(p.premiumEst ? [{ label: "Premium", value: p.premiumEst, color: "text-violet-400" }] : []),
-                      ].map(({ label, value, color }) => (
-                        <div key={label} className="flex items-center justify-between gap-2">
-                          <span className="text-[8px] text-[#4B5675] uppercase tracking-widest shrink-0">{label}</span>
-                          <span className={`text-[10px] font-mono font-bold ${color} text-right`}>{value}</span>
-                        </div>
-                      ))}
-                      <p className="text-[8px] text-[#4B5675] pt-0.5 border-t border-white/5">
-                        {p.rrRatio}{p.iv != null ? ` · IV ${p.iv}%` : ""}{p.expiry ? ` · exp ${p.expiry}` : ""}{p.pcVolRatio != null ? ` · P/C vol ${p.pcVolRatio}` : ""}
-                        {!p.hasOptions && <span className="text-amber-400/70"> · price-based est</span>}
-                      </p>
-                      {(() => {
-                        const bt = optionsBacktestReadout(p.backtest, p.play);
-                        return bt ? <p className={`text-[8px] font-semibold pt-0.5 ${bt.cls}`}>{bt.text}</p> : null;
-                      })()}
-                      {(() => {
-                        const size = sizeOptionsPosition(riskSettings.accountSize, riskSettings.riskPct, p.premiumPerContract);
-                        if (!size) return null;
-                        return size.tooExpensive
-                          ? <p className="text-[8px] font-semibold pt-0.5 text-rose-400">Too large for your {riskSettings.riskPct}% cap — even 1 contract exceeds it</p>
-                          : <p className="text-[8px] font-semibold pt-0.5 text-sky-400">Size: {size.contracts} contract{size.contracts === 1 ? "" : "s"} ≈ ${size.actualRiskDollars} ({riskSettings.riskPct}% cap)</p>;
-                      })()}
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-3 mt-3">
-                      <Link href={`/analysis?symbol=${encodeURIComponent(p.symbol + ".US")}`}
-                        className="text-[11px] text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
-                        Analyse →
-                      </Link>
-                      <button type="button"
-                        onClick={() => setSelected(isSelected ? null : p.symbol)}
-                        className="text-[11px] text-violet-400 hover:text-violet-300 font-medium transition-colors ml-auto">
-                        {isSelected ? "Hide options ▲" : "Options analysis ▼"}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Inline options analysis */}
-                  {isSelected && (
-                    <div className="border-t border-[#252345] p-4">
-                      <OptionsTab initialSymbol={p.symbol} />
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
   );
 }
 
@@ -393,58 +99,32 @@ function FuturesPanel() {
     });
   }, []);
 
+  const read = (sig: string | null) => sig === "BUY" ? "Leaning up" : sig === "SELL" ? "Leaning down" : sig === "HOLD" ? "No clear direction" : null;
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Futures Markets</h2>
-          <p className="text-xs text-[#4B5675] mt-0.5">Live prices + AI signals across 8 major contracts</p>
-        </div>
-        <Link href="/explore" className="text-xs text-emerald-400 hover:text-emerald-300 font-medium transition-colors">All markets →</Link>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-        {futures.map(f => (
-          <Link key={f.symbol} href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
-            className={`card-shine surface-sheen card-hover-lift group bg-[#13112A] rounded-2xl p-5 border border-l-2 border-[#252345] hover:border-[#333368] hover:bg-[#1A1838] ${
-              f.signal === "BUY" ? "border-l-emerald-500/40 signal-card-buy" : f.signal === "SELL" ? "border-l-rose-500/40 signal-card-sell" : "border-l-[#252345]"
-            }`}>
-            {/* Header */}
-            <div className="flex items-start justify-between mb-3">
+    <ul className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+      {futures.map(f => (
+        <li key={f.symbol}>
+          <Link href={`/analysis?symbol=${encodeURIComponent(f.symbol)}`}
+            className="block h-full rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5 hover:border-[var(--mx-line-strong)] transition-colors">
+            <p className="text-[15px] text-[var(--mx-text)]">{f.name}</p>
+            <p className="text-[12px] text-[var(--mx-text-3)]">{f.symbol.replace(".COMM", "")}</p>
+            <div className="mt-4 flex items-end justify-between gap-2">
               <div>
-                <div className="flex items-center gap-1.5">
-                  <p className="font-bold tracking-tight">{f.symbol.replace(".COMM", "")}</p>
-                  <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">FUT</span>
-                </div>
-                <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[110px]">{f.name}</p>
+                <p className="text-[20px] text-[var(--mx-text)]">{f.price !== null ? `$${f.price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : <span className="inline-block h-5 w-24 rounded bg-[var(--mx-raised)] animate-pulse" />}</p>
+                <p className={`text-[13px] ${f.change == null ? "text-[var(--mx-text-3)]" : f.change >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}`}>
+                  {f.change !== null ? `${f.change >= 0 ? "+" : "−"}${Math.abs(f.change).toFixed(2)}% today` : " "}
+                </p>
               </div>
-              {f.loading
-                ? <span className="text-[#4B5675] text-xs animate-pulse">…</span>
-                : f.signal
-                ? <div className="flex flex-col items-end gap-0.5">
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadgeCls(f.signal)}`}>{f.signal}</span>
-                    {f.confidence && <span className={`text-[9px] font-semibold ${f.confidence === "High" ? "text-emerald-400" : f.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>{f.confidence}</span>}
-                  </div>
-                : <span className="text-[11px] px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
-              }
-            </div>
-
-            {/* Price */}
-            <p className={`text-xl font-bold font-mono ${changeColor(f.change)}`}>
-              {f.price !== null ? `$${f.price.toFixed(2)}` : <span className="text-[#4B5675] animate-pulse">——</span>}
-            </p>
-            <div className="flex items-end justify-between mt-1">
-              <p className={`text-xs font-mono ${changeColor(f.change)}`}>
-                {f.change !== null ? `${f.change >= 0 ? "+" : ""}${f.change.toFixed(2)}%` : "—"}
-              </p>
               {f.sparkline && <Sparkline closes={f.sparkline} positive={(f.change ?? 0) >= 0} />}
             </div>
-
-            <p className="text-[11px] text-emerald-400 mt-3 group-hover:text-emerald-300 transition-colors font-medium">Analyse →</p>
+            <p className="mt-4 pt-3 border-t border-[var(--mx-line)] text-[13px] text-[var(--mx-text-2)]">
+              {f.loading ? "Reading the trend…" : read(f.signal) ?? "No read right now"}
+              {f.confidence && !f.loading && <span className="text-[var(--mx-text-3)]"> · {f.confidence.toLowerCase()} confidence</span>}
+            </p>
           </Link>
-        ))}
-      </div>
-    </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -671,101 +351,40 @@ function ValuePicksPanel() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-type Section    = "options" | "futures" | "value" | "flow" | "tools";
-type ToolsTab   = "analyze" | "chain" | "calculator";
-
+// Futures and Value picks live here as single pages. The old options screener
+// sections (plays, flow, chain, calculator) disagreed with the rules-based
+// Options page, so those links now go to /options.
 function IntelligenceContent() {
-  const params  = useSearchParams();
-  const initSym = params.get("sym") ?? "";
+  const params = useSearchParams();
+  const router = useRouter();
+  const section = params.get("section") === "value" ? "value" : params.get("section") === "futures" ? "futures" : "options";
+  useEffect(() => { if (section === "options") router.replace("/options"); }, [section, router]);
 
-  const [section,   setSection]   = useState<Section>(() => {
-    const s = params.get("section");
-    if (s === "futures")    return "futures";
-    if (s === "value")      return "value";
-    if (s === "flow")       return "flow";
-    if (s === "analyze" || s === "chain" || s === "calculator") return "tools";
-    return "options";
-  });
-
-  const [toolsTab, setToolsTab] = useState<ToolsTab>(() => {
-    const s = params.get("section");
-    if (s === "chain")      return "chain";
-    if (s === "calculator") return "calculator";
-    return "analyze";
-  });
-
-  const TABS: { id: Section; label: string }[] = [
-    { id: "options",  label: "Options Plays" },
-    { id: "value",    label: "Value Picks"   },
-    { id: "flow",     label: "Flow"          },
-    { id: "futures",  label: "Futures"       },
-    { id: "tools",    label: "Tools"         },
-  ];
+  const head = section === "futures"
+    ? { t: "Futures", d: "Futures follow big markets like the S&P 500, gold and oil. Tap one to see our read on it." }
+    : { t: "Value picks", d: "Well-known companies whose price looks low compared with what they earn. A starting point, not advice." };
 
   return (
-    <div className="flex min-h-screen text-[#F1F5F9]">
+    <div className="flex min-h-screen text-[var(--mx-text)]">
       <Sidebar />
-      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+      <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-
-        {/* Header + tab bar */}
-        <div className="mt-3 mb-5">
-          <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green mb-4">Markets</h1>
-          <div className="flex gap-0 border-b border-[#252345] overflow-x-auto scroll-fade-x">
-            {TABS.map(t => (
-              <button
-                key={t.id}
-                type="button"
-                onClick={() => setSection(t.id)}
-                className={`shrink-0 px-5 py-2.5 text-xs font-semibold transition-colors border-b-2 -mb-px ${
-                  section === t.id
-                    ? "text-[#F1F5F9] border-emerald-500"
-                    : "text-[#4B5675] border-transparent hover:text-[#94A3B8]"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+        <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+          <div className="max-w-6xl mx-auto w-full space-y-6">
+            {section === "options" ? (
+              <p className="text-[15px] text-[var(--mx-text-2)]">Opening Options…</p>
+            ) : (
+              <>
+                <header>
+                  <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">{head.t}</h1>
+                  <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">{head.d}</p>
+                </header>
+                {section === "futures" ? <FuturesPanel /> : <ValuePicksPanel />}
+              </>
+            )}
           </div>
-        </div>
-
-        {section === "options" && <OptionsPlaysPanel />}
-        {section === "futures" && <FuturesPanel />}
-        {section === "value"   && (
-          <div className="max-w-7xl mx-auto">
-            <ValuePicksPanel />
-          </div>
-        )}
-        {section === "flow"    && (
-          <div className="max-w-6xl mx-auto">
-            <OptionsFlow />
-          </div>
-        )}
-        {section === "tools"   && (
-          <div className="max-w-7xl mx-auto">
-            {/* Tools sub-nav */}
-            <div className="flex gap-1 mb-5">
-              {([
-                ["analyze",    "Analyze"],
-                ["chain",      "Chain"],
-                ["calculator", "P&L Calculator"],
-              ] as [ToolsTab, string][]).map(([id, label]) => (
-                <button key={id} type="button" onClick={() => setToolsTab(id)}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors border ${
-                    toolsTab === id
-                      ? "bg-[#252345] text-[#F1F5F9] border-[#333368]"
-                      : "text-[#4B5675] border-transparent hover:text-[#94A3B8]"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-            {toolsTab === "analyze"    && <OptionsTab initialSymbol={initSym} />}
-            {toolsTab === "chain"      && <OptionsChainViewer initialSymbol={initSym} />}
-            {toolsTab === "calculator" && <div className="max-w-4xl"><OptionsPLCalculator /></div>}
-          </div>
-        )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

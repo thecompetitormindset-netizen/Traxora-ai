@@ -305,3 +305,10 @@ html[data-theme] [class*="tracking-wide"], html[data-theme] [class*="tracking-wi
 html [class*="tracking-wide"] { letter-spacing: 0 !important; }
 html .text-\[7px\], html .text-\[8px\], html .text-\[9px\] { font-size: 11px !important; }
 html .text-\[10px\] { font-size: 11.5px !important; }
+
+/* Filled green buttons from the old design become the standard primary
+   button (white on dark, black on light). Dots and badges keep their colour. */
+html :is(button, a).bg-emerald-600, html :is(button, a).bg-emerald-500, html :is(button, a).bg-violet-600 {
+  background: var(--mx-primary-bg) !important; color: var(--mx-primary-fg) !important; border-color: transparent !important;
+}
+html :is(button, a).bg-emerald-600:hover, html :is(button, a).bg-emerald-500:hover, html :is(button, a).bg-violet-600:hover { opacity: 0.9; }
