@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "./landing.css";
+import { HeroMedia, LayerStack, Reveal, type StackStep } from "./components/landing/Motion";
 
 // Landing page — shown to everyone at "/". No account is needed: every button
 // opens the dashboard. (Only AI-model features ask for sign-in, where used.)
@@ -73,67 +74,43 @@ function Tick({ ok }: { ok: boolean }) {
   );
 }
 
-/** Animated illustration: one symbol running through the checks. */
-function DecisionConsole() {
-  return (
-    <figure className="m-0">
-      <div className="lp-frame">
-        <div className="rounded-[17px] bg-[var(--mx-surface)] overflow-hidden" aria-hidden="true">
-          <div className="flex items-center justify-between gap-3 px-4 sm:px-5 h-11 border-b border-[var(--mx-line)]">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-[var(--mx-raised-2)]" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[var(--mx-raised-2)]" />
-              <span className="w-2.5 h-2.5 rounded-full bg-[var(--mx-raised-2)]" />
-            </div>
-            <p className="font-mono text-[11.5px] text-[var(--mx-text-3)] truncate">options / research / AAPL</p>
-            <span className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--mx-text-3)]">
-              <span className="lp-pulse w-1.5 h-1.5 rounded-full bg-[var(--mx-text-2)]" /> checking
-            </span>
-          </div>
-
-          <div className="grid md:grid-cols-[1.1fr_1fr]">
-            <div className="relative p-5 sm:p-6 border-b md:border-b-0 md:border-r border-[var(--mx-line)]">
-              <span className="lp-scanline" />
-              <div className="flex items-baseline justify-between gap-3">
-                <div>
-                  <p className="mx-label">Option idea</p>
-                  <p className="mt-2 font-mono text-[28px] leading-none tracking-[-0.02em]">AAPL</p>
-                </div>
-                <p className="text-[12px] text-[var(--mx-text-3)]">15 min delay</p>
-              </div>
-              <svg viewBox="0 0 300 90" className="mt-5 w-full h-[90px]" preserveAspectRatio="none">
-                <line x1="0" y1="30" x2="300" y2="30" stroke="var(--mx-line-strong)" strokeDasharray="3 4" />
-                <line x1="0" y1="66" x2="300" y2="66" stroke="var(--mx-line-strong)" strokeDasharray="3 4" />
-                <polyline fill="none" stroke="var(--mx-text)" strokeWidth="1.6" strokeLinejoin="round"
-                  points="0,70 20,64 40,68 60,58 80,61 100,52 120,55 140,47 160,50 180,42 200,46 220,38 240,41 260,35 280,39 300,33" />
-              </svg>
-              <div className="mt-2 flex justify-between font-mono text-[11px] text-[var(--mx-text-3)]">
-                <span>recent low</span><span>recent high</span>
-              </div>
-            </div>
-
-            <div className="p-5 sm:p-6">
-              <p className="mx-label">Our checks</p>
-              <ul className="mt-3 space-y-2.5">
-                {CONSOLE.map((c, i) => (
-                  <li key={c.k} className="lp-check flex items-center justify-between gap-3 text-[13px]" style={{ animationDelay: `${0.5 + i * 0.45}s` }}>
-                    <span className="flex items-center gap-2 text-[var(--mx-text-2)]"><Tick ok={c.ok} />{c.k}</span>
-                    <span className="text-[12px] text-[var(--mx-text-3)]">{c.ok ? "Yes" : "Not yet"}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="lp-verdict mt-5 rounded-[10px] border border-[var(--mx-line-strong)] p-3" style={{ animationDelay: `${0.5 + CONSOLE.length * 0.45 + 0.2}s` }}>
-                <p className="text-[14px]">Better to wait</p>
-                <p className="mt-1 text-[12px] leading-relaxed text-[var(--mx-text-3)]">The buy and sell prices are too far apart right now. Check again later.</p>
-              </div>
-            </div>
-          </div>
-        </div>
+const STACK: StackStep[] = [
+  {
+    label: "Step 1 · Look", title: STEPS[0].h + " at the market.", text: STEPS[0].t,
+    panel: (
+      <div className="h-[calc(100%-28px)] flex flex-col">
+        <div className="flex items-baseline justify-between"><p className="font-mono text-[22px] leading-none">AAPL</p><p className="text-[11px] text-[var(--mx-text-3)]">15 min delay</p></div>
+        <svg viewBox="0 0 300 100" preserveAspectRatio="none" className="mt-3 flex-1 w-full">
+          <line x1="0" y1="25" x2="300" y2="25" stroke="var(--mx-line-strong)" strokeDasharray="3 4" />
+          <line x1="0" y1="80" x2="300" y2="80" stroke="var(--mx-line-strong)" strokeDasharray="3 4" />
+          <polyline fill="none" stroke="var(--mx-text)" strokeWidth="1.6" strokeLinejoin="round" points="0,84 20,76 40,80 60,68 80,72 100,60 120,64 140,54 160,58 180,46 200,52 220,40 240,44 260,34 280,38 300,30" />
+        </svg>
       </div>
-      <figcaption className="mt-3 text-center mx-label">Illustration — not live market data</figcaption>
-    </figure>
-  );
-}
+    ),
+  },
+  {
+    label: "Step 2 · Check", title: "Run the same simple checks.", text: STEPS[1].t,
+    panel: (
+      <ul className="space-y-2 text-[12.5px] sm:text-[13px]">
+        {CONSOLE.map(c => (
+          <li key={c.k} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-2 text-[var(--mx-text-2)]"><Tick ok={c.ok} />{c.k}</span>
+            <span className="text-[var(--mx-text-3)]">{c.ok ? "Yes" : "Not yet"}</span>
+          </li>
+        ))}
+      </ul>
+    ),
+  },
+  {
+    label: "Step 3 · Answer", title: "Get a plain answer.", text: STEPS[2].t,
+    panel: (
+      <div className="h-[calc(100%-28px)] flex flex-col justify-center">
+        <p className="text-[26px] sm:text-[32px] leading-none tracking-[-0.03em]">Better to wait</p>
+        <p className="mt-3 text-[13px] leading-relaxed text-[var(--mx-text-2)] max-w-[34ch]">The buy and sell prices are too far apart right now. Check again later.</p>
+      </div>
+    ),
+  },
+];
 
 function Bento() {
   return (
@@ -197,7 +174,7 @@ export default function HomePage() {
   const primaryLabel = "Open dashboard";
 
   return (
-    <div className="min-h-screen bg-[var(--mx-canvas)] text-[var(--mx-text)] overflow-x-hidden">
+    <div className="min-h-screen bg-[var(--mx-canvas)] text-[var(--mx-text)] overflow-x-clip">
       {/* ── Nav ── */}
       <header className="sticky top-0 z-30 border-b border-[var(--mx-line)] bg-[color-mix(in_srgb,var(--mx-canvas)_80%,transparent)] backdrop-blur-md">
         <nav className="max-w-6xl mx-auto h-14 px-4 sm:px-8 flex items-center justify-between gap-4" aria-label="Main">
@@ -217,34 +194,38 @@ export default function HomePage() {
       </header>
 
       <main>
-        {/* ── Hero ── */}
-        <section className="relative isolate">
-          <div aria-hidden="true" className="lp-grid-bg absolute inset-0 -z-10" />
-          <div aria-hidden="true" className="lp-spot absolute inset-0 -z-10" />
-          <div className="max-w-6xl mx-auto px-4 sm:px-8 pt-20 sm:pt-28 pb-14 text-center">
-            <Link href="/options" className="inline-flex items-center gap-2 rounded-full border border-[var(--mx-line-strong)] bg-[var(--mx-surface)] pl-2 pr-3.5 py-1 text-[12.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] transition-colors">
-              <span className="rounded-full bg-[var(--mx-text)] text-[var(--mx-canvas)] px-2 py-0.5 text-[11px]">New</span>
-              Options ideas, in plain words
-              <span aria-hidden="true">→</span>
-            </Link>
-            <h1 className="lp-title mt-7 mx-auto text-[44px] sm:text-[72px] lg:text-[88px] leading-[0.98] tracking-[-0.045em] max-w-[13ch]" style={H}>
-              Know when to trade. And when to wait.
-            </h1>
-            <p className="mt-6 mx-auto text-[16px] sm:text-[18px] leading-relaxed text-[var(--mx-text-2)] max-w-[52ch]">
-              Traxora looks at market prices, runs simple checks, and tells you in plain words if something is worth practising — or why it’s better to wait.
-            </p>
-            <div className="mt-9 flex flex-wrap justify-center items-center gap-3">
-              <button type="button" onClick={launch} className="h-12 px-6 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[15px] hover:opacity-90 transition-opacity">
-                {primaryLabel} <span aria-hidden="true">→</span>
-              </button>
-              <a href="#how" className="h-12 px-6 inline-flex items-center rounded-full border border-[var(--mx-line-strong)] text-[15px] hover:border-[var(--mx-control)] transition-colors">
-                See how it works
-              </a>
+        {/* ── Hero: full-bleed animated media with the headline on top ── */}
+        <section className="lp-dark px-2 sm:px-3 pt-2 sm:pt-3">
+          <div className="relative isolate overflow-hidden rounded-[18px] sm:rounded-[22px] min-h-[600px] h-[calc(100svh-68px)] max-h-[860px] bg-black text-[var(--mx-text)]">
+            <HeroMedia />
+            <div aria-hidden="true" className="lp-hero-scrim absolute inset-0" />
+            <div className="relative h-full flex flex-col items-center justify-center text-center px-4 sm:px-8">
+              <Link href="/options" className="lp-rise inline-flex items-center gap-2 rounded-full border border-[rgb(255_255_255/0.22)] bg-[rgb(0_0_0/0.45)] backdrop-blur-sm pl-2 pr-3.5 py-1 text-[12.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] transition-colors">
+                <span className="rounded-full bg-[var(--mx-text)] text-black px-2 py-0.5 text-[11px]">New</span>
+                Options ideas, in plain words
+                <span aria-hidden="true">→</span>
+              </Link>
+              <h1 className="lp-rise mt-7 mx-auto text-[42px] sm:text-[72px] lg:text-[92px] leading-[0.98] tracking-[-0.045em] max-w-[13ch]" style={{ ...H, animationDelay: "120ms" }}>
+                Know when to trade. And when to wait.
+              </h1>
+              <p className="lp-rise mt-6 mx-auto text-[16px] sm:text-[18px] leading-relaxed text-[var(--mx-text-2)] max-w-[50ch]" style={{ animationDelay: "240ms" }}>
+                Traxora looks at market prices, runs simple checks, and tells you in plain words if something is worth practising — or why it’s better to wait.
+              </p>
+              <div className="lp-rise mt-9 flex flex-wrap justify-center items-center gap-3" style={{ animationDelay: "360ms" }}>
+                <button type="button" onClick={launch} className="h-12 px-6 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[15px] hover:opacity-90 transition-opacity">
+                  {primaryLabel} <span aria-hidden="true">→</span>
+                </button>
+                <a href="#how" className="h-12 px-6 inline-flex items-center rounded-full border border-[rgb(255_255_255/0.3)] bg-[rgb(0_0_0/0.35)] backdrop-blur-sm text-[15px] hover:border-[rgb(255_255_255/0.6)] transition-colors">
+                  See how it works
+                </a>
+              </div>
+              <p className="lp-rise mt-5 text-[13px] text-[var(--mx-text-3)]" style={{ animationDelay: "480ms" }}>Free · No sign-up · For learning, not financial advice</p>
             </div>
-            <p className="mt-5 text-[13px] text-[var(--mx-text-3)]">Free · No sign-up · For learning, not financial advice</p>
-          </div>
-          <div className="max-w-5xl mx-auto px-4 sm:px-8 pb-20 sm:pb-28">
-            <DecisionConsole />
+            <a href="#how" className="absolute bottom-5 right-5 sm:bottom-7 sm:right-7 hidden sm:flex items-center gap-3 text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
+              Scroll to explore
+              <span className="grid place-items-center w-9 h-9 rounded-[8px] border border-[rgb(255_255_255/0.3)]" aria-hidden="true">↓</span>
+            </a>
+            <p className="absolute bottom-5 left-5 sm:bottom-7 sm:left-7 mx-label text-[var(--mx-text-3)]">Illustration — not live data</p>
           </div>
         </section>
 
@@ -261,41 +242,22 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* ── How it works ── */}
-        <section id="how" className="max-w-6xl mx-auto px-4 sm:px-8 py-24 sm:py-32 scroll-mt-16">
-          <div className="max-w-3xl">
-            <p className="mx-label">How it works</p>
-            <h2 className="mt-4 text-[34px] sm:text-[52px] leading-[1.02] tracking-[-0.04em]" style={H}>
-              Three steps. Same every time.
-            </h2>
-          </div>
-          <ol className="mt-14 grid md:grid-cols-3 gap-10 md:gap-0">
-            {STEPS.map((s, i) => (
-              <li key={s.n} className="relative md:pr-10">
-                <div className="flex items-center gap-4">
-                  <span className="grid place-items-center w-11 h-11 rounded-full border border-[var(--mx-line-strong)] bg-[var(--mx-surface)] text-[15px]">{s.n}</span>
-                  {i < STEPS.length - 1 && <span aria-hidden="true" className="lp-flow-line hidden md:block flex-1 h-px" />}
-                </div>
-                <p className="mt-6 text-[24px] tracking-[-0.02em]" style={H}>{s.h}</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)] max-w-[34ch]">{s.t}</p>
-              </li>
-            ))}
-          </ol>
-        </section>
+        {/* ── How it works: sticky 3D layers ── */}
+        <LayerStack steps={STACK} />
 
         {/* ── Product bento ── */}
         <section id="product" className="border-t border-[var(--mx-line)] scroll-mt-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-8 py-24 sm:py-32">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-              <div className="max-w-2xl">
+              <Reveal className="max-w-2xl">
                 <p className="mx-label">Product</p>
                 <h2 className="mt-4 text-[34px] sm:text-[52px] leading-[1.02] tracking-[-0.04em]" style={H}>Everything you need, in one place.</h2>
-              </div>
+              </Reveal>
               <button type="button" onClick={launch} className="self-start md:self-auto text-[14px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
                 Explore the dashboard →
               </button>
             </div>
-            <Bento />
+            <Reveal delay={100}><Bento /></Reveal>
           </div>
         </section>
 
@@ -303,15 +265,19 @@ export default function HomePage() {
         <section id="rules" className="relative isolate border-y border-[var(--mx-line)] scroll-mt-16 overflow-hidden">
           <div aria-hidden="true" className="lp-spot absolute inset-0 -z-10 rotate-180" />
           <div className="max-w-6xl mx-auto px-4 sm:px-8 py-24 sm:py-28">
-            <p className="mx-label">What we check</p>
-            <h2 className="mt-4 text-[34px] sm:text-[52px] leading-[1.02] tracking-[-0.04em] max-w-[18ch]" style={H}>Simple checks. Nothing hidden.</h2>
-            <p className="mt-5 text-[16px] leading-relaxed text-[var(--mx-text-2)] max-w-[52ch]">An idea only shows up when it passes all six. If one fails, we tell you which one.</p>
+            <Reveal>
+              <p className="mx-label">What we check</p>
+              <h2 className="mt-4 text-[34px] sm:text-[52px] leading-[1.02] tracking-[-0.04em] max-w-[18ch]" style={H}>Simple checks. Nothing hidden.</h2>
+              <p className="mt-5 text-[16px] leading-relaxed text-[var(--mx-text-2)] max-w-[52ch]">An idea only shows up when it passes all six. If one fails, we tell you which one.</p>
+            </Reveal>
             <ol className="mt-14 grid sm:grid-cols-2 lg:grid-cols-3 border-t border-l border-[var(--mx-line)]">
               {SIMPLE_CHECKS.map((c, i) => (
-                <li key={c.h} className="border-r border-b border-[var(--mx-line)] p-6 sm:p-8">
-                  <p className="text-[13px] text-[var(--mx-text-3)]">{String(i + 1).padStart(2, "0")}</p>
-                  <p className="lp-title mt-6 text-[28px] sm:text-[32px] leading-[1.05] tracking-[-0.03em]" style={H}>{c.h}</p>
-                  <p className="mt-3 text-[15px] leading-relaxed text-[var(--mx-text-2)]">{c.t}</p>
+                <li key={c.h} className="border-r border-b border-[var(--mx-line)]">
+                  <Reveal delay={(i % 3) * 90} className="p-6 sm:p-8 h-full">
+                    <p className="text-[13px] text-[var(--mx-text-3)]">{String(i + 1).padStart(2, "0")}</p>
+                    <p className="lp-title mt-6 text-[28px] sm:text-[32px] leading-[1.05] tracking-[-0.03em]" style={H}>{c.h}</p>
+                    <p className="mt-3 text-[15px] leading-relaxed text-[var(--mx-text-2)]">{c.t}</p>
+                  </Reveal>
                 </li>
               ))}
             </ol>
@@ -325,11 +291,11 @@ export default function HomePage() {
               { h: "Practice first", t: "You only ever use pretend money here. Nothing on Traxora places a real trade." },
               { h: "Same answer every time", t: "The checks follow fixed rules, so the same prices always give the same answer." },
               { h: "Honest about prices", t: "Prices are about 15 minutes behind, and we always say so. Missing numbers are never made up." },
-            ].map(p => (
-              <div key={p.h} className="border-t border-[var(--mx-line-strong)] pt-6">
+            ].map((p, i) => (
+              <Reveal key={p.h} delay={i * 90} className="border-t border-[var(--mx-line-strong)] pt-6">
                 <p className="text-[20px] tracking-[-0.015em]">{p.h}</p>
                 <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)]">{p.t}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </section>
@@ -337,10 +303,10 @@ export default function HomePage() {
         {/* ── FAQ ── */}
         <section id="faq" className="border-t border-[var(--mx-line)] scroll-mt-16">
           <div className="max-w-6xl mx-auto px-4 sm:px-8 py-24 grid lg:grid-cols-[1fr_1.6fr] gap-10">
-            <div>
+            <Reveal>
               <p className="mx-label">FAQ</p>
               <h2 className="mt-4 text-[34px] sm:text-[44px] leading-[1.04] tracking-[-0.035em]" style={H}>Common questions.</h2>
-            </div>
+            </Reveal>
             <div className="divide-y divide-[var(--mx-line)] border-y border-[var(--mx-line)]">
               {FAQ.map(f => (
                 <details key={f.q} className="group py-5">
@@ -359,7 +325,7 @@ export default function HomePage() {
         <section className="relative isolate border-t border-[var(--mx-line)] overflow-hidden">
           <div aria-hidden="true" className="lp-grid-bg absolute inset-0 -z-10" />
           <div aria-hidden="true" className="lp-spot absolute inset-0 -z-10" />
-          <div className="max-w-6xl mx-auto px-4 sm:px-8 py-28 sm:py-36 text-center">
+          <Reveal className="max-w-6xl mx-auto px-4 sm:px-8 py-28 sm:py-36 text-center">
             <h2 className="lp-title mx-auto text-[40px] sm:text-[68px] leading-[1] tracking-[-0.045em] max-w-[14ch]" style={H}>
               Practise the discipline of waiting.
             </h2>
@@ -367,7 +333,7 @@ export default function HomePage() {
             <button type="button" onClick={launch} className="mt-9 h-12 px-7 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[15px] hover:opacity-90 transition-opacity">
               {primaryLabel} <span aria-hidden="true">→</span>
             </button>
-          </div>
+          </Reveal>
         </section>
       </main>
 
