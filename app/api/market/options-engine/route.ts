@@ -34,6 +34,9 @@ export type OptionsAnalysisResponse = {
   engine: "deterministic";
   policy_version: string;
   persisted: boolean;
+  // Why the shared result couldn't be saved or read (database error code +
+  // short message), so a deployment problem is visible without server logs.
+  store_error: string | null;
   analyses: DisplayAnalysis[];
 };
 
@@ -43,6 +46,13 @@ type Row = StoredAnalysis & { run_date: string };
 // storm doesn't refetch the whole universe on every request.
 let memCache: { run_date: string; rows: Row[] } | null = null;
 let inflight: Promise<{ rows: Row[]; persisted: boolean }> | null = null;
+let lastStoreError: string | null = null;
+
+function noteStoreError(where: string, err: { code?: string; message?: string } | null | undefined) {
+  if (!err) return;
+  lastStoreError = `${where}: ${err.code ? `[${err.code}] ` : ""}${(err.message ?? "unknown error").slice(0, 160)}`;
+  console.error("[options-analysis]", lastStoreError);
+}
 
 type Db = ReturnType<typeof supabaseAdmin>;
 
@@ -105,7 +115,7 @@ async function generate(actor: string): Promise<{ rows: Row[]; persisted: boolea
   const ivRows = results.filter(r => r.atmIv !== null).map(r => ({ symbol: r.row.symbol, as_of_date: runDate, atm_iv: r.atmIv }));
   if (ivRows.length) {
     const { error: ivErr } = await db.from("options_iv_history").upsert(ivRows, { onConflict: "symbol,as_of_date" });
-    if (ivErr) console.error("[options-analysis] IV history upsert error:", ivErr.message);
+    if (ivErr) noteStoreError("iv-history", ivErr);
   }
   return { rows, persisted };
 }
@@ -119,31 +129,39 @@ async function readToday(): Promise<{ rows: Row[]; persisted: boolean }> {
   const runDate = etTradingDate();
   const cached = memCache?.run_date === runDate ? memCache.rows : [];
   const db = tryDb();
-  if (!db) return { rows: cached, persisted: false };
+  if (!db) { lastStoreError = "database not configured"; return { rows: cached, persisted: false }; }
   const { data, error } = await db
     .from("options_analyses")
     .select("run_date, symbol, as_of, input, output, review_status, review_errors, pricing")
     .eq("run_date", runDate);
   if (error) {
-    console.error("[options-analysis] read error:", error.message);
+    noteStoreError("read", error);
     return { rows: cached, persisted: false };
   }
   return { rows: (data ?? []) as Row[], persisted: true };
 }
 
+// Rows carry their full input (option chain, bars), so save in small batches
+// to stay well under request-size limits.
+const PERSIST_BATCH = 5;
+
 async function persistRows(db: Db | null, rows: Row[], actor: string): Promise<boolean> {
-  if (!db || rows.length === 0) return false;
-  const { error } = await db.from("options_analyses").upsert(
-    rows.map(r => ({
-      run_date: r.run_date, symbol: r.symbol, as_of: r.as_of, engine: "deterministic",
-      policy_version: POLICY_VERSION, rules_version: RULES_VERSION,
-      input: r.input, output: r.output, review_status: r.review_status, review_errors: r.review_errors,
-      pricing: r.pricing, generated_by: actor, updated_at: new Date().toISOString(),
-    })),
-    { onConflict: "run_date,symbol" },
-  );
-  if (error) console.error("[options-analysis] upsert error:", error.message);
-  return !error;
+  if (!db) { lastStoreError = "database not configured"; return false; }
+  if (rows.length === 0) return false;
+  for (let i = 0; i < rows.length; i += PERSIST_BATCH) {
+    const { error } = await db.from("options_analyses").upsert(
+      rows.slice(i, i + PERSIST_BATCH).map(r => ({
+        run_date: r.run_date, symbol: r.symbol, as_of: r.as_of, engine: "deterministic",
+        policy_version: POLICY_VERSION, rules_version: RULES_VERSION,
+        input: r.input, output: r.output, review_status: r.review_status, review_errors: r.review_errors,
+        pricing: r.pricing, generated_by: actor, updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "run_date,symbol" },
+    );
+    if (error) { noteStoreError("save", error); return false; }
+  }
+  lastStoreError = null;
+  return true;
 }
 
 // One symbol, live — for the research page. Universe symbols update the
@@ -209,6 +227,7 @@ function respond(rows: Row[], persisted: boolean) {
     engine: "deterministic",
     policy_version: POLICY_VERSION,
     persisted,
+    store_error: persisted ? null : lastStoreError,
     analyses: rows.map(r => toDisplay(r, now)).sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.symbol.localeCompare(b.symbol)),
   };
   return Response.json(body, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
