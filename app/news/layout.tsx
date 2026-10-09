@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "News Feed — Traxora AI",
-  description: "Filterable market news across Technology, Finance, Energy, Healthcare and Crypto.",
+  title: "News",
+  description: "The latest market news by topic.",
   robots: { index: false, follow: false },
 };
 

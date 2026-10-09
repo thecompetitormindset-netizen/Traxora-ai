@@ -129,8 +129,9 @@ async function load(symbol: string): Promise<CompareStats> {
     sector: v("Sector") && v("Sector") !== "N/A" ? v("Sector")! : null,
     industry: v("Industry") && v("Industry") !== "N/A" ? v("Industry")! : null,
     price,
-    // Nasdaq's previous close; the 1-year chart's chartPreviousClose is a year old, so not used.
-    prevClose: money(v("PreviousClose")) ?? meta?.previousClose ?? null,
+    // The session before the latest one, from the daily closes (Nasdaq's
+    // "previous close" rolls over after hours and would show a 0% day).
+    prevClose: (() => { const cl = (c1y?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []).filter((x): x is number => typeof x === "number"); return cl.length >= 2 ? cl[cl.length - 2] : money(v("PreviousClose")); })(),
     priceTime: meta?.regularMarketTime ? meta.regularMarketTime * 1000 : null,
     marketCap: money(v("MarketCap")),
     avgVolume: money(v("AverageVolume")),

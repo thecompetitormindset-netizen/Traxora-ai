@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Compare Stocks — Traxora AI",
-  description: "Side-by-side comparison of fundamentals, analyst ratings, and AI signals for any two stocks.",
+  title: "Compare",
+  description: "Two stocks side by side, each fact explained in plain words.",
   robots: { index: false, follow: false },
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Market mood",
-  description: "AI-synthesized Fear and Greed index, sector sentiment, and macro market conditions in real time.",
+  description: "How investors feel today, in plain words.",
   robots: { index: false, follow: false },
 };
 

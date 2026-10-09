@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Markets",
-  description: "Real-time market overview: indices, futures, forex, bonds, and commodities with live prices.",
+  description: "Big indexes, futures and more, with live prices.",
   robots: { index: false, follow: false },
 };
 

@@ -26,11 +26,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://traxora-ai.vercel.app"),
   title: {
-    default:  "Traxora AI — Know Exactly When to Buy & Sell Stocks",
-    template: "%s | Traxora AI",
+    default:  "Traxora — Know when to trade, and when to wait",
+    template: "%s | Traxora",
   },
   description:
-    "Know when to trade — and when to wait. Traxora checks public market data against clear rules for stocks, options, futures and crypto, with paper trading and a journal. Free to use.",
+    "Know when to trade — and when to wait. Traxora checks public market data against clear rules for stocks, options, futures and crypto, with practice trading. Free to use.",
   keywords: [
     "AI trading signals", "best AI trading app", "smart money trading",
     "when to buy stocks", "stock buy sell signals", "order blocks trading",
@@ -48,8 +48,8 @@ export const metadata: Metadata = {
     google: "yKYR9JdmvGbAjhHrn_3pX4sZUi5NsiG2ElxEPkPI7tc",
   },
   openGraph: {
-    title:       "Traxora AI — Know Exactly When to Buy & Sell",
-    description: "Know when to trade — and when to wait. Rule-based analysis for stocks, options, futures and crypto, with paper trading and a journal. Free to use.",
+    title:       "Traxora — Know when to trade, and when to wait",
+    description: "Know when to trade — and when to wait. Plain-language checks for stocks, options, futures and crypto, with practice trading. Free to use.",
     type:        "website",
     locale:      "en_US",
     url:         "https://traxora-ai.vercel.app",

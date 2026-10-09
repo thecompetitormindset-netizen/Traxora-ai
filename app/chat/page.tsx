@@ -15,13 +15,13 @@ type Message = { role: Role; content: string; ts: number };
 // ── Starter prompts ───────────────────────────────────────────────────────────
 
 const STARTERS = [
-  "Explain order blocks and how to trade them",
-  "What is a fair value gap?",
-  "How do I calculate position size for a 1% risk trade?",
-  "Explain the options Greeks (Delta, Gamma, Theta, Vega)",
-  "How does liquidity sweep work in Smart Money Concepts?",
-  "Explain market structure shift vs break of structure",
-  "What is the difference between a CSP and a covered call?",
+  "I’m new — where should I start?",
+  "What does “leaning buy” mean on Traxora?",
+  "How much of my money should I put in one trade?",
+  "What is a stock market index?",
+  "What are options, in simple words?",
+  "Why do prices drop after good news sometimes?",
+  "How do I use practice trading?",
 ];
 
 // ── Markdown-lite renderer ────────────────────────────────────────────────────
@@ -194,8 +194,8 @@ export default function ChatPage() {
             <Topbar />
             <div className="flex items-center justify-between mt-3 mb-2">
               <div>
-                <h1 className="text-xl font-black tracking-tight text-gradient-green">AI Chat</h1>
-                <p className="text-[10px] text-[#4B5675]">Ask about strategies, concepts, or how to use Traxora</p>
+                <h1 className="text-[28px] tracking-[-0.02em]">Ask AI</h1>
+                <p className="text-[10px] text-[#4B5675]">Ask anything about investing or how to use Traxora. Answers can be wrong — double-check important things.</p>
               </div>
               {!isEmpty && (
                 <button type="button" onClick={clearHistory}
@@ -220,7 +220,7 @@ export default function ChatPage() {
                   </div>
                   <p className="text-center text-base font-bold text-[#F1F5F9] mb-1">What would you like to know?</p>
                   <p className="text-center text-sm text-[#4B5675] mb-8">
-                    Trading concepts, strategies, options, market structure, or how to use Traxora.
+                    Ask in your own words — beginner questions are welcome.
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {STARTERS.map(s => (
@@ -257,7 +257,7 @@ export default function ChatPage() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask about order blocks, options strategies, position sizing…"
+                  placeholder="Ask a question…"
                   rows={1}
                   className="flex-1 bg-transparent resize-none outline-none text-sm text-[#F1F5F9] placeholder-[#4B5675] px-2 py-1.5 max-h-32 scrollbar-hide"
                   style={{ lineHeight: "1.5" }}
@@ -271,7 +271,7 @@ export default function ChatPage() {
                 </button>
               </div>
               <div className="flex items-center justify-between mt-2 px-1">
-                <p className="text-[9px] text-[#333368]">Enter to send · Shift+Enter for new line · For live ticker analysis use the <Link href="/analysis" className="text-emerald-500/70 hover:text-emerald-400 transition-colors">Analysis page</Link></p>
+                <p className="text-[9px] text-[#333368]">Enter to send · Shift+Enter for new line · For a read on a specific stock, use <Link href="/analysis" className="underline">Signals</Link></p>
                 <p className="text-[9px] text-[#333368]">Educational use only · Not financial advice</p>
               </div>
             </div>

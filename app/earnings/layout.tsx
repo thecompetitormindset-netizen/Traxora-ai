@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Earnings Calendar — Traxora AI",
-  description: "Upcoming earnings reports with EPS estimates. Plan your trades around market-moving events.",
+  title: "Company results",
+  description: "When companies report their results this week, in plain words.",
   robots: { index: false, follow: false },
 };
 

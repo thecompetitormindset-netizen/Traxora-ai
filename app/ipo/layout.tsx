@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "IPO Tracker",
-  description: "Track upcoming and recent IPOs with AI analysis on potential, sector fit, and lock-up risks.",
+  title: "New listings",
+  description: "Companies about to list on the stock market, and how recent ones have done.",
   robots: { index: false, follow: false },
 };
 

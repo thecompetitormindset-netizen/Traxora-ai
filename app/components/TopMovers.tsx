@@ -34,7 +34,7 @@ function MoverRow({ row, side }: { row: MoverRow; side: "gainer" | "loser" }) {
         </p>
         {row.volume !== null && (
           <p className="text-[9px] text-[#4B5675] font-mono">
-            {row.volume >= 1_000_000 ? `${(row.volume / 1_000_000).toFixed(1)}M` : `${(row.volume / 1_000).toFixed(0)}K`} vol
+            {row.volume >= 1_000_000 ? `${(row.volume / 1_000_000).toFixed(1)}M` : `${(row.volume / 1_000).toFixed(0)}K`} shares traded
           </p>
         )}
       </div>
@@ -86,7 +86,7 @@ export default function TopMovers() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-[#4B5675] mt-0.5">Top 6 gainers &amp; losers today from 30+ liquid stocks</p>
+          <p className="text-xs text-[#4B5675] mt-0.5">The six biggest risers and fallers today among about 30 well-known stocks</p>
         </div>
         <button
           type="button"
@@ -117,7 +117,7 @@ export default function TopMovers() {
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                Top Gainers
+                Up the most
               </p>
               <div className="space-y-2">
                 {data.gainers.map(r => <MoverRow key={r.symbol} row={r} side="gainer" />)}
@@ -128,7 +128,7 @@ export default function TopMovers() {
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-rose-400 mb-3 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-rose-400 inline-block" />
-                Top Losers
+                Down the most
               </p>
               <div className="space-y-2">
                 {data.losers.map(r => <MoverRow key={r.symbol} row={r} side="loser" />)}
@@ -137,7 +137,7 @@ export default function TopMovers() {
           </div>
 
           <p className="text-center text-[10px] text-[#333368]">
-            Yahoo Finance · 15-min delayed · Updated {timeStr(data.updatedAt)} · Not financial advice
+            Prices can be up to 15 minutes behind · Updated {timeStr(data.updatedAt)} · Not financial advice
           </p>
         </>
       )}

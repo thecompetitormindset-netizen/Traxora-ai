@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "AI Chat — Traxora AI",
-  description: "Chat with Traxora AI about trading strategies, market concepts, options, and more.",
+  title: "Ask AI",
+  description: "Ask questions about any stock, trading idea or the app.",
   robots: { index: false, follow: false },
 };
 

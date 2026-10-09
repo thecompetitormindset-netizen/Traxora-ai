@@ -1,166 +1,108 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
+import type { CompanyProfile } from "../../api/company/route";
+import type { CompareStats } from "../../api/market/compare/route";
 
-type CompanyData = {
-  symbol: string;
-  name: string;
-  code: string;
-  exchange: string;
-  currency: string;
-  country: string;
-  sector: string;
-  industry: string;
-  ipoDate: string;
-  website: string;
-  phone: string;
-  address: string;
-  description: string;
-  logo: string;
-  employees: string;
-};
+// A company at a glance: what it does, a few key facts in plain words, and
+// where to go next. Profile from /api/company, facts from /api/market/compare.
 
-export default function CompanyPage({
-  params,
-}: {
-  params: Promise<{ symbol: string }>;
-}) {
+const card = "rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5 sm:p-6";
+const usd = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function size(n: number) {
+  if (n >= 1e12) return `$${(n / 1e12).toFixed(2)} trillion`;
+  if (n >= 1e9) return `$${(n / 1e9).toFixed(1)} billion`;
+  return `$${(n / 1e6).toFixed(0)} million`;
+}
+
+export default function CompanyPage({ params }: { params: Promise<{ symbol: string }> }) {
   const { symbol } = use(params);
-  const decodedSymbol = decodeURIComponent(symbol);
-  const [company, setCompany] = useState<CompanyData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const sym = decodeURIComponent(symbol).toUpperCase().replace(/\.(US|COMM)$/, "");
+  const [profile, setProfile] = useState<CompanyProfile | null | "none">(null);
+  const [facts, setFacts] = useState<CompareStats | null>(null);
+  const [more, setMore] = useState(false);
 
   useEffect(() => {
-    async function loadCompany() {
-      try {
-        const res = await fetch(
-          `/api/company?symbol=${encodeURIComponent(decodedSymbol)}`,
-        );
-        const data = await res.json();
-        // An error body is not company data — fall back to the "not available" state.
-        setCompany(res.ok && !data?.error ? data : null);
-      } catch {
-        setCompany(null);
-      } finally {
-        setLoading(false);
-      }
-    }
+    let live = true;
+    fetch(`/api/company?symbol=${encodeURIComponent(sym)}`).then(r => r.json().then(d => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => { if (live) setProfile(ok && !d.error ? d as CompanyProfile : "none"); })
+      .catch(() => { if (live) setProfile("none"); });
+    fetch(`/api/market/compare?symbol=${encodeURIComponent(sym)}`).then(r => (r.ok ? r.json() : null))
+      .then(d => { if (live && d && !d.error) setFacts(d as CompareStats); }).catch(() => {});
+    return () => { live = false; };
+  }, [sym]);
 
-    loadCompany();
-  }, [decodedSymbol]);
+  const p = profile && profile !== "none" ? profile : null;
+  const name = p?.name ?? facts?.name ?? sym;
+  const change = facts?.price && facts.prevClose ? (facts.price / facts.prevClose - 1) * 100 : null;
+  const a = facts?.analysts;
+  const desc = p?.description ?? "";
+  const short = desc.length > 360 && !more ? desc.slice(0, 360).replace(/\s+\S*$/, "") + "…" : desc;
 
   return (
-    <div className="flex min-h-screen text-[#F1F5F9]">
+    <div className="flex min-h-screen text-[var(--mx-text)]">
       <Sidebar />
-      <main className="flex-1 p-6 xl:p-8 !pb-36">
+      <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-
-        {loading ? (
-          <div className="mt-6 text-[#4B5675]">Loading company details...</div>
-        ) : !company ? (
-          <div className="mt-6 text-[#4B5675]">
-            Could not load company details.
-          </div>
-        ) : (
-          <>
-            <div className="mt-6 flex items-start justify-between gap-6">
-              <div className="flex items-start gap-4">
-                {company.logo ? (
-                  <Image
-                    src={company.logo}
-                    alt={company.name}
-                    width={64}
-                    height={64}
-                    className="w-16 h-16 rounded-2xl bg-white object-contain"
-                  />
-                ) : (
-                  <div className="w-16 h-16 rounded-2xl bg-[#13112A] border border-[#252345]" />
-                )}
-
-                <div>
-                  <h1 className="text-4xl font-bold">{company.name || decodedSymbol}</h1>
-                  <p className="text-[#4B5675] mt-2">
-                    {[company.symbol || decodedSymbol, company.exchange, company.country]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                </div>
-              </div>
-
-              <Link
-                href={`/market?symbol=${encodeURIComponent(company.symbol || decodedSymbol)}`}
-                className="bg-emerald-600 hover:bg-emerald-500 transition rounded-2xl px-5 py-3 font-semibold text-white"
-              >
-                Open in Market
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5 mt-8">
-              {[
-                { label: "Sector",     value: company.sector },
-                { label: "Industry",   value: company.industry },
-                { label: "IPO Date",   value: company.ipoDate },
-                { label: "Employees",  value: company.employees },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
-                  <p className="text-xs text-[#4B5675] uppercase tracking-widest">{label}</p>
-                  <p className="text-xl font-semibold mt-2 text-[#F1F5F9]">{value || "--"}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mt-6">
-              <div className="xl:col-span-2 bg-[#13112A] border border-[#252345] rounded-2xl p-6">
-                <h2 className="text-xl font-bold mb-4 text-[#F1F5F9]">About</h2>
-                <p className="text-[#7B8DB4] leading-7 text-sm">
-                  {company.description || "No description available."}
+        <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+          <div className="max-w-4xl mx-auto w-full space-y-5">
+            <header>
+              <p className="text-[13px] text-[var(--mx-text-3)]">{sym}{p?.sector ? ` · ${p.sector}` : ""}</p>
+              <h1 className="mt-1 text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">{profile === null && !facts ? sym : name}</h1>
+              {facts?.price != null && (
+                <p className="mt-2 text-[15px]">
+                  {usd(facts.price)}
+                  {change != null && <span className={change >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}> {change >= 0 ? "+" : "−"}{Math.abs(change).toFixed(2)}% on the latest day</span>}
                 </p>
+              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link href={`/analysis?symbol=${encodeURIComponent(sym + ".US")}`} className="h-10 px-5 inline-flex items-center rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[14px]">See our read</Link>
+                <Link href={`/paper?symbol=${encodeURIComponent(sym)}`} className="h-10 px-5 inline-flex items-center rounded-full border border-[var(--mx-line)] text-[14px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">Practise</Link>
+                <Link href="/compare" className="h-10 px-5 inline-flex items-center rounded-full border border-[var(--mx-line)] text-[14px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">Compare</Link>
               </div>
+            </header>
 
-              <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-6">
-                <h2 className="text-xl font-bold mb-4 text-[#F1F5F9]">Company Info</h2>
+            <section className={card} aria-labelledby="about-h">
+              <h2 id="about-h" className="text-[16px]">About {p?.name ?? sym}</h2>
+              {profile === null ? <div className="mt-3 h-16 rounded bg-[var(--mx-raised)] animate-pulse" />
+                : desc ? (
+                  <>
+                    <p className="mt-2 text-[14px] leading-relaxed text-[var(--mx-text-2)]">{short}</p>
+                    {desc.length > 360 && <button type="button" onClick={() => setMore(v => !v)} className="mt-2 text-[13px] underline text-[var(--mx-text-2)]">{more ? "Show less" : "Read more"}</button>}
+                  </>
+                ) : <p className="mt-2 text-[14px] text-[var(--mx-text-3)]">No description available for this company.</p>}
+              {p && (p.industry || p.website) && (
+                <p className="mt-3 text-[13px] text-[var(--mx-text-3)]">
+                  {p.industry}{p.industry && p.website ? " · " : ""}
+                  {p.website && <a href={p.website} target="_blank" rel="noopener noreferrer" className="underline">{p.website.replace(/^https?:\/\/(www\.)?/, "")}</a>}
+                </p>
+              )}
+            </section>
 
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Website</p>
-                    {company.website ? (
-                      <a
-                        href={company.website}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-emerald-400 hover:text-emerald-300 break-all"
-                      >
-                        {company.website}
-                      </a>
-                    ) : (
-                      <p className="text-[#7B8DB4]">--</p>
-                    )}
-                  </div>
+            {facts && (
+              <section className={card} aria-labelledby="facts-h">
+                <h2 id="facts-h" className="text-[16px]">Key facts</h2>
+                <dl className="mt-3 grid sm:grid-cols-2 gap-x-8 gap-y-4">
+                  {facts.marketCap != null && <div><dt className="text-[13px] text-[var(--mx-text-3)]">Company size</dt><dd className="text-[15px]">{size(facts.marketCap)}</dd></div>}
+                  {facts.epsTTM != null && <div><dt className="text-[13px] text-[var(--mx-text-3)]">Profit per share (last 12 months)</dt><dd className="text-[15px]">{facts.epsTTM < 0 ? `A loss of ${usd(-facts.epsTTM)}` : usd(facts.epsTTM)}</dd></div>}
+                  {facts.dividendYield != null && <div><dt className="text-[13px] text-[var(--mx-text-3)]">Dividend</dt><dd className="text-[15px]">{facts.dividendYield === 0 ? "Doesn’t pay one" : `${facts.dividendYield.toFixed(2)}% a year`}</dd></div>}
+                  {facts.yearLow != null && facts.yearHigh != null && <div><dt className="text-[13px] text-[var(--mx-text-3)]">Past year</dt><dd className="text-[15px]">{usd(facts.yearLow)} – {usd(facts.yearHigh)}</dd></div>}
+                  {a && <div><dt className="text-[13px] text-[var(--mx-text-3)]">What analysts say</dt><dd className="text-[15px]">{a.buy} buy · {a.hold} hold · {a.sell} sell</dd></div>}
+                  {facts.target && <div><dt className="text-[13px] text-[var(--mx-text-3)]">Analysts’ average target</dt><dd className="text-[15px]">{usd(facts.target.mean)}</dd></div>}
+                </dl>
+                <p className="mt-4 text-[12.5px] text-[var(--mx-text-3)]">Source: Nasdaq and Yahoo Finance. Prices can be delayed. Not financial advice.</p>
+              </section>
+            )}
 
-                  <div>
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Phone</p>
-                    <p className="text-[#CBD5E1]">{company.phone || "--"}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Address</p>
-                    <p className="text-[#CBD5E1]">{company.address || "--"}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Currency</p>
-                    <p className="text-[#CBD5E1]">{company.currency || "--"}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </main>
+            {profile === "none" && !facts && (
+              <p className="text-[15px] text-[var(--mx-text-2)]">We couldn’t find details for {sym}. Check the ticker and try again.</p>
+            )}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

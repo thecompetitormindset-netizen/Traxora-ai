@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Trading Guide — Order Blocks, FVGs & Smart Money Explained",
+  title: "Guide",
   description:
     "Free guide: learn Order Blocks, Fair Value Gaps, Liquidity Sweeps, Kill Zones & how to read AI trading signals. Covers stocks, futures & options for all levels.",
   keywords: [
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title:       "Traxora AI Guide — Smart Money Trading Explained",
-    description: "Step-by-step guide covering Order Blocks, FVGs, Liquidity, Kill Zones, options analysis, futures signals, and every feature of Traxora AI.",
+    description: "How Traxora works, in plain words: signals, options, practice trading and every page.",
     url:         "https://traxora-ai.vercel.app/guide",
     type:        "article",
   },

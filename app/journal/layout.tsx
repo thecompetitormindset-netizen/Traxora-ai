@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Trade Journal",
-  description: "AI-assisted trade journal. Review past trades, AI analysis, and performance stats.",
+  description: "Your saved checks and past trades.",
   robots: { index: false, follow: false },
 };
 

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Paper Trading",
-  description: "Practice trading risk-free with a simulated account. Track open positions, P&L, and equity curve.",
+  title: "Practice trading",
+  description: "Practise buying and selling with pretend money at real prices.",
   robots: { index: false, follow: false },
 };
 

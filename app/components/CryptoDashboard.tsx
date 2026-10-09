@@ -66,11 +66,6 @@ const COINS: { symbol: string; ticker: string; name: string; emoji: string }[] =
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function ordinal(n: number): string {
-  const v = n % 100;
-  if (v >= 11 && v <= 13) return `${n}th`;
-  return `${n}${["th", "st", "nd", "rd"][n % 10] ?? "th"}`;
-}
 
 function fmtPrice(p: number | null): string {
   if (p === null) return "—";
@@ -91,9 +86,9 @@ function fmtCap(n: number | null): string {
 // fed real crypto price/volume/trend data — BUY reads as "expect up," SELL as
 // "expect down." No LLM involved; this is deterministic math, not a guarantee.
 function directionLabel(signal: CryptoMover["signal"]): { label: string; cls: string; arrow: string } {
-  if (signal === "BUY")  return { label: "Bullish", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25", arrow: "▲" };
-  if (signal === "SELL") return { label: "Bearish", cls: "text-rose-400 bg-rose-500/10 border-rose-500/25",         arrow: "▼" };
-  if (signal === "HOLD") return { label: "Neutral", cls: "text-amber-400 bg-amber-500/10 border-amber-500/25",      arrow: "—" };
+  if (signal === "BUY")  return { label: "Leaning up", cls: "text-emerald-400 bg-emerald-500/10 border-emerald-500/25", arrow: "" };
+  if (signal === "SELL") return { label: "Leaning down", cls: "text-rose-400 bg-rose-500/10 border-rose-500/25", arrow: "" };
+  if (signal === "HOLD") return { label: "No clear direction", cls: "text-amber-400 bg-amber-500/10 border-amber-500/25", arrow: "" };
   return { label: "—", cls: "text-[#4B5675] bg-[#1A1838] border-[#252345]", arrow: "" };
 }
 
@@ -111,7 +106,7 @@ function backtestReadout(signal: CryptoMover["signal"], bt: BacktestStats | null
   // For SELL, "beating baseline" means falling MORE than the unconditional average.
   const edge = signal === "BUY" ? avgRet - bt.baselineAvgReturn : bt.baselineAvgReturn - avgRet;
   const cls  = edge > 0.15 ? "text-emerald-400/80" : edge < -0.15 ? "text-rose-400/80" : "text-[#4B5675]";
-  return { text: `History: ${hitRate}% right · ${count} signals`, cls };
+  return { text: `Right ${Math.round(hitRate)}% of the time in the past year`, cls };
 }
 
 // ── Coin card ─────────────────────────────────────────────────────────────────
@@ -142,7 +137,6 @@ function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | 
   const up  = (row?.change ?? 0) >= 0;
   const dir = directionLabel(mover?.signal ?? null);
   const bt  = backtestReadout(mover?.signal ?? null, mover?.backtest);
-  const extended = mover?.overbought ? "Overbought" : mover?.oversold ? "Oversold" : null;
 
   return (
     <Link
@@ -181,12 +175,12 @@ function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | 
       {mover?.signal && (
         <div className="mt-2.5 pt-2.5 border-t border-[#1A1838] space-y-1">
           <div className="flex items-center gap-1.5">
-            <span className={`text-[9px] font-black px-1.5 py-px rounded border ${dir.cls}`}>{dir.arrow} {dir.label}</span>
-            {mover.confidence && <span className="text-[8px] text-[#4B5675] font-semibold">{mover.confidence} conf</span>}
-            {extended && <span className="text-[8px] text-amber-400/80 font-semibold">{extended}</span>}
+            <span className={`text-[12px] px-2 py-px rounded-full border ${dir.cls}`}>{dir.label}</span>
+            {mover.confidence && <span className="text-[12px] text-[var(--mx-text-3)]">{mover.confidence.toLowerCase()} confidence</span>}
+            
             {mover.trend5dPct !== null && (
               <span className={`ml-auto text-[8px] font-mono font-bold ${mover.trend5dPct >= 0 ? "text-emerald-400/70" : "text-rose-400/70"}`}>
-                5d {mover.trend5dPct >= 0 ? "+" : ""}{mover.trend5dPct.toFixed(1)}%
+                {mover.trend5dPct >= 0 ? "up" : "down"} {Math.abs(mover.trend5dPct).toFixed(1)}% this week
               </span>
             )}
           </div>
@@ -194,7 +188,7 @@ function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | 
         </div>
       )}
 
-      <p className="text-[9px] text-[#333368] mt-1.5">Full analysis →</p>
+      <p className="text-[12px] text-[var(--mx-text-3)] mt-1.5">See why →</p>
     </Link>
   );
 }
@@ -270,10 +264,10 @@ export default function CryptoDashboard() {
             <>
               <div className="w-px h-4 bg-[#252345]" />
               <div className="flex items-center gap-2.5">
-                <span className="text-[9px] text-[#4B5675] uppercase tracking-wider">Signals</span>
-                <span className="text-[11px] font-black text-emerald-400">{bullish.length} Bullish</span>
-                <span className="text-[11px] font-black text-amber-400">{neutral.length} Neutral</span>
-                <span className="text-[11px] font-black text-rose-400">{bearish.length} Bearish</span>
+                <span className="text-[12px] text-[var(--mx-text-3)]">Our read</span>
+                <span className="text-[11px] font-black text-emerald-400">{bullish.length} up</span>
+                <span className="text-[11px] font-black text-amber-400">{neutral.length} unclear</span>
+                <span className="text-[11px] font-black text-rose-400">{bearish.length} down</span>
               </div>
             </>
           )}
@@ -284,7 +278,7 @@ export default function CryptoDashboard() {
       {bigMovers.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Moving Now</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Moving a lot today</h2>
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{bigMovers.length}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
@@ -301,7 +295,7 @@ export default function CryptoDashboard() {
               </Link>
             ))}
           </div>
-          <p className="text-[9px] text-[#333368] mt-2">≥5% move over the last ~24h — the move is already happening, not a forecast.</p>
+          <p className="text-[9px] text-[#333368] mt-2">Up or down 5% or more in the last day. The move has already happened — it isn’t a prediction.</p>
         </div>
       )}
 
@@ -309,7 +303,7 @@ export default function CryptoDashboard() {
       {squeezes.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-sky-400">Coiled — Watch List</h2>
+            <h2 className="text-sm font-bold uppercase tracking-widest text-sky-400">Unusually quiet</h2>
             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{squeezes.length}</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5">
@@ -318,14 +312,13 @@ export default function CryptoDashboard() {
                 className="bg-[#0D0B1A] rounded-xl border border-l-2 border-sky-500/20 border-l-sky-400 p-3.5 flex flex-col gap-1.5 hover:border-[#333368] transition-colors">
                 <div className="flex items-center justify-between">
                   <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{m.ticker}</span>
-                  <span className="text-[9px] font-mono font-bold text-sky-400">{ordinal(m.bbWidthPct ?? 0)} pctl</span>
-                </div>
+                                  </div>
                 <span className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">{fmtPrice(m.price)}</span>
               </Link>
             ))}
           </div>
           <p className="text-[9px] text-[#333368] mt-2">
-            Bollinger Bands unusually tight vs. this coin&rsquo;s own recent range — historically often precedes a bigger move, but not a signal of direction or timing. Squeezes can sit like this for weeks before anything happens.
+            These coins have barely moved lately. Quiet spells are often followed by a bigger move — but it could go either way, and it can take weeks.
           </p>
         </div>
       )}
@@ -334,7 +327,7 @@ export default function CryptoDashboard() {
       <div>
         {!loading && movers.length > 0 && (
           <p className="text-[10px] text-[#4B5675] mb-2.5">
-            Each coin&rsquo;s Bullish/Neutral/Bearish read comes from the same weighted engine behind the stock AI Signals — 5-day trend, volume, moving-average alignment — computed off the last fully closed day, off real crypto price data. The &ldquo;History&rdquo; line under each pick is a walk-forward backtest of that exact logic against the coin&rsquo;s own past year, checked without hindsight. Read it before the badge: several coins show weak or negative edge once compared to simply doing nothing over the same stretch — this engine was tuned on stock behavior, and crypto doesn&rsquo;t reliably follow the same patterns. Not a guarantee.
+            Our read on each coin uses the same checks as for stocks. The “right … of the time” line shows how often that read worked for this coin over the past year — for many coins it’s close to a coin flip, so treat it as a rough guide.
           </p>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
