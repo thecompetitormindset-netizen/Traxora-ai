@@ -271,11 +271,11 @@ export default function Topbar({ onSearch }: TopbarProps) {
                   <p className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-2">Browse</p>
                   <div className="flex flex-wrap gap-1.5">
                     {[
-                      { label: "🏆 Sports",   href: "/sports",                       cls: "border-amber-500/25 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" },
+                      { label: "Sports",   href: "/sports",                       cls: "border-amber-500/25 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20" },
                       { label: "₿ Crypto",    href: "/explore?view=crypto",          cls: "border-violet-500/25 text-violet-400 bg-violet-500/10 hover:bg-violet-500/20" },
-                      { label: "🚀 IPOs",     href: "/ipo",                          cls: "border-sky-500/25 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20" },
-                      { label: "🎯 Options",  href: "/intelligence?section=options", cls: "border-emerald-500/25 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20" },
-                      { label: "📅 Earnings", href: "/earnings",                     cls: "border-teal-500/25 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20" },
+                      { label: "IPOs",     href: "/ipo",                          cls: "border-sky-500/25 text-sky-400 bg-sky-500/10 hover:bg-sky-500/20" },
+                      { label: "Options",  href: "/intelligence?section=options", cls: "border-emerald-500/25 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20" },
+                      { label: "Earnings", href: "/earnings",                     cls: "border-teal-500/25 text-teal-400 bg-teal-500/10 hover:bg-teal-500/20" },
                     ].map(b => (
                       <button key={b.href} type="button"
                         onClick={() => { setOpen(false); router.push(b.href); }}

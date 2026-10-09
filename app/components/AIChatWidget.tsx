@@ -3,12 +3,13 @@
 import { useState, useRef, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 const GUEST_LIMIT = 3;
 
 const GREETING: Message = {
   role: "assistant",
-  content: "Hey! 👋 I'm Traxora AI. Ask me anything about stocks, markets, or trading — I'll give you a real answer. What's on your mind?",
+  content: "Hey! I'm Traxora AI. Ask me anything about stocks, markets, or trading — I'll give you a real answer. What's on your mind?",
 };
 
 type Message = {
@@ -182,7 +183,7 @@ export default function AIChatWidget() {
               if (msg.content === "SIGNUP_PROMPT") {
                 return (
                   <div key={i} className="bg-emerald-500/10 border border-emerald-500/25 rounded-2xl p-4 text-center">
-                    <p className="text-sm font-bold text-[#F1F5F9] mb-1">Want more? Sign in free 🚀</p>
+                    <p className="text-sm font-bold text-[#F1F5F9] mb-1">Want more? Sign in free <Glyph e="🚀" /></p>
                     <p className="text-xs text-[#7B8DB4] mb-3">Get 20 messages per minute + full platform access.</p>
                     <Link href="/login" className="block w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold text-white transition-colors">
                       Sign in with Google →

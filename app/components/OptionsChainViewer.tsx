@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Glyph } from "./Icon";
 
 type Greek = {
   bid:    number | null;
@@ -242,7 +243,7 @@ export default function OptionsChainViewer({ initialSymbol }: { initialSymbol?: 
       {/* ── Quick picks ── */}
       {!data && !loading && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-6 py-12 text-center">
-          <p className="text-3xl mb-3">⛓️</p>
+          <p className="text-3xl mb-3"><Glyph e="⛓️" /></p>
           <p className="text-sm font-semibold text-[#F1F5F9] mb-1">Options Chain</p>
           <p className="text-xs text-[#4B5675] max-w-sm mx-auto leading-relaxed mb-5">
             Full strike table with Bid / Ask / IV / Delta / OI / Volume — color-coded by moneyness. Data from CBOE (15-min delayed).

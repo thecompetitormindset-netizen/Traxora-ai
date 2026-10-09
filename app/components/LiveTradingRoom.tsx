@@ -6,6 +6,7 @@ import type { ScanSnapshot, DayTrade } from "./AutoTrader";
 import { getDayTrades, getLastScan } from "./AutoTrader";
 import { getPortfolio, PORTFOLIO_UPDATED_EVENT, type Portfolio } from "../lib/trading";
 import { signalBadgeCls } from "../lib/signalBadge";
+import { Glyph } from "./Icon";
 
 function signalBorderL(signal: string | null) {
   if (signal === "BUY")  return "border-l-emerald-500/40";
@@ -225,7 +226,7 @@ export default function LiveTradingRoom() {
                     <div className="flex items-center gap-1.5">
                       <p className="text-sm font-bold text-[#F1F5F9]">{clean}</p>
                       <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-teal-400" : "text-emerald-400"}`}>
-                        {t.source === "signal" ? "⚡" : "🔍"}
+                        <Glyph e={t.source === "signal" ? "⚡" : "🔍"} />
                       </span>
                     </div>
                     <p className="text-[10px] text-[#4B5675] font-mono">

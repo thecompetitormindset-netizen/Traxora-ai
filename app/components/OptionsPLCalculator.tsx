@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Glyph } from "./Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -330,7 +331,7 @@ export default function OptionsPLCalculator({ initialPrice }: { initialPrice?: n
                 : "border-[#252345] bg-[#13112A] hover:border-[#333368]"
             }`}
           >
-            <span className="text-base leading-none">{s.emoji}</span>
+            <span className="text-base leading-none"><Glyph e={s.emoji} /></span>
             <p className={`text-[11px] font-bold leading-tight ${strategy === s.id ? "text-emerald-300" : "text-[#CBD5E1]"}`}>
               {s.label}
             </p>

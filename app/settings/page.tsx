@@ -9,6 +9,7 @@ import Topbar from "../components/Topbar";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { clearJournal } from "../components/AutoJournal";
 import { getTheme, setTheme, THEME_EVENT, THEME_KEY, type Theme } from "../lib/theme";
+import { Glyph } from "../components/Icon";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -275,7 +276,7 @@ export default function SettingsPage() {
               <div className="px-5 py-5 border-b border-[#252345]">
                 <div className="flex items-start gap-3 mb-4">
                   <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0 text-base">
-                    🌅
+                    <Glyph e="🌅" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-[#F1F5F9] text-sm">Daily email brief</p>
@@ -342,13 +343,13 @@ export default function SettingsPage() {
             {/* PWA */}
             <Section title="Install App">
               <Row
-                icon={<span className="text-base">📱</span>}
+                icon={<span className="text-base"><Glyph e="📱" /></span>}
                 label="Add to home screen"
                 sublabel="iPhone: Share → Add to Home Screen · Android: browser menu → Install App"
                 value={<Badge color="emerald">PWA</Badge>}
               />
               <Row
-                icon={<span className="text-base">🤖</span>}
+                icon={<span className="text-base"><Glyph e="🤖" /></span>}
                 label="Use alongside Robinhood"
                 sublabel="Traxora fires signals → you execute trades on Robinhood"
               />

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Glyph } from "./Icon";
 
 const COOKIE_KEY = "traxora_cookie_consent";
 
@@ -27,7 +28,7 @@ export default function CookieBanner() {
     <div className="fixed bottom-44 left-4 right-4 z-[var(--z-float)] max-w-lg mx-auto sm:bottom-6">
       <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-4 shadow-2xl shadow-black/50 flex flex-col sm:flex-row items-start sm:items-center gap-4">
         <div className="flex-1">
-          <p className="text-xs font-bold text-[#F1F5F9] mb-1">🍪 We use cookies</p>
+          <p className="text-xs font-bold text-[#F1F5F9] mb-1"><Glyph e="🍪" /> We use cookies</p>
           <p className="text-[11px] text-[#7B8DB4] leading-relaxed">
             We use cookies to save your settings and, if you choose to sign in, keep you signed in. No tracking or ads — ever.
           </p>

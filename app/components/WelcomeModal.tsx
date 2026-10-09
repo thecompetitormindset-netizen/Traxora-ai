@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 const WELCOME_KEY = "traxora_welcome_seen";
 
@@ -59,7 +60,7 @@ export default function WelcomeModal() {
               <polyline points="16 7 22 7 22 13" />
             </svg>
           </div>
-          <h2 className="text-xl font-black text-[#F1F5F9]">Welcome, {firstName}! 👋</h2>
+          <h2 className="text-xl font-black text-[#F1F5F9]">Welcome, {firstName}! <Glyph e="👋" /></h2>
           <p className="text-sm text-[#7B8DB4] mt-1">You're now inside Traxora AI — here's what you can do</p>
         </div>
 
@@ -67,7 +68,7 @@ export default function WelcomeModal() {
         <div className="px-6 py-5 grid grid-cols-2 gap-3">
           {FEATURES.map(f => (
             <div key={f.title} className="flex items-start gap-2.5 bg-[#0D0B1A] rounded-xl p-3 border border-[#252345]">
-              <span className="text-lg shrink-0">{f.icon}</span>
+              <span className="text-lg shrink-0"><Glyph e={f.icon} /></span>
               <div>
                 <p className="text-xs font-bold text-[#F1F5F9]">{f.title}</p>
                 <p className="text-[10px] text-[#4B5675] mt-0.5 leading-relaxed">{f.desc}</p>

@@ -9,6 +9,7 @@ import { loadTrades, calcPL, STARTING_CAPITAL, type PaperTrade } from "@/app/lib
 import { scopedKey, setCurrentUser } from "@/app/lib/userState";
 import PortfolioAllocationChart from "@/app/components/PortfolioAllocationChart";
 import { syncFetch } from "../lib/syncFetch";
+import { Glyph } from "../components/Icon";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -248,7 +249,7 @@ function StrategyContent() {
             <h1 className="text-3xl font-black mb-2">Your Stats</h1>
             <p className="text-[#7B8DB4] text-sm mb-8">Your trade performance at a glance.</p>
             <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-12 text-center">
-              <p className="text-4xl mb-3">📊</p>
+              <p className="text-4xl mb-3"><Glyph e="📊" /></p>
               <p className="text-sm font-semibold mb-1">No closed trades yet</p>
               <p className="text-xs text-[#4B5675] mb-6">Get a signal from the dashboard, log it in the planner, then close it to see your analytics here.</p>
               <div className="flex items-center justify-center gap-3 flex-wrap">
@@ -442,7 +443,7 @@ function StrategyContent() {
                         { label: "Manual",     count: reasons.manual,     color: "text-amber-400",   emoji: "✋" },
                       ].map(r => (
                         <div key={r.label} className="text-center">
-                          <p className="text-2xl mb-1">{r.emoji}</p>
+                          <p className="text-2xl mb-1"><Glyph e={r.emoji} /></p>
                           <p className={`text-xl font-black font-mono ${r.color}`}>{r.count}</p>
                           <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{r.label}</p>
                           <p className="text-[9px] text-[#333368]">{trades.length ? (r.count / trades.length * 100).toFixed(0) : 0}%</p>

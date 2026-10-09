@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 const ONBOARD_KEY = "traxora_onboarded_v2";
 
@@ -107,7 +108,7 @@ export default function OnboardingModal() {
         {/* Icon stage */}
         <div className={`bg-gradient-to-b ${current.color} px-8 pt-8 pb-6 text-center`}>
           <div className={`${slideClass} inline-flex items-center justify-center w-20 h-20 rounded-3xl border ${current.border} bg-black/20 backdrop-blur-sm mb-4`}>
-            <span className="text-4xl">{current.icon}</span>
+            <span className="text-4xl"><Glyph e={current.icon} /></span>
           </div>
           <div className={slideClass}>
             <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">Step {step + 1} of {STEPS.length}</p>
@@ -164,7 +165,7 @@ export default function OnboardingModal() {
             )}
             <button type="button" onClick={next}
               className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white text-xs font-bold transition-all">
-              {isLast ? "Let's go 🚀" : "Next →"}
+              {isLast ? "Let's go" : "Next →"}
             </button>
           </div>
         </div>

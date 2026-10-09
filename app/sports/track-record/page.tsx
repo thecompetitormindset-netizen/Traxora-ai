@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
+import { Glyph } from "../../components/Icon";
 
 type TierStat   = { label: string; total: number; correct: number };
 type LeagueStat = { league: string; total: number; correct: number };
@@ -74,7 +75,7 @@ export default function TrackRecordPage() {
           {!loading && (failed || !data) && (
             <div className="text-center py-16">
               <div className="w-12 h-12 rounded-2xl bg-[#13112A] border border-[#252345] flex items-center justify-center mx-auto mb-4" aria-hidden>
-                <span className="text-xl">📉</span>
+                <span className="text-xl"><Glyph e="📉" /></span>
               </div>
               <p className="text-sm font-bold text-[#7B8DB4] mb-1">Couldn&rsquo;t load the track record</p>
               <p className="text-xs text-[#4B5675] mb-5">The data service didn&rsquo;t answer — it usually recovers quickly.</p>

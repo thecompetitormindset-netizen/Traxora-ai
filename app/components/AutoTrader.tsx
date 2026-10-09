@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buyStock, sellStock, getPortfolio, checkPriceEvents, type Portfolio } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
+import { Glyph } from "./Icon";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BotStyle = "aggressive" | "conservative" | "balanced";
@@ -233,7 +234,7 @@ export default function AutoTrader() {
     buyStock(symbol, qty, price, { stopLoss: sl, takeProfit: tp });
     saveDayTrade({ symbol, side: "BUY", quantity: qty, price, time: new Date().toISOString(), source });
     refreshDayTrades();
-    push("buy", `${source === "signal" ? "⚡" : "🔍"} Bought ${qty}× ${short}`, `$${price.toFixed(2)} · SL $${sl.toFixed(2)} · TP $${tp.toFixed(2)}`);
+    push("buy", `${source === "signal" ? "" : ""} Bought ${qty}× ${short}`, `$${price.toFixed(2)} · SL $${sl.toFixed(2)} · TP $${tp.toFixed(2)}`);
     setLastAction(`Bought ${qty}× ${short} @ $${price.toFixed(2)}`);
     if (source === "signal") {
       recentSignalSyms.current.add(symbol);
@@ -251,7 +252,7 @@ export default function AutoTrader() {
     sellStock(symbol, holding.quantity, price);
     saveDayTrade({ symbol, side: "SELL", quantity: holding.quantity, price, time: new Date().toISOString(), pl, source });
     refreshDayTrades();
-    push("sell", `${source === "signal" ? "⚡" : "🔍"} Sold ${holding.quantity}× ${short}`, `$${price.toFixed(2)} · P&L ${pl >= 0 ? "+" : ""}$${pl.toFixed(2)}`);
+    push("sell", `${source === "signal" ? "" : ""} Sold ${holding.quantity}× ${short}`, `$${price.toFixed(2)} · P&L ${pl >= 0 ? "+" : ""}$${pl.toFixed(2)}`);
     setLastAction(`Sold ${holding.quantity}× ${short} · P&L ${pl >= 0 ? "+" : ""}$${pl.toFixed(2)}`);
     return "sold";
   }
@@ -265,7 +266,7 @@ export default function AutoTrader() {
       };
       if (signal !== "BUY" && signal !== "SELL") return;
       const short = symbol.replace(".US","").replace(".COMM","");
-      push("signal", `⚡ Alert → ${signal} ${short}`, `${name} · $${price.toFixed(2)} · ${confidence}`);
+      push("signal", `Alert → ${signal} ${short}`, `${name} · $${price.toFixed(2)} · ${confidence}`);
       if (signal === "BUY")  executeBuy(symbol, price, "signal");
       if (signal === "SELL") executeSell(symbol, price, "signal");
     }
@@ -296,7 +297,7 @@ export default function AutoTrader() {
         const qr = quoteResponses[i];
         if (qr.status !== "fulfilled" || !qr.value?.price) continue;
         const { messages } = checkPriceEvents(STOCKS[i].symbol, qr.value.price);
-        messages.forEach(m => push(m.startsWith("🎯") ? "buy" : "sell", m));
+        messages.forEach(m => push(m.startsWith("Take profit") ? "buy" : "sell", m));
         for (const botId of ["apex", "delta", "vera"]) checkBotPriceEvents(botId, STOCKS[i].symbol, qr.value.price);
       }
 
@@ -468,7 +469,7 @@ export default function AutoTrader() {
           const c = toastCfg(t.type);
           return (
             <div key={t.id} className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl animate-toast-in ${c.ring}`}>
-              <span className="text-base shrink-0 mt-0.5">{c.icon}</span>
+              <span className="text-base shrink-0 mt-0.5"><Glyph e={c.icon} /></span>
               <div className="min-w-0">
                 <p className={`text-xs font-bold leading-snug ${c.title}`}>{t.title}</p>
                 {t.body && <p className="text-[10px] text-[#4B5675] mt-0.5 leading-snug">{t.body}</p>}
@@ -503,13 +504,13 @@ export default function AutoTrader() {
               ))}
             </div>
             <div className="px-5 py-2.5 border-b border-[#252345] flex items-center justify-between text-[10px]">
-              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-teal-400">⚡</span>{signalTrades} signal trade{signalTrades !== 1 ? "s" : ""}</span>
-              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-emerald-400">🔍</span>{scanTrades} scan trade{scanTrades !== 1 ? "s" : ""}</span>
+              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-teal-400"><Glyph e="⚡" /></span>{signalTrades} signal trade{signalTrades !== 1 ? "s" : ""}</span>
+              <span className="flex items-center gap-1.5 text-[#7B8DB4]"><span className="text-emerald-400"><Glyph e="🔍" /></span>{scanTrades} scan trade{scanTrades !== 1 ? "s" : ""}</span>
             </div>
             <div className="max-h-72 overflow-y-auto">
               {dayTrades.length === 0 ? (
                 <div className="py-10 text-center">
-                  <p className="text-3xl mb-2">📊</p>
+                  <p className="text-3xl mb-2"><Glyph e="📊" /></p>
                   <p className="text-[#4B5675] text-sm">No trades executed today yet.</p>
                 </div>
               ) : (
@@ -523,7 +524,7 @@ export default function AutoTrader() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <p className="font-bold text-[#F1F5F9] text-sm">{clean}</p>
-                          <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-teal-400" : "text-emerald-400"}`}>{t.source === "signal" ? "⚡" : "🔍"}</span>
+                          <span className={`text-[8px] font-bold ${t.source === "signal" ? "text-teal-400" : "text-emerald-400"}`}><Glyph e={t.source === "signal" ? "⚡" : "🔍"} /></span>
                         </div>
                         <p className="text-[10px] text-[#4B5675] font-mono">{t.quantity} × ${t.price.toFixed(2)} · {time}</p>
                       </div>
@@ -536,7 +537,7 @@ export default function AutoTrader() {
               )}
             </div>
             <div className="px-5 py-3 text-center">
-              <p className="text-[10px] text-[#333368]">⚡ Signal = instant trade on dashboard alert · 🔍 Scan = parallel 5-min cycle</p>
+              <p className="text-[10px] text-[#333368]"><Glyph e="⚡" /> Signal = instant trade on dashboard alert · <Glyph e="🔍" /> Scan = parallel 5-min cycle</p>
             </div>
           </div>
         </div>
@@ -558,8 +559,8 @@ export default function AutoTrader() {
                 <div className="bg-teal-500/5 border border-teal-500/15 rounded-xl px-3 py-2">
                   <p className="text-[9px] text-teal-400 font-bold uppercase tracking-widest mb-1">Active Modes</p>
                   <div className="flex gap-4 text-[10px] text-[#7B8DB4]">
-                    <span className="flex items-center gap-1"><span className="text-teal-400">⚡</span>Signals (instant)</span>
-                    <span className="flex items-center gap-1"><span className="text-emerald-400">🔍</span>All 20 stocks / 5 min</span>
+                    <span className="flex items-center gap-1"><span className="text-teal-400"><Glyph e="⚡" /></span>Signals (instant)</span>
+                    <span className="flex items-center gap-1"><span className="text-emerald-400"><Glyph e="🔍" /></span>All 20 stocks / 5 min</span>
                   </div>
                 </div>
               )}
@@ -581,7 +582,7 @@ export default function AutoTrader() {
                   </div>
                   <div className="text-right">
                     <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{dayTrades.length} trades</p>
-                    <p className="text-[10px] text-[#7B8DB4] mt-0.5">{signalTrades}⚡ {scanTrades}🔍</p>
+                    <p className="text-[10px] text-[#7B8DB4] mt-0.5">{signalTrades}<Glyph e="⚡" /> {scanTrades}<Glyph e="🔍" /></p>
                   </div>
                 </div>
               )}
@@ -597,7 +598,7 @@ export default function AutoTrader() {
               <p className="text-[9px] text-[#333368] leading-relaxed pt-1 border-t border-[#252345]">Scans all 20 stocks simultaneously · Dashboard alerts trade instantly · SL −4% · TP +8%</p>
             </div>
             <div className="px-4 pb-4 space-y-2">
-              <button type="button" onClick={() => { setShowSummary(true); refreshDayTrades(); }} className="w-full py-2 rounded-xl text-[11px] font-bold bg-[#1A1838] border border-[#252345] text-[#7B8DB4] hover:text-[#F1F5F9] hover:border-[#333368] transition-all">📊 Day Recap</button>
+              <button type="button" onClick={() => { setShowSummary(true); refreshDayTrades(); }} className="w-full py-2 rounded-xl text-[11px] font-bold bg-[#1A1838] border border-[#252345] text-[#7B8DB4] hover:text-[#F1F5F9] hover:border-[#333368] transition-all"><Glyph e="📊" /> Day Recap</button>
               <button type="button" onClick={() => setActive(a => !a)} className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all ${active ? "bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25" : "bg-emerald-600 hover:bg-emerald-500 text-white"}`}>{active ? "Stop AutoTrader" : "Start AutoTrader"}</button>
             </div>
           </div>

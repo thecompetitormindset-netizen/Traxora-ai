@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { getPortfolio, PORTFOLIO_UPDATED_EVENT } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
+import { Glyph } from "./Icon";
 
 const MILESTONE_EVERY = 10; // every 10 trades
 const LAST_COACHED_KEY = "traxora-last-coached";
@@ -104,7 +105,7 @@ export default function AutoCoach() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#252345] bg-gradient-to-r from-teal-500/5 to-transparent">
           <div className="flex items-center gap-3">
-            <span className="text-2xl">🎯</span>
+            <span className="text-2xl"><Glyph e="🎯" /></span>
             <div>
               <p className="font-bold text-[#F1F5F9]">Coaching Report</p>
               <p className="text-[10px] text-[#4B5675]">
@@ -151,7 +152,7 @@ export default function AutoCoach() {
               <div className="grid grid-cols-2 gap-3">
                 {parsed.weakness && (
                   <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
-                    <p className="text-[9px] text-rose-400 uppercase tracking-widest font-semibold mb-1.5">⚠ Weakness</p>
+                    <p className="text-[9px] text-rose-400 uppercase tracking-widest font-semibold mb-1.5"><Glyph e="⚠" /> Weakness</p>
                     <p className="text-xs text-[#7B8DB4] leading-relaxed">{parsed.weakness}</p>
                   </div>
                 )}

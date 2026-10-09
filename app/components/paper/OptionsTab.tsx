@@ -73,6 +73,7 @@ function renderMd(raw: string): string {
 }
 
 import { useEffect } from "react";
+import { Glyph } from "../Icon";
 
 export default function OptionsTab({ initialSymbol }: { initialSymbol?: string }) {
   const [symbol,   setSymbol]   = useState(initialSymbol ?? "");
@@ -185,7 +186,7 @@ export default function OptionsTab({ initialSymbol }: { initialSymbol?: string }
       {/* Empty state */}
       {!analyzed && !loading && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-6 py-14 text-center">
-          <p className="text-4xl mb-3">📊</p>
+          <p className="text-4xl mb-3"><Glyph e="📊" /></p>
           <p className="text-sm font-semibold text-[#F1F5F9] mb-2">Options Analysis</p>
           <p className="text-xs text-[#4B5675] max-w-sm mx-auto leading-relaxed">
             Enter any optionable ticker. You'll get today's expected move range (from live IV), directional bias, a specific call or put recommendation with strike + expiry, and Smart Money price levels.

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { loadTrades } from "@/app/lib/paperTrades";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 // ── Static sector map (symbols without suffix) ────────────────────────────────
 const SECTOR_MAP: Record<string, string> = {
@@ -108,7 +109,7 @@ export default function PortfolioAllocationChart() {
       <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5">
         <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-3">Portfolio Allocation</p>
         <div className="flex flex-col items-center gap-2 py-6 text-center">
-          <p className="text-2xl">📊</p>
+          <p className="text-2xl"><Glyph e="📊" /></p>
           <p className="text-xs text-[#4B5675]">No open positions yet.</p>
           <Link href="/paper" className="text-xs text-emerald-400 hover:text-emerald-300 font-bold transition-colors">
             Open a paper trade →

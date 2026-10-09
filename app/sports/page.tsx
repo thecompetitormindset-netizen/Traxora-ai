@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
 import { syncFetch } from "../lib/syncFetch";
+import { Glyph } from "../components/Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ function markNotified(id: string) {
 function fireGameAlert(item: WatchItem) {
   if (typeof window === "undefined" || typeof Notification === "undefined") return;
   if (Notification.permission !== "granted") return;
-  const n = new Notification(`🏆 ${item.awayTeam} @ ${item.homeTeam} starting soon`, {
+  const n = new Notification(`${item.awayTeam} @ ${item.homeTeam} starting soon`, {
     body: `${item.league} · kickoff at ${fmtKickoff(item.commenceTime)}`,
     icon: "/icon-192.png",
     tag: `sports-${item.id}`,
@@ -414,7 +415,7 @@ export default function SportsPage() {
                           ? "bg-[#13112A] text-[#333368] border-[#252345] hover:text-[#4B5675]"
                           : "bg-[#13112A] text-[#7B8DB4] border-[#252345] hover:text-[#F1F5F9] hover:border-[#333368]"
                       }`}>
-                      <span aria-hidden>{t.emoji}</span>
+                      <Glyph e={t.emoji} />
                       {t.label}
                       <span className={`text-[9px] font-black px-1.5 py-px rounded-full border ${
                         active ? "bg-emerald-500/15 border-emerald-500/25" : "bg-[#0D0B1A] border-[#252345]"

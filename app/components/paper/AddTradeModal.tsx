@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { PaperTrade, Direction, AddTradeInitial } from "@/app/lib/paperTrades";
+import { Glyph } from "../Icon";
 
 type TradeScore = {
   overall: number;
@@ -217,7 +218,7 @@ export default function AddTradeModal({
                       </div>
                     ))}
                   </div>
-                  {score.warning && <p className="text-[10px] text-amber-400 flex gap-1.5"><span>⚠</span>{score.warning}</p>}
+                  {score.warning && <p className="text-[10px] text-amber-400 flex gap-1.5"><span><Glyph e="⚠" /></span>{score.warning}</p>}
                 </div>
               )}
             </div>

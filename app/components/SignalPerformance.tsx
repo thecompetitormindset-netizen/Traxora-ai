@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { scopedKey } from "@/app/lib/userState";
+import { Glyph } from "./Icon";
 
 type EvalReport = {
   directionalAccuracy: number;
@@ -253,7 +254,7 @@ export default function SignalPerformance() {
           {!isReliable && (
             <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl px-3.5 py-2.5">
               <p className="text-[10px] text-amber-400 leading-relaxed">
-                ⚠ {report.actedTrades} signals is a small sample. Expected return and win/loss size become reliable at {MIN_RELIABLE}+ signals. Keep running analyses to build your track record.
+                <Glyph e="⚠" /> {report.actedTrades} signals is a small sample. Expected return and win/loss size become reliable at {MIN_RELIABLE}+ signals. Keep running analyses to build your track record.
               </p>
             </div>
           )}

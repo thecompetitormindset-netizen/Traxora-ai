@@ -4,6 +4,7 @@ import { signIn, useSession } from "next-auth/react";
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Glyph } from "../components/Icon";
 
 const AUTH_ERRORS: Record<string, string> = {
   OAuthCallback:         "Google sign-in failed. Check that the Google Cloud Console has this app's redirect URI registered.",
@@ -127,7 +128,7 @@ function LoginContent() {
         <div className="space-y-3 mb-10">
           {BENEFITS.map(b => (
             <div key={b.title} className="flex items-start gap-3">
-              <span className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-sm shrink-0">{b.icon}</span>
+              <span className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center text-sm shrink-0"><Glyph e={b.icon} /></span>
               <div>
                 <p className="text-sm font-bold text-[var(--text-primary)]">{b.title}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-0.5 leading-relaxed">{b.desc}</p>
@@ -185,7 +186,7 @@ function LoginContent() {
 
           {inAppBrowser && (
             <div className="mb-4 px-4 py-4 rounded-xl bg-[var(--glow-hold)] border border-[var(--hold)]/40 text-[var(--text-primary)] text-sm">
-              <p className="font-bold mb-1">⚠️ Open in your browser first</p>
+              <p className="font-bold mb-1"><Glyph e="⚠️" /> Open in your browser first</p>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 You&apos;re in an in-app browser (Messenger, Instagram, etc.). Google blocks sign-in here.
                 Tap <strong>···</strong> or the share icon and choose <strong>&quot;Open in Chrome&quot;</strong> or <strong>&quot;Open in Safari&quot;</strong>, then sign in.

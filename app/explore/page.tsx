@@ -289,11 +289,11 @@ function ExploreContent() {
           <h1 className="reveal section-header text-2xl font-black tracking-tight text-gradient-green">Explore Markets</h1>
           <div className="flex gap-1 bg-[#1A1838] rounded-xl p-1 text-xs overflow-x-auto scrollbar-hide scroll-fade-x">
             {([
-              ["markets",  "🌍 Markets"],
-              ["movers",   "🔥 Movers"],
-              ["screener", "🔍 Screener"],
+              ["markets",  "Markets"],
+              ["movers",   "Movers"],
+              ["screener", "Screener"],
               ["crypto",   "₿ Crypto"],
-              ["calendar", "📅 Calendar"],
+              ["calendar", "Calendar"],
             ] as [ExploreView, string][]).map(([id, label]) => (
               <button key={id} type="button" onClick={() => setView(id)}
                 className={`shrink-0 px-4 py-2 rounded-lg font-semibold transition-colors ${view === id ? "bg-violet-600 text-white" : "text-[#4B5675] hover:text-[#F1F5F9]"}`}>

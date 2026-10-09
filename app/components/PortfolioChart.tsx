@@ -9,6 +9,7 @@ import {
 } from "lightweight-charts";
 import { getPortfolio, STARTING_BALANCE, PORTFOLIO_UPDATED_EVENT, type Trade } from "../lib/trading";
 import { appFontFamily } from "../lib/appFont";
+import { Glyph } from "./Icon";
 
 type Point = { time: UTCTimestamp; value: number };
 
@@ -202,7 +203,7 @@ export default function PortfolioChart() {
   if (tradeCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-52 text-center gap-2">
-        <p className="text-4xl">📈</p>
+        <p className="text-4xl"><Glyph e="📈" /></p>
         <p className="text-sm font-semibold text-[#F1F5F9]">No trades yet</p>
         <p className="text-xs text-[#4B5675] max-w-xs">
           Execute a paper trade and your portfolio equity curve will appear here.

@@ -9,6 +9,7 @@ import { getJournal, clearJournal, saveJournalEntry, type JournalEntry } from ".
 import { haptic } from "../lib/haptics";
 import NotebookSection from "../components/fieldnotes/NotebookSection";
 import { syncFetch } from "../lib/syncFetch";
+import { Glyph } from "../components/Icon";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -229,7 +230,7 @@ export default function JournalPage() {
                   Analyzing your trading patterns…
                 </>
               ) : (
-                <>🧠 Get AI Coaching Report</>
+                <><Glyph e="🧠" /> Get AI Coaching Report</>
               )}
             </button>
           )}
@@ -316,7 +317,7 @@ export default function JournalPage() {
           <div className="mt-3 space-y-3">
             {entries.length === 0 ? (
               <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-10 text-center">
-                <p className="text-4xl mb-4">📓</p>
+                <p className="text-4xl mb-4"><Glyph e="📓" /></p>
                 <p className="text-[#F1F5F9] font-semibold">No journal entries yet</p>
                 <p className="text-[#4B5675] text-sm mt-2 max-w-xs mx-auto">
                   Close a trade in your Paper Portfolio and an AI-written coaching entry is generated automatically.

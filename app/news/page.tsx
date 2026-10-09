@@ -5,6 +5,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import Panel from "../components/Panel";
+import { Glyph } from "../components/Icon";
 
 type NewsItem = {
   title:   string;
@@ -150,7 +151,7 @@ export default function NewsPage() {
                       : "bg-[#1A1838] border border-[#252345] text-[#4B5675] hover:text-[#F1F5F9] hover:border-[#333368]"
                   }`}
                 >
-                  <span>{t.emoji}</span>
+                  <Glyph e={t.emoji} />
                   {t.label}
                 </button>
               ))}
@@ -164,7 +165,7 @@ export default function NewsPage() {
                   ? items.map((item, i) => <NewsCard key={i} item={item} />)
                   : (
                     <Panel hover={false} padding="md" className="col-span-full p-10 text-center">
-                      <p className="text-2xl mb-2">📰</p>
+                      <p className="text-2xl mb-2"><Glyph e="📰" /></p>
                       <p className="text-sm text-[var(--text-secondary)]">No news found for this topic right now.</p>
                     </Panel>
                   )

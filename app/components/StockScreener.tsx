@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 type Row = {
   symbol:     string;
@@ -222,7 +223,7 @@ function ResultCard({ row }: { row: Row }) {
           href={`/intelligence?section=chain&sym=${encodeURIComponent(row.symbol)}`}
           className="text-[11px] font-bold text-violet-400 hover:text-violet-300 transition-colors"
         >
-          Options ⛓️
+          Options <Glyph e="⛓️" />
         </Link>
       </div>
     </div>
@@ -392,7 +393,7 @@ export default function StockScreener() {
       {/* ── No results ── */}
       {!loading && !error && filtered.length === 0 && (
         <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-6 py-10 text-center">
-          <p className="text-2xl mb-2">🔍</p>
+          <p className="text-2xl mb-2"><Glyph e="🔍" /></p>
           <p className="text-sm font-semibold text-[#F1F5F9] mb-1">No stocks match</p>
           <p className="text-xs text-[#4B5675]">Try relaxing the filters above.</p>
         </div>

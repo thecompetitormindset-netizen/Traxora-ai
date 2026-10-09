@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getPortfolio, sellStock, STARTING_BALANCE } from "../lib/trading";
+import { Glyph } from "./Icon";
 
 type Toast = { id: number; icon: string; title: string; body: string; color: string };
 let tid = 0;
@@ -115,7 +116,7 @@ export default function RiskGuard() {
             key={t.id}
             className={`flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-xl backdrop-blur-xl animate-toast-in pointer-events-auto ${t.color}`}
           >
-            <span className="text-base shrink-0 mt-0.5">{t.icon}</span>
+            <span className="text-base shrink-0 mt-0.5"><Glyph e={t.icon} /></span>
             <div className="min-w-0">
               <p className="text-xs font-bold leading-snug">{t.title}</p>
               <p className="text-[10px] text-[#4B5675] mt-0.5 leading-snug">{t.body}</p>

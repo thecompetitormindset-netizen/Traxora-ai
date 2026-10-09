@@ -191,9 +191,8 @@ function fireNotification(symbol: string, name: string, signal: "BUY" | "SELL", 
     detail: { symbol, name, signal, price, confidence }
   }));
   if (Notification.permission !== "granted") return;
-  const emoji = signal === "BUY" ? "🟢" : "🔴";
   const notif = new Notification(
-    `${emoji} Traxora AI — ${signal}: ${symbol.replace(".US","").replace(".COMM","")}`,
+    `Traxora — ${signal}: ${symbol.replace(".US","").replace(".COMM","")}`,
     { body: `${name} · $${price.toFixed(2)} · ${confidence} confidence`, icon: "/icon-192.png", tag: `signal-${symbol}` }
   );
   notif.onclick = () => { window.focus(); window.location.href = `/notifications`; notif.close(); };
@@ -1240,13 +1239,13 @@ function DashboardContent() {
                       {stock.trade && stock.signal !== "HOLD" ? (
                         <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${stock.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
+                            <span className="text-[9px] text-[#4B5675] shrink-0">Buy</span>
                             <span className="font-bold text-amber-400">{stock.trade.entryZone}</span>
                             <span className="text-[#4B5675]">·</span>
-                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
+                            <span className="text-[9px] text-[#4B5675] shrink-0">Safety</span>
                             <span className="font-bold text-rose-400">{stock.trade.stopLoss}</span>
                             <span className="text-[#4B5675]">·</span>
-                            <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
+                            <span className="text-[9px] text-[#4B5675] shrink-0">Goal</span>
                             <span className="font-bold text-emerald-400">{stock.trade.takeProfit}</span>
                             <span className="ml-auto text-[8px] text-[#4B5675]">{stock.trade.rrRatio}</span>
                           </div>
@@ -1288,7 +1287,7 @@ function DashboardContent() {
                                 title="Copy signal details (includes risk disclaimer) to paste into Claude"
                                 className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                               >
-                                {copiedSymbol === stock.symbol ? "Copied!" : "Send to Claude →"}
+                                {copiedSymbol === stock.symbol ? "Copied!" : "Copy for AI →"}
                               </button>
                             )}
                           </div>
@@ -1481,13 +1480,13 @@ function DashboardContent() {
                     {f.trade && f.signal !== "HOLD" ? (
                       <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Ent</span>
+                          <span className="text-[9px] text-[#4B5675] shrink-0">Buy</span>
                           <span className="font-bold text-amber-400">{f.trade.entryZone}</span>
                           <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Stp</span>
+                          <span className="text-[9px] text-[#4B5675] shrink-0">Safety</span>
                           <span className="font-bold text-rose-400">{f.trade.stopLoss}</span>
                           <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[9px] text-[#4B5675] uppercase tracking-wider shrink-0">Tgt</span>
+                          <span className="text-[9px] text-[#4B5675] shrink-0">Goal</span>
                           <span className="font-bold text-emerald-400">{f.trade.takeProfit}</span>
                           <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{f.trade.rrRatio}</span>
                         </div>
@@ -1512,7 +1511,7 @@ function DashboardContent() {
                             title="Copy signal details (includes risk disclaimer) to paste into Claude"
                             className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                           >
-                            {copiedSymbol === f.symbol ? "Copied!" : "Send to Claude →"}
+                            {copiedSymbol === f.symbol ? "Copied!" : "Copy for AI →"}
                           </button>
                         )}
                       </div>
@@ -1553,131 +1552,73 @@ function DashboardContent() {
               const winRate      = closedCount > 0 ? Math.round((winCount / closedCount) * 100) : null;
               const totalPct = (totalPL / STARTING_CAPITAL) * 100;
               const isUp = totalPL >= 0;
-              const color = isUp ? "#34D399" : "#F87171";
 
               return (
                 <div className="order-6 lg:order-none lg:col-span-3 self-start">
-                <Link href="/strategy" className="block group">
-                  <div className={`card-shine glass surface-sheen rounded-2xl border transition-all hover:border-emerald-500/20 ${isUp ? "border-emerald-500/15" : "border-rose-500/15"}`}>
-
-                    {/* Header: value + change */}
-                    <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-4 flex items-end justify-between gap-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">Paper Portfolio</p>
-                        <p className="text-3xl lg:text-4xl font-black tracking-tight text-[var(--text-primary,#F1F5F9)] tabular-nums leading-none">
-                          ${accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </p>
-                        <div className={`flex items-center gap-2 mt-1.5 ${isUp ? "text-emerald-400" : "text-rose-400"}`}>
-                          <span className="text-sm font-bold tabular-nums">{isUp ? "+" : ""}{totalPL.toFixed(2)}</span>
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${isUp ? "bg-emerald-500/15" : "bg-rose-500/15"}`}>
-                            {isUp ? "+" : ""}{totalPct.toFixed(2)}%
-                          </span>
-                          <span className="text-[#4B5675] text-xs">all time</span>
-                        </div>
-                      </div>
-                      <p className="text-[11px] text-emerald-400 group-hover:text-emerald-300 font-semibold transition-colors shrink-0 pb-0.5">View performance →</p>
+                <Link href="/paper" className="block group rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] hover:border-[var(--mx-line-strong)] transition-colors">
+                  <div className="px-5 lg:px-6 pt-5 lg:pt-6 pb-4 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="mx-label">Practice trading</p>
+                      <p className="mt-2 text-[28px] leading-none tracking-[-0.02em] text-[var(--mx-text)]">
+                        ${accountValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </p>
+                      <p className={`mt-2 text-[14px] ${totalPL > 0 ? "text-[var(--mx-up)]" : totalPL < 0 ? "text-[var(--mx-down)]" : "text-[var(--mx-text-3)]"}`}>
+                        {totalPL === 0 ? "No change yet" : `${isUp ? "Up" : "Down"} $${Math.abs(totalPL).toFixed(2)} (${isUp ? "+" : "−"}${Math.abs(totalPct).toFixed(2)}%)`}
+                        <span className="text-[var(--mx-text-3)]"> · pretend money</span>
+                      </p>
                     </div>
-
-                    {/* Full-width equity chart */}
-                    <div className="w-full px-0">
-                      {curve.length >= 2 ? (
-                        <svg
-                          viewBox={`0 0 800 110`}
-                          preserveAspectRatio="none"
-                          className="w-full h-[110px]"
-                          aria-hidden
-                        >
-                          <defs>
-                            <linearGradient id="port-chart-grad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor={color} stopOpacity="0.20"/>
-                              <stop offset="100%" stopColor={color} stopOpacity="0"/>
-                            </linearGradient>
-                          </defs>
-                          {(() => {
-                            const min   = Math.min(...curve);
-                            const max   = Math.max(...curve);
-                            const range = max - min || 1;
-                            const W = 800, H = 110, pad = 6;
-                            const pts = curve.map((v, i) => {
-                              const x = (i / (curve.length - 1)) * W;
-                              const y = H - pad - ((v - min) / range) * (H - pad * 2);
-                              return `${x.toFixed(1)},${y.toFixed(1)}`;
-                            });
-                            const pStr = pts.join(" ");
-                            const last = pts[pts.length - 1].split(",");
-                            return (
-                              <>
-                                <polygon points={`0,${H} ${pStr} ${W},${H}`} fill="url(#port-chart-grad)" />
-                                <polyline points={pStr} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                <circle cx={last[0]} cy={last[1]} r="4" fill={color} />
-                              </>
-                            );
-                          })()}
-                        </svg>
-                      ) : (
-                        <div className="w-full h-[110px] relative flex flex-col items-center justify-center gap-1.5">
-                          <svg className="absolute inset-x-0 bottom-2 w-full h-12 opacity-40" viewBox="0 0 300 48" fill="none" preserveAspectRatio="none" aria-hidden="true">
-                            <path d="M0 40 C40 38, 60 30, 90 32 S150 20, 180 24 S250 10, 300 14" stroke="var(--text-muted)" strokeWidth="1.5" strokeDasharray="4 5" strokeLinecap="round" />
-                          </svg>
-                          <p className="text-xs font-medium text-[#4B5675]">No closed trades yet</p>
-                          <p className="text-[11px] text-[#333368]">Fill your first paper trade and your equity curve starts here</p>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="grid grid-cols-4 gap-3 px-5 lg:px-6 py-4 border-t border-[#252345]">
-                      {[
-                        { label: "Open",     value: String(openCount),                                       color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Closed",   value: String(closedCount),                                     color: "text-[var(--text-primary,#F1F5F9)]" },
-                        { label: "Win Rate", value: winRate != null ? `${winRate}%` : "—",                   color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#7B8DB4]" },
-                        { label: "Realized", value: `${totalPL >= 0 ? "+" : ""}$${Math.abs(totalPL).toFixed(2)}`, color: isUp ? "text-emerald-400" : "text-rose-400" },
-                      ].map(s => (
-                        <div key={s.label}>
-                          <p className="text-[9px] font-bold text-[#4B5675] uppercase tracking-widest mb-1">{s.label}</p>
-                          <p className={`text-sm font-black font-mono tabular-nums ${s.color}`}>{s.value}</p>
-                        </div>
-                      ))}
-                    </div>
+                    <p className="text-[13px] text-[var(--mx-text-2)] group-hover:text-[var(--mx-text)] shrink-0 pb-0.5">Open →</p>
                   </div>
+
+                  <div className="w-full">
+                    {curve.length >= 2 ? (
+                      <svg viewBox="0 0 800 110" preserveAspectRatio="none" className="w-full h-[110px]" aria-hidden>
+                        {(() => {
+                          const min = Math.min(...curve), max = Math.max(...curve), range = max - min || 1;
+                          const W = 800, H = 110, pad = 6;
+                          const pStr = curve.map((v, i) => `${((i / (curve.length - 1)) * W).toFixed(1)},${(H - pad - ((v - min) / range) * (H - pad * 2)).toFixed(1)}`).join(" ");
+                          return <polyline points={pStr} fill="none" stroke="var(--mx-text)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />;
+                        })()}
+                      </svg>
+                    ) : (
+                      <div className="w-full h-[96px] flex flex-col items-center justify-center gap-1 border-y border-dashed border-[var(--mx-line)]">
+                        <p className="text-[14px] text-[var(--mx-text-2)]">No finished trades yet</p>
+                        <p className="text-[12px] text-[var(--mx-text-3)]">Make your first practice trade and your progress shows here.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <dl className="grid grid-cols-3 gap-3 px-5 lg:px-6 py-4">
+                    {[
+                      { k: "Open trades", v: String(openCount) },
+                      { k: "Finished", v: String(closedCount) },
+                      { k: "Made money", v: winRate != null ? `${winRate}% of trades` : "—" },
+                    ].map(x => (
+                      <div key={x.k}>
+                        <dt className="mx-label">{x.k}</dt>
+                        <dd className="mt-1 text-[16px] text-[var(--mx-text)]">{x.v}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </Link>
                 </div>
               );
             })()}
 
-          {/* Risk Rules + Exchange CTA — full width */}
+          {/* Good habits — full width */}
           <div className="order-7 lg:order-none lg:col-span-3">
-          <section className="space-y-3">
-            {/* Risk rules */}
-            <div className="bg-[#13112A] border border-[#252345] rounded-2xl px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#4B5675] mb-3">Risk Rules</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8">
-                {[
-                  "Never risk more than 5–10% of capital per trade",
-                  "Set your stop-loss before entering — non-negotiable",
-                  "Read the analysis before acting on a signal",
-                  "Wait for high-confidence setups only",
-                  "Log every trade: reason, outcome, lesson",
-                  "AI signals are a starting point, not a guarantee",
-                ].map((rule, i) => (
-                  <div key={rule} className="flex items-start gap-2.5 py-2 border-b border-[#252345]/30 last:border-0">
-                    <span className="text-[9px] font-black text-emerald-500/30 shrink-0 mt-px">{i + 1}</span>
-                    <p className="text-[11px] text-[#7B8DB4] leading-snug">{rule}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Exchange CTA */}
-            <div className="rounded-2xl border border-[#252345] bg-gradient-to-r from-emerald-600/10 to-teal-600/10 px-5 py-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold">Explore all exchanges</p>
-                <p className="text-xs text-[#7B8DB4] mt-0.5">CBOE, CBOT, CME, KCBT, MGE, NYBOT &amp; NYMEX — instant AI analysis.</p>
-              </div>
-              <Link href="/explore" className="shrink-0 bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white">
-                Open →
-              </Link>
-            </div>
+          <section className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] px-5 py-4" aria-labelledby="habits-h">
+            <h2 id="habits-h" className="text-[16px]">Good habits</h2>
+            <ul className="mt-3 grid sm:grid-cols-2 gap-x-8 gap-y-2 text-[14px] text-[var(--mx-text-2)]">
+              {[
+                "Only risk a small part of your money on one trade.",
+                "Decide where you’ll get out before you get in.",
+                "Read why a signal says what it says before acting.",
+                "Our signals are a starting point, not a promise.",
+              ].map(rule => (
+                <li key={rule} className="flex gap-2"><span aria-hidden="true" className="text-[var(--mx-text-3)]">·</span>{rule}</li>
+              ))}
+            </ul>
           </section>
           </div>{/* /risk rules lg:col-span-3 */}
 

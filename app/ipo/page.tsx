@@ -251,14 +251,14 @@ function AIPanel({ ipo }: { ipo: IPOItem }) {
         onClick={() => {
           const emoji = analysis.verdict === "Strong Buy" ? "🟢" : analysis.verdict === "Buy" ? "🟢" : analysis.verdict === "Watch" ? "🟡" : "🔴";
           const lines: string[] = [];
-          lines.push(`🚀 **IPO Alert: ${ipo.name}${ipo.symbol ? ` (${ipo.symbol})` : ""}**${ipoPrice ? ` @ $${ipoPrice}` : ""}`);
+          lines.push(`**IPO Alert: ${ipo.name}${ipo.symbol ? ` (${ipo.symbol})` : ""}**${ipoPrice ? ` @ $${ipoPrice}` : ""}`);
           lines.push(`${emoji} **${analysis.verdict}** — ${analysis.verdictReason}`);
           lines.push(`Sector: ${analysis.sector} · Similar to ${analysis.similarTo}`);
           lines.push("");
-          lines.push(`**12-Month Targets:** 🐻 $${analysis.priceTargets.bear} · 📊 $${analysis.priceTargets.base} · 🐂 $${analysis.priceTargets.bull}`);
+          lines.push(`**12-Month Targets:** $${analysis.priceTargets.bear} · $${analysis.priceTargets.base} · $${analysis.priceTargets.bull}`);
           if (analysis.catalysts.length > 0) { lines.push(""); lines.push("**Catalysts:** " + analysis.catalysts.slice(0, 3).map(c => `• ${c}`).join("  ")); }
           if (analysis.risks.length > 0) { lines.push("**Risks:** " + analysis.risks.slice(0, 2).map(r => `• ${r}`).join("  ")); }
-          lines.push(""); lines.push("📈 **traxora.ai**");
+          lines.push(""); lines.push("**traxora.ai**");
           const el = document.getElementById(`ipo-discord-${ipo.name}`);
           navigator.clipboard.writeText(lines.join("\n")).then(() => {
             if (el) { el.textContent = "Copied!"; setTimeout(() => { if (el) el.textContent = "Post to Discord"; }, 2000); }

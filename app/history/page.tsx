@@ -9,6 +9,7 @@ import Topbar from "../components/Topbar";
 import { getPortfolio, type Trade } from "../lib/trading";
 import { getJournal, type JournalEntry } from "../components/AutoJournal";
 import { scopedKey, setCurrentUser } from "../lib/userState";
+import { Glyph } from "../components/Icon";
 
 type SignalRecord = {
   symbol:     string;
@@ -185,7 +186,7 @@ export default function HistoryPage() {
 
               {roundTrips.length === 0 && unmatchedBuys.length === 0 && (
                 <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-10 text-center">
-                  <p className="text-3xl mb-3">📊</p>
+                  <p className="text-3xl mb-3"><Glyph e="📊" /></p>
                   <p className="font-semibold text-[#F1F5F9]">No completed trades yet</p>
                   <p className="text-[#4B5675] text-sm mt-2">A round trip is one BUY matched to one SELL of the same symbol.</p>
                 </div>

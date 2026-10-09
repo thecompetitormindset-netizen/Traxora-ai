@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { scopedKey } from "@/app/lib/userState";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -291,7 +292,7 @@ export default function PriceAlerts() {
           <div className="glass surface-sheen border border-violet-500/20 rounded-2xl overflow-hidden divide-y divide-[#252345]">
             {triggered.map(a => (
               <div key={a.id} className="flex items-center gap-4 px-5 py-3.5 opacity-70">
-                <span className="text-lg shrink-0">🔔</span>
+                <span className="text-lg shrink-0"><Glyph e="🔔" /></span>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-black font-mono text-sm text-[#F1F5F9]">{a.symbol}</span>

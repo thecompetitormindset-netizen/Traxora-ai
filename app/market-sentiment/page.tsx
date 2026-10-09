@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { getPortfolio } from "../lib/trading";
+import { Glyph } from "../components/Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -760,7 +761,7 @@ export default function MarketSentimentPage() {
                   <div className="space-y-2">
                     {report.catalysts.map((c, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-amber-400 text-sm shrink-0">⚡</span>
+                        <span className="text-amber-400 text-sm shrink-0"><Glyph e="⚡" /></span>
                         <p className="text-xs text-[#7B8DB4]">{c}</p>
                       </div>
                     ))}
@@ -775,7 +776,7 @@ export default function MarketSentimentPage() {
                   <div className="flex flex-wrap gap-2">
                     {report.divergences.map((d, i) => (
                       <span key={i} className="text-xs bg-rose-500/10 text-rose-300 border border-rose-500/20 px-2.5 py-1 rounded-lg">
-                        ⚠ {d}
+                        <Glyph e="⚠" /> {d}
                       </span>
                     ))}
                   </div>

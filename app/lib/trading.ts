@@ -198,8 +198,8 @@ export function checkPriceEvents(
         stopLoss: holding.stopLoss, takeProfit: holding.takeProfit,
       });
       const label = hitTP
-        ? `🎯 Take profit hit — ${holding.quantity} shares of ${symbol.replace(".US","").replace(".COMM","")} auto-sold @ $${currentPrice.toFixed(2)}`
-        : `⚠️ Stop loss triggered — ${holding.quantity} shares of ${symbol.replace(".US","").replace(".COMM","")} auto-sold @ $${currentPrice.toFixed(2)}`;
+        ? `Take profit hit — ${holding.quantity} shares of ${symbol.replace(".US","").replace(".COMM","")} auto-sold @ $${currentPrice.toFixed(2)}`
+        : `Stop loss triggered — ${holding.quantity} shares of ${symbol.replace(".US","").replace(".COMM","")} auto-sold @ $${currentPrice.toFixed(2)}`;
       messages.push(label);
       return false;
     }

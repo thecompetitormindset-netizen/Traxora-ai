@@ -142,7 +142,7 @@ code, kbd {
 /* Headings: large and calm — regular weight, tight tracking. */
 html[data-theme] main h1 { font-weight: 500 !important; letter-spacing: -0.02em !important; }
 main h2 { letter-spacing: -0.012em; }
-html[data-theme] main .font-black, html[data-theme] main .font-extrabold { font-weight: 600 !important; }
+html[data-theme] main .font-black, html[data-theme] main .font-extrabold { font-weight: 500 !important; }
 
 /* ── 5. Flatten decoration ─────────────────────────────────────────────────── */
 body::before { display: none !important; }                       /* grain */
@@ -291,14 +291,14 @@ html[data-theme] svg text[font-family*="mono"] { font-family: var(--font-geist),
 /* ── Typography: one typeface, two weights, readable sizes ──────────────────
    The app grew three looks (Geist, a mono face for numbers/labels, and heavy
    900-weight headings with tiny uppercase labels). Everything now uses Geist:
-   numbers keep tabular figures so columns still line up; labels are normal
-   case; bold is one weight (600); nothing is smaller than 11px. */
+   labels are normal case; only two weights, regular (400) and medium (500);
+   nothing is smaller than 11px. Sizes: app/typescale.css. */
 html[data-theme] .font-mono, html[data-theme] [data-price], html .font-mono, html [data-price] {
   font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif !important;
   font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
 }
 html[data-theme] .font-black, html[data-theme] .font-extrabold, html[data-theme] .font-bold,
-html .font-black, html .font-extrabold, html .font-bold { font-weight: 600 !important; }
+html .font-black, html .font-extrabold, html .font-bold { font-weight: 500 !important; }
 html[data-theme] .font-semibold, html .font-semibold { font-weight: 500 !important; }
 html[data-theme] .uppercase, html .uppercase { text-transform: none !important; }
 html[data-theme] [class*="tracking-wide"], html[data-theme] [class*="tracking-widest"],

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -151,7 +152,7 @@ function CoinCard({ coin, row, mover }: { coin: typeof COINS[0]; row: CoinRow | 
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-xl bg-[#1A1838] border border-[#252345] flex items-center justify-center text-sm font-black text-[#CBD5E1]">
-            {coin.emoji}
+            <Glyph e={coin.emoji} />
           </div>
           <div>
             <p className="font-black text-sm text-[#F1F5F9] leading-tight">{coin.ticker}</p>

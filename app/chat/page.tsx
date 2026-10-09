@@ -5,6 +5,7 @@ import Sidebar from "@/app/components/Sidebar";
 import Topbar from "@/app/components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import Link from "next/link";
+import { Glyph } from "../components/Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -237,7 +238,7 @@ export default function ChatPage() {
               {loading && <TypingIndicator />}
               {error && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-rose-500/8 border border-rose-500/20 rounded-2xl">
-                  <span className="text-rose-400 text-sm shrink-0">⚠</span>
+                  <span className="text-rose-400 text-sm shrink-0"><Glyph e="⚠" /></span>
                   <p className="text-xs text-rose-300">{error}</p>
                   <button type="button" onClick={() => setError("")}
                     className="ml-auto text-rose-400 hover:text-rose-300 transition text-sm shrink-0">✕</button>

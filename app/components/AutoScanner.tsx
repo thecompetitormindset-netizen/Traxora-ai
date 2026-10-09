@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
+import { Glyph } from "./Icon";
 
 type NewsItem = { title: string; publisher: string; age: string };
 
@@ -222,7 +223,7 @@ export default function AutoScanner() {
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#252345] shrink-0">
               <div className="flex items-center gap-2">
-                <span className="text-base">📡</span>
+                <span className="text-base"><Glyph e="📡" /></span>
                 <div>
                   <p className="text-xs font-bold text-[#F1F5F9]">Deep Market Scanner</p>
                   {scannedCount > 0 && (
@@ -255,7 +256,7 @@ export default function AutoScanner() {
                       { icon: "📰", label: "Live news" },
                     ].map((f) => (
                       <div key={f.label} className="bg-[#13112A] border border-[#252345] rounded-xl py-2.5">
-                        <p className="text-base">{f.icon}</p>
+                        <p className="text-base"><Glyph e={f.icon} /></p>
                         <p className="text-[9px] text-[#4B5675] mt-1">{f.label}</p>
                       </div>
                     ))}
@@ -358,12 +359,12 @@ export default function AutoScanner() {
                             <div className="flex items-center gap-2">
                               {(r.news?.length ?? 0) > 0 && (
                                 <span className="text-[9px] text-amber-400 bg-amber-500/10 border border-amber-500/20 px-1.5 py-px rounded-md">
-                                  📰 {r.news!.length} news
+                                  <Glyph e="📰" /> {r.news!.length} news
                                 </span>
                               )}
                               {(r.volumeRatio ?? 1) >= 2 && (
                                 <span className="text-[9px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-px rounded-md">
-                                  ⚡ Vol surge
+                                  <Glyph e="⚡" /> Vol surge
                                 </span>
                               )}
                             </div>

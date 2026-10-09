@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PriceAlerts from "../components/PriceAlerts";
 import { scopedKey, setCurrentUser } from "../lib/userState";
+import { Glyph } from "../components/Icon";
 
 type Alert = {
   symbol:      string;
@@ -146,8 +147,8 @@ export default function NotificationsPage() {
           {/* ── Tabs ── */}
           <div className="flex gap-1 mt-5 mb-6 p-1 bg-[#13112A] border border-[#252345] rounded-2xl w-fit">
             {([
-              { key: "signals" as Tab, label: "📡 Signal Alerts" },
-              { key: "price"   as Tab, label: "🎯 Price Alerts"  },
+              { key: "signals" as Tab, label: "Signal Alerts" },
+              { key: "price"   as Tab, label: "Price Alerts"  },
             ] as const).map(({ key, label }) => (
               <button
                 key={key}
@@ -170,7 +171,7 @@ export default function NotificationsPage() {
               {paused && (
                 <div className="mb-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-rose-400 text-lg">🔕</span>
+                    <span className="text-rose-400 text-lg"><Glyph e="🔕" /></span>
                     <p className="text-sm font-semibold text-rose-400">Alerts paused</p>
                   </div>
                   <button type="button" onClick={togglePause}
@@ -200,7 +201,7 @@ export default function NotificationsPage() {
 
               {permission === "denied" && (
                 <div className="mb-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-center gap-3">
-                  <span className="text-rose-400">🔕</span>
+                  <span className="text-rose-400"><Glyph e="🔕" /></span>
                   <p className="text-xs text-[#7B8DB4]">
                     Notifications blocked — go to browser settings → Site permissions → allow this site.
                   </p>

@@ -19,9 +19,9 @@ function biasColor(b: FlowRow["bias"]): string {
 }
 
 function biasLabel(b: FlowRow["bias"]): string {
-  if (b === "bullish") return "🐂 Call Heavy";
-  if (b === "bearish") return "🐻 Put Heavy";
-  return "⚖️ Neutral";
+  if (b === "bullish") return "Call Heavy";
+  if (b === "bearish") return "Put Heavy";
+  return "Neutral";
 }
 
 // ── Row ───────────────────────────────────────────────────────────────────────
@@ -149,7 +149,7 @@ export default function OptionsFlow() {
               ? "bg-rose-500/8 border-rose-500/20 text-rose-400"
               : "bg-amber-500/8 border-amber-500/20 text-amber-400"
           }`}>
-            Overall: {bullCount > bearCount ? "🐂 Call Bias" : bearCount > bullCount ? "🐻 Put Bias" : "⚖️ Mixed"}
+            Overall: {bullCount > bearCount ? "Call Bias" : bearCount > bullCount ? "Put Bias" : "Mixed"}
           </div>
         </div>
       )}
@@ -158,9 +158,9 @@ export default function OptionsFlow() {
       <div className="flex gap-1.5 flex-wrap">
         {([
           { key: "all",     label: "All" },
-          { key: "bullish", label: "🐂 Call Heavy" },
-          { key: "bearish", label: "🐻 Put Heavy" },
-          { key: "unusual", label: "⚡ Unusual (Vol/OI ≥0.3)" },
+          { key: "bullish", label: "Call Heavy" },
+          { key: "bearish", label: "Put Heavy" },
+          { key: "unusual", label: "Unusual (Vol/OI ≥0.3)" },
         ] as const).map(({ key, label }) => (
           <button key={key} type="button" onClick={() => setFilter(key)}
             className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-colors ${
