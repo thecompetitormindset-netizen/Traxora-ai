@@ -21,16 +21,27 @@ const cboe = {
 };
 
 describe("payload builder", () => {
-  it("parses CBOE without inventing quote timestamps or zero-filling", () => {
+  it("dates CBOE quotes by snapshot minus the 15-minute delay, without zero-filling", () => {
     const chain = parseCboeChain(cboe, "XYZ", AS_OF)!;
     expect(chain.contracts.map(c => c.contract_id)).toEqual(["XYZ261106C00100000", "XYZ261106P00100000"]);
     const put = chain.contracts[1];
-    expect(put.quote_timestamp).toBeNull();
+    expect(put.quote_timestamp).toBe("2026-10-08T14:45:00.000Z"); // 15:00 snapshot − 15 min
     expect(put.open_interest).toBeNull();
     expect(put.volume).toBeNull();
     expect(put.last_trade_timestamp).toBe("2026-10-08T14:41:00.000Z"); // ET (EDT) → UTC
     expect(chain.snapshotTimestamp).toBe("2026-10-08T15:00:00.000Z");
     expect(chain.priceTimestamp).toBe("2026-10-08T14:45:00.000Z");
+  });
+
+  it("leaves quote times unknown when the snapshot has no timestamp", () => {
+    const chain = parseCboeChain({ ...cboe, timestamp: undefined }, "XYZ", AS_OF)!;
+    expect(chain.contracts.every(c => c.quote_timestamp === null)).toBe(true);
+  });
+
+  it("marks delayed quotes stale once they pass the age limit", () => {
+    const late = "2026-10-08T15:26:00.000Z"; // quotes now 41 min old (limit 40)
+    const input = buildAnalysisInput({ symbol: "XYZ", asOf: late, chainJson: cboe, barsJson: null, earnings: { fetchedOk: true, events: [] } });
+    expect(input.contracts!.every(c => c.freshness.status === "STALE")).toBe(true);
   });
 
   it("treats an Alpha Vantage rate-limit body as unknown coverage, not an empty calendar", () => {
@@ -40,13 +51,13 @@ describe("payload builder", () => {
     expect(eventCoverageFor({ fetchedOk: false }, "XYZ", "2026-11-06", "2026-10-08").status).toBe("UNKNOWN");
   });
 
-  it("builds a valid v4.1 input that the engine turns into NO_TRADE G2 on CBOE data", () => {
+  it("builds a valid v4.1 input with fresh delayed quotes (no bars → still NO_TRADE)", () => {
     const input = buildAnalysisInput({
       symbol: "XYZ", asOf: AS_OF, chainJson: cboe, barsJson: null,
       earnings: { fetchedOk: true, events: [] },
     });
     expect(input.paper_trading_only).toBe(true);
-    expect(input.contracts!.every(c => c.freshness.status === "UNKNOWN")).toBe(true);
+    expect(input.contracts!.every(c => c.freshness.status === "FRESH" && c.freshness.age_seconds === 900)).toBe(true);
     expect(input.expiries![0].expected_move).toMatchObject({ amount: 6, lower: 94, upper: 106 });
     const out = analyzeDeterministic(input);
     expect(out.trade_decision).toBe("NO_TRADE");

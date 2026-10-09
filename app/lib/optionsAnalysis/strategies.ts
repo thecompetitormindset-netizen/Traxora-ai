@@ -47,8 +47,9 @@ export function checkLegShape(strategy: StrategyName, legs: LegShape[]): string 
 
 /**
  * Per-leg freshness, recomputed from the quote timestamp itself rather than
- * trusting a precomputed flag. A missing quote_timestamp is UNKNOWN — a
- * snapshot or last-trade time is never substituted.
+ * trusting a precomputed flag. A missing quote_timestamp is UNKNOWN; a
+ * last-trade time is never substituted (for CBOE the quote time is the
+ * snapshot time minus its published delay — see payload.ts).
  */
 export function legFreshness(c: Pick<InputContract, "quote_timestamp" | "dte">, asOf: string, rules: InputRules): {
   status: "FRESH" | "STALE" | "UNKNOWN"; age_seconds: number | null; max_age_seconds: number | null; basis: string;

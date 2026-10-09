@@ -19,7 +19,7 @@ import { SYMBOL_PATTERN, analyzeLiveSymbol, loadEarnings } from "@/app/lib/optio
 import { POLICY_VERSION } from "@/app/lib/optionsAnalysis/policy";
 import { RULES_VERSION } from "@/app/lib/optionsAnalysis/rules";
 import { after } from "next/server";
-import { getScanState, isRunning, readCandidates, readSummaries, type ScanState } from "@/app/lib/optionsAnalysis/scan";
+import { getScanState, isRunning, lastScanError, readCandidates, readSummaries, recheckSymbols, type ScanState } from "@/app/lib/optionsAnalysis/scan";
 import { buildUniverse } from "@/app/lib/optionsAnalysis/universe";
 import { plainReason } from "@/app/components/fieldnotes/uiState";
 
@@ -62,34 +62,48 @@ function summarize(s: ScanState | null): ScanSummary | null {
   };
 }
 
-/** Ask the scan route to start a pass (fire-and-forget). */
-function kickScan(origin: string, by: string) {
+/** Ask the scan route to start a pass, or continue `run` (fire-and-forget). */
+function kickScan(origin: string, by: string, run?: string) {
   const secret = process.env.CRON_SECRET;
   if (!secret) return;
   after(async () => {
     try {
-      await fetch(`${origin}/api/cron/options-scan?by=${encodeURIComponent(by)}`, {
+      const q = run ? `run=${encodeURIComponent(run)}` : `by=${encodeURIComponent(by)}`;
+      await fetch(`${origin}/api/cron/options-scan?${q}`, {
         headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(4_000),
       });
     } catch { /* the scan continues on its own */ }
   });
 }
 
-function needsNewPass(s: ScanState | null): boolean {
+/** What the scan needs now: a new pass, resuming a stopped one, or nothing. */
+function scanAction(s: ScanState | null): "start" | "resume" | null {
   // While the market is closed every full check fails on stale prices, so
   // passes only run during the session (the daily cron starts one at 10:00 ET).
-  if (nyseSessionStatus().status !== "OPEN") return false;
-  if (!s) return true;
-  if (isRunning(s)) return false;
-  if (!s.finished_at) return true; // stopped part-way: resume with a new pass
-  return nyseSessionStatus().status === "OPEN" && Date.now() - Date.parse(s.finished_at) > RESCAN_AFTER_MS;
+  if (nyseSessionStatus().status !== "OPEN") return null;
+  if (!s) return "start";
+  if (isRunning(s)) return null;
+  if (!s.finished_at) return "resume"; // stopped part-way: carry on from where it stopped
+  return Date.now() - Date.parse(s.finished_at) > RESCAN_AFTER_MS ? "start" : null;
 }
+
+// Per instance: don't fire more than one scan request or idea re-check per window.
+let lastKickAt = 0;
+let lastRecheckAt = 0;
+const KICK_COOLDOWN_MS = 30_000;
+const RECHECK_COOLDOWN_MS = 2 * 60_000;
+const RECHECK_MAX = 4;
+const MEMCACHE_TTL_MS = 10 * 60_000;
 
 const THIN_REASON = "Shares barely trade — its options are too thin";
 
 async function overview(origin: string, actor: string, force: boolean): Promise<Response> {
   const state = await getScanState();
-  if (needsNewPass(state) || (force && !isRunning(state))) kickScan(origin, actor);
+  const action = force && !isRunning(state) ? "start" : scanAction(state);
+  if (action && Date.now() - lastKickAt > KICK_COOLDOWN_MS) {
+    lastKickAt = Date.now();
+    kickScan(origin, actor, action === "resume" ? state!.run_id : undefined);
+  }
 
   let summaries = await readSummaries();
   let candidates = await readCandidates();
@@ -97,7 +111,8 @@ async function overview(origin: string, actor: string, force: boolean): Promise<
   // Nothing checked yet today (first visit, or no database): check the
   // popular names right away so the page has something to show.
   if (summaries.length === 0) {
-    const fresh = memCache?.run_date === etTradingDate() ? { rows: memCache.rows, persisted: false } : await generateOnce("lazy");
+    const reuse = memCache?.run_date === etTradingDate() && Date.now() - memCache.at < MEMCACHE_TTL_MS;
+    const fresh = reuse ? { rows: memCache!.rows, persisted: false } : await generateOnce("lazy");
     persisted = fresh.persisted;
     summaries = fresh.rows.map(r => ({ symbol: r.symbol, review_status: r.review_status, code: r.output?.no_trade_reason?.code ?? null, detail: r.output?.no_trade_reason?.detail ?? null }));
     candidates = fresh.rows.filter(r => r.review_status === "APPROVED_CANDIDATE");
@@ -105,6 +120,13 @@ async function overview(origin: string, actor: string, force: boolean): Promise<
 
   const now = new Date();
   const open = nyseSessionStatus(now).status === "OPEN";
+  const shown = candidates.map(r => toDisplay(r, now));
+  // Ideas age out quickly on delayed quotes: re-check expired ones in the background.
+  const expired = shown.filter(d => d.status === "STALE_CANDIDATE").map(d => d.symbol);
+  if (open && expired.length && Date.now() - lastRecheckAt > RECHECK_COOLDOWN_MS) {
+    lastRecheckAt = Date.now();
+    after(() => recheckSymbols(expired.slice(0, RECHECK_MAX), "recheck").catch(err => console.error("[options-analysis] recheck failed:", err)));
+  }
   const counts = new Map<string, number>();
   for (const x of summaries) {
     if (x.review_status === "APPROVED_CANDIDATE") continue;
@@ -133,8 +155,8 @@ async function overview(origin: string, actor: string, force: boolean): Promise<
     engine: "deterministic",
     policy_version: POLICY_VERSION,
     persisted,
-    store_error: persisted ? null : lastStoreError,
-    analyses: candidates.map(r => toDisplay(r, now)).sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.symbol.localeCompare(b.symbol)),
+    store_error: lastScanError ?? (persisted ? null : lastStoreError),
+    analyses: shown.sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.symbol.localeCompare(b.symbol)),
     scan,
     reasons,
   };
@@ -145,7 +167,7 @@ type Row = StoredAnalysis & { run_date: string };
 
 // Per-instance fallback when the table is missing or unreachable, so a GET
 // storm doesn't refetch the whole universe on every request.
-let memCache: { run_date: string; rows: Row[] } | null = null;
+let memCache: { run_date: string; at: number; rows: Row[] } | null = null;
 let inflight: Promise<{ rows: Row[]; persisted: boolean }> | null = null;
 let lastStoreError: string | null = null;
 
@@ -213,7 +235,7 @@ async function generate(actor: string): Promise<{ rows: Row[]; persisted: boolea
   const results = (await pool([...UNIVERSE], CONCURRENCY, sym => analyzeSymbol(sym, runDate, earnings, ivHistory.get(sym) ?? [])))
     .filter((r): r is NonNullable<typeof r> => r !== null);
   const rows = results.map(r => r.row);
-  memCache = { run_date: runDate, rows };
+  memCache = { run_date: runDate, at: Date.now(), rows };
   for (const r of rows) symbolCache.set(r.symbol, r);
   if (!db) return { rows, persisted: false };
   const persisted = await persistRows(db, rows, actor);
@@ -284,7 +306,7 @@ async function analyzeOne(symbol: string, actor: string): Promise<Row | null> {
   symbolCache.set(symbol, r.row);
   if ((UNIVERSE as readonly string[]).includes(symbol)) {
     if (memCache?.run_date === runDate) {
-      memCache = { run_date: runDate, rows: [...memCache.rows.filter(x => x.symbol !== symbol), r.row] };
+      memCache = { ...memCache, rows: [...memCache.rows.filter(x => x.symbol !== symbol), r.row] };
     }
     await persistRows(db, [r.row], actor);
   }

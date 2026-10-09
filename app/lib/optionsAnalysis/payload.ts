@@ -3,10 +3,11 @@
 //
 // Source honesty, per the policy:
 // - CBOE's delayed-quotes JSON has one snapshot timestamp and per-contract
-//   last_trade_time. Neither is a bid/ask time, so every contract's
-//   quote_timestamp is null and its freshness UNKNOWN — the G2 gate then
-//   rejects every candidate. That is the intended result until a source with
-//   per-quote timestamps is verified and connected.
+//   last_trade_time, but no time for each bid/ask. CBOE publishes these
+//   quotes 15 minutes delayed, so each contract's quote time is taken as the
+//   snapshot time minus that delay (decided 2026-10-09: practice-only ideas
+//   on delayed prices, labelled as such). The freshness gate then applies its
+//   normal age limits to that time. No snapshot → no quote time → UNKNOWN.
 // - Missing values stay null. Nothing is coerced to zero.
 
 import { AnalysisInput, SCHEMA_VERSION, type InputContract, type InputExpiry, type InputLevel, type InputSignal } from "./schema";
@@ -15,6 +16,8 @@ import { legFreshness } from "./strategies";
 import { etNaiveToIso, etTradingDate, nyseSessionStatus } from "../marketTime";
 
 const CBOE_SOURCE = "CBOE delayed quotes (public snapshot)";
+/** CBOE's published delay for its public quotes. */
+export const CBOE_DELAY_SECONDS = 15 * 60;
 const MAX_EXPIRIES = 6;
 const STRIKE_WINDOW = 0.25;        // keep strikes within ±25% of spot
 const IV_RANK_MIN_OBSERVATIONS = 60;
@@ -58,6 +61,9 @@ export function parseCboeChain(json: unknown, symbol: string, asOf: string, rule
   const specKnown = securityType === "stock" || securityType === "etf";
   const today = etTradingDate(new Date(asOf));
 
+  // Every bid/ask in the snapshot is as of (snapshot − published delay).
+  const quoteTime = snap ? new Date(Date.parse(snap) - CBOE_DELAY_SECONDS * 1000).toISOString() : null;
+
   const contracts: Omit<InputContract, "freshness">[] = [];
   const expiries = new Set<string>();
   for (const opt of data.options as Record<string, unknown>[]) {
@@ -85,7 +91,7 @@ export function parseCboeChain(json: unknown, symbol: string, asOf: string, rule
         : null,
       bid: finite(opt.bid),
       ask: finite(opt.ask),
-      quote_timestamp: null,
+      quote_timestamp: quoteTime,
       last_trade_timestamp: etNaiveToIso(typeof opt.last_trade_time === "string" ? opt.last_trade_time : null),
       iv: finite(opt.iv),
       delta: finite(opt.delta),
@@ -351,7 +357,7 @@ export function buildAnalysisInput(a: BuildArgs): AnalysisInput {
     risk_classification: null,
     user_context: a.userContext ?? null,
     sources: [
-      { name: CBOE_SOURCE, snapshot_timestamp: chain?.snapshotTimestamp ?? null, note: "15-minute delayed; snapshot time is not a bid/ask quote time; no per-contract quote timestamps" },
+      { name: CBOE_SOURCE, snapshot_timestamp: chain?.snapshotTimestamp ?? null, note: "15-minute delayed; each bid/ask time is taken as snapshot time minus the 15-minute delay" },
       { name: "Yahoo Finance daily bars", snapshot_timestamp: null, note: "Levels and structure use completed sessions only" },
       { name: "Alpha Vantage earnings calendar", snapshot_timestamp: null, note: a.earnings.fetchedOk ? "3-month horizon" : "Unavailable for this run" },
     ],

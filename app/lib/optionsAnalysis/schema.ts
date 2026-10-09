@@ -52,7 +52,8 @@ export const InputContract = z.strictObject({
   spec: ContractSpec.nullable(),
   bid: num.nullable(),
   ask: num.nullable(),
-  // Time of the bid/ask itself. A snapshot or last-trade time never goes here.
+  // Time of the bid/ask itself (for a delayed snapshot: snapshot time minus the
+  // published delay). A last-trade time never goes here.
   quote_timestamp: isoTimestamp.nullable(),
   last_trade_timestamp: isoTimestamp.nullable(),
   iv: num.nullable(),

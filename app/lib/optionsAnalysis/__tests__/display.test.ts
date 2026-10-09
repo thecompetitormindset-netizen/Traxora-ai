@@ -20,7 +20,7 @@ describe("display gate", () => {
   });
 
   it("withholds legs and pricing once leg quotes age past their limit", () => {
-    const d = toDisplay(stored(), new Date("2026-10-08T15:30:00Z")); // quotes now 31 min old > 20 min band
+    const d = toDisplay(stored(), new Date("2026-10-08T15:45:00Z")); // quotes now 46 min old > 40 min band
     expect(d.status).toBe("STALE_CANDIDATE");
     expect(d.output).toBeNull();
     expect(d.pricing).toBeNull();

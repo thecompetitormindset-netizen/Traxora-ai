@@ -22,12 +22,13 @@ export async function GET(req: Request) {
   if (!runId) {
     const current = await getScanState();
     if (isRunning(current)) return Response.json({ status: "already running", run: current!.run_id, offset: current!.offset, of: current!.deep.length });
-    runId = (await startScan(url.searchParams.get("by") ?? "cron")).run_id;
+    try { runId = (await startScan(url.searchParams.get("by") ?? "cron")).run_id; }
+    catch (err) { return Response.json({ status: "failed", error: err instanceof Error ? err.message : String(err) }, { status: 500 }); }
   }
 
   const id = runId;
   after(async () => {
-    const more = await runChunk(id, BUDGET_MS, "scan");
+    const more = await runChunk(id, BUDGET_MS, "scan").catch(err => { console.error("[options-scan] chunk failed:", err instanceof Error ? err.message : err); return false; });
     if (!more) return;
     // Hand off to a fresh request for the next chunk. Only the request needs
     // to reach the server; don't wait for its work to finish.

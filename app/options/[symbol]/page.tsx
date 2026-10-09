@@ -78,7 +78,7 @@ function SimpleAnswer({ d }: { d: ResearchDetail }) {
           )}
         </dl>
       )}
-      <p className="mt-4 text-[12.5px] text-[var(--mx-text-3)]">Practice only — options can lose all the money put into them.</p>
+      <p className="mt-4 text-[12.5px] text-[var(--mx-text-3)]">Practice only — options can lose all the money put into them. Option prices are about 15 minutes behind.</p>
     </section>
   );
 }

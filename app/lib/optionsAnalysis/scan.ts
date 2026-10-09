@@ -57,23 +57,37 @@ export async function getScanState(): Promise<ScanState | null> {
   const today = etTradingDate();
   if (!db) return memState?.run_date === today ? memState : null;
   const { data, error } = await db.from("options_engine_runs").select("run_id, payload, result").eq("run_date", today).maybeSingle();
-  if (error || !data || data.run_id === null) return null;
+  if (error) {
+    lastScanError = `read scan progress: ${error.code ? `[${error.code}] ` : ""}${(error.message ?? "unknown").slice(0, 160)}`;
+    console.error("[options-scan]", lastScanError);
+    return null;
+  }
+  if (!data || data.run_id === null) return null;
   const p = data.payload as Partial<ScanState> & { kind?: string };
   if (p.kind !== "options-scan") return null;
   return { ...(p as ScanState), ...(data.result as Partial<ScanState>), run_id: data.run_id as string };
 }
 
+/** Last database error from saving scan progress, reported by the API so a broken store is visible. */
+export let lastScanError: string | null = null;
+
 async function saveScanState(s: ScanState, actor: string) {
   const db = tryDb();
   if (!db) { memState = s; return; }
   const { deep, earnings, total, thin, started_at, run_date } = s;
-  await db.from("options_engine_runs").upsert({
+  const { error } = await db.from("options_engine_runs").upsert({
     run_date, run_id: s.run_id, as_of: s.updated_at,
     prompt_version: "options-scan-v1", model: "deterministic",
     payload: { kind: "options-scan", deep, earnings, total, thin, started_at, run_date },
     result: { offset: s.offset, checked: s.checked, unavailable: s.unavailable, updated_at: s.updated_at, finished_at: s.finished_at },
     candidate_count: s.deep.length, generated_by: actor, updated_at: s.updated_at,
   }, { onConflict: "run_date" });
+  if (error) {
+    lastScanError = `save scan progress: ${error.code ? `[${error.code}] ` : ""}${(error.message ?? "unknown").slice(0, 160)}`;
+    console.error("[options-scan]", lastScanError);
+    throw new Error(lastScanError);
+  }
+  lastScanError = null;
 }
 
 export function isRunning(s: ScanState | null): boolean {
@@ -141,7 +155,10 @@ async function saveRows(db: Db | null, rows: Row[], ivRows: { symbol: string; as
 /** Analyze from the saved offset for up to budgetMs. Returns true if more remains. */
 export async function runChunk(runId: string, budgetMs: number, actor: string): Promise<boolean> {
   const s = await getScanState();
-  if (!s || s.run_id !== runId || s.finished_at) return false;
+  if (!s || s.run_id !== runId || s.finished_at) {
+    console.error(`[options-scan] chunk for ${runId} stopped: ${!s ? "no saved progress" : s.run_id !== runId ? `a newer pass (${s.run_id}) replaced it` : "pass already finished"}`);
+    return false;
+  }
   const deadline = Date.now() + budgetMs;
   const db = tryDb();
   const today = s.run_date;
@@ -215,4 +232,30 @@ export async function readCandidates(): Promise<Row[]> {
     .select("run_date, symbol, as_of, input, output, review_status, review_errors, pricing")
     .eq("run_date", today).eq("review_status", "APPROVED_CANDIDATE");
   return (data ?? []) as Row[];
+}
+
+// ── Re-checking ideas ───────────────────────────────────────────────────────
+
+/**
+ * Re-analyze a few symbols live and save the result over today's row. Ideas
+ * found early in a pass age out (delayed quotes have a short usable window),
+ * so the overview re-checks expired ones instead of hiding them until the
+ * next pass reaches them.
+ */
+export async function recheckSymbols(symbols: string[], actor: string): Promise<void> {
+  if (!symbols.length) return;
+  const s = await getScanState();
+  const earnings = s?.earnings ?? await loadEarnings();
+  const db = tryDb();
+  const today = etTradingDate();
+  const iv = await ivHistoryFor(db, symbols, today);
+  const rows: Row[] = [];
+  for (const sym of symbols) {
+    if (cboeBlocked()) break;
+    try {
+      const r = await analyzeLiveSymbol(sym, earnings, iv.get(sym) ?? []);
+      if (r) rows.push(slim({ ...r.row, run_date: today }));
+    } catch { /* keep the old row */ }
+  }
+  await saveRows(db, rows, [], actor);
 }

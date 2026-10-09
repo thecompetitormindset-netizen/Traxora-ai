@@ -4,7 +4,7 @@
 // payload as `rules`, so a persisted run is attributable to the exact config.
 // Bump RULES_VERSION whenever a value changes.
 
-export const RULES_VERSION = "options-rules-1";
+export const RULES_VERSION = "options-rules-2";
 
 // Server-enforced. Not read from env, the request, or model output — the
 // payload builder always copies this constant and the validator rejects any
@@ -26,9 +26,11 @@ export const OPTIONS_RULES = {
     bands: [
       { min_dte: 0, max_dte: 2,    max_quote_age_seconds: 120 },
       { min_dte: 3, max_dte: 5,    max_quote_age_seconds: 600 },
-      { min_dte: 6, max_dte: null, max_quote_age_seconds: 1200 },
+      // Swing expiries (the only ones eligible, 14+ DTE) on 15-minute-delayed
+      // quotes: ~25 minutes of use after a check before it must be redone.
+      { min_dte: 6, max_dte: null, max_quote_age_seconds: 2400 },
     ] as FreshnessBand[],
-    max_underlying_age_seconds: 1200,
+    max_underlying_age_seconds: 2400,
     // Max gap between the oldest and newest quote across one candidate's legs.
     max_leg_sync_seconds: 300,
     clock_tolerance_seconds: 5,

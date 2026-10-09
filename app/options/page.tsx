@@ -153,7 +153,7 @@ function Overview() {
       )}
 
       <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)]">
-        For learning only — not financial advice. Options can lose all the money put into them. Prices come from free public sources and can be delayed.
+        For learning only — not financial advice. Options can lose all the money put into them. Option prices are about 15 minutes behind, so each idea is re-checked often.
         {" "}<Link href="/journal#analysis-notebook" className="underline">Your saved checks</Link>
       </p>
 
