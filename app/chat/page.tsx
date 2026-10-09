@@ -18,7 +18,6 @@ const STARTERS = [
   "What is a fair value gap?",
   "How do I calculate position size for a 1% risk trade?",
   "Explain the options Greeks (Delta, Gamma, Theta, Vega)",
-  "What is the Wheel strategy in options?",
   "How does liquidity sweep work in Smart Money Concepts?",
   "Explain market structure shift vs break of structure",
   "What is the difference between a CSP and a covered call?",

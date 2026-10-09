@@ -21,7 +21,7 @@ const STEPS = [
   { n: "03", h: "Shows a candidate — or why not", t: "When everything passes you see the legs, the estimated max loss and the exit plan. When it doesn’t, you see what’s missing." },
 ];
 
-const MARKETS = ["Stocks", "Options", "Futures", "Crypto", "Sports", "Earnings & IPOs", "News & sentiment", "Wheel strategy"];
+const MARKETS = ["Stocks", "Options", "Futures", "Crypto", "Sports", "Earnings & IPOs", "News & sentiment"];
 
 const PRINCIPLES = [
   { h: "Paper first", t: "Options analysis is paper-trading only. Nothing here is an instruction to place a live trade." },

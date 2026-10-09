@@ -56,7 +56,7 @@ const DASHBOARD_TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="nav"]',
     title: "Find your way",
-    desc: "Workspace holds your daily tools; Markets has stocks, crypto, futures, sports and more; Tools has the screener, wheel planner and AI chat. On phones, Markets and More open a list.",
+    desc: "Workspace holds your daily tools; Markets has stocks, crypto, futures, sports and more; Tools has the screener, compare and AI chat. On phones, Markets and More open a list.",
   },
   {
     selector: '[data-tour="tour-button"]',
@@ -1451,12 +1451,6 @@ function DashboardContent() {
                   </button>
                 )}
                 <Link href="/intelligence?section=futures" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">View all →</Link>
-                <Link
-                  href="/futures-tutorial"
-                  className="text-[10px] font-semibold text-[#4B5675] hover:text-[#94A3B8] transition-colors"
-                >
-                  Learn →
-                </Link>
                 <button
                   type="button"
                   onClick={() => { setEditFutures((v) => !v); setAddFuturesInput(""); setAddFuturesError(null); }}

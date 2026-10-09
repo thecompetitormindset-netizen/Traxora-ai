@@ -17,6 +17,14 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
+  // Removed pages: keep old links and bookmarks working.
+  async redirects() {
+    return [
+      { source: "/wheel", destination: "/options", permanent: true },
+      { source: "/futures-tutorial", destination: "/guide", permanent: true },
+      { source: "/pricing", destination: "/", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

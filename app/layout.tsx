@@ -187,7 +187,7 @@ export default function RootLayout({
                     {
                       "@type": "Question",
                       "name": "Can beginners use Traxora AI?",
-                      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Traxora AI is built for all experience levels. The dashboard gives plain-English explanations of every signal. There is also a free interactive futures tutorial that teaches you how to trade micro futures with as little as $300, step by step." },
+                      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Traxora AI is built for all experience levels. The dashboard gives plain-English explanations of every signal. The guide explains every area of the app." },
                     },
                   ],
                 },

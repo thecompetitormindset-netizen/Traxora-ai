@@ -9,8 +9,8 @@ type Strategy = "long_call" | "long_put" | "csp" | "covered_call";
 const STRATEGIES: { id: Strategy; label: string; emoji: string; desc: string }[] = [
   { id: "long_call",    label: "Long Call",           emoji: "📈", desc: "Buy a call option — unlimited upside, capped loss" },
   { id: "long_put",     label: "Long Put",            emoji: "📉", desc: "Buy a put option — profits as stock falls" },
-  { id: "csp",          label: "Cash-Secured Put",    emoji: "🎯", desc: "Sell a put to collect premium — Wheel step 1" },
-  { id: "covered_call", label: "Covered Call",        emoji: "🔒", desc: "Sell a call against shares you own — Wheel step 2" },
+  { id: "csp",          label: "Cash-Secured Put",    emoji: "🎯", desc: "Sell a put to collect premium, backed by cash" },
+  { id: "covered_call", label: "Covered Call",        emoji: "🔒", desc: "Sell a call against shares you own" },
 ];
 
 // ── Payoff math ───────────────────────────────────────────────────────────────

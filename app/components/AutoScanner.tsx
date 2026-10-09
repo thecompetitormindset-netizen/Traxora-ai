@@ -206,7 +206,7 @@ export default function AutoScanner() {
     }
   }
 
-  if (pathname === "/" || pathname === "/login" || pathname === "/pricing") return null;
+  if (pathname === "/" || pathname === "/login") return null;
   if (!open) return null;
 
   return (

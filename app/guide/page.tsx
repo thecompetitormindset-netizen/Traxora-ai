@@ -74,7 +74,7 @@ const SECTIONS: Section[] = [
     items: [
       { h: "Stocks", t: "Screener and movers for US stocks, plus the top 500 companies." },
       { h: "Crypto", t: "Major coins with recent moves and a 30-day trend; crypto trades around the clock." },
-      { h: "Futures", t: "Index, metal and energy futures. New to futures? Start with the interactive tutorial below." },
+      { h: "Futures", t: "Index, metal and energy futures with live prices and the same buy, hold or sell reads." },
       { h: "Sports", t: "Win-probability estimates from team season records — for information only, not betting advice." },
       { h: "Earnings and IPOs", t: "Upcoming earnings dates and new listings. Earnings before an option’s expiry block single-option candidates." },
       { h: "News and sentiment", t: "A filterable news feed and an overall market mood read." },
@@ -86,7 +86,6 @@ const SECTIONS: Section[] = [
     items: [
       { h: "Options screener", t: "A broader options and futures scan with chain viewer and P&L calculator." },
       { h: "Compare", t: "Two stocks side by side." },
-      { h: "Wheel planner", t: "Track cash-secured puts and covered calls, and scan for wheel candidates." },
       { h: "Stats and history", t: "Performance statistics and the full list of closed trades." },
       { h: "Ask AI", t: "Chat about markets and the app. It uses an AI model and says so; it can be wrong." },
       { h: "Morning brief and deep scan", t: "A pre-market summary, and an on-demand scan of many tickers. The scan opens from Scan in the top bar." },
@@ -152,7 +151,6 @@ export default function GuidePage() {
                 <p className="mx-label mb-2">More</p>
                 <ul className="space-y-1">
                   <li><a href="#glossary" className="text-[13.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">Glossary</a></li>
-                  <li><Link href="/futures-tutorial" className="text-[13.5px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">Futures tutorial</Link></li>
                 </ul>
               </div>
             </div>
@@ -232,14 +230,6 @@ export default function GuidePage() {
               </dl>
             </section>
 
-            <Link href="/futures-tutorial" className="mt-14 flex items-center justify-between gap-4 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5 hover:border-[var(--mx-line-strong)]">
-              <div>
-                <p className="mx-label">Interactive</p>
-                <p className="mt-2 text-[17px]">Futures tutorial for beginners</p>
-                <p className="mt-1 text-[14px] text-[var(--mx-text-2)]">Eight short steps with a quiz after each one.</p>
-              </div>
-              <span aria-hidden="true" className="text-[var(--mx-text-3)]">→</span>
-            </Link>
 
             <p className="mt-10 text-[13px] text-[var(--mx-text-3)]">Educational analysis, not financial advice. Options involve risk of loss, including the full amount invested.</p>
           </div>
