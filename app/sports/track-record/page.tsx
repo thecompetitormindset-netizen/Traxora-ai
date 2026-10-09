@@ -59,10 +59,10 @@ export default function TrackRecordPage() {
         <main className="app-ambient min-w-0 flex-1 max-w-4xl mx-auto w-full px-3 py-4 page-enter">
 
           <div className="mb-5 text-center">
-            <Link href="/sports" className="text-[10px] text-[#4B5675] hover:text-[#7B8DB4] font-semibold">← Back to Game Predictions</Link>
-            <h1 className="text-2xl font-black tracking-tight text-gradient-green mt-2">Track Record</h1>
+            <Link href="/sports" className="text-[10px] text-[#4B5675] hover:text-[#7B8DB4] font-semibold">← Back to Sports</Link>
+            <h1 className="text-2xl font-black tracking-tight text-gradient-green mt-2">How often we’ve been right</h1>
             <p className="text-xs text-[#4B5675] max-w-lg mx-auto mt-1">
-              Every graded pick, no cherry-picking. A prediction is logged before the game starts and only counted once the game finishes.
+              Every pick is saved before the game starts and checked after it ends — nothing is left out.
             </p>
           </div>
 
@@ -97,37 +97,15 @@ export default function TrackRecordPage() {
             <>
               {/* Overall */}
               <div className="bg-[#13112A] rounded-2xl border border-[#252345] p-6 text-center mb-6">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-[#4B5675] mb-1">Overall Accuracy</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-[#4B5675] mb-1">Right so far</p>
                 <p className="text-4xl font-black font-mono text-emerald-400">{pct(data.overall.correct, data.overall.total)}</p>
-                <p className="text-xs text-[#4B5675] mt-1">{data.overall.correct} of {data.overall.total} graded picks correct</p>
-              </div>
-
-              {/* Calibration by confidence tier */}
-              <div className="mb-6">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4] mb-1">Calibration</h2>
-                <p className="text-[10px] text-[#4B5675] mb-3">If the model is honest, a &ldquo;70–80%&rdquo; pick should win roughly 70–80% of the time — no more, no less.</p>
-                <div className="space-y-2">
-                  {data.byTier.filter(t => t.total > 0).map(t => (
-                    <div key={t.label} className="flex items-center gap-3 bg-[#13112A] border border-[#252345] rounded-xl px-4 py-2.5">
-                      <span className="text-xs font-mono font-bold text-[#7B8DB4] w-20 shrink-0">{t.label}</span>
-                      <div className="flex-1 h-2 rounded-full bg-[#0D0B1A] overflow-hidden">
-                        <div className="h-full rounded-full bg-emerald-400" style={{ width: pct(t.correct, t.total) }} />
-                      </div>
-                      <span className="text-xs font-mono font-bold text-[var(--text-primary,#F1F5F9)] w-24 text-right shrink-0">
-                        {pct(t.correct, t.total)} <span className="text-[#4B5675]">({t.total})</span>
-                      </span>
-                    </div>
-                  ))}
-                  {data.byTier.every(t => t.total === 0) && (
-                    <p className="text-xs text-[#4B5675] text-center py-4">Not enough graded picks yet to break down by confidence.</p>
-                  )}
-                </div>
+                <p className="text-xs text-[#4B5675] mt-1">{data.overall.correct} of {data.overall.total} picks were right</p>
               </div>
 
               {/* By league */}
               {data.byLeague.length > 0 && (
                 <div className="mb-6">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4] mb-3">By League</h2>
+                  <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4] mb-3">By sport</h2>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                     {data.byLeague.map(l => (
                       <div key={l.league} className="bg-[#13112A] border border-[#252345] rounded-xl p-3">
@@ -142,14 +120,14 @@ export default function TrackRecordPage() {
 
               {/* Recent picks */}
               <div>
-                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4] mb-3">Recent Picks</h2>
+                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4] mb-3">Latest picks</h2>
                 <div className="space-y-1.5">
                   {data.recent.map(r => (
                     <div key={r.id} className="flex items-center gap-3 bg-[#13112A] border border-[#252345] rounded-xl px-4 py-2.5">
                       <span className={`text-xs shrink-0 ${r.hit ? "text-emerald-400" : "text-rose-400"}`}>{r.hit ? "✓" : "✗"}</span>
                       <span className="text-[10px] font-semibold text-[#4B5675] w-16 shrink-0">{r.league}</span>
                       <span className="text-xs text-[#CBD5E1] flex-1 truncate">{r.awayTeam} @ {r.homeTeam}</span>
-                      <span className="text-[10px] font-mono text-[#7B8DB4] shrink-0">picked {r.predictedWinner} · {r.confidence}%</span>
+                      <span className="text-[10px] font-mono text-[#7B8DB4] shrink-0">picked {r.predictedWinner}</span>
                     </div>
                   ))}
                 </div>

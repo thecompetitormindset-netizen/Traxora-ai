@@ -7,7 +7,6 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
 import { syncFetch } from "../lib/syncFetch";
-import { Glyph } from "../components/Icon";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -34,16 +33,16 @@ const LEAGUE_ORDER = [
 ];
 
 // One tab per sport. Soccer bundles its leagues; every other sport stands alone.
-const SPORT_TABS: Array<{ id: string; label: string; emoji: string; match: (g: GamePrediction) => boolean }> = [
-  { id: "all",    label: "All",                emoji: "🌍", match: () => true },
-  { id: "nfl",    label: "NFL",                emoji: "🏈", match: g => g.league === "NFL" },
-  { id: "nba",    label: "NBA",                emoji: "🏀", match: g => g.league === "NBA" },
-  { id: "mlb",    label: "MLB",                emoji: "⚾", match: g => g.league === "MLB" },
-  { id: "nhl",    label: "NHL",                emoji: "🏒", match: g => g.league === "NHL" },
-  { id: "soccer", label: "Soccer",             emoji: "⚽", match: g => g.leagueGroup === "Soccer" },
-  { id: "cfb",    label: "College Football",   emoji: "🎓", match: g => g.league === "College Football" },
-  { id: "cbb",    label: "College Basketball", emoji: "🎓", match: g => g.league === "College Basketball" },
-  { id: "wnba",   label: "WNBA",               emoji: "🏀", match: g => g.league === "WNBA" },
+const SPORT_TABS: Array<{ id: string; label: string; match: (g: GamePrediction) => boolean }> = [
+  { id: "all",    label: "All", match: () => true },
+  { id: "nfl",    label: "NFL", match: g => g.league === "NFL" },
+  { id: "nba",    label: "NBA", match: g => g.league === "NBA" },
+  { id: "mlb",    label: "MLB", match: g => g.league === "MLB" },
+  { id: "nhl",    label: "NHL", match: g => g.league === "NHL" },
+  { id: "soccer", label: "Soccer", match: g => g.leagueGroup === "Soccer" },
+  { id: "cfb",    label: "College Football", match: g => g.league === "College Football" },
+  { id: "cbb",    label: "College Basketball", match: g => g.league === "College Basketball" },
+  { id: "wnba",   label: "WNBA", match: g => g.league === "WNBA" },
 ];
 
 const WATCHLIST_KEY = "traxora_sports_watchlist";
@@ -91,81 +90,51 @@ function fireGameAlert(item: WatchItem) {
 
 // ── Game card ─────────────────────────────────────────────────────────────────
 
-function GameCard({
-  g, todayKey, tomorrowKey, watched, onToggleWatch, inCombo, onToggleCombo,
-}: {
-  g: GamePrediction; todayKey: string; tomorrowKey: string;
-  watched: boolean; onToggleWatch: () => void;
-  inCombo: boolean; onToggleCombo: () => void;
-}) {
-  const homeWins = g.predictedWinner === g.homeTeam;
-  const awayWins = g.predictedWinner === g.awayTeam;
-  const gameDay  = localDateKey(g.commenceTime);
-  const dayLabel = gameDay === todayKey ? "Today" : gameDay === tomorrowKey ? "Tomorrow" : null;
-  const hasPick  = g.predictedWinner !== null && g.winnerConfidence !== null;
+/** Win chance in words; the number stays small and secondary. */
+function chanceWords(p: number): string {
+  if (p >= 75) return "Very likely to win";
+  if (p >= 60) return "Likely to win";
+  return "Close game — slight favourite";
+}
 
+function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
+  g: GamePrediction; todayKey: string; tomorrowKey: string; watched: boolean; onToggleWatch: () => void;
+}) {
+  const gameDay = localDateKey(g.commenceTime);
+  const when = new Date(g.commenceTime).toLocaleString("en-US", gameDay === todayKey || gameDay === tomorrowKey
+    ? { hour: "numeric", minute: "2-digit" } : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const day = gameDay === todayKey ? "Today" : gameDay === tomorrowKey ? "Tomorrow" : null;
+  const pick = g.predictedWinner !== null && g.winnerConfidence !== null;
+  const team = (name: string, rec: string | null) => (
+    <div className="flex items-center justify-between gap-2">
+      <span className={`text-[15px] truncate ${g.predictedWinner === name ? "text-[var(--mx-text)]" : "text-[var(--mx-text-2)]"}`}>{name}</span>
+      {rec && <span className="text-[12px] text-[var(--mx-text-3)] shrink-0" title="Wins-losses this season">{rec}</span>}
+    </div>
+  );
   return (
-    <div className={`bg-[#0D0B1A] rounded-xl border p-4 flex flex-col gap-3 transition-colors ${inCombo ? "border-violet-500/40" : "border-[#252345] hover:border-[#333368]"}`}>
+    <li className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5">
-          {dayLabel && (
-            <span className={`text-[8px] font-black px-1.5 py-px rounded ${
-              dayLabel === "Today" ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" : "bg-sky-500/15 text-sky-400 border border-sky-500/25"
-            }`}>{dayLabel.toUpperCase()}</span>
-          )}
-          <span className="text-[9px] font-bold uppercase tracking-widest text-[#4B5675]">{fmtKickoff(g.commenceTime)}</span>
-        </span>
-        <button type="button" onClick={onToggleWatch} title={watched ? "Remove from watchlist" : "Add to watchlist"}
-          className={`text-sm leading-none transition-colors ${watched ? "text-amber-400" : "text-[#333368] hover:text-[#7B8DB4]"}`}>
-          {watched ? "★" : "☆"}
+        <span className="text-[12px] text-[var(--mx-text-3)]">{g.league} · {day ? `${day}, ` : ""}{when}</span>
+        <button type="button" onClick={onToggleWatch} aria-pressed={watched}
+          className={`h-7 px-2.5 rounded-full border text-[12px] transition-colors ${watched ? "border-[var(--mx-text)] text-[var(--mx-text)]" : "border-[var(--mx-line)] text-[var(--mx-text-3)] hover:text-[var(--mx-text)]"}`}>
+          {watched ? "Following" : "Follow"}
         </button>
       </div>
-
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-sm font-bold truncate ${awayWins ? "text-emerald-400" : "text-[var(--text-primary,#F1F5F9)]"}`}>
-            {g.awayTeam}{awayWins && " ✓"}
-          </span>
-          {g.awayRecord && <span className="text-[10px] font-mono text-[#4B5675] shrink-0">{g.awayRecord}</span>}
-        </div>
-        <div className="flex items-center justify-between gap-2">
-          <span className={`text-sm font-bold truncate ${homeWins ? "text-emerald-400" : "text-[var(--text-primary,#F1F5F9)]"}`}>
-            {g.homeTeam}{homeWins && " ✓"}
-          </span>
-          {g.homeRecord && <span className="text-[10px] font-mono text-[#4B5675] shrink-0">{g.homeRecord}</span>}
-        </div>
+      <div className="space-y-1">
+        {team(g.awayTeam, g.awayRecord)}
+        <p className="text-[12px] text-[var(--mx-text-3)]">at</p>
+        {team(g.homeTeam, g.homeRecord)}
       </div>
-
-      {hasPick ? (
-        <div className="pt-2 border-t border-[#1A1838] space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-[9px] text-[#4B5675] uppercase tracking-widest font-bold">Pick</span>
-            <span className="text-xs font-bold text-emerald-400 truncate">{g.predictedWinner}</span>
-            <span className="text-[10px] font-mono font-bold text-[#7B8DB4]">{g.winnerConfidence}%</span>
-            <button type="button" onClick={onToggleCombo}
-              className={`ml-auto text-[9px] font-black px-2 py-0.5 rounded-lg border transition-colors ${
-                inCombo
-                  ? "bg-violet-500/15 text-violet-300 border-violet-500/30"
-                  : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-              }`}>
-              {inCombo ? "✓ In Combo" : "+ Combo"}
-            </button>
-          </div>
-          {/* Win-probability bar — tick marks the 50% coin-flip line */}
-          <div className="relative h-1 rounded-full bg-[#1A1838] overflow-hidden" aria-hidden>
-            <div
-              className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-500"
-              style={{ width: `${g.winnerConfidence}%` }}
-            />
-            <div className="absolute inset-y-0 left-1/2 w-px bg-[#333368]" />
-          </div>
-        </div>
-      ) : (
-        <div className="pt-2 border-t border-[#1A1838]">
-          <span className="text-[9px] text-[#333368]">Not enough games played yet for a prediction</span>
-        </div>
-      )}
-    </div>
+      <div className="pt-3 border-t border-[var(--mx-line)]">
+        {pick ? (
+          <p className="text-[14px]">
+            {g.predictedWinner} <span className="text-[var(--mx-text-3)]">— {chanceWords(g.winnerConfidence!).toLowerCase()} ({Math.round(g.winnerConfidence!)}%)</span>
+          </p>
+        ) : (
+          <p className="text-[13px] text-[var(--mx-text-3)]">Too early in the season to say.</p>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -179,12 +148,9 @@ export default function SportsPage() {
   const [loading,    setLoading]    = useState(true);
   const [failed,     setFailed]     = useState(false);
   const [sportTab,   setSportTab]   = useState("all");
-  const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("all");
-  // Default to every game in schedule order — probability is an opt-in view
-  const [confFilter, setConfFilter] = useState<0 | 70 | 80>(0);
+  const [dateFilter, setDateFilter] = useState<"today" | "tomorrow" | "all">("today");
 
   const [watchlist,  setWatchlist]  = useState<WatchItem[]>([]);
-  const [comboIds,   setComboIds]   = useState<Set<string>>(new Set());
   const [notifPerm,  setNotifPerm]  = useState<NotificationPermission>("default");
   const watchlistInitialized = useRef(false);
 
@@ -267,14 +233,6 @@ export default function SportsPage() {
     });
   }
 
-  function toggleCombo(id: string) {
-    setComboIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }
-
   function requestNotifPermission() {
     if (typeof Notification === "undefined") return;
     Notification.requestPermission().then(setNotifPerm);
@@ -293,13 +251,7 @@ export default function SportsPage() {
     let filtered = games.filter(activeTab.match);
     if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
     if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
-    // "Sure" is not a real thing in sports — this hides toss-ups and games where
-    // either team hasn't played enough games yet to trust the record.
-    if (confFilter > 0) filtered = filtered.filter(g => g.winnerConfidence !== null && g.winnerConfidence >= confFilter);
-    // Default view reads like a schedule (kickoff order); probability views rank by confidence
-    filtered = confFilter > 0
-      ? [...filtered].sort((a, b) => (b.winnerConfidence ?? 0) - (a.winnerConfidence ?? 0))
-      : [...filtered].sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
+    filtered = [...filtered].sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
     const byLeague = new Map<string, GamePrediction[]>();
     for (const g of filtered) {
       if (!byLeague.has(g.league)) byLeague.set(g.league, []);
@@ -308,228 +260,98 @@ export default function SportsPage() {
     return LEAGUE_ORDER
       .map(l => ({ league: l, games: byLeague.get(l) ?? [] }))
       .filter(l => l.games.length > 0);
-  }, [games, activeTab, dateFilter, confFilter, todayKey, tomorrowKey]);
+  }, [games, activeTab, dateFilter, todayKey, tomorrowKey]);
 
   const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0);
 
-  const comboGames = games.filter(g => comboIds.has(g.id));
-  const comboProbability = comboGames.length > 0
-    ? comboGames.reduce((p, g) => p * ((g.winnerConfidence ?? 0) / 100), 1) * 100
-    : null;
-
-  if (status === "loading") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0D0B1A]">
-        <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-      </div>
-    );
-  }
-
-  const skeletons = Array.from({ length: 6 });
+  const shownTabs = SPORT_TABS.filter(t => t.id === "all" || (tabCounts.get(t.id) ?? 0) > 0);
+  const followed = watchlist.map(w => games.find(g => g.id === w.id)).filter((g): g is GamePrediction => g !== undefined);
+  const pill = (on: boolean) => `h-9 px-4 rounded-full border text-[14px] shrink-0 transition-colors ${on ? "border-[var(--mx-text)] bg-[var(--mx-text)] text-[var(--mx-canvas)]" : "border-[var(--mx-line)] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]"}`;
+  const grid = "grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3";
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#0D0B1A] text-[#F1F5F9]">
-      <Topbar />
-      <div className="flex flex-1 !pb-36">
-        <main className="app-ambient min-w-0 flex-1 max-w-6xl mx-auto w-full px-3 py-4 page-enter">
-
-          {/* Header */}
-          <div className="mb-5 text-center">
-            <div className="flex items-center justify-center gap-2.5 mb-2">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10B981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><path d="M8 12h8M12 8v8"/>
-              </svg>
-              <h1 className="text-2xl font-black tracking-tight text-gradient-green">Game Predictions</h1>
-            </div>
-            <p className="text-xs text-[#4B5675] max-w-lg mx-auto">
-              Win probability from each team&rsquo;s season record (log5 method) — not betting odds, for informational purposes only.
-            </p>
-            <Link href="/sports/track-record" className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold mt-1.5 inline-block">
-              See the model&rsquo;s actual track record →
-            </Link>
-          </div>
-
-          {/* Combo bar — combined probability of selected picks, not a bet */}
-          {comboGames.length > 0 && (
-            <div className="bg-violet-500/5 border border-violet-500/25 rounded-2xl p-4 mb-6">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-violet-300">Combo ({comboGames.length} picks)</p>
-                <button type="button" onClick={() => setComboIds(new Set())} className="text-[10px] text-[#4B5675] hover:text-[#7B8DB4] font-semibold">Clear</button>
-              </div>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {comboGames.map(g => (
-                  <span key={g.id} className="text-[10px] font-semibold px-2 py-1 rounded-lg bg-[#13112A] border border-[#252345] text-[#CBD5E1] flex items-center gap-1.5">
-                    {g.predictedWinner} <span className="text-violet-300">{g.winnerConfidence}%</span>
-                    <button type="button" onClick={() => toggleCombo(g.id)} className="text-[#4B5675] hover:text-rose-400">✕</button>
-                  </span>
-                ))}
-              </div>
-              <p className="text-lg font-black font-mono text-violet-300">
-                {comboProbability !== null ? comboProbability.toFixed(1) : "0.0"}%
-                <span className="text-[10px] font-semibold text-[#4B5675] ml-2">combined probability all picks hit</span>
+    <div className="flex min-h-screen text-[var(--mx-text)]">
+      <Sidebar />
+      <div className="flex-1 flex flex-col min-w-0">
+        <Topbar />
+        <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+          <div className="max-w-6xl mx-auto w-full space-y-6">
+            <header>
+              <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">Sports</h1>
+              <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">
+                Who’s more likely to win, based on each team’s record this season. Just for fun — not betting advice.
               </p>
-              <p className="text-[9px] text-[#4B5675] mt-1">Picks multiply independently — each additional pick makes the combo less likely, not more. This is a probability calculator, not a bet or a payout.</p>
-            </div>
-          )}
+              <Link href="/sports/track-record" className="mt-2 inline-block text-[13px] text-[var(--mx-text-2)] underline hover:text-[var(--mx-text)]">How often has this been right?</Link>
+            </header>
 
-          {/* Watchlist */}
-          {watchlist.length > 0 && (
-            <div className="mb-6">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Your Watchlist</h2>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25">{watchlist.length}</span>
-                </div>
-                {notifPerm !== "granted" && (
-                  <button type="button" onClick={requestNotifPermission} className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold">
-                    {notifPerm === "denied" ? "Alerts blocked in browser settings" : "Enable kickoff alerts"}
-                  </button>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {watchlist
-                  .map(w => games.find(g => g.id === w.id))
-                  .filter((g): g is GamePrediction => g !== undefined)
-                  .map(g => (
-                    <GameCard key={g.id} g={g} todayKey={todayKey} tomorrowKey={tomorrowKey}
-                      watched={true} onToggleWatch={() => toggleWatch(g)}
-                      inCombo={comboIds.has(g.id)} onToggleCombo={() => toggleCombo(g.id)} />
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {/* Sport tabs — one per sport */}
-          {!loading && games.length > 0 && (
-            <div className="mb-3 -mx-3 px-3 overflow-x-auto scrollbar-hide scroll-fade-x">
-              <div className="flex items-center gap-1.5 w-max mx-auto pb-1">
-                {SPORT_TABS.map(t => {
-                  const count = tabCounts.get(t.id) ?? 0;
-                  const active = sportTab === t.id;
-                  return (
-                    <button key={t.id} type="button" onClick={() => setSportTab(t.id)}
-                      className={`shrink-0 flex items-center gap-1.5 text-[11px] font-bold px-3 py-2 rounded-xl border transition-colors ${
-                        active
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                          : count === 0
-                          ? "bg-[#13112A] text-[#333368] border-[#252345] hover:text-[#4B5675]"
-                          : "bg-[#13112A] text-[#7B8DB4] border-[#252345] hover:text-[#F1F5F9] hover:border-[#333368]"
-                      }`}>
-                      <Glyph e={t.emoji} />
-                      {t.label}
-                      <span className={`text-[9px] font-black px-1.5 py-px rounded-full border ${
-                        active ? "bg-emerald-500/15 border-emerald-500/25" : "bg-[#0D0B1A] border-[#252345]"
-                      }`}>{count}</span>
+            {!loading && games.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex gap-2" role="group" aria-label="Day">
+                  {(["today", "tomorrow", "all"] as const).map(f => (
+                    <button key={f} type="button" onClick={() => setDateFilter(f)} className={pill(dateFilter === f)} aria-pressed={dateFilter === f}>
+                      {f === "today" ? "Today" : f === "tomorrow" ? "Tomorrow" : "This week"}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
+                <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4" role="group" aria-label="Sport">
+                  {shownTabs.map(t => (
+                    <button key={t.id} type="button" onClick={() => setSportTab(t.id)} className={pill(sportTab === t.id)} aria-pressed={sportTab === t.id}>
+                      {t.id === "all" ? "All sports" : t.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Date + confidence filters */}
-          {!loading && games.length > 0 && (
-            <div className="flex flex-col items-center gap-2 mb-3">
-              <div className="flex items-center justify-center gap-2">
-                {(["today", "tomorrow", "all"] as const).map(f => (
-                  <button key={f} type="button" onClick={() => setDateFilter(f)}
-                    className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
-                      dateFilter === f
-                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
-                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-                    }`}>
-                    {f === "today" ? "Today" : f === "tomorrow" ? "Tomorrow" : "All Upcoming"}
-                  </button>
-                ))}
+            {followed.length > 0 && (
+              <section aria-labelledby="follow-h" className="space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="follow-h" className="text-[18px]">Games you follow</h2>
+                  {notifPerm !== "granted" && (
+                    <button type="button" onClick={requestNotifPermission} className="text-[13px] text-[var(--mx-text-2)] underline hover:text-[var(--mx-text)]">
+                      {notifPerm === "denied" ? "Reminders are blocked in your browser" : "Remind me before they start"}
+                    </button>
+                  )}
+                </div>
+                <ul className={grid}>
+                  {followed.map(g => <GameCard key={g.id} g={g} todayKey={todayKey} tomorrowKey={tomorrowKey} watched onToggleWatch={() => toggleWatch(g)} />)}
+                </ul>
+              </section>
+            )}
+
+            {(loading || status === "loading") && (
+              <ul className={grid}>{Array.from({ length: 6 }, (_, i) => <li key={i} className="h-40 rounded-[14px] bg-[var(--mx-raised)] animate-pulse" />)}</ul>
+            )}
+
+            {!loading && (failed || !configured) && (
+              <p className="py-12 text-center text-[15px] text-[var(--mx-text-2)]">We couldn’t load the games right now. Please try again in a moment.</p>
+            )}
+
+            {!loading && !failed && configured && games.length === 0 && (
+              <p className="py-12 text-center text-[15px] text-[var(--mx-text-2)]">No games in the next 7 days. Check back when a season starts.</p>
+            )}
+
+            {!loading && !failed && games.length > 0 && totalFiltered === 0 && (
+              <div className="py-12 text-center">
+                <p className="text-[15px] text-[var(--mx-text-2)]">No {activeTab.id === "all" ? "" : `${activeTab.label} `}games {dateFilter === "today" ? "today" : dateFilter === "tomorrow" ? "tomorrow" : "this week"}.</p>
+                {dateFilter !== "all" && <button type="button" onClick={() => setDateFilter("all")} className="mt-3 text-[14px] underline">See this week</button>}
               </div>
-              <div className="flex items-center justify-center gap-2">
-                {([0, 70, 80] as const).map(f => (
-                  <button key={f} type="button" onClick={() => setConfFilter(f)}
-                    className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-colors ${
-                      confFilter === f
-                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                        : "bg-[#13112A] text-[#4B5675] border-[#252345] hover:text-[#7B8DB4]"
-                    }`}>
-                    {f === 0 ? "All Games" : f === 70 ? "Favorites 70%+" : "Heavy Favorites 80%+"}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
 
-          {!loading && games.length > 0 && (
-            <p className="text-center text-[10px] text-amber-400/70 mb-6 max-w-md mx-auto">
-              Predictions come from each team&rsquo;s own season win rate (log5), not real betting markets — a much
-              weaker signal than sportsbook odds. Early-season records especially can be noisy; treat every pick
-              here as a rough estimate, not a lock.
-            </p>
-          )}
-
-          {/* Loading */}
-          {loading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-              {skeletons.map((_, i) => <div key={i} className="h-36 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)}
-            </div>
-          )}
-
-          {/* Not configured */}
-          {!loading && !configured && !failed && (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">Game predictions aren&rsquo;t available right now</p>
-              <p className="text-xs text-[#4B5675] max-w-sm mx-auto">Try refreshing in a moment.</p>
-            </div>
-          )}
-
-          {/* Failed */}
-          {!loading && failed && (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">Couldn&rsquo;t load predictions</p>
-              <p className="text-xs text-[#4B5675]">Try refreshing in a moment.</p>
-            </div>
-          )}
-
-          {/* Empty but configured */}
-          {!loading && configured && !failed && games.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games in the next 7 days</p>
-              <p className="text-xs text-[#4B5675]">Most of these leagues are seasonal — check back when a sport&rsquo;s season is active.</p>
-            </div>
-          )}
-
-          {/* Configured, has games overall, but none match the current date/league/confidence filter */}
-          {!loading && configured && !failed && games.length > 0 && totalFiltered === 0 && (
-            <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">
-                No {activeTab.id === "all" ? "" : `${activeTab.label} `}games {dateFilter === "all" ? "match this filter" : dateFilter}
-              </p>
-              <p className="text-xs text-[#4B5675]">
-                {(tabCounts.get(activeTab.id) ?? 0) === 0 && activeTab.id !== "all"
-                  ? `${activeTab.label} has no games in the next 7 days — the season may not be active right now.`
-                  : confFilter > 0 ? `Try "All Games" — no picks hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every scheduled game."}
-              </p>
-            </div>
-          )}
-
-          {/* Games grouped by league */}
-          {!loading && !failed && grouped.map(section => (
-            <div key={section.league} className="mb-6">
-              <div className="flex items-center gap-2 mb-3">
-                <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">{section.league}</h2>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{section.games.length}</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                {section.games.map(g => (
-                  <GameCard key={g.id} g={g} todayKey={todayKey} tomorrowKey={tomorrowKey}
-                    watched={watchlist.some(w => w.id === g.id)} onToggleWatch={() => toggleWatch(g)}
-                    inCombo={comboIds.has(g.id)} onToggleCombo={() => toggleCombo(g.id)} />
-                ))}
-              </div>
-            </div>
-          ))}
-
+            {!loading && !failed && grouped.map(section => (
+              <section key={section.league} aria-labelledby={`lg-${section.league}`} className="space-y-3">
+                <h2 id={`lg-${section.league}`} className="text-[18px]">{section.league} <span className="text-[14px] text-[var(--mx-text-3)]">{section.games.length} {section.games.length === 1 ? "game" : "games"}</span></h2>
+                <ul className={grid}>
+                  {section.games.map(g => (
+                    <GameCard key={g.id} g={g} todayKey={todayKey} tomorrowKey={tomorrowKey}
+                      watched={watchlist.some(w => w.id === g.id)} onToggleWatch={() => toggleWatch(g)} />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
         </main>
       </div>
-      <Sidebar />
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Game Predictions",
+  title: "Sports",
   description: "AI-derived winner and score predictions for NFL, NBA, MLB, NHL, and top soccer leagues, built from real sportsbook odds.",
   robots: { index: false, follow: false },
 };
