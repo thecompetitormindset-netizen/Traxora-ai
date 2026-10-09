@@ -35,7 +35,26 @@ const TTL = 5 * 60_000;
 
 type ChartMeta = { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number; regularMarketVolume?: number };
 
+/** Finnhub quote when a key is configured (production): c = price, dp = % change. */
+async function finnhubRow(symbol: string, key: string): Promise<MoverRow | null> {
+  try {
+    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    const q = await r.json() as { c?: number; dp?: number | null };
+    return q.c && q.c > 0 && typeof q.dp === "number" ? { symbol, price: q.c, change: q.dp, volume: null } : null;
+  } catch { return null; }
+}
+
+/** Runs `fn` over items a few at a time, so providers don't rate-limit a burst. */
+async function inBatches<T, R>(items: T[], size: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
+  return out;
+}
+
 async function row(symbol: string): Promise<MoverRow | null> {
+  const key = process.env.FINNHUB_API_KEY;
+  if (key) { const f = await finnhubRow(symbol, key); if (f) return f; }
   try {
     const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
       cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000),
@@ -57,7 +76,7 @@ export async function GET() {
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
   if (cache && Date.now() - cache.at < TTL) return Response.json(cache.data);
 
-  const rows = (await Promise.all([...new Set(UNIVERSE)].map(row))).filter((r): r is MoverRow => !!r);
+  const rows = (await inBatches([...new Set(UNIVERSE)], 6, row)).filter((r): r is MoverRow => !!r);
   rows.sort((a, b) => (b.change ?? 0) - (a.change ?? 0));
   const data: MoversData = { gainers: rows.slice(0, 6), losers: rows.slice(-6).reverse(), updatedAt: new Date().toISOString() };
   if (rows.length) cache = { at: Date.now(), data };
