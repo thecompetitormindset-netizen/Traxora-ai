@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 // Map route prefixes to human-readable feature names for the upgrade prompt
 const FEATURE_NAMES: Record<string, string> = {
   "/analysis":     "AI Signal Analysis",
+  "/options":      "Options Research",
   "/intelligence": "Deep Market Scanner",
   "/journal":      "AI Trade Journal",
   "/history":      "Trade History",

@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { getJournal, clearJournal, saveJournalEntry, type JournalEntry } from "../components/AutoJournal";
 import { haptic } from "../lib/haptics";
+import NotebookSection from "../components/fieldnotes/NotebookSection";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -307,6 +308,8 @@ export default function JournalPage() {
               </button>
             </div>
           )}
+
+          <NotebookSection />
 
           {/* Trade entries */}
           <div className="mt-3 space-y-3">

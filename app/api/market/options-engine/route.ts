@@ -12,14 +12,10 @@ export const maxDuration = 60;
 import { auth } from "@/auth";
 import { supabaseAdmin } from "@/app/lib/supabase";
 import { UNIVERSE } from "@/app/api/market/options-scan/route";
-import { fetchAVCalendar } from "@/app/api/market/earnings-calendar/route";
 import { etTradingDate, nyseSessionStatus, type SessionStatus } from "@/app/lib/marketTime";
-import {
-  atmIvOf, buildAnalysisInput, fetchAnalysisSources, parseEarningsCsv, type EarningsCalendar,
-} from "@/app/lib/optionsAnalysis/payload";
-import { analyzeDeterministic } from "@/app/lib/optionsAnalysis/engine";
-import { reviewAnalysis, type Review } from "@/app/lib/optionsAnalysis/validate";
-import { toDisplay, type DisplayAnalysis, type StoredAnalysis } from "@/app/lib/optionsAnalysis/display";
+import { checkRateLimit } from "@/app/lib/rateLimit";
+import { toDisplay, toResearch, type DisplayAnalysis, type ResearchDetail, type StoredAnalysis } from "@/app/lib/optionsAnalysis/display";
+import { SYMBOL_PATTERN, analyzeLiveSymbol, loadEarnings } from "@/app/lib/optionsAnalysis/service";
 import { POLICY_VERSION } from "@/app/lib/optionsAnalysis/policy";
 import { RULES_VERSION } from "@/app/lib/optionsAnalysis/rules";
 
@@ -28,6 +24,9 @@ const REFRESH_WHILE_CLOSED_MS = 30 * 60 * 1000;
 const RESCAN_COOLDOWN_MS      = 2 * 60 * 1000;
 const CONCURRENCY             = 6;
 const IV_HISTORY_DAYS         = 252;
+const SYMBOL_REFRESH_MS       = 60 * 1000;
+
+export type ResearchResponse = { detail: ResearchDetail; universe: boolean };
 
 export type OptionsAnalysisResponse = {
   as_of: string | null;
@@ -57,14 +56,6 @@ function tryDb(): Db | null {
   }
 }
 
-async function loadEarnings(): Promise<EarningsCalendar> {
-  try { return parseEarningsCsv(await fetchAVCalendar()); }
-  catch (err) {
-    console.error("[options-analysis] earnings calendar unavailable:", err instanceof Error ? err.message : err);
-    return { fetchedOk: false };
-  }
-}
-
 async function loadIvHistory(db: Db | null, today: string): Promise<Map<string, number[]>> {
   const map = new Map<string, number[]>();
   if (!db) return map;
@@ -84,37 +75,10 @@ async function loadIvHistory(db: Db | null, today: string): Promise<Map<string, 
 }
 
 async function analyzeSymbol(
-  symbol: string, runDate: string, earnings: EarningsCalendar, ivHistory: number[],
+  symbol: string, runDate: string, earnings: Awaited<ReturnType<typeof loadEarnings>>, ivHistory: number[],
 ): Promise<{ row: Row; atmIv: number | null } | null> {
-  const { chainJson, barsJson } = await fetchAnalysisSources(symbol);
-  // as_of is taken after the fetch so it is never earlier than the data.
-  const asOf = new Date().toISOString();
-  let input;
-  try {
-    input = buildAnalysisInput({ symbol, asOf, chainJson, barsJson, earnings, ivHistory });
-  } catch (err) {
-    console.error(`[options-analysis] ${symbol} input build failed:`, err instanceof Error ? err.message : err);
-    return null;
-  }
-  let output = null;
-  let review: Review;
-  try {
-    output = analyzeDeterministic(input);
-    review = reviewAnalysis(input, output);
-  } catch (err) {
-    review = { status: "REJECTED", errors: [`engine error: ${err instanceof Error ? err.message : String(err)}`] };
-  }
-  if (review.status === "REJECTED") console.error(`[options-analysis] ${symbol} rejected:`, review.errors.slice(0, 5));
-
-  return {
-    row: {
-      run_date: runDate, symbol, as_of: asOf, input, output,
-      review_status: review.status,
-      review_errors: review.status === "REJECTED" ? review.errors : [],
-      pricing: review.status === "APPROVED_CANDIDATE" ? review.pricing : null,
-    },
-    atmIv: atmIvOf(input.contracts, input.underlying.price),
-  };
+  const r = await analyzeLiveSymbol(symbol, earnings, ivHistory);
+  return r ? { row: { ...r.row, run_date: runDate }, atmIv: r.atmIv } : null;
 }
 
 async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
@@ -134,25 +98,16 @@ async function generate(actor: string): Promise<{ rows: Row[]; persisted: boolea
     .filter((r): r is NonNullable<typeof r> => r !== null);
   const rows = results.map(r => r.row);
   memCache = { run_date: runDate, rows };
+  for (const r of rows) symbolCache.set(r.symbol, r);
   if (!db) return { rows, persisted: false };
-
-  const { error } = await db.from("options_analyses").upsert(
-    rows.map(r => ({
-      run_date: r.run_date, symbol: r.symbol, as_of: r.as_of, engine: "deterministic",
-      policy_version: POLICY_VERSION, rules_version: RULES_VERSION,
-      input: r.input, output: r.output, review_status: r.review_status, review_errors: r.review_errors,
-      pricing: r.pricing, generated_by: actor, updated_at: new Date().toISOString(),
-    })),
-    { onConflict: "run_date,symbol" },
-  );
-  if (error) console.error("[options-analysis] upsert error:", error.message);
+  const persisted = await persistRows(db, rows, actor);
 
   const ivRows = results.filter(r => r.atmIv !== null).map(r => ({ symbol: r.row.symbol, as_of_date: runDate, atm_iv: r.atmIv }));
   if (ivRows.length) {
     const { error: ivErr } = await db.from("options_iv_history").upsert(ivRows, { onConflict: "symbol,as_of_date" });
     if (ivErr) console.error("[options-analysis] IV history upsert error:", ivErr.message);
   }
-  return { rows, persisted: !error };
+  return { rows, persisted };
 }
 
 function generateOnce(actor: string) {
@@ -176,6 +131,69 @@ async function readToday(): Promise<{ rows: Row[]; persisted: boolean }> {
   return { rows: (data ?? []) as Row[], persisted: true };
 }
 
+async function persistRows(db: Db | null, rows: Row[], actor: string): Promise<boolean> {
+  if (!db || rows.length === 0) return false;
+  const { error } = await db.from("options_analyses").upsert(
+    rows.map(r => ({
+      run_date: r.run_date, symbol: r.symbol, as_of: r.as_of, engine: "deterministic",
+      policy_version: POLICY_VERSION, rules_version: RULES_VERSION,
+      input: r.input, output: r.output, review_status: r.review_status, review_errors: r.review_errors,
+      pricing: r.pricing, generated_by: actor, updated_at: new Date().toISOString(),
+    })),
+    { onConflict: "run_date,symbol" },
+  );
+  if (error) console.error("[options-analysis] upsert error:", error.message);
+  return !error;
+}
+
+// One symbol, live — for the research page. Universe symbols update the
+// shared day row; any other valid symbol is analyzed on demand and only
+// cached per instance (never written to the shared table).
+const symbolCache = new Map<string, Row>();
+
+async function analyzeOne(symbol: string, actor: string): Promise<Row | null> {
+  const runDate = etTradingDate();
+  const db = tryDb();
+  const [earnings, ivHistory] = await Promise.all([loadEarnings(), loadIvHistory(db, runDate)]);
+  const r = await analyzeSymbol(symbol, runDate, earnings, ivHistory.get(symbol) ?? []);
+  if (!r) return null;
+  symbolCache.set(symbol, r.row);
+  if ((UNIVERSE as readonly string[]).includes(symbol)) {
+    if (memCache?.run_date === runDate) {
+      memCache = { run_date: runDate, rows: [...memCache.rows.filter(x => x.symbol !== symbol), r.row] };
+    }
+    await persistRows(db, [r.row], actor);
+  }
+  return r.row;
+}
+
+async function researchFor(symbol: string, opts: { force: boolean; actor: string }): Promise<Response> {
+  const universe = (UNIVERSE as readonly string[]).includes(symbol);
+  const runDate = etTradingDate();
+  let row: Row | undefined = symbolCache.get(symbol);
+  if (row && row.run_date !== runDate) row = undefined;
+  if (!row && universe) row = (await readToday()).rows.find(r => r.symbol === symbol);
+  const age = row ? Date.now() - Date.parse(row.as_of) : Infinity;
+  const maxAge = nyseSessionStatus().status === "OPEN" ? REFRESH_WHILE_OPEN_MS : REFRESH_WHILE_CLOSED_MS;
+
+  if (opts.force && age < SYMBOL_REFRESH_MS) {
+    return Response.json({ error: "cooldown", retryAfterSeconds: Math.ceil((SYMBOL_REFRESH_MS - age) / 1000) }, { status: 429 });
+  }
+  if (!row || opts.force || age >= maxAge) {
+    row = (await analyzeOne(symbol, opts.actor)) ?? undefined;
+  }
+  if (!row) return Response.json({ error: "unavailable", detail: "Required market data could not be retrieved for this symbol." }, { status: 404 });
+  const body: ResearchResponse = { detail: toResearch(row, new Date()), universe };
+  return Response.json(body, { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } });
+}
+
+function symbolParam(req: Request): string | null | "invalid" {
+  const raw = new URL(req.url).searchParams.get("symbol");
+  if (raw === null) return null;
+  const sym = raw.trim().toUpperCase();
+  return SYMBOL_PATTERN.test(sym) ? sym : "invalid";
+}
+
 function newestAsOf(rows: Row[]): number | null {
   return rows.length ? Math.max(...rows.map(r => Date.parse(r.as_of))) : null;
 }
@@ -197,10 +215,18 @@ function respond(rows: Row[], persisted: boolean) {
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    const sym = symbolParam(req);
+    if (sym === "invalid") return Response.json({ error: "invalid_symbol" }, { status: 400 });
+    if (sym) {
+      if (!checkRateLimit(`options-research:${session.user.email ?? "anon"}`, 30, 60_000)) {
+        return Response.json({ error: "rate_limited", retryAfterSeconds: 60 }, { status: 429 });
+      }
+      return await researchFor(sym, { force: false, actor: "lazy" });
+    }
     const current = await readToday();
     const newest = newestAsOf(current.rows);
     const maxAge = nyseSessionStatus().status === "OPEN" ? REFRESH_WHILE_OPEN_MS : REFRESH_WHILE_CLOSED_MS;
@@ -213,10 +239,13 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    const sym = symbolParam(req);
+    if (sym === "invalid") return Response.json({ error: "invalid_symbol" }, { status: 400 });
+    if (sym) return await researchFor(sym, { force: true, actor: session.user.email ?? "unknown" });
     const current = await readToday();
     const newest = newestAsOf(current.rows);
     if (newest !== null && Date.now() - newest < RESCAN_COOLDOWN_MS) {
