@@ -17,12 +17,11 @@ type ScoreInfo = { completed: boolean; homeTeam: string; awayTeam: string; homeS
 
 async function collectRecentResults(): Promise<Map<string, ScoreInfo>> {
   const results = new Map<string, ScoreInfo>();
-  const from = new Date(Date.now() - 4 * 86_400_000);
-  const to   = new Date();
-  const dates = `${toDateKey(from)}-${toDateKey(to)}`;
+  // One request per day: ESPN rejects date ranges.
+  const days = Array.from({ length: 5 }, (_, i) => toDateKey(new Date(Date.now() - i * 86_400_000)));
 
   await Promise.all(LEAGUES.map(async league => {
-    const events = await fetchScoreboard(league, dates);
+    const events = (await Promise.all(days.map(d => fetchScoreboard(league, d)))).flat();
     for (const ev of events) {
       const comp = ev.competitions?.[0];
       if (!comp || comp.status.type.state !== "post" || !comp.status.type.completed) continue;

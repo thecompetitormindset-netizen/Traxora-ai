@@ -20,8 +20,7 @@ const GROUPS: NavGroup[] = [
       { name: "Overview",        href: "/dashboard" },
       { name: "Options",         href: "/options" },
       { name: "Signals",         href: "/analysis" },
-      { name: "Paper portfolio", href: "/paper" },
-      { name: "Journal",         href: "/journal" },
+      { name: "Practice trading", href: "/paper" },
     ],
   },
   {
@@ -205,15 +204,15 @@ export default function Sidebar() {
     { id: "overview", label: "Overview", icon: TabIcon.overview, href: "/dashboard", on: active(ws.items[0]) },
     { id: "options",  label: "Options",  icon: TabIcon.options,  href: "/options",   on: active(ws.items[1]) },
     { id: "markets",  label: "Markets",  icon: TabIcon.markets,  sheet: "markets" as const, on: anyActive(group("markets")) || sheet === "markets" },
-    { id: "journal",  label: "Journal",  icon: TabIcon.journal,  href: "/journal",   on: active(ws.items[4]) },
+    { id: "practice", label: "Practice", icon: TabIcon.journal,  href: "/paper",     on: active(ws.items[3]) },
     { id: "more",     label: "More",     icon: TabIcon.more,     sheet: "more" as const,
-      on: sheet === "more" || anyActive(group("tools")) || anyActive(group("account")) || active(ws.items[2]) || active(ws.items[3]) },
+      on: sheet === "more" || anyActive(group("tools")) || anyActive(group("account")) || active(ws.items[2]) },
   ];
 
   const sheetGroups: NavGroup[] = sheet === "markets"
     ? [group("markets")]
     : sheet === "more"
-      ? [{ id: "workspace", label: "Workspace", items: ws.items.slice(2, 4) }, group("tools"), group("account")]
+      ? [{ id: "workspace", label: "Workspace", items: ws.items.slice(2, 3) }, group("tools"), group("account")]
       : [];
 
   return (

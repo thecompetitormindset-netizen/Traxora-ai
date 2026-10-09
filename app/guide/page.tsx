@@ -43,29 +43,20 @@ const SECTIONS: Section[] = [
   },
   {
     id: "signals", group: "Workspace", title: "Signals", href: "/analysis",
-    summary: "A Buy, Hold or Sell read on any ticker, with the levels behind it.",
+    summary: "A simple read on any stock: leaning buy, leaning sell, or wait.",
     items: [
-      { h: "Search a ticker", t: "Use the search bar at the top of any page, or type it on the Signals page." },
-      { h: "Read the plan", t: "Entry zone, stop and target come with the reasons behind them — order blocks, fair value gaps and liquidity levels (see the glossary)." },
-      { h: "Practise it", t: "Use Trade to open a pre-filled paper position. Adjust size and stop before confirming." },
+      { h: "Search a stock", t: "Use the search bar at the top of any page, or open Signals from the menu." },
+      { h: "Our read", t: "You see one plain answer, how sure we are, and a simple plan: where to get in, a safety level to keep losses small, and a goal." },
+      { h: "Practise it", t: "Press “Practise this trade” to try it with pretend money. The technical details are under “More details” if you want them." },
     ],
   },
   {
-    id: "paper", group: "Workspace", title: "Paper portfolio", href: "/paper",
-    summary: "Practise with $100,000 of simulated money. Nothing here touches a real account.",
+    id: "paper", group: "Workspace", title: "Practice trading", href: "/paper",
+    summary: "Buy and sell with pretend money at real prices. Nothing here touches a real account.",
     items: [
-      { h: "Open and close positions", t: "Positions can be long or short stocks with an optional stop and target. Stops and targets close automatically when hit." },
-      { h: "Risk settings", t: "Set an account size and a risk percentage per trade; the portfolio shows how much is at risk across open positions." },
-      { h: "Results", t: "Open and closed simulations are kept separate. Simulated results don’t show that a strategy would work with real money." },
-    ],
-  },
-  {
-    id: "journal", group: "Workspace", title: "Journal", href: "/journal",
-    summary: "A record of what you did and why — written as it happened.",
-    items: [
-      { h: "Trade entries", t: "Closing a paper position adds a journal entry automatically, with a short review you can read later." },
-      { h: "Saved analyses", t: "Options analyses you save appear here too. Later saves for the same symbol show what changed, so earlier decisions are never rewritten." },
-      { h: "Export", t: "Download your journal as a CSV file from the journal page." },
+      { h: "Buy or sell", t: "Pick a stock, choose how much (in dollars or shares) and press Buy. If the market is closed, your order waits for it to open." },
+      { h: "Sell automatically", t: "Set a safety level and a goal. When the price reaches either one, we sell for you — even if you’re away." },
+      { h: "Your results", t: "See what each trade is worth now, and what you made or lost on finished trades. Pretend results don’t prove a strategy works with real money." },
     ],
   },
   {

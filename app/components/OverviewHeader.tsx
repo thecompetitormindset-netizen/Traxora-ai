@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import type { ListState } from "./fieldnotes/useOptionsList";
 import { stateOf } from "./fieldnotes/uiState";
-import { loadNotebook } from "../lib/analysisNotebook";
-import { getJournal } from "./AutoJournal";
 
 // The top of Overview: one sentence that answers "does anything need me?",
 // then four numbers that link to where the detail lives. Everything shown is
@@ -24,11 +21,6 @@ type Props = {
 const etDate = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric" });
 
 export default function OverviewHeader({ options, watchCount, watchSignals, paperOpen, paperValue, refreshIn, actions }: Props) {
-  const [saved, setSaved] = useState<number | null>(null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSaved(loadNotebook().length + getJournal().length);
-  }, []);
 
   const data = options.kind === "ready" ? options.data : null;
   const states = (data?.analyses ?? []).map(stateOf);
@@ -51,8 +43,7 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
   const stats = [
     { k: "Options", v: data ? String(validated) : "—", s: data ? `validated · ${analyzed - validated} no trade` : "loading", href: "/options" },
     { k: "Watchlist", v: String(watchCount), s: `${watchSignals} strong signal${watchSignals === 1 ? "" : "s"}`, href: "#watchlist" },
-    { k: "Paper portfolio", v: String(paperOpen), s: paperValue !== null ? `open · $${Math.round(paperValue).toLocaleString("en-US")} simulated` : "open positions", href: "/paper" },
-    { k: "Journal", v: saved === null ? "—" : String(saved), s: "saved entries", href: "/journal" },
+    { k: "Practice trading", v: String(paperOpen), s: paperValue !== null ? `open · $${Math.round(paperValue).toLocaleString("en-US")} pretend money` : "open trades", href: "/paper" },
   ];
 
   return (
@@ -77,12 +68,12 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       </h1>
       <p className="mt-3 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">{lede}</p>
 
-      <dl data-tour="overview-stats" className="mt-8 grid grid-cols-2 lg:grid-cols-4 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] overflow-hidden" aria-label="Summary">
+      <dl data-tour="overview-stats" className="mt-8 grid grid-cols-1 sm:grid-cols-3 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] overflow-hidden" aria-label="Summary">
         {stats.map((x, i) => (
           <Link
             key={x.k}
             href={x.href}
-            className={`block p-4 lg:p-5 hover:bg-[var(--mx-raised)] transition-colors border-[var(--mx-line)] ${i % 2 === 0 ? "border-r" : "lg:border-r"} ${i < 2 ? "border-b lg:border-b-0" : ""} ${i === 3 ? "lg:border-r-0" : ""}`}
+            className={`block p-4 lg:p-5 hover:bg-[var(--mx-raised)] transition-colors border-[var(--mx-line)] ${i < 2 ? "border-b sm:border-b-0 sm:border-r" : ""}`}
           >
             <dt className="mx-label">{x.k}</dt>
             <dd className="mt-2.5 text-[28px] leading-none tracking-[-0.02em] font-mono text-[var(--mx-text)]">{x.v}</dd>

@@ -1,7 +1,8 @@
 "use client";
 import PaywallGuard from "@/app/components/PaywallGuard";
 
-import { useEffect, useState } from "react";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -232,17 +233,21 @@ const COLOR: Record<string, { tab: string; activetab: string; badge: string; glo
 
 type ExploreView = "markets" | "screener" | "movers" | "calendar" | "crypto";
 
-export default function ExplorePage() {
-  const [view, setView]         = useState<ExploreView>("markets");
+const VIEWS: ExploreView[] = ["markets", "screener", "movers", "calendar", "crypto"];
 
-  // Deep link: /explore?view=crypto etc. — read once on mount
-  useEffect(() => {
-    const v = new URLSearchParams(window.location.search).get("view");
-    if (v && ["markets", "screener", "movers", "calendar", "crypto"].includes(v)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setView(v as ExploreView);
-    }
-  }, []);
+export default function ExplorePage() {
+  return <Suspense><ExploreContent /></Suspense>;
+}
+
+function ExploreContent() {
+  // The view lives in the URL (?view=crypto) so the sidebar's Stocks and
+  // Crypto links switch it even when this page is already open.
+  const params = useSearchParams();
+  const router = useRouter();
+  const v = params.get("view") as ExploreView | null;
+  const view: ExploreView = v && VIEWS.includes(v) ? v : "markets";
+  const setView = (next: ExploreView) =>
+    router.replace(next === "markets" ? "/explore" : `/explore?view=${next}`, { scroll: false });
   const [query, setQuery]       = useState("");
   const [results, setResults]   = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);

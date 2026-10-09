@@ -74,7 +74,7 @@ function Anno({ x, y, w, h, label, center = false }: { x: number; y: number; w: 
 
 export function HeroMedia() {
   return (
-    <svg viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 w-full h-full" aria-hidden="true">
+    <svg viewBox="0 0 1200 640" preserveAspectRatio="xMidYMid slice" className="lp-hero-media absolute inset-0 w-full h-full" aria-hidden="true">
       <defs>
         <pattern id="lp-g" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgb(255 255 255 / 0.06)" /></pattern>
       </defs>

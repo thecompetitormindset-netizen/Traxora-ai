@@ -179,16 +179,19 @@ function predictFromEvent(ev: EspnEvent, league: League, standings: Map<string, 
   };
 }
 
+const UPCOMING_DAYS = 7;
+
 // Upcoming (not-yet-started) games with predictions — powers the /sports page.
 export async function fetchLeagueUpcoming(league: League): Promise<GamePrediction[]> {
-  const from = new Date();
-  const to   = new Date(Date.now() + 10 * 86_400_000);
-  const dates = `${toDateKey(from)}-${toDateKey(to)}`;
-
-  const [events, standings] = await Promise.all([
-    fetchScoreboard(league, dates),
+  // ESPN stopped accepting date ranges ("20261009-20261019" → 400), so ask
+  // for each day separately and de-duplicate.
+  const days = Array.from({ length: UPCOMING_DAYS }, (_, i) => toDateKey(new Date(Date.now() + i * 86_400_000)));
+  const [perDay, standings] = await Promise.all([
+    Promise.all(days.map(d => fetchScoreboard(league, d))),
     fetchStandings(league.sport, league.league),
   ]);
+  const seen = new Set<string>();
+  const events = perDay.flat().filter(ev => (seen.has(ev.id) ? false : (seen.add(ev.id), true)));
 
   const games: GamePrediction[] = [];
   for (const ev of events) {

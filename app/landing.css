@@ -139,3 +139,8 @@
 @media (max-width: 640px) {
   .lp-hero-scrim { background: linear-gradient(180deg, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.72) 45%, rgb(0 0 0 / 0.6)); }
 }
+
+/* Hero media sits softly behind the headline: blurred and dimmed so it reads
+   as background, never competing with the text. */
+.lp-hero-media { filter: blur(7px) brightness(0.75); transform: scale(1.06); }
+@media (max-width: 640px) { .lp-hero-media { filter: blur(9px) brightness(0.65); } }

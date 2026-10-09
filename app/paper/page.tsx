@@ -2,8 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import dynamic from "next/dynamic";
-import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -12,11 +10,10 @@ import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
 import { syncFetch } from "../lib/syncFetch";
 import {
-  catchUp, closeNow, isMarketOpen, marketStatusText, placeOrder, profit, profitPct, summarize, tick,
+  catchUp, closeNow, isMarketOpen, placeOrder, profit, profitPct, summarize, tick,
   DEFAULT_START, SLIPPAGE, type Bar, type EngineEvent, type OrderType, type PaperOrder, type Quote, type Side,
 } from "../lib/paperEngine";
 
-const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
 // Practice trading. Rules live in app/lib/paperEngine.ts (tested); this page is
 // storage, quotes and the UI. Plain language on purpose — see the landing page.
@@ -146,14 +143,13 @@ function MarketDot({ open }: { open: boolean }) {
 
 type Prefill = { symbol: string; side: Side; stop: number | null; target: number | null; key: number };
 
-function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
+function Ticket({ prefill, cash, now, quotes, onQuote, onPlace }: {
   prefill: Prefill;
   now: number;
   cash: number;
   quotes: Record<string, QuoteInfo>;
   onQuote: (s: string, q: QuoteInfo) => void;
   onPlace: (o: PaperOrder, filled: boolean) => void;
-  onSymbol: (s: string) => void;
 }) {
   const [symbol, setSymbol] = useState(prefill.symbol);
   const [side, setSide] = useState<Side>(prefill.side);
@@ -165,6 +161,8 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
   const [stop, setStop] = useState(prefill.stop ? String(prefill.stop) : "");
   const [target, setTarget] = useState(prefill.target ? String(prefill.target) : "");
   const [note, setNote] = useState("");
+  const [advanced, setAdvanced] = useState(prefill.side === "SELL");
+  const [editLevels, setEditLevels] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [missing, setMissing] = useState(false);
@@ -176,7 +174,6 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
   // Look up the price shortly after typing stops.
   useEffect(() => {
     if (!/^[A-Z0-9.\-=]{1,12}$/.test(sym)) return;
-    onSymbol(sym);
     let live = true;
     const t = setTimeout(async () => {
       setLoadingQuote(true);
@@ -257,67 +254,78 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
       </Field>
 
       <div className="space-y-2">
-        <Segmented label="Buy or sell short" value={side} onChange={v => { setSide(v); suggested.current = null; }} options={[{ v: "BUY", l: "Buy" }, { v: "SELL", l: "Sell short" }]} />
-        {!long && <p className="text-[12.5px] text-[var(--mx-text-3)]">Selling short means you make money if the price falls — and lose if it rises. It’s riskier, so start small.</p>}
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-[13px] text-[var(--mx-text-2)]">How much?</span>
-          <div className="w-[170px]"><Segmented label="Amount in" value={by} onChange={setBy} options={[{ v: "dollars", l: "Dollars" }, { v: "shares", l: "Shares" }]} /></div>
-        </div>
+        <span className="block text-[13px] text-[var(--mx-text-2)]">How much do you want to {long ? "invest" : "bet"}?</span>
         <div className="relative">
           {by === "dollars" && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>}
           <input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" className={`${input} font-mono ${by === "dollars" ? "pl-7" : ""}`} aria-label={by === "dollars" ? "Dollar amount" : "Number of shares"} />
         </div>
-        {by === "dollars" ? (
+        {by === "dollars" && (
           <div className="flex flex-wrap gap-2">
             {[100, 500, 1000, 5000].map(v => (
               <button key={v} type="button" onClick={() => setAmount(String(v))} className={btnQuiet}>{usd(v, 0)}</button>
             ))}
           </div>
-        ) : null}
-        {shares && cost ? (
-          <p className="text-[12.5px] text-[var(--mx-text-3)]">{by === "dollars" ? `About ${qty(Math.round(shares * 1000) / 1000)} ${unitWord(sym)}` : `About ${usd(cost)}`} · partial {unitWord(sym)} are fine</p>
-        ) : null}
-      </div>
-
-      <div className="space-y-2">
-        <span className="block text-[13px] text-[var(--mx-text-2)]">When?</span>
-        <Segmented label="When to trade" value={type} onChange={setType} options={[{ v: "market", l: open ? "Now" : "At the open" }, { v: "limit", l: "At my price" }]} />
-        {type === "limit" && (
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>
-            <input value={limit} onChange={e => setLimit(e.target.value)} inputMode="decimal" placeholder={quote ? quote.price.toFixed(2) : "0.00"} className={`${input} pl-7 font-mono`} aria-label={long ? "Buy when the price is at or below" : "Sell short when the price is at or above"} />
-            <p className="mt-1.5 text-[12.5px] text-[var(--mx-text-3)]">{long ? "We’ll buy only if the price drops to this or lower." : "We’ll sell short only if the price rises to this or higher."}</p>
-          </div>
         )}
-        {type === "market" && !open && sym && <p className="text-[12.5px] text-[var(--mx-text-3)]">{marketStatusText(sym, now)}.</p>}
       </div>
 
-      <div className="rounded-[12px] border border-[var(--mx-line)] p-4 space-y-3">
+      {/* Safety net: on by default, shown as one sentence until you want to change it. */}
+      <div className="rounded-[12px] border border-[var(--mx-line)] p-4">
         <label className="flex items-center justify-between gap-3 cursor-pointer">
-          <span>
-            <span className="block text-[14px]">Sell automatically</span>
-            <span className="block text-[12.5px] text-[var(--mx-text-3)]">Protects you from big losses and locks in gains.</span>
-          </span>
+          <span className="text-[14px]">Sell automatically</span>
           <input type="checkbox" checked={protect} onChange={e => setProtect(e.target.checked)} className="w-5 h-5 accent-[var(--mx-text)]" />
         </label>
-        {protect && (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={long ? "If it falls to" : "If it rises to"} hint={loseAt != null ? <span className="text-[var(--mx-down)]">lose about {usd(loseAt)}</span> : "safety level"}>
+        {protect && !editLevels && (
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--mx-text-3)]">
+            {stopN && targetN
+              ? <>We’ll sell if it {long ? "falls" : "rises"} to {usd(stopN)}{loseAt != null ? <> (you’d lose about <span className="text-[var(--mx-down)]">{usd(loseAt)}</span>)</> : null} or {long ? "rises" : "falls"} to {usd(targetN)}{makeAt != null ? <> (you’d make about <span className="text-[var(--mx-up)]">{usd(makeAt)}</span>)</> : null}.</>
+              : "We’ll suggest levels once we have the price."}
+            {" "}<button type="button" onClick={() => setEditLevels(true)} className="underline text-[var(--mx-text-2)]">Change</button>
+          </p>
+        )}
+        {protect && editLevels && (
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <Field label={long ? "Sell if it falls to" : "Buy back if it rises to"}>
               <input value={stop} onChange={e => setStop(e.target.value)} inputMode="decimal" className={`${input} font-mono`} />
             </Field>
-            <Field label={long ? "If it rises to" : "If it falls to"} hint={makeAt != null ? <span className="text-[var(--mx-up)]">make about {usd(makeAt)}</span> : "goal"}>
+            <Field label={long ? "Sell if it rises to" : "Buy back if it falls to"}>
               <input value={target} onChange={e => setTarget(e.target.value)} inputMode="decimal" className={`${input} font-mono`} />
             </Field>
           </div>
         )}
+        {!protect && <p className="mt-2 text-[13px] text-[var(--mx-text-3)]">Without it, a big drop can cost you a lot. We recommend keeping it on.</p>}
       </div>
 
-      <Field label="Why are you making this trade? (optional)">
-        <input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Strong earnings, buying the dip" className={input} />
-      </Field>
+      {/* Everything else, for people who want it */}
+      <details className="group" open={advanced} onToggle={e => setAdvanced((e.target as HTMLDetailsElement).open)}>
+        <summary className="cursor-pointer list-none text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
+          {advanced ? "Fewer options" : "More options"} <span aria-hidden="true">{advanced ? "−" : "+"}</span>
+        </summary>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <span className="block text-[13px] text-[var(--mx-text-2)]">Direction</span>
+            <Segmented label="Buy or sell short" value={side} onChange={v => { setSide(v); suggested.current = null; }} options={[{ v: "BUY", l: "Buy" }, { v: "SELL", l: "Sell short" }]} />
+            {!long && <p className="text-[12.5px] text-[var(--mx-text-3)]">Selling short means you make money if the price falls — and lose if it rises. It’s riskier, so start small.</p>}
+          </div>
+          <div className="space-y-2">
+            <span className="block text-[13px] text-[var(--mx-text-2)]">Amount in</span>
+            <Segmented label="Amount in" value={by} onChange={setBy} options={[{ v: "dollars", l: "Dollars" }, { v: "shares", l: "Shares" }]} />
+          </div>
+          <div className="space-y-2">
+            <span className="block text-[13px] text-[var(--mx-text-2)]">When</span>
+            <Segmented label="When to trade" value={type} onChange={setType} options={[{ v: "market", l: open ? "Now" : "At the open" }, { v: "limit", l: "At my price" }]} />
+            {type === "limit" && (
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>
+                <input value={limit} onChange={e => setLimit(e.target.value)} inputMode="decimal" placeholder={quote ? quote.price.toFixed(2) : "0.00"} className={`${input} pl-7 font-mono`} aria-label={long ? "Buy when the price is at or below" : "Sell short when the price is at or above"} />
+                <p className="mt-1.5 text-[12.5px] text-[var(--mx-text-3)]">{long ? "We’ll buy only if the price drops to this or lower." : "We’ll sell short only if the price rises to this or higher."}</p>
+              </div>
+            )}
+          </div>
+          <Field label="Why are you making this trade? (optional)">
+            <input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Strong earnings, buying the dip" className={input} />
+          </Field>
+        </div>
+      </details>
 
       {summary && <p className="text-[14px] leading-relaxed text-[var(--mx-text-2)]">{summary}</p>}
       {error && <p role="alert" className="text-[14px] text-[var(--mx-down)]">{error}</p>}
@@ -325,7 +333,7 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
       <button type="submit" className={btnPrimary} disabled={!sym || !ref || !amt}>
         {type === "limit" ? "Save order" : open ? `${verb} ${sym || ""}`.trim() : "Place order for the open"}
       </button>
-      <p className="text-[12px] text-center text-[var(--mx-text-3)]">Practice money only. No fees. Market orders include a tiny price difference ({(SLIPPAGE * 100).toFixed(2)}%), like a real broker.</p>
+      <p className="text-[12px] text-center text-[var(--mx-text-3)]">Pretend money only. No fees.</p>
     </form>
   );
 }
@@ -427,10 +435,9 @@ function PaperContent() {
 
   const [account, setAccount] = useState<Account>({ size: DEFAULT_START, riskPct: 1 });
   const [orders, setOrders] = useState<PaperOrder[]>([]);
-  const [activity, setActivity] = useState<Activity[]>([]);
+  const [, setActivity] = useState<Activity[]>([]); // recent events, kept for later use
   const [quotes, setQuotes] = useState<Record<string, QuoteInfo>>({});
   const [ideas, setIdeas] = useState<Idea[]>([]);
-  const [chartSymbol, setChartSymbol] = useState(clean(params.get("symbol") ?? ""));
   const [toast, setToast] = useState<string | null>(null);
   const [settings, setSettings] = useState(false);
   const [startInput, setStartInput] = useState(String(DEFAULT_START));
@@ -612,7 +619,6 @@ function PaperContent() {
 
   function pickIdea(i: Idea) {
     setPrefill(p => ({ symbol: i.symbol, side: i.side, stop: i.stop, target: i.target, key: p.key + 1 }));
-    setChartSymbol(i.symbol);
     document.getElementById("ticket")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -632,7 +638,6 @@ function PaperContent() {
                 <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[56ch]">Buy and sell with pretend money at real market prices. Learn how it feels — without risking a cent.</p>
               </div>
               <div className="flex items-center gap-2">
-                <Link href="/journal" className={btnQuiet + " inline-flex items-center"}>Journal</Link>
                 <button type="button" onClick={() => setSettings(s => !s)} className={btnQuiet} aria-expanded={settings}>Account settings</button>
               </div>
             </header>
@@ -699,15 +704,14 @@ function PaperContent() {
             <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6 items-start">
               {/* Ticket + ideas */}
               <div id="ticket" className="space-y-6 scroll-mt-20">
-                <Ticket key={prefill.key} prefill={prefill} cash={sum.cash} now={now} quotes={quotes} onQuote={saveQuote} onPlace={onPlace}
-                  onSymbol={s => setChartSymbol(s)} />
+                <Ticket key={prefill.key} prefill={prefill} cash={sum.cash} now={now} quotes={quotes} onQuote={saveQuote} onPlace={onPlace} />
 
                 {ideas.length > 0 && (
                   <section className={`${card} p-5`} aria-labelledby="ideas-h">
                     <h2 id="ideas-h" className="text-[15px]">Ideas from your signals</h2>
                     <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)]">Tap one to fill in the trade. Always decide for yourself.</p>
                     <ul className="mt-3 space-y-2">
-                      {ideas.map(i => (
+                      {ideas.slice(0, 3).map(i => (
                         <li key={i.symbol}>
                           <button type="button" onClick={() => pickIdea(i)} className="w-full flex items-center justify-between gap-3 rounded-[10px] border border-[var(--mx-line)] px-3 py-2.5 text-left hover:border-[var(--mx-line-strong)] transition-colors">
                             <span className="flex items-center gap-2">
@@ -725,12 +729,6 @@ function PaperContent() {
 
               {/* Chart + positions */}
               <div className="space-y-6 min-w-0">
-                {chartSymbol && (
-                  <section className="rounded-[14px] overflow-hidden border border-[var(--mx-line)]" aria-label={`${chartSymbol} chart`}>
-                    <TraxoraChart symbol={chartSymbol} height={380} />
-                  </section>
-                )}
-
                 <section id="your-stocks" className="space-y-3 scroll-mt-20" aria-labelledby="hold-h">
                   <div className="flex items-baseline justify-between gap-3">
                     <h2 id="hold-h" className="text-[18px] tracking-[-0.01em]">Your stocks</h2>
@@ -767,20 +765,6 @@ function PaperContent() {
                           </li>
                         );
                       })}
-                    </ul>
-                  </section>
-                )}
-
-                {activity.length > 0 && (
-                  <section className="space-y-3" aria-labelledby="act-h">
-                    <h2 id="act-h" className="text-[18px] tracking-[-0.01em]">What happened</h2>
-                    <ul className={`${card} divide-y divide-[var(--mx-line)]`}>
-                      {activity.slice(0, 6).map(a => (
-                        <li key={a.id} className="px-4 py-3 flex items-start justify-between gap-3 text-[14px]">
-                          <span className="text-[var(--mx-text-2)]">{a.text}</span>
-                          <span className="shrink-0 text-[12px] text-[var(--mx-text-3)]">{ago(a.at)}</span>
-                        </li>
-                      ))}
                     </ul>
                   </section>
                 )}
