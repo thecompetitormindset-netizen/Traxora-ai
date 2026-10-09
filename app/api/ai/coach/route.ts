@@ -62,7 +62,7 @@ async function callAI(prompt: string): Promise<string> {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
-    return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+    return Response.json({ ok: false, reason: "UNAUTHORIZED", error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   }
   if (!checkRateLimit(`coach:${session.user.email}`, 5, 60_000)) {
     return Response.json({ ok: false, reason: "RATE_LIMITED" }, { status: 429 });

@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
-import { auth } from "@/auth";
 
 type Row = { symbol: string; price: number | null; change: number | null };
 
@@ -36,7 +36,7 @@ async function fetchQuote(symbol: string): Promise<Row> {
 }
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const url  = new URL(req.url);

@@ -2,7 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
 type LoggedRow = {
@@ -29,7 +29,7 @@ let cache: { data: unknown; ts: number } | null = null;
 const CACHE_TTL = 15 * 60 * 1000;
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) {

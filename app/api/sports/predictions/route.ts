@@ -2,7 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { fetchAllUpcoming } from "@/app/lib/sportsPredictions";
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
@@ -13,7 +13,7 @@ const CACHE_TTL = 30 * 60 * 1000; // 30 min — ESPN is free/unauthenticated, no
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) {

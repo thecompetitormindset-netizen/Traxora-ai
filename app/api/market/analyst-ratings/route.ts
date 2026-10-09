@@ -2,7 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { getYahooCookie, YAHOO_UA } from "@/app/lib/yahooAuth";
 
 export type AnalystRatings = {
@@ -36,7 +36,7 @@ function toConsensus(key: string): AnalystRatings["consensus"] {
 }
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const url    = new URL(req.url);

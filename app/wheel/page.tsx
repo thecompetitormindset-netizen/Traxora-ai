@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
@@ -391,12 +390,8 @@ type Tab    = "scanner" | "mywheel";
 type Filter = "all" | "highiv" | "bullish";
 
 export default function WheelPage() {
-  const { data: session, status } = useSession();
-  const router = useRouter();
+  const { status } = useSession();
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
 
   const [tab,          setTab]       = useState<Tab>("scanner");
   const [filter,       setFilter]    = useState<Filter>("all");
@@ -419,7 +414,6 @@ export default function WheelPage() {
   }), []);
 
   const loadScan = useCallback(async () => {
-    if (!session) return;
     setLoading(true); setError(null);
     try {
       const res  = await fetch("/api/market/wheel-scan");
@@ -431,7 +425,7 @@ export default function WheelPage() {
     } finally {
       setLoading(false);
     }
-  }, [session, enrichCandidate]);
+  }, [enrichCandidate]);
 
   const scanCustom = useCallback(async () => {
     const sym = customQuery.trim().toUpperCase();
@@ -496,7 +490,7 @@ export default function WheelPage() {
   const totalCollected  = positions.reduce((s, p) => s + (p.totalPremium ?? 0), 0);
   const urgentPositions = openPositions.filter(p => { const d = calcDTE(p.expiry); return d !== null && d <= 7; });
 
-  if (status === "loading" || status === "unauthenticated") {
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0D0B1A]">
         <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>

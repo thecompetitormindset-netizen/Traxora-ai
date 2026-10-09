@@ -27,21 +27,9 @@ function applySecurityHeaders(res: NextResponse, req: NextRequest) {
 export default auth((req) => {
   const { pathname } = req.nextUrl;
 
-  // Landing page, login, informational pages, next-auth callbacks, cron jobs, and public market data are public
-  const isPublic =
-    pathname === "/" ||
-    pathname === "/login" ||
-    pathname === "/guide" ||
-    pathname === "/pricing" ||
-    pathname.startsWith("/api/auth/") ||
-    pathname.startsWith("/api/cron/") ||
-    pathname === "/api/market/tickers" ||
-    pathname === "/api/ai/chat";
-
-  if (!req.auth && !isPublic) {
-    // Show the landing page (with its built-in sign-in button) instead of the bare /login screen
-    return NextResponse.redirect(new URL("/", req.url));
-  }
+  // Every page works without signing in. API routes enforce their own access:
+  // market data and rules-based analysis are open (rate-limited per visitor);
+  // AI-model features, orders, sync and account settings require a session.
 
   // Logged-in user hitting /login → send to dashboard (unless signing out)
   const signedOut = req.nextUrl.searchParams.get("signedOut");

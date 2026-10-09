@@ -204,7 +204,7 @@ async function fetchOptionsChain(symbol: string): Promise<{ expirationDates: num
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.email) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   }
 
   const allowed = checkRateLimit(`options-analysis:${session.user.email}`, 15, 60 * 60 * 1000);

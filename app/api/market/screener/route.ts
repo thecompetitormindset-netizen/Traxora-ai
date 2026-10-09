@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 25;
 
-import { auth } from "@/auth";
 
 // ── Static fundamental universe ────────────────────────────────────────────────
 // marketCapB = approximate market cap in $B (slow-moving, updated periodically)
@@ -85,7 +85,7 @@ type Row = {
 };
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   // Batch-fetch quotes from Yahoo Finance v7 (multiple symbols in one request)

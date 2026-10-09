@@ -44,7 +44,7 @@ async function fetchQuote(symbol: string) {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.email) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   }
 
   const allowed = checkRateLimit(`position-insight:${session.user.email}`, 20, 60 * 60 * 1000);

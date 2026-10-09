@@ -9,7 +9,7 @@ export const maxDuration = 60;
 // every viewer; at read time an approved candidate is re-checked for
 // freshness before it may be shown (see optionsAnalysis/display.ts).
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { supabaseAdmin } from "@/app/lib/supabase";
 import { UNIVERSE } from "@/app/api/market/options-scan/route";
 import { etTradingDate, nyseSessionStatus, type SessionStatus } from "@/app/lib/marketTime";
@@ -216,7 +216,7 @@ function respond(rows: Row[], persisted: boolean) {
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const sym = symbolParam(req);
@@ -240,7 +240,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const sym = symbolParam(req);

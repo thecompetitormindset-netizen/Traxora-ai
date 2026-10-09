@@ -112,7 +112,7 @@ function parseAnalysis(text: string): IPOAnalysis | null {
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.email) return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   if (!checkRateLimit(`ipo-analyze:${session.user.email}`, 10, 60_000)) {
     return Response.json({ error: "Rate limited. Try again shortly." }, { status: 429 });
   }

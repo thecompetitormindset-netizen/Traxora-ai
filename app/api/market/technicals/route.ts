@@ -2,6 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 12;
 
+import { viewer } from "@/app/lib/viewer";
 import { auth }          from "@/auth";
 import { toYahooSymbol } from "@/app/lib/yahooSymbol";
 
@@ -103,7 +104,7 @@ export type Technicals = {
 // ── Route ─────────────────────────────────────────────────────────────────────
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const sym = (new URL(req.url).searchParams.get("symbol") ?? "").trim();

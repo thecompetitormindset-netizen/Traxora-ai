@@ -299,7 +299,7 @@ async function handleBriefing(portfolio: PortfolioSnapshot | null): Promise<Resp
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED", error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
   }
@@ -310,7 +310,7 @@ export async function POST(req: Request) {
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
+  if (!session?.user) return Response.json({ ok: false, reason: "UNAUTHORIZED", error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   if (!checkRateLimit(`briefing:${session.user.email}`, 3, 60_000)) {
     return Response.json({ error: "Rate limit — max 3 briefings per minute" }, { status: 429 });
   }

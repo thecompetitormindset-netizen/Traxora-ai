@@ -1,6 +1,6 @@
+import { viewer } from "@/app/lib/viewer";
 import Anthropic from "@anthropic-ai/sdk";
 import { smartMoneyScore, detectOrderBlocks, detectFVG, computeCanonicalTrade } from "@/app/lib/smartMoney";
-import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { getVolumeProfile } from "@/app/lib/volumeProfile";
 import type { VolumeProfile } from "@/app/lib/volumeProfile";
@@ -152,7 +152,7 @@ async function fetchVIX(): Promise<number | null> {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -373,8 +373,9 @@ export async function POST(req: Request) {
     let summary   = fallbackSummary;
     let keyPoints = fallbackKeyPoints;
 
-    // Full AI-generated analysis (analysis page — single stock, user-triggered)
-    if (!quick && process.env.ANTHROPIC_API_KEY) {
+    // Full AI-generated analysis (analysis page — single stock, user-triggered).
+    // Signed-in users only: anonymous visitors get the rules-based summary above.
+    if (!quick && !session.user.anonymous && process.env.ANTHROPIC_API_KEY) {
       try {
         const prompt = [
           `${clean} — $${price.toFixed(2)} (${dayChangePercent >= 0 ? "+" : ""}${dayChangePercent.toFixed(2)}% today)`,

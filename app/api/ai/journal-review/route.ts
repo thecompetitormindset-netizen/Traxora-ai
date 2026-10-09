@@ -65,7 +65,7 @@ async function callAI(prompt: string): Promise<string> {
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   }
   if (!checkRateLimit(`journal-review:${session.user.email}`, 5, 60_000)) {
     return Response.json({ error: "Rate limit — max 5 reviews per minute" }, { status: 429 });

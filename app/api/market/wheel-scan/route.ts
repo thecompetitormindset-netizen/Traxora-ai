@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 45;
 
-import { auth } from "@/auth";
 
 const WHEEL_UNIVERSE = [
   "NVDA","AMD","TSLA","META","AMZN","GOOGL","MSFT","AAPL","NFLX","COIN",
@@ -303,7 +303,7 @@ export type WheelCandidate = {
 };
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);

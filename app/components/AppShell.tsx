@@ -18,6 +18,7 @@ const RiskGuard      = dynamic(() => import("./RiskGuard"),      { ssr: false })
 const AutoCoach      = dynamic(() => import("./AutoCoach"),      { ssr: false });
 const SignalToast    = dynamic(() => import("./SignalToast"),    { ssr: false });
 const PortfolioSync  = dynamic(() => import("./PortfolioSync"),  { ssr: false });
+const SignInPrompt   = dynamic(() => import("./SignInPrompt"),   { ssr: false });
 
 export default function AppShell() {
   const pathname = usePathname();
@@ -32,6 +33,7 @@ export default function AppShell() {
     <>
       <AnimationProvider />
       <SessionWatcher />
+      <SignInPrompt />
       {!isMarketing && (
         <>
           <WelcomeModal />

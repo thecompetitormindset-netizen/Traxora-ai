@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
-import { auth } from "@/auth";
 
 export type FlowRow = {
   symbol:        string;
@@ -125,7 +125,7 @@ function fmtVol(n: number): string {
 void fmtVol; // used by clients
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   void req;

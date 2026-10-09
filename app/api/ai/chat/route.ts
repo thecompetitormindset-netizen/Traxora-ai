@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { auth } from "@/auth";
 
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
@@ -145,6 +146,11 @@ async function getAIReply(messages: Msg[]): Promise<string> {
 }
 
 export async function POST(req: Request) {
+  // AI features call a paid model, so they need a signed-in user.
+  const session = await auth();
+  if (!session?.user) {
+    return Response.json({ ok: false, error: "Sign in to use Ask AI.", signIn: true }, { status: 401 });
+  }
   try {
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
       ?? req.headers.get("x-real-ip")

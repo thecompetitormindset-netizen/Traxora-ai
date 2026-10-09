@@ -2,6 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
+import { viewer } from "@/app/lib/viewer";
 import { callClaude, cacheGet, cacheSet, PROMPTS } from "../../../lib/sentiment";
 import { auth } from "../../../../auth";
 
@@ -50,7 +51,7 @@ export async function POST(req: Request) {
     // Per-user cache key (Opus reports are expensive, cache 4h)
     let cacheKey = "master:anon";
     try {
-      const session = await auth();
+      const session = await viewer();
       if (session?.user?.email) {
         cacheKey = `master:${userHash(session.user.email)}`;
       }

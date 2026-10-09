@@ -1,5 +1,5 @@
+import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore, computeCanonicalTrade } from "@/app/lib/smartMoney";
-import { auth } from "@/auth";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 
 export const runtime = "nodejs";
@@ -149,7 +149,7 @@ function scoreStock(s: StockInput) {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) {
     return Response.json({ ok: false, reason: "UNAUTHORIZED" }, { status: 401 });
   }

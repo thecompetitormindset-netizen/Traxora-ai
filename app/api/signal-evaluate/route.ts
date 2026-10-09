@@ -1,7 +1,7 @@
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { evaluate, type ResolvedPrediction, type EvalReport } from "@/app/lib/evaluate";
 
 type IncomingSignal = {
@@ -58,7 +58,7 @@ function exitPriceAt(bars: DailyBar[], signalMs: number, horizonTradingDays: num
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   let signals: IncomingSignal[] = [];

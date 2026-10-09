@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useSession, signIn } from "next-auth/react";
 
-// Landing page — shown to everyone at "/", including signed-in users, who get
-// an "Open dashboard" button instead of being redirected. Monochrome tokens
+// Landing page — shown to everyone at "/". No account is needed: every button
+// opens the dashboard. (Only AI-model features ask for sign-in, where used.) Monochrome tokens
 // (app/monochrome.css). The preview is a labelled illustration of the app's
 // layout, not live market data; no testimonials or performance claims.
 
@@ -32,6 +31,7 @@ const PRINCIPLES = [
 
 const FAQ = [
   { q: "What is Traxora?", a: "A research workspace for stocks, options, futures and crypto. It reads public market data, checks it against clear rules, and shows either a setup worth practising on paper or the reason there isn’t one." },
+  { q: "Do I need an account?", a: "No. Open the dashboard and everything works. Signing in with Google is only needed for the AI features — Ask AI, deep analysis, the morning brief and journal coaching — and to sync your data across devices." },
   { q: "Why do I so often see “No trade”?", a: "Because waiting is usually the right call. A candidate only appears when every check passes — fresh quotes, enough liquidity, no event before expiry, a defined exit. Otherwise you see exactly which check failed and what would change it." },
   { q: "Is the market data live?", a: "No. It comes from free public sources and is typically delayed around 15 minutes. Every price shows its source and time, and anything missing is labelled “Unavailable” rather than guessed." },
   { q: "Can I place real trades from Traxora?", a: "No. Options analysis is paper-trading only, and the paper portfolio uses simulated money. Traxora is for research and practice, not order placement." },
@@ -96,15 +96,9 @@ function Preview() {
 }
 
 export default function HomePage() {
-  const { data: session, status } = useSession();
   const router = useRouter();
-  const signedIn = status === "authenticated" && !!session;
-
-  function launch() {
-    if (signedIn) router.push("/dashboard");
-    else signIn("google", { callbackUrl: "/dashboard" }, { prompt: "select_account" });
-  }
-  const primaryLabel = signedIn ? "Open dashboard" : "Get started";
+  const launch = () => router.push("/dashboard");
+  const primaryLabel = "Open dashboard";
 
   return (
     <div className="min-h-screen bg-[var(--mx-canvas)] text-[var(--mx-text)]">
@@ -118,9 +112,6 @@ export default function HomePage() {
             <a href="#faq" className="hover:text-[var(--mx-text)]">FAQ</a>
           </div>
           <div className="flex items-center gap-2">
-            {!signedIn && (
-              <button type="button" onClick={launch} className="hidden sm:inline-flex h-9 px-3.5 items-center rounded-[8px] text-[14px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">Sign in</button>
-            )}
             <button type="button" onClick={launch} className="h-9 px-4 rounded-[8px] bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[14px]">
               {primaryLabel}
             </button>
@@ -148,7 +139,7 @@ export default function HomePage() {
               </a>
             </div>
             <p className="mt-4 text-[13px] text-[var(--mx-text-3)]">
-              {signedIn ? `Signed in as ${session?.user?.email ?? "you"}.` : "Sign in with Google. Educational tool — not financial advice."}
+              No account needed. Educational tool — not financial advice.
             </p>
           </div>
           <Preview />

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
@@ -27,14 +26,10 @@ function pct(correct: number, total: number): string {
 
 export default function TrackRecordPage() {
   const { status } = useSession();
-  const router = useRouter();
   const [data,    setData]    = useState<TrackRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed,  setFailed]  = useState(false);
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
 
   function load() {
     setLoading(true);
@@ -48,7 +43,7 @@ export default function TrackRecordPage() {
 
   useEffect(() => { load(); }, []);
 
-  if (status === "loading" || status === "unauthenticated") {
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0D0B1A]">
         <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>

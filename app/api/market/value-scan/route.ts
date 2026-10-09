@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
-import { auth } from "@/auth";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ const CACHE_TTL = 30 * 60 * 1000;
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) {

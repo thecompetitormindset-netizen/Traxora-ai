@@ -378,7 +378,7 @@ export type ProAnalysisResult = {
 export async function POST(req: Request): Promise<Response> {
   try {
   const session = await auth();
-  if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.email) return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
 
   const allowed = checkRateLimit(`pro-analysis:${session.user.email}`, 10, 60 * 60 * 1000);
   if (!allowed) return Response.json({ error: "Rate limit reached — 10 pro analyses per hour." }, { status: 429 });

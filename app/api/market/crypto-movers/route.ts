@@ -2,7 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 25;
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -308,7 +308,7 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 min — crypto moves fast, keep this fre
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   if (cache && Date.now() - cache.ts < CACHE_TTL) {

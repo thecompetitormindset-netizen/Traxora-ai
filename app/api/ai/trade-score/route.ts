@@ -69,7 +69,7 @@ Respond ONLY with valid JSON, no markdown:
 
 export async function POST(req: NextRequest) {
   const session = await auth();
-  if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session?.user?.email) return Response.json({ error: "Sign in to use AI features.", signIn: true }, { status: 401 });
   if (!checkRateLimit(`trade-score:${session.user.email}`, 20, 60 * 60 * 1000)) {
     return Response.json({ error: "Too many requests. Try again in an hour." }, { status: 429 });
   }

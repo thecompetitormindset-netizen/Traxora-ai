@@ -59,6 +59,7 @@ export default function AutoCoach() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ trades: portfolio.trades, wins, losses, winRate }),
           });
+          if (res.status === 401) { setVisible(false); return; }   // signed out: coaching is an AI feature
           const data = await res.json() as { report?: string; reason?: string };
           if (!res.ok || data.reason === "AI_UNAVAILABLE") {
             setReport("AI features temporarily unavailable — please check back shortly.");

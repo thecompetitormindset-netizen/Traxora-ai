@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { getPortfolio } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
 
@@ -405,6 +406,7 @@ const LOAD_STEPS = [
 ];
 
 export default function MorningBriefing() {
+  const { status: authStatus } = useSession();
   const [visible,    setVisible]    = useState(false);
   const [loading,    setLoading]    = useState(false);
   const [loadStep,   setLoadStep]   = useState(0);
@@ -479,6 +481,10 @@ export default function MorningBriefing() {
         body:    JSON.stringify({ portfolio: portfolioSnapshot }),
         cache:   "no-store",
       });
+      if (res.status === 401) {
+        setError("Sign in to get the morning brief — it uses an AI model.");
+        return;
+      }
       let data: { ok?: boolean; reason?: string; error?: string; opportunities?: unknown[] };
       try {
         data = await res.json();
@@ -507,7 +513,9 @@ export default function MorningBriefing() {
     }
   }
 
+  // Auto-open once on weekday mornings — signed-in users only (it uses an AI model).
   useEffect(() => {
+    if (authStatus !== "authenticated") return;
     const { hour, minute, day } = getETHour();
     const totalMins  = hour * 60 + minute;
     const isWeekday  = day >= 1 && day <= 5;
@@ -519,7 +527,10 @@ export default function MorningBriefing() {
       localStorage.setItem(scopedKey(DATE_KEY_BASE), today);
       fetchBriefing();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus]);
 
+  useEffect(() => {
     function onManual() {
       setManualOpen(true);
       fetchBriefing();

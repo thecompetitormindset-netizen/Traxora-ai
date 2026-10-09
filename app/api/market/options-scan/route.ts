@@ -2,8 +2,8 @@ export const runtime  = "nodejs";
 export const dynamic  = "force-dynamic";
 export const maxDuration = 45;
 
+import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
-import { auth } from "@/auth";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
@@ -412,7 +412,7 @@ export async function runOptionsScan() {
 }
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const result = await runOptionsScan();
   return Response.json(result, {

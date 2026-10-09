@@ -1,8 +1,7 @@
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
-import { auth } from "@/auth";
-import { getUserPlan } from "@/app/lib/subscription";
+import { viewer } from "@/app/lib/viewer";
 
 const STATIC_UNIVERSE = [
   "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","ORCL",
@@ -152,10 +151,8 @@ function formatAge(unix: number): string {
 }
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const plan = await getUserPlan(session.user.email);
-  if (plan !== "pro") return Response.json({ error: "Pro required" }, { status: 403 });
 
   try {
     // 1. Trending tickers

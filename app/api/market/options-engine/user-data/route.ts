@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 // paper restriction. Results are returned to the requester only — never
 // persisted or shown to anyone else.
 
-import { auth } from "@/auth";
+import { viewer } from "@/app/lib/viewer";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { buildUserInput, futureTimeIssues, parseUserData } from "@/app/lib/optionsAnalysis/userData";
 import { analyzeInput } from "@/app/lib/optionsAnalysis/service";
@@ -15,7 +15,7 @@ import { toResearch } from "@/app/lib/optionsAnalysis/display";
 const MAX_BODY_BYTES = 512 * 1024;
 
 export async function POST(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
   if (!checkRateLimit(`options-user-data:${session.user.email ?? "anon"}`, 20, 60_000)) {
     return Response.json({ error: "rate_limited", retryAfterSeconds: 60 }, { status: 429 });

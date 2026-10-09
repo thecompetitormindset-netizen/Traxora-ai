@@ -1,8 +1,8 @@
+import { viewer } from "@/app/lib/viewer";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
-import { auth } from "@/auth";
 
 const UNIVERSE = [
   "AAPL","MSFT","NVDA","AMD","TSLA","META","AMZN","GOOGL","INTC","NFLX",
@@ -29,7 +29,7 @@ export type MoversData = {
 };
 
 export async function GET() {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
 
   const unique = [...new Set(UNIVERSE)];

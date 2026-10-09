@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
@@ -172,7 +171,6 @@ function GameCard({
 
 export default function SportsPage() {
   const { status, data: session } = useSession();
-  const router = useRouter();
 
   const [games,      setGames]      = useState<GamePrediction[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -191,9 +189,6 @@ export default function SportsPage() {
   const todayKey    = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
   const tomorrowKey = useMemo(() => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA"), []);
 
-  useEffect(() => {
-    if (status === "unauthenticated") router.replace("/login");
-  }, [status, router]);
 
   useEffect(() => {
     fetch("/api/sports/predictions", { cache: "no-store" })
@@ -320,7 +315,7 @@ export default function SportsPage() {
     ? comboGames.reduce((p, g) => p * ((g.winnerConfidence ?? 0) / 100), 1) * 100
     : null;
 
-  if (status === "loading" || status === "unauthenticated") {
+  if (status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#0D0B1A]">
         <svg className="animate-spin text-emerald-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>

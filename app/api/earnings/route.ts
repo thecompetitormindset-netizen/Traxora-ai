@@ -1,9 +1,9 @@
+import { viewer } from "@/app/lib/viewer";
 export const dynamic = "force-dynamic";
 
-import { auth } from "@/auth";
 
 export async function GET(req: Request) {
-  const session = await auth();
+  const session = await viewer();
   if (!session?.user?.email) return Response.json({}, { status: 401 });
   const { searchParams } = new URL(req.url);
   const symbols = (searchParams.get("symbols") ?? "")

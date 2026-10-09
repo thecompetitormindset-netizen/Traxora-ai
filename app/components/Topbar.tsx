@@ -537,8 +537,9 @@ export default function Topbar({ onSearch }: TopbarProps) {
         ) : (
           <button
             type="button"
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
-            className="bg-emerald-600 hover:bg-emerald-500 transition-colors px-4 py-2 rounded-xl text-sm font-semibold text-white"
+            onClick={() => signIn("google", { callbackUrl: window.location.href })}
+            title="Optional — needed only for AI features and syncing across devices"
+            className="h-9 px-3.5 rounded-[8px] border border-[var(--mx-line-strong)] text-[13px] text-[var(--mx-text)] hover:border-[var(--mx-control)] transition-colors"
           >
             Sign in
           </button>
