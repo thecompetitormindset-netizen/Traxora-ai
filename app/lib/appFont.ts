@@ -7,7 +7,10 @@ const FALLBACK = {
   mono: "ui-monospace, SFMono-Regular, Menlo, monospace",
 };
 
+// One typeface everywhere: "mono" callers (chart axes, price labels) get Geist
+// too, so charts match the rest of the app.
 export function appFontFamily(kind: "sans" | "mono" = "sans"): string {
+  kind = "sans";
   if (typeof document === "undefined") return FALLBACK[kind];
   const v = getComputedStyle(document.documentElement)
     .getPropertyValue(kind === "sans" ? "--font-geist" : "--font-mono-custom")

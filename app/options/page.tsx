@@ -6,40 +6,43 @@ import { useEffect, useMemo, useState } from "react";
 import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import { FnIcon, Notice, PaperNotice, StateBadge } from "../components/fieldnotes/primitives";
 import UserDataSection from "../components/fieldnotes/UserDataSection";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
-import { STATE_HELP, STATE_LABEL, shortReason, stateOf, type UiState } from "../components/fieldnotes/uiState";
-import { fmtEt, fmtLevel, fmtSignedPct } from "../components/fieldnotes/format";
+import { plainReason, stateOf } from "../components/fieldnotes/uiState";
 import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
 
-const GROUP_ORDER: UiState[] = ["validated", "expired", "no_trade", "unavailable", "error"];
+// Options, in plain words. One sentence says whether there's anything worth
+// looking at; ideas (if any) come next; the full list of checked stocks is
+// folded away. Analysis rules are unchanged (app/lib/optionsAnalysis).
 
-function Row({ a, onOpen }: { a: DisplayAnalysis; onOpen: (s: string) => void }) {
-  const state = stateOf(a);
+const card = "rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)]";
+const fmt = (n: number | null) => (n == null ? "—" : `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+
+function IdeaCard({ a, onOpen }: { a: DisplayAnalysis; onOpen: (s: string) => void }) {
+  const dir = a.output?.canonical_direction;
   return (
-    <tr data-link="" onClick={() => onOpen(a.symbol)}>
-      <th scope="row" style={{ textAlign: "left", padding: "10px 12px", borderBottom: "1px solid var(--fn-rule)" }}>
-        <Link href={`/options/${encodeURIComponent(a.symbol)}`} className="fn-num" style={{ fontWeight: 700, color: "var(--fn-text)" }} onClick={e => e.stopPropagation()}>
-          {a.symbol}
-        </Link>
-      </th>
-      <td className="fn-r">{fmtLevel(a.price)}</td>
-      <td className={`fn-r ${a.change_pct === null ? "" : a.change_pct >= 0 ? "fn-pos" : "fn-neg"}`}>{fmtSignedPct(a.change_pct)}</td>
-      <td className="fn-numcell">{fmtEt(a.price_timestamp)}<div className="fn-meta">{a.price_timestamp_kind === "QUOTE" ? "quote" : "last trade"}, delayed</div></td>
-      <td><StateBadge state={state} /></td>
-      <td className="fn-text-2" style={{ minWidth: 180 }}>{shortReason(a)}</td>
-    </tr>
+    <li>
+      <button type="button" onClick={() => onOpen(a.symbol)} className={`${card} w-full text-left p-5 hover:border-[var(--mx-line-strong)] transition-colors`}>
+        <div className="flex items-baseline justify-between gap-3">
+          <p className="text-[18px]">{a.symbol}</p>
+          <p className="tabular-nums text-[var(--mx-text-2)]">{fmt(a.price)}</p>
+        </div>
+        <p className="mt-1 text-[14px] text-[var(--mx-text-2)]">
+          {dir === "BULLISH" ? "An idea if you think it will go up." : dir === "BEARISH" ? "An idea if you think it will go down." : "An idea that doesn’t depend on direction."}
+        </p>
+        <p className="mt-3 text-[13.5px]">See the plan, the most you could lose, and when to get out →</p>
+      </button>
+    </li>
   );
 }
 
 function Overview() {
   const router = useRouter();
   const { state, refresh } = useOptionsList();
-  const [filter, setFilter] = useState<UiState | "all">("all");
   const [query, setQuery] = useState("");
   const [queryError, setQueryError] = useState<string | null>(null);
   const [supplySignal, setSupplySignal] = useState(0);
+
   useEffect(() => {
     // Arriving from a research page's "Analyze your own data" action.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -47,133 +50,120 @@ function Overview() {
   }, []);
 
   const data = state.kind === "ready" ? state.data : null;
-  const groups = useMemo(() => {
-    const m = new Map<UiState, DisplayAnalysis[]>();
-    for (const a of data?.analyses ?? []) {
-      const s = stateOf(a);
-      m.set(s, [...(m.get(s) ?? []), a]);
-    }
-    return m;
-  }, [data]);
+  const open = data?.session.status === "OPEN";
+  const rows = useMemo(() => data?.analyses ?? [], [data]);
+  const ideas = rows.filter(a => stateOf(a) === "validated");
 
-  const open = (s: string) => router.push(`/options/${encodeURIComponent(s)}`);
+  // The most common reason nothing qualified, for the headline.
+  const top = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const a of rows) if (stateOf(a) !== "validated") { const r = plainReason(a, !!open); m.set(r, (m.get(r) ?? 0) + 1); }
+    return [...m.entries()].sort((x, y) => y[1] - x[1])[0] ?? null;
+  }, [rows, open]);
 
+  const openSymbol = (s: string) => router.push(`/options/${encodeURIComponent(s)}`);
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const s = query.trim().toUpperCase();
-    if (!/^[A-Z]{1,5}(\.[A-Z])?$/.test(s)) { setQueryError("Enter a US ticker of 1–5 letters, e.g. AAPL."); return; }
+    if (!/^[A-Z]{1,5}(\.[A-Z])?$/.test(s)) { setQueryError("Enter a US ticker, like AAPL."); return; }
     setQueryError(null);
-    open(s);
+    openSymbol(s);
   }
 
-  const total = data?.analyses.length ?? 0;
-  const shown = GROUP_ORDER.filter(g => (groups.get(g)?.length ?? 0) > 0 && (filter === "all" || filter === g));
+  const headline = !data ? null
+    : ideas.length > 0 ? `${ideas.length} option ${ideas.length === 1 ? "idea" : "ideas"} passed every check.`
+    : "No option ideas right now.";
+  const why = !data || ideas.length > 0 ? null
+    : top?.[0] === "Market is closed" ? "The market is closed, so prices aren’t fresh enough to check safely. We’ll look again after it opens at 9:30 AM ET."
+    : `We checked ${rows.length} popular stocks and none passed all our safety checks${top ? ` (most often: ${top[0].toLowerCase()})` : ""}. That’s normal — waiting is often the right call.`;
 
   return (
-    <div className="fn fn-page space-y-5">
-      <header className="space-y-3">
-        <div className="flex items-end justify-between gap-3 flex-wrap">
-          <div>
-            <p className="fn-caps">Options</p>
-            <h1 className="fn-title">Candidates</h1>
-          </div>
-          <div className="flex items-center gap-2">
-          <button type="button" className="fn-btn" onClick={refresh} disabled={state.kind !== "ready" || state.refreshing}>
-            <FnIcon.Refresh /> {state.kind === "ready" && state.refreshing ? "Refreshing…" : "Refresh analysis"}
-          </button>
-          </div>
-        </div>
-        {data ? (
-          <p data-tour="opt-session" className="fn-text-2" style={{ fontSize: "var(--fn-fs-sm)" }}>
-            <span className="fn-src" data-src={data.session.status === "OPEN" ? "fresh" : "historical"} aria-hidden="true" style={{ display: "inline-block", marginRight: 6, verticalAlign: "middle" }} />
-            NYSE {data.session.status === "OPEN" ? "open" : data.session.status === "CLOSED" ? "closed" : "status unknown"} ({data.session.detail})
-            {" · "}analysis as of {fmtEt(data.as_of)}
-            {" · "}underlying prices delayed; option quotes from a public snapshot without per-quote times
+    <div className="space-y-6">
+      <header className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]" style={{ fontWeight: 450 }}>Options</h1>
+          <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[60ch]">
+            We check popular stocks for option trades that pass strict safety rules. Practice only — never real money.
           </p>
-        ) : <div className="fn-skel" style={{ width: "70%", height: 16 }} />}
-        {state.kind === "ready" && state.message && <p className="fn-meta" role="status">{state.message}</p>}
+        </div>
+        <button type="button" onClick={refresh} disabled={state.kind !== "ready" || state.refreshing}
+          className="h-9 px-4 rounded-full border border-[var(--mx-line)] text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] disabled:opacity-40">
+          {state.kind === "ready" && state.refreshing ? "Checking…" : "Check again"}
+        </button>
       </header>
 
-      <PaperNotice />
+      {/* The answer */}
+      <section className={`${card} p-5 sm:p-6`} aria-live="polite">
+        {state.kind === "loading" && <div className="space-y-3 animate-pulse"><div className="h-7 w-64 rounded bg-[var(--mx-raised)]" /><div className="h-4 w-3/4 rounded bg-[var(--mx-raised)]" /></div>}
+        {state.kind === "error" && (
+          <>
+            <p className="text-[20px]">We couldn’t load the options check.</p>
+            <p className="mt-2 text-[14px] text-[var(--mx-text-2)]">{state.message}</p>
+            <button type="button" onClick={() => location.reload()} className="mt-4 h-9 px-4 rounded-full border border-[var(--mx-line)] text-[13px]">Try again</button>
+          </>
+        )}
+        {data && (
+          <>
+            <p className="text-[24px] sm:text-[28px] leading-tight tracking-[-0.02em]" style={{ fontWeight: 450 }}>{headline}</p>
+            {why && <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)] max-w-[64ch]">{why}</p>}
+            {state.kind === "ready" && state.message && <p className="mt-2 text-[13px] text-[var(--mx-text-3)]">{state.message}</p>}
+          </>
+        )}
+      </section>
 
-      <form data-tour="opt-search" onSubmit={submit} className="fn-surface flex flex-wrap items-end gap-3" role="search" aria-label="Research a symbol">
-        <div className="flex-1" style={{ minWidth: 200 }}>
-          <label htmlFor="fn-sym" className="fn-label">Research a symbol</label>
-          <input
-            id="fn-sym" className="fn-input fn-num" style={{ marginTop: 6, textTransform: "uppercase" }}
-            value={query} onChange={e => setQuery(e.target.value)} placeholder="AAPL" autoComplete="off" spellCheck={false}
-            aria-invalid={!!queryError} aria-describedby={queryError ? "fn-sym-err" : undefined}
-          />
-          {queryError && <p id="fn-sym-err" className="fn-meta fn-neg" style={{ marginTop: 4 }}>{queryError}</p>}
+      {ideas.length > 0 && (
+        <section aria-labelledby="ideas-h" className="space-y-3">
+          <h2 id="ideas-h" className="text-[18px]">Ideas to practise</h2>
+          <ul className="grid sm:grid-cols-2 gap-3">{ideas.map(a => <IdeaCard key={a.symbol} a={a} onOpen={openSymbol} />)}</ul>
+        </section>
+      )}
+
+      {/* Look up one stock */}
+      <form onSubmit={submit} className={`${card} p-5`} role="search" aria-label="Check a stock">
+        <label htmlFor="opt-sym" className="block text-[15px]">Check a stock</label>
+        <p className="mt-0.5 text-[13px] text-[var(--mx-text-3)]">See what we found for any US stock, in plain words.</p>
+        <div className="mt-3 flex gap-2">
+          <input id="opt-sym" value={query} onChange={e => setQuery(e.target.value.toUpperCase())} placeholder="AAPL" autoComplete="off" spellCheck={false}
+            aria-invalid={!!queryError} aria-describedby={queryError ? "opt-sym-err" : undefined}
+            className="flex-1 min-w-0 h-11 rounded-[10px] border border-[var(--mx-line)] bg-[var(--mx-canvas)] px-3 text-[15px] tabular-nums focus:outline-none focus:border-[var(--mx-control)]" />
+          <button type="submit" className="h-11 px-5 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[14px]">Check</button>
         </div>
-        <button type="submit" className="fn-btn fn-btn-primary"><FnIcon.Search /> Open research</button>
+        {queryError && <p id="opt-sym-err" className="mt-2 text-[13px] text-[var(--mx-down)]">{queryError}</p>}
       </form>
 
-      {state.kind === "loading" && (
-        <section className="fn-surface space-y-3" aria-busy="true" aria-label="Loading analysis">
-          <StateBadge state="analyzing" />
-          {Array.from({ length: 5 }).map((_, i) => <div key={i} className="fn-skel" style={{ height: 36 }} />)}
-        </section>
+      {/* Everything we checked, folded away */}
+      {rows.length > 0 && (
+        <details className={`${card} group`}>
+          <summary className="cursor-pointer list-none flex items-center justify-between p-5 text-[15px]">
+            <span>All {rows.length} stocks we checked</span>
+            <span aria-hidden="true" className="text-[var(--mx-text-3)] transition-transform group-open:rotate-45 text-[18px]">+</span>
+          </summary>
+          <ul className="border-t border-[var(--mx-line)] divide-y divide-[var(--mx-line)]">
+            {rows.map(a => (
+              <li key={a.symbol}>
+                <Link href={`/options/${encodeURIComponent(a.symbol)}`} className="flex items-center justify-between gap-3 px-5 py-3 hover:bg-[var(--mx-raised)]">
+                  <span className="min-w-0">
+                    <span className="text-[15px]">{a.symbol}</span>
+                    <span className="block text-[13px] text-[var(--mx-text-3)] truncate">{plainReason(a, !!open)}</span>
+                  </span>
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="block text-[14px]">{fmt(a.price)}</span>
+                    {a.change_pct != null && <span className={`block text-[12.5px] ${a.change_pct >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}`}>{a.change_pct >= 0 ? "+" : "−"}{Math.abs(a.change_pct).toFixed(2)}%</span>}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
-      {state.kind === "error" && (
-        <section className="fn-surface space-y-3">
-          <StateBadge state="error" />
-          <p className="fn-h3">The analysis couldn&apos;t be loaded</p>
-          <p className="fn-text-2">{state.message}</p>
-          <button type="button" className="fn-btn" onClick={() => location.reload()}>Try again</button>
-        </section>
-      )}
+      <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)]">
+        For learning only — not financial advice. Options can lose all the money put into them. Prices come from free public sources and can be delayed.
+        {" "}<Link href="/journal#analysis-notebook" className="underline">Your saved checks</Link>
+      </p>
 
-      {data && (
-        <>
-          <div className="space-y-2">
-            <div data-tour="opt-filters" className="flex flex-wrap gap-2" role="group" aria-label="Filter by analysis state">
-              <button type="button" className="fn-chip" aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All <span className="fn-num">{total}</span></button>
-              {GROUP_ORDER.filter(g => groups.has(g)).map(g => (
-                <button key={g} type="button" className="fn-chip" aria-pressed={filter === g} onClick={() => setFilter(g)} title={STATE_HELP[g]}>
-                  {STATE_LABEL[g]} <span className="fn-num">{groups.get(g)!.length}</span>
-                </button>
-              ))}
-            </div>
-            <p className="fn-meta">Counts describe analysis outcomes. More candidates doesn&apos;t mean better analysis — a completed no-trade is a result.</p>
-          </div>
-
-          {!groups.has("validated") && (
-            <Notice tone="info" title="No validated estimates right now">
-              Every symbol below finished its analysis. Open one to see what&apos;s missing and the next step.
-            </Notice>
-          )}
-
-          {shown.map((g, gi) => (
-            <section key={g} data-tour={gi === 0 ? "opt-table" : undefined} className="fn-surface" style={{ padding: 0 }} aria-labelledby={`grp-${g}`}>
-              <div className="flex items-center justify-between gap-3 flex-wrap" style={{ padding: "14px 16px 6px" }}>
-                <h2 id={`grp-${g}`} className="fn-h2">{STATE_LABEL[g]} <span className="fn-meta fn-num">· {groups.get(g)!.length}</span></h2>
-                <p className="fn-meta">{STATE_HELP[g]}</p>
-              </div>
-              <div className="fn-scroll-x" tabIndex={0} role="region" aria-label={`${STATE_LABEL[g]} table`}>
-                <table className="fn-ledger">
-                  <thead>
-                    <tr>
-                      <th scope="col">Symbol</th><th scope="col" className="fn-r">Price</th><th scope="col" className="fn-r">Change</th>
-                      <th scope="col">Source time</th><th scope="col">State</th><th scope="col">Reason</th>
-                    </tr>
-                  </thead>
-                  <tbody>{groups.get(g)!.map(a => <Row key={a.symbol} a={a} onOpen={open} />)}</tbody>
-                </table>
-              </div>
-            </section>
-          ))}
-        </>
-      )}
-
-      <UserDataSection openSignal={supplySignal} />
-
-      <nav aria-label="Related" className="flex flex-wrap gap-x-5 gap-y-2 fn-meta">
-        <Link href="/journal#analysis-notebook" className="underline">Saved analyses in your journal</Link>
-        <Link href="/paper" className="underline">Paper portfolio</Link>
-        <Link href="/intelligence?section=options" className="underline">Options &amp; futures screener</Link>
-      </nav>
+      {/* Advanced: check your own price data (linked from research pages) */}
+      <div className="fn"><UserDataSection openSignal={supplySignal} /></div>
     </div>
   );
 }
@@ -181,14 +171,16 @@ function Overview() {
 export default function OptionsPage() {
   return (
     <PaywallGuard>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen text-[var(--mx-text)]">
         <Sidebar />
-        <main className="min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36">
+        <div className="flex-1 flex flex-col min-w-0">
           <Topbar />
-          <div className="max-w-6xl mx-auto w-full">
-            <Overview />
-          </div>
-        </main>
+          <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+            <div className="max-w-3xl mx-auto w-full">
+              <Overview />
+            </div>
+          </main>
+        </div>
       </div>
     </PaywallGuard>
   );

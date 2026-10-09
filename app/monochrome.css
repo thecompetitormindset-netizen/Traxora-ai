@@ -132,7 +132,7 @@ body {
   font-feature-settings: normal;
   letter-spacing: -0.006em;
 }
-.font-mono, [data-price], code, kbd {
+code, kbd {
   font-family: var(--font-mono-custom), ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 :focus-visible { outline: 2px solid var(--mx-text) !important; outline-offset: 2px; }
@@ -259,8 +259,7 @@ html[data-theme] [class*="bg-linear-to-"] {
 
 /* Mono micro-labels used across the new frame. */
 .mx-label {
-  font-family: var(--font-mono-custom), ui-monospace, monospace;
-  font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--mx-text-3);
+  font-size: 12.5px; letter-spacing: 0; color: var(--mx-text-3);
 }
 
 /* ── Neutralise the legacy clean/ember orange branding ─────────────────────── */
@@ -287,4 +286,22 @@ html[data-theme] .ping-live { background: var(--mx-up) !important; }
 /* SVG labels (gauges, P&L diagrams) set font-family as an attribute; CSS
    outranks presentation attributes, so they follow the app fonts too. */
 html[data-theme] svg text { font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif; }
-html[data-theme] svg text[font-family*="mono"] { font-family: var(--font-mono-custom), ui-monospace, monospace; }
+html[data-theme] svg text[font-family*="mono"] { font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+
+/* ── Typography: one typeface, two weights, readable sizes ──────────────────
+   The app grew three looks (Geist, a mono face for numbers/labels, and heavy
+   900-weight headings with tiny uppercase labels). Everything now uses Geist:
+   numbers keep tabular figures so columns still line up; labels are normal
+   case; bold is one weight (600); nothing is smaller than 11px. */
+html[data-theme] .font-mono, html[data-theme] [data-price], html .font-mono, html [data-price] {
+  font-family: var(--font-geist), ui-sans-serif, system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums; font-feature-settings: "tnum";
+}
+html[data-theme] .font-black, html[data-theme] .font-extrabold, html[data-theme] .font-bold,
+html .font-black, html .font-extrabold, html .font-bold { font-weight: 600 !important; }
+html[data-theme] .font-semibold, html .font-semibold { font-weight: 500 !important; }
+html[data-theme] .uppercase, html .uppercase { text-transform: none !important; }
+html[data-theme] [class*="tracking-wide"], html[data-theme] [class*="tracking-widest"],
+html [class*="tracking-wide"] { letter-spacing: 0 !important; }
+html .text-\[7px\], html .text-\[8px\], html .text-\[9px\] { font-size: 11px !important; }
+html .text-\[10px\] { font-size: 11.5px !important; }

@@ -28,44 +28,38 @@ export type MoversData = {
   updatedAt: string;
 };
 
+// Yahoo's batch quote endpoint (v7) now rejects anonymous requests, so read
+// each symbol's chart meta (v8, served to a plain user agent) instead.
+let cache: { at: number; data: MoversData } | null = null;
+const TTL = 5 * 60_000;
+
+type ChartMeta = { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number; regularMarketVolume?: number };
+
+async function row(symbol: string): Promise<MoverRow | null> {
+  try {
+    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
+      cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return null;
+    const j = await r.json() as { chart?: { result?: Array<{ meta?: ChartMeta; indicators?: { quote?: Array<{ close?: (number | null)[] }> } }> } };
+    const res = j.chart?.result?.[0];
+    const m = res?.meta;
+    const closes = (res?.indicators?.quote?.[0]?.close ?? []).filter((c): c is number => typeof c === "number");
+    const price = m?.regularMarketPrice ?? closes.at(-1) ?? null;
+    const prev = closes.length >= 2 ? closes.at(-2)! : m?.previousClose ?? null;
+    if (!price || !prev) return null;
+    return { symbol, price, change: ((price - prev) / prev) * 100, volume: m?.regularMarketVolume ?? null };
+  } catch { return null; }
+}
+
 export async function GET() {
   const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
+  if (cache && Date.now() - cache.at < TTL) return Response.json(cache.data);
 
-  const unique = [...new Set(UNIVERSE)];
-  const syms   = unique.join(",");
-
-  try {
-    const res = await fetch(
-      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(syms)}&fields=regularMarketPrice,regularMarketChangePercent,regularMarketVolume`,
-      {
-        cache:   "no-store",
-        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36" },
-        signal:  AbortSignal.timeout(12_000),
-      },
-    );
-    if (!res.ok) throw new Error(`Yahoo ${res.status}`);
-
-    const json = await res.json();
-    const rows: MoverRow[] = (json?.quoteResponse?.result ?? []).map(
-      (q: { symbol: string; regularMarketPrice?: number; regularMarketChangePercent?: number; regularMarketVolume?: number }) => ({
-        symbol: q.symbol,
-        price:  q.regularMarketPrice          ?? null,
-        change: q.regularMarketChangePercent  ?? null,
-        volume: q.regularMarketVolume         ?? null,
-      }),
-    ).filter((r: MoverRow) => r.change !== null);
-
-    rows.sort((a, b) => (b.change ?? 0) - (a.change ?? 0));
-
-    const data: MoversData = {
-      gainers:   rows.slice(0, 6),
-      losers:    rows.slice(-6).reverse(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    return Response.json(data);
-  } catch {
-    return Response.json({ gainers: [], losers: [], updatedAt: new Date().toISOString() });
-  }
+  const rows = (await Promise.all([...new Set(UNIVERSE)].map(row))).filter((r): r is MoverRow => !!r);
+  rows.sort((a, b) => (b.change ?? 0) - (a.change ?? 0));
+  const data: MoversData = { gainers: rows.slice(0, 6), losers: rows.slice(-6).reverse(), updatedAt: new Date().toISOString() };
+  if (rows.length) cache = { at: Date.now(), data };
+  return Response.json(data);
 }

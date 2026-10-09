@@ -208,3 +208,27 @@ export function checkReasonCopy(reason: string): string {
   return reason.replace(/\b(G1_DATA|G2_FRESHNESS|G3_SESSION|G4_EVENT|G6_UNSUPPORTED|G7_EXIT|WELLBEING|CONFLICTING_SIGNALS|LOW_CHECKLIST|NO_EDGE)\b/g,
     code => (NO_TRADE_SHORT[code] ?? code).toLowerCase());
 }
+
+// ── Everyday-language reasons (Options overview) ─────────────────────────────
+// Same outcomes as above, worded for someone who has never traded options.
+
+export function plainReason(d: Pick<DisplayAnalysis, "status" | "output">, sessionOpen: boolean): string {
+  if (d.status === "PAPER_CANDIDATE") return "Passed every check — worth a look";
+  if (d.status === "STALE_CANDIDATE") return "This idea is out of date";
+  if (d.status === "UNAVAILABLE") return "We couldn’t finish checking this one";
+  const r = d.output?.no_trade_reason;
+  if (!r) return "Nothing worth doing right now";
+  switch (r.code) {
+    case "G3_SESSION": return "Market is closed";
+    case "G2_FRESHNESS":
+      if (/No bid\/ask timestamp/i.test(r.detail)) return "Can’t confirm the option prices are current";
+      if (/Underlying price/i.test(r.detail)) return sessionOpen ? "Prices are too old to trust" : "Market is closed";
+      return "Option prices are too old to trust";
+    case "G4_EVENT": return "Big company news is coming first";
+    case "G1_DATA": return /event calendar/i.test(r.detail) ? "Couldn’t confirm upcoming company news" : /missing/i.test(r.detail) ? "Some data was missing" : "No option was a safe enough fit";
+    case "G7_EXIT": return "No clear way out of the trade";
+    case "CONFLICTING_SIGNALS": return "Signs point both ways";
+    case "LOW_CHECKLIST": return "Not enough good signs";
+    default: return "Nothing worth doing right now";
+  }
+}

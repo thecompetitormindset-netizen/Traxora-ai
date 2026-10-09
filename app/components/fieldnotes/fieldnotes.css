@@ -42,7 +42,8 @@
   --fn-r: var(--mx-radius); --fn-r-sm: 7px; --fn-r-lg: var(--mx-radius-lg);
   /* type */
   --fn-fs-meta: 12.5px; --fn-fs-sm: 13.5px; --fn-fs-base: 15px; --fn-fs-lg: 18px; --fn-fs-xl: 22px; --fn-fs-title: 34px;
-  --fn-mono: var(--font-mono-custom), ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* One typeface everywhere: numbers use Geist with tabular figures, not a mono font. */
+  --fn-mono: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   color: var(--fn-text);
   font-size: var(--fn-fs-base);
@@ -59,7 +60,7 @@
 .fn-h2 { font-size: var(--fn-fs-lg); font-weight: 450; margin: 0; letter-spacing: -0.012em; }
 .fn-h3 { font-size: var(--fn-fs-base); font-weight: 650; margin: 0; }
 .fn-label { font-size: var(--fn-fs-sm); font-weight: 600; color: var(--fn-text-2); }
-.fn-caps { font-family: var(--fn-mono); font-size: 11px; font-weight: 400; letter-spacing: 0.07em; text-transform: uppercase; color: var(--fn-muted); }
+.fn-caps { font-family: var(--fn-mono); font-size: 12.5px; font-weight: 400; color: var(--fn-muted); }
 .fn-meta { font-size: var(--fn-fs-meta); color: var(--fn-muted); }
 .fn-body { font-size: var(--fn-fs-base); color: var(--fn-text); }
 .fn-text-2 { color: var(--fn-text-2); }
@@ -131,7 +132,7 @@
   background: var(--fn-canvas);
   border: 1px solid var(--fn-copper);
   color: var(--fn-copper);
-  font-family: var(--fn-mono); font-size: 11px; font-weight: 700;
+  font-family: var(--fn-mono); font-size: 12px; font-weight: 600;
 }
 .fn-stage-node[data-muted] { border-color: var(--fn-border); color: var(--fn-muted); }
 .fn-stage-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--fn-3); flex-wrap: wrap; margin-bottom: var(--fn-3); min-height: 26px; }
@@ -239,7 +240,7 @@
 .fn-ledger td.fn-r, .fn-ledger td.fn-numcell { font-family: var(--fn-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .fn-ledger tbody tr[data-link] { cursor: pointer; }
 .fn-ledger tbody tr[data-link]:hover td { background: color-mix(in srgb, var(--fn-raised) 70%, transparent); }
-.fn-side { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-family: var(--fn-mono); }
+.fn-side { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-family: var(--fn-mono); }
 .fn-side[data-side="BUY"] { color: var(--fn-pos); }
 .fn-side[data-side="SELL"] { color: var(--fn-neg); }
 
