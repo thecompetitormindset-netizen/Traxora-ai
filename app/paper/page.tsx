@@ -1,1148 +1,851 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
-import Link from "next/link";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
-import { useSession } from "next-auth/react";
 import { syncFetch } from "../lib/syncFetch";
+import {
+  catchUp, closeNow, isMarketOpen, marketStatusText, placeOrder, profit, profitPct, summarize, tick,
+  DEFAULT_START, SLIPPAGE, type Bar, type EngineEvent, type OrderType, type PaperOrder, type Quote, type Side,
+} from "../lib/paperEngine";
 
 const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+// Practice trading. Rules live in app/lib/paperEngine.ts (tested); this page is
+// storage, quotes and the UI. Plain language on purpose — see the landing page.
 
-type Signal = {
-  symbol:     string;
-  name:       string;
-  signal:     "BUY" | "SELL";
-  price:      number;
-  confidence: string;
-  time:       number;
-};
+// ── Storage (same keys as before, so saved trades and other pages keep working) ──
 
-type TakenTrade = {
-  id:         string;
-  symbol:     string;
-  signal:     "BUY" | "SELL";
-  entry:      number;
-  stop:       number;
-  target:     number;
-  shares:     number;
-  riskDollar: number;
-  potential:  number;
-  time:       number;
-  note:       string;
-  status?:    "PENDING" | "OPEN" | "WIN" | "LOSS";
-  closePrice?: number;
-  closedAt?:  number;
-};
+const ACCOUNT_KEY  = "traxora_planner_account";
+const TAKEN_KEY    = "traxora_taken_trades";
+const ACTIVITY_KEY = "traxora_paper_activity";
 
-type RecommendedPlay = {
-  symbol:     string;
-  name:       string;
-  category:   "market" | "futures" | "options";
-  signal:     "BUY" | "SELL";
-  price:      number;
-  stop:       string;
-  target:     string;
-  confidence: "High" | "Medium" | "Low";
-  rrRatio?:   string;
-  meta?:      string;
-};
+type Account = { size: number; riskPct: number };
+type Activity = { id: string; text: string; at: number };
 
-// ── Storage ───────────────────────────────────────────────────────────────────
-
-const ACCOUNT_KEY = "traxora_planner_account";
-const TAKEN_KEY   = "traxora_taken_trades";
-
-function loadAccount() {
-  try { return JSON.parse(localStorage.getItem(scopedKey(ACCOUNT_KEY)) ?? "null") as { size: number; riskPct: number } | null; }
-  catch { return null; }
+function readJSON<T>(key: string, fallback: T): T {
+  try { return (JSON.parse(localStorage.getItem(scopedKey(key)) ?? "null") as T) ?? fallback; } catch { return fallback; }
 }
-function saveAccount(v: { size: number; riskPct: number }) {
-  localStorage.setItem(scopedKey(ACCOUNT_KEY), JSON.stringify(v));
+function writeJSON(key: string, v: unknown) {
+  try { localStorage.setItem(scopedKey(key), JSON.stringify(v)); } catch { /* storage full or blocked */ }
 }
-function loadTaken(): TakenTrade[] {
-  try { return JSON.parse(localStorage.getItem(scopedKey(TAKEN_KEY)) ?? "[]"); }
-  catch { return []; }
-}
-function saveTaken(t: TakenTrade[]) {
-  localStorage.setItem(scopedKey(TAKEN_KEY), JSON.stringify(t));
-}
-function persistTaken(t: TakenTrade[]) {
-  saveTaken(t);
+function persistOrders(list: PaperOrder[]) {
+  writeJSON(TAKEN_KEY, list);
   syncFetch("/api/paper-trades", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ trades: t }),
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trades: list }),
   }).catch(() => {});
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Formatting ──────────────────────────────────────────────────────────────
 
-function parsePrice(s: string): number | null {
-  const n = parseFloat(s.replace(/[^0-9.]/g, ""));
-  return isNaN(n) || n <= 0 ? null : n;
-}
-function fmtD(n: number) {
-  return n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-function fmtS(n: number) { return n.toLocaleString("en-US", { maximumFractionDigits: 0 }); }
+const usd = (n: number, digits = 2) => n.toLocaleString("en-US", { style: "currency", currency: "USD", minimumFractionDigits: digits, maximumFractionDigits: digits });
+const signedUsd = (n: number) => `${n >= 0 ? "+" : "−"}${usd(Math.abs(n))}`;
+const signedPct = (n: number) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(2)}%`;
+const qty = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 4 });
+const tone = (n: number) => (n > 0 ? "text-[var(--mx-up)]" : n < 0 ? "text-[var(--mx-down)]" : "text-[var(--mx-text-2)]");
+const unitWord = (sym: string) => (/-USDT?$|USDT$/i.test(sym) ? "units" : "shares");
+const clean = (s: string) => s.replace(/\.US$/i, "").replace(/\.COMM$/i, "");
 function ago(ms: number) {
-  const s = Math.floor((Date.now() - ms) / 1000);
-  if (s < 60)    return `${s}s ago`;
-  if (s < 3600)  return `${Math.floor(s/60)}m ago`;
-  if (s < 86400) return `${Math.floor(s/3600)}h ago`;
-  return `${Math.floor(s/86400)}d ago`;
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+const nowMs = () => Date.now();
+const num = (s: string) => { const n = parseFloat(s.replace(/[^0-9.]/g, "")); return Number.isFinite(n) && n > 0 ? n : null; };
 
-function extractFirstPrice(s: string): string {
-  const m = s.match(/[\d]+\.?\d*/);
-  return m ? m[0] : s;
-}
+// ── Quotes ──────────────────────────────────────────────────────────────────
 
-function isMarketHours(): boolean {
+type QuoteInfo = Quote & { prevClose: number | null; fetchedAt: number };
+
+async function fetchQuote(symbol: string): Promise<QuoteInfo | null> {
   try {
-    const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" }));
-    const day  = d.getDay();
-    if (day === 0 || day === 6) return false;
-    const mins = d.getHours() * 60 + d.getMinutes();
-    return mins >= 570 && mins < 960; // 9:30am – 4:00pm ET
-  } catch { return false; }
-}
-function calcLivePL(t: TakenTrade, price: number): number {
-  return (t.signal === "BUY" ? 1 : -1) * (price - t.entry) * t.shares;
-}
-function calcLivePLPct(t: TakenTrade, price: number): number {
-  return (t.signal === "BUY" ? 1 : -1) * ((price / t.entry) - 1) * 100;
-}
-function isStopHit(t: TakenTrade, price: number): boolean {
-  return t.signal === "BUY" ? price <= t.stop : price >= t.stop;
-}
-function isTargetHit(t: TakenTrade, price: number): boolean {
-  return t.signal === "BUY" ? price >= t.target : price <= t.target;
+    const r = await fetch(`/api/quote?symbol=${encodeURIComponent(symbol)}`, { cache: "no-store" });
+    const d = await r.json() as { price?: number | null; previousClose?: number | null; timestamp?: number | null };
+    if (typeof d.price !== "number" || !(d.price > 0)) return null;
+    const ts = typeof d.timestamp === "number" && d.timestamp > 0 ? (d.timestamp < 1e12 ? d.timestamp * 1000 : d.timestamp) : null;
+    return { price: d.price, time: ts, prevClose: d.previousClose ?? null, fetchedAt: Date.now() };
+  } catch { return null; }
 }
 
-function loadCachedPlays(): RecommendedPlay[] {
+/** Regular-hours price bars since `since` (ms): 5-minute bars for the last few days, hourly beyond that. */
+async function fetchBars(symbol: string, since: number): Promise<Bar[]> {
+  const days = (Date.now() - since) / 86400_000;
+  const [interval, range] = days <= 4 ? ["5m", "5d"] : days <= 55 ? ["1h", "60d"] : ["1d", "1y"];
   try {
-    const alerts = JSON.parse(
-      localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]"
-    ) as Array<{ symbol: string; name: string; signal: string; price: number; confidence: string; time: number }>;
-
-    const plays: RecommendedPlay[] = [];
-    const seen = new Set<string>();
-    const now  = Date.now();
-    const TTL  = 8 * 60 * 60 * 1000; // 8 hours
-
-    for (const a of alerts) {
-      if (now - a.time > TTL) continue;
-      if (a.signal !== "BUY" && a.signal !== "SELL") continue;
-      if (seen.has(a.symbol)) continue;
-
-      const cKey   = scopedKey(`sig_${a.symbol}_${Math.round(a.price * 100)}`);
-      const cached = JSON.parse(localStorage.getItem(cKey) ?? "null");
-      if (!cached?.trade?.stopLoss || !cached?.trade?.takeProfit) continue;
-
-      seen.add(a.symbol);
-      plays.push({
-        symbol:     a.symbol,
-        name:       a.name || a.symbol.replace(".US","").replace(".COMM",""),
-        category:   a.symbol.includes(".COMM") ? "futures" : "market",
-        signal:     a.signal as "BUY" | "SELL",
-        price:      a.price,
-        stop:       extractFirstPrice(cached.trade.stopLoss),
-        target:     extractFirstPrice(cached.trade.takeProfit),
-        confidence: a.confidence as "High" | "Medium" | "Low",
-        rrRatio:    cached.trade.rrRatio,
-      });
-    }
-
-    return plays.sort((a, b) => {
-      const cr = (c: string) => c === "High" ? 0 : c === "Medium" ? 1 : 2;
-      return cr(a.confidence) - cr(b.confidence);
-    });
+    const r = await fetch(`/api/intraday-bars?symbol=${encodeURIComponent(symbol)}&interval=${interval}&range=${range}`, { cache: "no-store" });
+    const d = await r.json() as { bars?: Bar[] };
+    return Array.isArray(d.bars) ? d.bars : [];
   } catch { return []; }
 }
 
-// ── Recommended Plays ─────────────────────────────────────────────────────────
+// ── Ideas from cached signals (dashboard/analysis store these) ───────────────
 
-function PlayCard({ play, onSelect }: { play: RecommendedPlay; onSelect: (p: RecommendedPlay) => void }) {
-  const isBuy = play.signal === "BUY";
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(play)}
-      className={`w-full text-left p-3 rounded-xl border border-l-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${
-        isBuy
-          ? "bg-emerald-500/5 border-emerald-500/20 border-l-emerald-500/50 hover:bg-emerald-500/10"
-          : "bg-rose-500/5 border-rose-500/20 border-l-rose-500/50 hover:bg-rose-500/10"
-      }`}
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="flex items-center gap-1.5">
-          <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${
-            isBuy ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
-                  : "bg-rose-500/15 text-rose-400 border-rose-500/25"
-          }`}>{play.signal}</span>
-          <span className="text-xs font-black font-mono text-[#F1F5F9]">
-            {play.symbol.replace(".US","").replace(".COMM","")}
-          </span>
-        </div>
-        <span className={`text-[8px] font-bold ${
-          play.confidence === "High"   ? "text-emerald-400" :
-          play.confidence === "Medium" ? "text-amber-400"   : "text-[#4B5675]"
-        }`}>{play.confidence}</span>
-      </div>
+type Idea = { symbol: string; side: Side; price: number; stop: number | null; target: number | null; confidence: string };
 
-      <p className={`text-base font-black font-mono ${isBuy ? "text-emerald-400" : "text-rose-400"}`}>
-        ${play.price.toFixed(2)}
-      </p>
-
-      <div className="flex items-center gap-1.5 mt-1 text-[9px] font-mono flex-wrap">
-        <span className="text-[#4B5675]">Stp</span>
-        <span className="font-bold text-rose-400">{play.stop}</span>
-        <span className="text-[#252345]">·</span>
-        <span className="text-[#4B5675]">Tgt</span>
-        <span className="font-bold text-emerald-400">{play.target}</span>
-        {play.rrRatio && (
-          <><span className="text-[#252345]">·</span><span className="text-violet-400">{play.rrRatio}</span></>
-        )}
-      </div>
-      {play.meta && <p className="text-[8px] text-[#4B5675] mt-1 truncate">{play.meta}</p>}
-      <p className="text-[9px] text-emerald-400 font-semibold mt-2">Tap to load all levels →</p>
-    </button>
-  );
+function loadIdeas(): Idea[] {
+  try {
+    const alerts = readJSON<Array<{ symbol: string; signal: string; price: number; confidence: string; time: number }>>("traxora_alerts", []);
+    const seen = new Set<string>();
+    const out: Idea[] = [];
+    for (const a of alerts) {
+      if (Date.now() - a.time > 8 * 3600_000 || (a.signal !== "BUY" && a.signal !== "SELL") || seen.has(a.symbol)) continue;
+      seen.add(a.symbol);
+      const cached = readJSON<{ trade?: { stopLoss?: string; takeProfit?: string } } | null>(`sig_${a.symbol}_${Math.round(a.price * 100)}`, null);
+      const first = (s?: string) => (s ? num((s.match(/[\d]+\.?\d*/) ?? [""])[0]) : null);
+      out.push({ symbol: clean(a.symbol), side: a.signal as Side, price: a.price, stop: first(cached?.trade?.stopLoss), target: first(cached?.trade?.takeProfit), confidence: a.confidence });
+      if (out.length >= 6) break;
+    }
+    return out;
+  } catch { return []; }
 }
 
-function RecommendedPlays({ onSelect }: { onSelect: (p: RecommendedPlay) => void }) {
-  const [marketPlays,  setMarketPlays]  = useState<RecommendedPlay[]>([]);
-  const [futuresPlays, setFuturesPlays] = useState<RecommendedPlay[]>([]);
-  const [optionsPlays, setOptionsPlays] = useState<RecommendedPlay[]>([]);
-  const [optLoading,   setOptLoading]   = useState(true);
+// ── Small UI pieces ─────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    const cached  = loadCachedPlays();
-    setMarketPlays(cached.filter(p => p.category === "market").slice(0, 3));
-    setFuturesPlays(cached.filter(p => p.category === "futures").slice(0, 3));
+const card = "rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)]";
+const input = "w-full h-11 rounded-[10px] border border-[var(--mx-line)] bg-[var(--mx-canvas)] px-3 text-[15px] text-[var(--mx-text)] placeholder:text-[var(--mx-text-3)] focus:outline-none focus:border-[var(--mx-control)]";
+const btnPrimary = "h-12 w-full rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[15px] disabled:opacity-35 disabled:cursor-not-allowed transition-opacity";
+const btnQuiet = "h-9 px-3.5 rounded-full border border-[var(--mx-line)] text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] hover:border-[var(--mx-line-strong)] transition-colors";
 
-    fetch("/api/market/options-scan", { cache: "no-store" })
-      .then(r => r.json())
-      .then(data => {
-        type OP = {
-          symbol: string; signal: "BUY"|"SELL"; price: number;
-          play: string; strike: string; expiry: string|null; dte: number|null;
-          stop: string; target: string; confidence: "High"|"Medium"|"Low";
-          rrRatio: string; iv: number|null;
-        };
-        const plays: RecommendedPlay[] = (data.plays ?? []).slice(0, 3).map((p: OP) => ({
-          symbol:     p.symbol,
-          name:       `${p.play} · ${p.strike}`,
-          category:   "options" as const,
-          signal:     p.signal,
-          price:      p.price,
-          stop:       extractFirstPrice(p.stop),
-          target:     extractFirstPrice(p.target),
-          confidence: p.confidence,
-          rrRatio:    p.rrRatio,
-          meta:       [p.expiry, p.dte ? `${p.dte}d DTE` : null, p.iv ? `IV ${p.iv}%` : null]
-                        .filter(Boolean).join(" · "),
-        }));
-        setOptionsPlays(plays);
-      })
-      .catch(() => {})
-      .finally(() => setOptLoading(false));
-  }, []);
-
-  const noData = !optLoading && futuresPlays.length === 0 && optionsPlays.length === 0 && marketPlays.length === 0;
-  if (noData) return null;
-
-  const col = (label: string, color: string, plays: RecommendedPlay[], loading?: boolean, emptyMsg?: string) => (
-    <div className="bg-[#0D0B1A] p-4">
-      <p className={`text-[8px] font-black uppercase tracking-widest mb-3 ${color}`}>{label}</p>
-      {loading ? (
-        <div className="space-y-2">
-          {[0,1,2].map(i => <div key={i} className="h-20 bg-[#13112A] rounded-xl animate-pulse" />)}
-        </div>
-      ) : plays.length === 0 ? (
-        <p className="text-[10px] text-[#333368] leading-relaxed">{emptyMsg}</p>
-      ) : (
-        <div className="space-y-2">
-          {plays.map((p, i) => <PlayCard key={i} play={p} onSelect={onSelect} />)}
-        </div>
-      )}
-    </div>
-  );
-
+function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { v: T; l: string }[]; onChange: (v: T) => void; label: string }) {
   return (
-    <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
-      <div className="px-5 pt-4 pb-3 border-b border-[#1C1933] flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Today&apos;s Top Plays</p>
-          <p className="text-[9px] text-[#333368] mt-0.5">Tap any card to instantly load symbol, entry, stop &amp; target</p>
-        </div>
-        <span className="text-[8px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0">1-click fill</span>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[#1C1933]">
-        {col("Futures (Mini)", "text-violet-400", futuresPlays, false, "Run the Dashboard first — futures signals cache here automatically")}
-        {col("Options Plays",  "text-amber-400",  optionsPlays, optLoading, "No high-confidence setups right now — check back later")}
-        {col("Market Stocks",  "text-sky-400",    marketPlays, false, "Run the Dashboard first — stock signals cache here automatically")}
-      </div>
+    <div role="radiogroup" aria-label={label} className="grid rounded-full border border-[var(--mx-line)] p-1 bg-[var(--mx-canvas)]" style={{ gridTemplateColumns: `repeat(${options.length}, 1fr)` }}>
+      {options.map(o => (
+        <button key={o.v} type="button" role="radio" aria-checked={value === o.v} onClick={() => onChange(o.v)}
+          className={`h-9 rounded-full text-[14px] transition-colors ${value === o.v ? "bg-[var(--mx-text)] text-[var(--mx-canvas)]" : "text-[var(--mx-text-2)] hover:text-[var(--mx-text)]"}`}>
+          {o.l}
+        </button>
+      ))}
     </div>
   );
 }
 
-// ── Position Sizer Component ──────────────────────────────────────────────────
+function Field({ label, hint, children }: { label: string; hint?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <label className="block">
+      <span className="block text-[13px] text-[var(--mx-text-2)] mb-1.5">{label}</span>
+      {children}
+      {hint && <span className="block mt-1.5 text-[12.5px] text-[var(--mx-text-3)]">{hint}</span>}
+    </label>
+  );
+}
 
-function PositionSizer({
-  initSymbol, initEntry, initSignal, initStop, initTarget,
-  account, onTaken, onSymbolChange,
-}: {
-  initSymbol?: string; initEntry?: string; initSignal?: "BUY" | "SELL";
-  initStop?: string; initTarget?: string;
-  account: { size: number; riskPct: number };
-  onTaken: (t: TakenTrade) => void;
-  onSymbolChange?: (s: string) => void;
+function MarketDot({ open }: { open: boolean }) {
+  return <span aria-hidden="true" className={`inline-block w-1.5 h-1.5 rounded-full ${open ? "bg-[var(--mx-up)]" : "bg-[var(--mx-text-3)]"}`} />;
+}
+
+// ── Order ticket ────────────────────────────────────────────────────────────
+
+type Prefill = { symbol: string; side: Side; stop: number | null; target: number | null; key: number };
+
+function Ticket({ prefill, cash, now, quotes, onQuote, onPlace, onSymbol }: {
+  prefill: Prefill;
+  now: number;
+  cash: number;
+  quotes: Record<string, QuoteInfo>;
+  onQuote: (s: string, q: QuoteInfo) => void;
+  onPlace: (o: PaperOrder, filled: boolean) => void;
+  onSymbol: (s: string) => void;
 }) {
-  const [symbol, setSymbol] = useState(initSymbol ?? "");
-  const [signal, setSignal] = useState<"BUY" | "SELL">(initSignal ?? "BUY");
-  const [entry,  setEntry]  = useState(initEntry  ?? "");
-  const [stop,   setStop]   = useState(initStop   ?? "");
-  const [target, setTarget] = useState(initTarget ?? "");
-  const [note,   setNote]   = useState("");
-  const [saved,  setSaved]  = useState(false);
+  const [symbol, setSymbol] = useState(prefill.symbol);
+  const [side, setSide] = useState<Side>(prefill.side);
+  const [by, setBy] = useState<"dollars" | "shares">("dollars");
+  const [amount, setAmount] = useState("1000");
+  const [type, setType] = useState<OrderType>("market");
+  const [limit, setLimit] = useState("");
+  const [protect, setProtect] = useState(true);
+  const [stop, setStop] = useState(prefill.stop ? String(prefill.stop) : "");
+  const [target, setTarget] = useState(prefill.target ? String(prefill.target) : "");
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loadingQuote, setLoadingQuote] = useState(false);
+  const [missing, setMissing] = useState(false);
 
-  useEffect(() => { if (initSymbol) { setSymbol(initSymbol); onSymbolChange?.(initSymbol); } }, [initSymbol]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (initSignal) setSignal(initSignal); }, [initSignal]);
-  useEffect(() => { if (initEntry)  setEntry(initEntry);   }, [initEntry]);
-  useEffect(() => { if (initStop)   setStop(initStop);     }, [initStop]);
-  useEffect(() => { if (initTarget) setTarget(initTarget); }, [initTarget]);
+  const sym = symbol.trim().toUpperCase();
+  const quote = quotes[sym];
+  const long = side === "BUY";
 
-  const entryN  = parsePrice(entry);
-  const stopN   = parsePrice(stop);
-  const targetN = parsePrice(target);
+  // Look up the price shortly after typing stops.
+  useEffect(() => {
+    if (!/^[A-Z0-9.\-=]{1,12}$/.test(sym)) return;
+    onSymbol(sym);
+    let live = true;
+    const t = setTimeout(async () => {
+      setLoadingQuote(true);
+      const q = await fetchQuote(sym);
+      if (!live) return;
+      setLoadingQuote(false);
+      setMissing(!q);
+      if (q) onQuote(sym, q);
+    }, 450);
+    return () => { live = false; clearTimeout(t); };
+  }, [sym]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const maxRisk      = (account.size * account.riskPct) / 100;
-  const riskPerShare = entryN && stopN ? Math.abs(entryN - stopN) : null;
-  const riskShares   = riskPerShare && riskPerShare > 0 ? Math.floor(maxRisk / riskPerShare) : null;
-  // Cap at buying power — risk-based sizing on a tight stop can otherwise
-  // suggest positions worth many times the account (no leverage in paper).
-  const affordable   = entryN && entryN > 0 ? Math.floor(account.size / entryN) : null;
-  const capped       = riskShares != null && affordable != null && riskShares > affordable;
-  const shares       = riskShares != null && affordable != null ? Math.min(riskShares, affordable) : riskShares;
-  const riskDollar   = shares && riskPerShare ? shares * riskPerShare : maxRisk;
-  const cost         = shares && entryN ? shares * entryN : null;
-  const potential    = shares && targetN && entryN ? shares * Math.abs(targetN - entryN) : null;
-  const rr           = potential && riskDollar > 0 ? potential / riskDollar : null;
-  const valid        = !!(shares && shares > 0 && cost && potential);
+  const ref = type === "limit" ? num(limit) : quote?.price ?? null;
 
-  function handleTake() {
-    if (!valid || !entryN || !stopN || !targetN || !shares) return;
+  // Suggest safety level −5% and goal +10% (mirrored for a short) once a price is known.
+  const suggested = useRef<string | null>(null);
+  useEffect(() => {
+    if (!ref || suggested.current === `${sym}:${side}`) return;
+    if (prefill.stop || prefill.target) { suggested.current = `${sym}:${side}`; return; }
+    suggested.current = `${sym}:${side}`;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStop((ref * (long ? 0.95 : 1.05)).toFixed(2));
+    setTarget((ref * (long ? 1.1 : 0.9)).toFixed(2));
+  }, [ref, sym, side, long, prefill.stop, prefill.target]);
+
+  const amt = num(amount);
+  const shares = ref && amt ? (by === "shares" ? amt : amt / (ref * (type === "market" ? 1 + SLIPPAGE : 1))) : null;
+  const cost = ref && amt ? (by === "dollars" ? amt : amt * ref * (type === "market" ? 1 + SLIPPAGE : 1)) : null;
+  const stopN = protect ? num(stop) : null;
+  const targetN = protect ? num(target) : null;
+  const loseAt = shares && ref && stopN ? Math.abs(ref - stopN) * shares : null;
+  const makeAt = shares && ref && targetN ? Math.abs(targetN - ref) * shares : null;
+  const open = sym ? isMarketOpen(sym, now) : true;
+
+  function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const r = placeOrder({
+      symbol: sym, side, type,
+      dollars: by === "dollars" ? amt : null, shares: by === "shares" ? amt : null,
+      limitPrice: type === "limit" ? num(limit) : null,
+      stop: stopN, target: targetN, note,
+    }, quote, cash, nowMs());
+    if (!r.ok) { setError(r.error); haptic.error?.(); return; }
+    setError(null);
     haptic.success();
-    const t: TakenTrade = {
-      id: Date.now().toString(),
-      symbol: symbol.replace(".US","").replace(".COMM","") || "—",
-      signal, entry: entryN, stop: stopN, target: targetN,
-      shares, riskDollar, potential: potential!,
-      time: Date.now(), note,
-    };
-    onTaken(t);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    onPlace(r.order, r.filled);
+    setNote("");
   }
 
-  const bull = signal === "BUY";
+  const verb = long ? "Buy" : "Sell short";
+  const summary = (() => {
+    if (!sym || !ref || !shares || !cost) return null;
+    const when = type === "limit"
+      ? `when the price ${long ? "drops to" : "rises to"} ${usd(ref)}`
+      : open ? "now, at the market price" : "when the market opens";
+    return `${verb} about ${qty(Math.round(shares * 1000) / 1000)} ${unitWord(sym)} of ${sym} for about ${usd(cost)} ${when}.`;
+  })();
 
   return (
-    <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
-      <div className="px-5 pt-5 pb-4 border-b border-[#1C1933]">
-        <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675] mb-4">Position Sizer</p>
+    <form onSubmit={submit} className={`${card} p-5 sm:p-6 space-y-5`} aria-labelledby="ticket-h">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="ticket-h" className="text-[18px] tracking-[-0.01em]">Place a practice trade</h2>
+        <span className="text-[12.5px] text-[var(--mx-text-3)]">{usd(cash, 0)} cash available</span>
+      </div>
 
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          <div className="col-span-2 sm:col-span-1">
-            <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Ticker</label>
-            <input value={symbol} onChange={e => { const v = e.target.value.toUpperCase(); setSymbol(v); onSymbolChange?.(v); }} placeholder="AAPL"
-              className="w-full bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2.5 text-sm font-black font-mono text-[#F1F5F9] placeholder-[#2D3A52] focus:outline-none focus:border-emerald-500/40" />
-          </div>
-          <div className="col-span-2 sm:col-span-1">
-            <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Direction</label>
-            <div className="flex rounded-xl overflow-hidden border border-[#252345]">
-              {(["BUY","SELL"] as const).map(d => (
-                <button key={d} type="button" onClick={() => setSignal(d)}
-                  className={`flex-1 py-2.5 text-xs font-black transition-all ${
-                    signal === d
-                      ? d === "BUY" ? "bg-emerald-600 text-white" : "bg-rose-600 text-white"
-                      : "bg-[#0D0B1A] text-[#4B5675] hover:text-[#7B8DB4]"
-                  }`}>{d === "BUY" ? "▲ LONG" : "▼ SHORT"}</button>
-              ))}
-            </div>
-          </div>
+      <Field label="Stock or crypto" hint={
+        loadingQuote ? "Getting the price…"
+        : missing ? "We couldn't find a price for that. Try a ticker like AAPL, TSLA or BTC-USD."
+        : quote ? (
+          <span className="flex flex-wrap items-center gap-x-2">
+            <span className="text-[var(--mx-text)] font-mono">{usd(quote.price)}</span>
+            {quote.prevClose ? <span className={tone(quote.price - quote.prevClose)}>{signedPct((quote.price / quote.prevClose - 1) * 100)} today</span> : null}
+            <span>· prices can be up to 15 min behind</span>
+          </span>
+        ) : "Type a ticker, like AAPL"
+      }>
+        <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" autoCapitalize="characters" autoComplete="off" spellCheck={false} className={`${input} font-mono uppercase`} aria-label="Ticker" />
+      </Field>
 
-          <div>
-            <label className="text-[9px] text-amber-400 uppercase tracking-wider font-semibold block mb-1.5">Entry Price</label>
-            <input value={entry} onChange={e => setEntry(e.target.value)} placeholder="0.00"
-              className="w-full bg-[#0D0B1A] border border-amber-500/20 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-amber-300 placeholder-[#2D3A52] focus:outline-none focus:border-amber-500/50" />
-          </div>
-          <div>
-            <label className="text-[9px] text-rose-400 uppercase tracking-wider font-semibold block mb-1.5">Stop Loss</label>
-            <input value={stop} onChange={e => setStop(e.target.value)} placeholder="0.00"
-              className="w-full bg-[#0D0B1A] border border-rose-500/20 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-rose-300 placeholder-[#2D3A52] focus:outline-none focus:border-rose-500/50" />
-          </div>
-          <div className="col-span-2">
-            <label className="text-[9px] text-emerald-400 uppercase tracking-wider font-semibold block mb-1.5">Take Profit</label>
-            <input value={target} onChange={e => setTarget(e.target.value)} placeholder="0.00"
-              className="w-full bg-[#0D0B1A] border border-emerald-500/20 rounded-xl px-3 py-2.5 text-sm font-mono font-bold text-emerald-300 placeholder-[#2D3A52] focus:outline-none focus:border-emerald-500/50" />
-          </div>
+      <div className="space-y-2">
+        <Segmented label="Buy or sell short" value={side} onChange={v => { setSide(v); suggested.current = null; }} options={[{ v: "BUY", l: "Buy" }, { v: "SELL", l: "Sell short" }]} />
+        {!long && <p className="text-[12.5px] text-[var(--mx-text-3)]">Selling short means you make money if the price falls — and lose if it rises. It’s riskier, so start small.</p>}
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-[13px] text-[var(--mx-text-2)]">How much?</span>
+          <div className="w-[170px]"><Segmented label="Amount in" value={by} onChange={setBy} options={[{ v: "dollars", l: "Dollars" }, { v: "shares", l: "Shares" }]} /></div>
         </div>
-
-        {/* Results */}
-        {valid ? (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-            {[
-              { label: "Shares",    val: fmtS(shares!),    color: "text-[#F1F5F9]",   sub: capped ? "capped at buying power" : "to buy" },
-              { label: "Cost",      val: fmtD(cost!),      color: "text-[#F1F5F9]",   sub: "total outlay" },
-              { label: "Risk $",    val: fmtD(riskDollar), color: "text-rose-400",    sub: capped ? "actual risk (capped)" : `${account.riskPct}% of acct` },
-              { label: "Upside $",  val: fmtD(potential!), color: "text-emerald-400", sub: rr ? `${rr.toFixed(1)}:1 R:R` : "" },
-            ].map(s => (
-              <div key={s.label} className="bg-[#0D0B1A] rounded-xl p-3 text-center border border-[#1C1933]">
-                <p className={`text-base font-black font-mono ${s.color}`}>{s.val}</p>
-                <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mt-0.5">{s.label}</p>
-                {s.sub && <p className="text-[8px] text-[#2D3A52] mt-px">{s.sub}</p>}
-              </div>
+        <div className="relative">
+          {by === "dollars" && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>}
+          <input value={amount} onChange={e => setAmount(e.target.value)} inputMode="decimal" className={`${input} font-mono ${by === "dollars" ? "pl-7" : ""}`} aria-label={by === "dollars" ? "Dollar amount" : "Number of shares"} />
+        </div>
+        {by === "dollars" ? (
+          <div className="flex flex-wrap gap-2">
+            {[100, 500, 1000, 5000].map(v => (
+              <button key={v} type="button" onClick={() => setAmount(String(v))} className={btnQuiet}>{usd(v, 0)}</button>
             ))}
           </div>
-        ) : (
-          <div className="flex items-center gap-2 mb-4 px-4 py-3 rounded-xl bg-[#0D0B1A] border border-[#1C1933]">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4B5675" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            <p className="text-xs text-[#4B5675]">Fill in entry and stop loss to calculate your position size</p>
+        ) : null}
+        {shares && cost ? (
+          <p className="text-[12.5px] text-[var(--mx-text-3)]">{by === "dollars" ? `About ${qty(Math.round(shares * 1000) / 1000)} ${unitWord(sym)}` : `About ${usd(cost)}`} · partial {unitWord(sym)} are fine</p>
+        ) : null}
+      </div>
+
+      <div className="space-y-2">
+        <span className="block text-[13px] text-[var(--mx-text-2)]">When?</span>
+        <Segmented label="When to trade" value={type} onChange={setType} options={[{ v: "market", l: open ? "Now" : "At the open" }, { v: "limit", l: "At my price" }]} />
+        {type === "limit" && (
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>
+            <input value={limit} onChange={e => setLimit(e.target.value)} inputMode="decimal" placeholder={quote ? quote.price.toFixed(2) : "0.00"} className={`${input} pl-7 font-mono`} aria-label={long ? "Buy when the price is at or below" : "Sell short when the price is at or above"} />
+            <p className="mt-1.5 text-[12.5px] text-[var(--mx-text-3)]">{long ? "We’ll buy only if the price drops to this or lower." : "We’ll sell short only if the price rises to this or higher."}</p>
           </div>
         )}
-
-        <input value={note} onChange={e => setNote(e.target.value)} placeholder="Add a note (optional)…"
-          className="w-full bg-[#0D0B1A] border border-[#1C1933] rounded-xl px-3 py-2 text-xs text-[#7B8DB4] placeholder-[#2D3A52] focus:outline-none mb-3" />
-
-        <button type="button" onClick={handleTake} disabled={!valid}
-          className={`btn-haptic w-full py-3 rounded-xl text-sm font-black disabled:opacity-30 disabled:cursor-not-allowed ${
-            saved ? "bg-emerald-700 text-white" :
-            bull  ? "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"
-                  : "bg-rose-600 hover:bg-rose-500 text-white shadow-lg shadow-rose-500/20"
-          }`}>
-          {saved ? "✓ Order Placed!" : `Place ${signal === "BUY" ? "Long" : "Short"} Order →`}
-        </button>
+        {type === "market" && !open && sym && <p className="text-[12.5px] text-[var(--mx-text-3)]">{marketStatusText(sym, now)}.</p>}
       </div>
 
-      <div className="px-5 py-3 flex items-center gap-4 flex-wrap">
-        <span className="text-[10px] text-[#4B5675]">Account <span className="font-bold text-[#F1F5F9]">{fmtD(account.size)}</span></span>
-        <span className="text-[10px] text-[#4B5675]">Max risk/trade <span className="font-bold text-rose-400">{fmtD(maxRisk)}</span></span>
-        {rr != null && (
-          <span className="text-[10px] text-[#4B5675]">R:R <span className={`font-bold ${rr >= 2 ? "text-emerald-400" : rr >= 1.5 ? "text-amber-400" : "text-rose-400"}`}>{rr.toFixed(2)}:1</span></span>
+      <div className="rounded-[12px] border border-[var(--mx-line)] p-4 space-y-3">
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <span>
+            <span className="block text-[14px]">Sell automatically</span>
+            <span className="block text-[12.5px] text-[var(--mx-text-3)]">Protects you from big losses and locks in gains.</span>
+          </span>
+          <input type="checkbox" checked={protect} onChange={e => setProtect(e.target.checked)} className="w-5 h-5 accent-[var(--mx-text)]" />
+        </label>
+        {protect && (
+          <div className="grid grid-cols-2 gap-3">
+            <Field label={long ? "If it falls to" : "If it rises to"} hint={loseAt != null ? <span className="text-[var(--mx-down)]">lose about {usd(loseAt)}</span> : "safety level"}>
+              <input value={stop} onChange={e => setStop(e.target.value)} inputMode="decimal" className={`${input} font-mono`} />
+            </Field>
+            <Field label={long ? "If it rises to" : "If it falls to"} hint={makeAt != null ? <span className="text-[var(--mx-up)]">make about {usd(makeAt)}</span> : "goal"}>
+              <input value={target} onChange={e => setTarget(e.target.value)} inputMode="decimal" className={`${input} font-mono`} />
+            </Field>
+          </div>
         )}
       </div>
-    </div>
+
+      <Field label="Why are you making this trade? (optional)">
+        <input value={note} onChange={e => setNote(e.target.value)} placeholder="e.g. Strong earnings, buying the dip" className={input} />
+      </Field>
+
+      {summary && <p className="text-[14px] leading-relaxed text-[var(--mx-text-2)]">{summary}</p>}
+      {error && <p role="alert" className="text-[14px] text-[var(--mx-down)]">{error}</p>}
+
+      <button type="submit" className={btnPrimary} disabled={!sym || !ref || !amt}>
+        {type === "limit" ? "Save order" : open ? `${verb} ${sym || ""}`.trim() : "Place order for the open"}
+      </button>
+      <p className="text-[12px] text-center text-[var(--mx-text-3)]">Practice money only. No fees. Market orders include a tiny price difference ({(SLIPPAGE * 100).toFixed(2)}%), like a real broker.</p>
+    </form>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
+// ── Position row ────────────────────────────────────────────────────────────
 
-function TradePlannerContent() {
+function Holding({ o, quote, onSell, onLevels }: {
+  o: PaperOrder; quote?: QuoteInfo;
+  onSell: (o: PaperOrder) => void;
+  onLevels: (id: string, stop: number | null, target: number | null) => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [stop, setStop] = useState(o.stop != null ? String(o.stop) : "");
+  const [target, setTarget] = useState(o.target != null ? String(o.target) : "");
+  const long = o.signal === "BUY";
+  const price = quote?.price ?? null;
+  const pl = price != null ? profit(o, price) : null;
+  const pct = price != null ? profitPct(o, price) : null;
+  const value = price != null ? o.entry * o.shares + (pl ?? 0) : o.entry * o.shares;
+
+  // Where the price sits between the safety level and the goal.
+  const lo = long ? o.stop : o.target, hi = long ? o.target : o.stop;
+  const pos = price != null && lo != null && hi != null && hi > lo ? Math.min(1, Math.max(0, (price - lo) / (hi - lo))) : null;
+
+  return (
+    <li className={`${card} p-4 sm:p-5`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-2">
+            <span className="font-mono text-[17px]">{clean(o.symbol)}</span>
+            {!long && <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--mx-line)] text-[var(--mx-text-3)]">short</span>}
+            {o.closeQueued && <span className="text-[11px] px-2 py-0.5 rounded-full border border-[var(--mx-line-strong)] text-[var(--mx-text-2)]">selling at the open</span>}
+          </p>
+          <p className="mt-1 text-[13px] text-[var(--mx-text-3)]">{qty(o.shares)} {unitWord(o.symbol)} · {long ? "bought" : "sold"} at {usd(o.entry)}{o.filledAt ? ` · ${ago(o.filledAt)}` : ""}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="font-mono text-[17px]">{usd(value)}</p>
+          {pl != null && pct != null
+            ? <p className={`text-[13px] font-mono ${tone(pl)}`}>{signedUsd(pl)} ({signedPct(pct)})</p>
+            : <p className="text-[13px] text-[var(--mx-text-3)]">getting price…</p>}
+        </div>
+      </div>
+
+      {(o.stop != null || o.target != null) && !editing && (
+        <div className="mt-4">
+          {pos != null && (
+            <div className="relative h-1.5 rounded-full bg-[var(--mx-raised-2)]" aria-hidden="true">
+              <span className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-[var(--mx-text)] border-2 border-[var(--mx-surface)]" style={{ left: `${pos * 100}%` }} />
+            </div>
+          )}
+          <p className="mt-2 flex justify-between gap-3 text-[12.5px] text-[var(--mx-text-3)]">
+            <span>{o.stop != null ? `Safety: sells at ${usd(o.stop)}` : "No safety level"}</span>
+            <span>{o.target != null ? `Goal: sells at ${usd(o.target)}` : "No goal"}</span>
+          </p>
+        </div>
+      )}
+
+      {editing && (
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Field label="Safety level"><input value={stop} onChange={e => setStop(e.target.value)} inputMode="decimal" className={`${input} font-mono`} /></Field>
+          <Field label="Goal"><input value={target} onChange={e => setTarget(e.target.value)} inputMode="decimal" className={`${input} font-mono`} /></Field>
+        </div>
+      )}
+
+      {o.note && <p className="mt-3 text-[13px] text-[var(--mx-text-3)]">“{o.note}”</p>}
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {confirm ? (
+          <>
+            <span className="text-[13px] text-[var(--mx-text-2)] mr-1">
+              {long ? "Sell" : "Buy back"} {qty(o.shares)} {unitWord(o.symbol)}{price != null ? ` at about ${usd(price)}` : ""}{pl != null ? ` (${signedUsd(pl)})` : ""}?
+            </span>
+            <button type="button" onClick={() => { onSell(o); setConfirm(false); }} className="h-9 px-4 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[13px]">Yes, {long ? "sell" : "buy back"}</button>
+            <button type="button" onClick={() => setConfirm(false)} className={btnQuiet}>Keep it</button>
+          </>
+        ) : editing ? (
+          <>
+            <button type="button" onClick={() => { onLevels(o.id, num(stop), num(target)); setEditing(false); }} className="h-9 px-4 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[13px]">Save levels</button>
+            <button type="button" onClick={() => setEditing(false)} className={btnQuiet}>Cancel</button>
+          </>
+        ) : (
+          <>
+            <button type="button" disabled={o.closeQueued} onClick={() => setConfirm(true)} className="h-9 px-4 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[13px] disabled:opacity-35">{long ? "Sell" : "Buy back"}</button>
+            <button type="button" onClick={() => setEditing(true)} className={btnQuiet}>Change auto-sell</button>
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
+
+function PaperContent() {
   const params = useSearchParams();
   const { data: session } = useSession();
   const userEmail = session?.user?.email ?? null;
 
-  const [account, setAccount]           = useState<{ size: number; riskPct: number }>({ size: 100000, riskPct: 1 });
-  const [editingAccount, setEditing]    = useState(false);
-  const [accountInput, setAccountInput] = useState("100000");
-  const [riskInput, setRiskInput]       = useState("1");
-  const [signals, setSignals]           = useState<Signal[]>([]);
-  const [taken, setTaken]               = useState<TakenTrade[]>([]);
-  const [sizerSignal, setSizerSignal]   = useState<Signal | null>(null);
-  const [chartSymbol, setChartSymbol]   = useState(params.get("symbol") ?? "");
+  const [account, setAccount] = useState<Account>({ size: DEFAULT_START, riskPct: 1 });
+  const [orders, setOrders] = useState<PaperOrder[]>([]);
+  const [activity, setActivity] = useState<Activity[]>([]);
+  const [quotes, setQuotes] = useState<Record<string, QuoteInfo>>({});
+  const [ideas, setIdeas] = useState<Idea[]>([]);
+  const [chartSymbol, setChartSymbol] = useState(clean(params.get("symbol") ?? ""));
+  const [toast, setToast] = useState<string | null>(null);
+  const [settings, setSettings] = useState(false);
+  const [startInput, setStartInput] = useState(String(DEFAULT_START));
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const [prefill, setPrefill] = useState<Prefill>(() => ({
+    symbol: clean(params.get("symbol") ?? "").toUpperCase(),
+    side: params.get("side") === "SELL" ? "SELL" : "BUY",
+    stop: num(params.get("stop") ?? ""),
+    target: num(params.get("target") ?? ""),
+    key: 0,
+  }));
 
-  const initSymbol = params.get("symbol") ?? "";
-  const initSignal = (params.get("side") as "BUY" | "SELL" | null) ?? "BUY";
-
-  const [selectedPlay, setSelectedPlay] = useState<RecommendedPlay | null>(null);
-  const [playKey,      setPlayKey]      = useState(0);
-  const [closingId,    setClosingId]    = useState<string | null>(null);
-  const [closeInput,   setCloseInput]   = useState("");
-  const [livePrices,   setLivePrices]   = useState<Record<string, number>>({});
-  const [priceTs,      setPriceTs]      = useState<number | null>(null);
-
+  // Load once the session is known (storage keys are per user).
   useEffect(() => {
-    if (session === undefined) return; // wait for session to resolve before reading scoped keys
-    setCurrentUser(userEmail);         // ensure scopedKey uses the correct user hash
-    const acc = loadAccount();
-    if (acc) { setAccount(acc); setAccountInput(String(acc.size)); setRiskInput(String(acc.riskPct)); }
-    const raw = JSON.parse(localStorage.getItem(scopedKey("traxora_alerts")) ?? "[]") as Signal[];
-    setSignals(raw.filter(s => s.signal === "BUY" || s.signal === "SELL").slice(0, 12));
-    setTaken(loadTaken());
-    // Cross-device sync: merge server trades with local by id, then heal the
-    // server if it's missing anything (trades taken before sync existed, or
-    // saved while the network/POST silently failed). Never blindly replace —
-    // a fresh device pulling an empty server must not erase local history,
-    // and a device with local history must upload it.
+    if (session === undefined) return;
+    setCurrentUser(userEmail);
+    /* eslint-disable react-hooks/set-state-in-effect -- one-time load from storage */
+    const acc = readJSON<Account | null>(ACCOUNT_KEY, null);
+    if (acc?.size) { setAccount(acc); setStartInput(String(acc.size)); }
+    setOrders(readJSON<PaperOrder[]>(TAKEN_KEY, []));
+    setActivity(readJSON<Activity[]>(ACTIVITY_KEY, []));
+    setIdeas(loadIdeas());
+    /* eslint-enable react-hooks/set-state-in-effect */
+    // Cross-device sync: merge by id; the copy that progressed further wins.
     syncFetch("/api/paper-trades")
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
-      .then((data: { trades?: TakenTrade[] }) => {
+      .then((data: { trades?: PaperOrder[] }) => {
         const server = Array.isArray(data.trades) ? data.trades : [];
-        const local  = loadTaken();
-        const byId   = new Map<string, TakenTrade>(server.map(t => [t.id, t]));
+        const local = readJSON<PaperOrder[]>(TAKEN_KEY, []);
+        const byId = new Map(server.map(t => [t.id, t]));
         let serverBehind = false;
         for (const t of local) {
           const s = byId.get(t.id);
-          // Local wins when it progressed further (e.g. closed on this device)
-          if (!s || (t.closedAt ?? t.time ?? 0) > (s.closedAt ?? s.time ?? 0)) {
-            byId.set(t.id, t);
-            serverBehind = true;
-          }
+          const stamp = (x: PaperOrder) => x.closedAt ?? x.filledAt ?? x.time ?? 0;
+          if (!s || stamp(t) > stamp(s)) { byId.set(t.id, t); serverBehind = true; }
         }
         const merged = [...byId.values()].sort((a, b) => (b.time ?? 0) - (a.time ?? 0));
-        setTaken(merged);
-        saveTaken(merged);
-        if (serverBehind) {
-          syncFetch("/api/paper-trades", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ trades: merged }),
-          }).catch(() => {});
-        }
+        setOrders(merged);
+        writeJSON(TAKEN_KEY, merged);
+        if (serverBehind) persistOrders(merged);
       })
-      .catch(e => console.warn("[paper] trade sync failed — trades stay on this device until it succeeds:", e));
-  }, [session, userEmail]); // re-run once session resolves (catches direct page load)
+      .catch(() => { /* signed out or offline: trades stay on this device */ });
+  }, [session, userEmail]);
 
-  function handleSelectPlay(p: RecommendedPlay) {
-    setSelectedPlay(p);
-    setPlayKey(k => k + 1);
-    setSizerSignal(null);
-    haptic.medium();
-    // Scroll position sizer into view on mobile
-    setTimeout(() => {
-      document.getElementById("position-sizer")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 50);
-  }
-
-  function saveAccountSettings() {
-    const size    = parseFloat(accountInput.replace(/[^0-9.]/g, ""));
-    const riskPct = parseFloat(riskInput.replace(/[^0-9.]/g, ""));
-    if (!size || !riskPct || size <= 0 || riskPct <= 0) return;
-    const v = { size, riskPct };
-    setAccount(v); saveAccount(v); setEditing(false);
-  }
-
-  const handleTaken = useCallback((t: TakenTrade) => {
-    const withStatus = { ...t, status: "PENDING" as const };
-    setTaken(prev => { const next = [withStatus, ...prev]; persistTaken(next); return next; });
-    // Show the trader their new order — otherwise placing one gives no feedback
-    setTimeout(() => {
-      document.getElementById("orders-and-positions")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 250);
-  }, []);
-
-  // Arriving via a signal card's "Trade →" link (?symbol=...) — bring the
-  // pre-filled order ticket into view instead of landing on the equity header.
   useEffect(() => {
-    if (!initSymbol) return;
-    const t = setTimeout(() => {
-      document.getElementById("position-sizer")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 500);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
   }, []);
 
-  function cancelPending(id: string) {
-    setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
-  }
+  const flash = useCallback((text: string) => {
+    setToast(text);
+    window.setTimeout(() => setToast(t => (t === text ? null : t)), 4500);
+  }, []);
 
-  function removeTaken(id: string) {
-    setTaken(prev => { const next = prev.filter(t => t.id !== id); persistTaken(next); return next; });
-  }
-
-  // Outcome is derived from the close price — traders shouldn't self-report
-  // win/loss (mislabelling would corrupt every analytics page downstream).
-  function closeTrade(id: string) {
-    const cp = parseFloat(closeInput);
-    if (isNaN(cp) || cp <= 0) return;
-    setTaken(prev => {
-      const next = prev.map(t => {
-        if (t.id !== id) return t;
-        const pl = (t.signal === "BUY" ? 1 : -1) * (cp - t.entry) * t.shares;
-        return { ...t, status: (pl >= 0 ? "WIN" : "LOSS") as "WIN" | "LOSS", closePrice: cp, closedAt: Date.now() };
-      });
-      persistTaken(next);
+  const log = useCallback((events: EngineEvent[]) => {
+    if (!events.length) return;
+    setActivity(prev => {
+      const next = [...events.map(e => ({ id: `${e.id}-${Date.now()}`, text: e.text, at: Date.now() })), ...prev].slice(0, 20);
+      writeJSON(ACTIVITY_KEY, next);
       return next;
     });
-    setClosingId(null);
-    setCloseInput("");
-  }
+    flash(events[0].text);
+    haptic.medium();
+  }, [flash]);
 
-  // ── Derived stats ─────────────────────────────────────────────────────────
-  const pending = taken.filter(t => t.status === "PENDING");
-  const open    = taken.filter(t => t.status === "OPEN" || !t.status); // !t.status = backward compat for legacy trades
-  const closed  = taken.filter(t => t.status === "WIN" || t.status === "LOSS");
-  const wins   = closed.filter(t => t.status === "WIN");
-  const losses = closed.filter(t => t.status === "LOSS");
-  const winRate = closed.length > 0 ? Math.round((wins.length / closed.length) * 100) : null;
-  const riskDeployed = open.reduce((s, t) => s + t.riskDollar, 0);
-  const maxRisk = (account.size * account.riskPct) / 100 * 5;
-  const riskPct = maxRisk > 0 ? Math.min((riskDeployed / maxRisk) * 100, 100) : 0;
-  const avgRR = taken.length > 0
-    ? taken.reduce((s, t) => s + (t.potential / t.riskDollar), 0) / taken.length
-    : null;
-  const realizedPL = closed.reduce((s, t) => {
-    if (t.closePrice == null) return s + (t.status === "WIN" ? t.potential : -t.riskDollar);
-    const dir = t.signal === "BUY" ? 1 : -1;
-    return s + dir * (t.closePrice - t.entry) * t.shares;
-  }, 0);
-  const equity = account.size + realizedPL;
+  const saveQuote = useCallback((s: string, q: QuoteInfo) => setQuotes(prev => ({ ...prev, [s]: q })), []);
 
-  // Live price polling — every 60s during market hours, every 5min outside
-  // Polls both open AND pending so pending orders can auto-fill when price reaches entry
-  const activeSymbolKey = [...new Set([...open, ...pending].map(t => t.symbol))].sort().join(",");
+  // Price updates: every 30s while any market we hold is open, every 2 min otherwise.
+  const watched = useMemo(
+    () => [...new Set(orders.filter(o => o.status === "OPEN" || o.status === "PENDING" || !o.status).map(o => o.symbol))].sort(),
+    [orders],
+  );
+  const watchedKey = watched.join(",");
+  const caughtUp = useRef(new Set<string>());
   useEffect(() => {
-    const symbols = [...new Set([...open, ...pending].map(t => t.symbol))];
-    if (!symbols.length) return;
-    async function fetchAll() {
-      const updates: Record<string, number> = {};
-      await Promise.allSettled(symbols.map(async sym => {
-        try {
-          const r = await fetch(`/api/quote?symbol=${encodeURIComponent(sym)}`);
-          const d = await r.json();
-          if (typeof d.price === "number" && d.price > 0) updates[sym] = d.price;
-        } catch { /* ignore */ }
-      }));
-      if (Object.keys(updates).length) {
-        setLivePrices(prev => ({ ...prev, ...updates }));
-        setPriceTs(Date.now());
-        // Auto-fill pending orders when price reaches entry (0.5% tolerance = "at your level")
-        setTaken(prev => {
-          let changed = false;
-          const next = prev.map(t => {
-            if (t.status !== "PENDING") return t;
-            const price = updates[t.symbol];
-            if (price == null) return t;
-            const filled = Math.abs(price - t.entry) / t.entry <= 0.005
-              || (t.signal === "BUY"  ? price <= t.entry : price >= t.entry);
-            if (!filled) return t;
-            changed = true;
-            return { ...t, status: "OPEN" as const };
-          });
-          if (changed) persistTaken(next);
-          return changed ? next : prev;
+    if (!watched.length) return;
+    let stop = false;
+    async function run() {
+      // First time we see a symbol this visit: replay what happened while away.
+      for (const s of watched.filter(x => !caughtUp.current.has(x))) {
+        caughtUp.current.add(s);
+        const mine = orders.filter(o => o.symbol === s && (o.status === "OPEN" || o.status === "PENDING" || !o.status));
+        if (!mine.length) continue;
+        const since = Math.min(...mine.map(o => o.time));
+        const bars = await fetchBars(s, since);
+        if (stop) return;
+        if (!bars.length) continue;
+        setOrders(prev => {
+          const r = catchUp(prev, s, bars, Date.now());
+          if (!r.changed) return prev;
+          persistOrders(r.orders);
+          queueMicrotask(() => log(r.events));
+          return r.orders;
         });
       }
+      const got = await Promise.all(watched.map(async s => [s, await fetchQuote(s)] as const));
+      if (stop) return;
+      const fresh: Record<string, QuoteInfo> = {};
+      for (const [s, q] of got) if (q) fresh[s] = q;
+      if (!Object.keys(fresh).length) return;
+      setQuotes(prev => ({ ...prev, ...fresh }));
+      setNow(Date.now());
+      setOrders(prev => {
+        const r = tick(prev, fresh, Date.now());
+        if (!r.changed) return prev;
+        persistOrders(r.orders);
+        queueMicrotask(() => log(r.events));
+        return r.orders;
+      });
     }
-    fetchAll();
-    const delay = isMarketHours() ? 60_000 : 300_000;
-    const id = setInterval(fetchAll, delay);
-    return () => clearInterval(id);
-  }, [activeSymbolKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    run();
+    const anyOpen = watched.some(s => isMarketOpen(s, Date.now()));
+    const id = window.setInterval(() => { if (document.visibilityState === "visible") run(); }, anyOpen ? 30_000 : 120_000);
+    return () => { stop = true; window.clearInterval(id); };
+  }, [watchedKey, log]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const unrealizedPL = open.reduce((s, t) => {
-    const lp = livePrices[t.symbol];
-    return lp != null ? s + calcLivePL(t, lp) : s;
-  }, 0);
-  const hasLiveData = Object.keys(livePrices).length > 0;
+  const prices = useMemo(() => Object.fromEntries(Object.entries(quotes).map(([k, v]) => [k, v.price])), [quotes]);
+  const sum = useMemo(() => summarize(orders, account.size, prices), [orders, account.size, prices]);
+  const holdings = orders.filter(o => o.status === "OPEN" || !o.status);
+  const waiting = orders.filter(o => o.status === "PENDING");
+  const history = orders.filter(o => o.status === "WIN" || o.status === "LOSS").sort((a, b) => (b.closedAt ?? 0) - (a.closedAt ?? 0));
+  const stockOpen = isMarketOpen("AAPL", now);
+
+  function update(next: PaperOrder[]) { setOrders(next); persistOrders(next); }
+
+  function onPlace(o: PaperOrder, filled: boolean) {
+    update([o, ...orders]);
+    const msg = filled
+      ? `${o.signal === "BUY" ? "Bought" : "Sold short"} ${qty(o.shares)} ${o.symbol} at ${usd(o.entry)}.`
+      : o.orderType === "limit"
+        ? `Order saved. We’ll ${o.signal === "BUY" ? "buy" : "sell short"} ${o.symbol} if the price reaches ${usd(o.limitPrice ?? o.entry)}.`
+        : `Order saved. It will go through when the market opens.`;
+    log([{ id: o.id, symbol: o.symbol, text: msg }]);
+    setTimeout(() => document.getElementById("your-stocks")?.scrollIntoView({ behavior: "smooth", block: "start" }), 200);
+  }
+
+  async function onSell(o: PaperOrder) {
+    const q = (await fetchQuote(o.symbol)) ?? quotes[o.symbol];
+    if (q) saveQuote(o.symbol, q as QuoteInfo);
+    const c = closeNow(o, q, Date.now());
+    update(orders.map(x => (x.id === o.id ? c : x)));
+    if (c.status === "WIN" || c.status === "LOSS") {
+      const p = profit(c, c.closePrice!);
+      log([{ id: o.id, symbol: o.symbol, text: `${o.signal === "BUY" ? "Sold" : "Bought back"} ${o.symbol} at ${usd(c.closePrice!)} · ${signedUsd(p)}.` }]);
+    } else {
+      log([{ id: o.id, symbol: o.symbol, text: `The market is closed. We’ll ${o.signal === "BUY" ? "sell" : "buy back"} ${o.symbol} when it opens.` }]);
+    }
+  }
+
+  function onLevels(id: string, stop: number | null, target: number | null) {
+    update(orders.map(o => {
+      if (o.id !== id) return o;
+      const next = { ...o, stop, target };
+      next.riskDollar = stop != null ? Math.abs(o.entry - stop) * o.shares : 0;
+      next.potential = target != null ? Math.abs(target - o.entry) * o.shares : 0;
+      return next;
+    }));
+    flash("Auto-sell levels updated.");
+  }
+
+  function cancel(id: string) { update(orders.filter(o => o.id !== id)); flash("Order cancelled."); }
+  function removeHistory(id: string) { update(orders.filter(o => o.id !== id)); }
+
+  function saveStart() {
+    const size = num(startInput);
+    if (!size) return;
+    const v = { ...account, size };
+    setAccount(v); writeJSON(ACCOUNT_KEY, v); setSettings(false);
+    flash(`Starting amount set to ${usd(size, 0)}.`);
+  }
+
+  function startOver() {
+    update([]);
+    setActivity([]); writeJSON(ACTIVITY_KEY, []);
+    setConfirmReset(false); setSettings(false);
+    flash("Your practice account has been reset.");
+  }
+
+  function pickIdea(i: Idea) {
+    setPrefill(p => ({ symbol: i.symbol, side: i.side, stop: i.stop, target: i.target, key: p.key + 1 }));
+    setChartSymbol(i.symbol);
+    document.getElementById("ticket")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   return (
-    <div className="flex min-h-screen text-[#F1F5F9]">
+    <div className="flex min-h-screen text-[var(--mx-text)]">
       <Sidebar />
-      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 lg:p-6 xl:p-8 pb-32 page-enter">
+      <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <div className="max-w-7xl mx-auto w-full mt-3 space-y-5">
+        <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+          <div className="max-w-6xl mx-auto w-full space-y-6">
 
-          {/* ── Header ── */}
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div>
-              <h1 className="reveal text-2xl lg:text-4xl font-black tracking-tight text-gradient-green">Paper Portfolio</h1>
-              <p className="text-xs lg:text-sm text-[#4B5675] mt-1">Simulate trades risk-free with $100,000 virtual capital</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link href="/journal" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-3 py-2 rounded-xl transition-all">Journal →</Link>
-              <Link href="/history" className="text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-3 py-2 rounded-xl transition-all">History →</Link>
-            </div>
-          </div>
+            {/* Header */}
+            <header className="flex items-end justify-between gap-4 flex-wrap">
+              <div>
+                <p className="mx-label flex items-center gap-2"><MarketDot open={stockOpen} />{stockOpen ? "US market open" : "US market closed"} · practice money</p>
+                <h1 className="mt-3 text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]" style={{ fontWeight: 450 }}>Practice trading</h1>
+                <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[56ch]">Buy and sell with pretend money at real market prices. Learn how it feels — without risking a cent.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link href="/journal" className={btnQuiet + " inline-flex items-center"}>Journal</Link>
+                <button type="button" onClick={() => setSettings(s => !s)} className={btnQuiet} aria-expanded={settings}>Account settings</button>
+              </div>
+            </header>
 
-          {/* ── Portfolio Hero ── */}
-          <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl px-5 lg:px-7 py-5 lg:py-6">
-            {!editingAccount ? (
-              <>
-                <div className="flex items-start justify-between flex-wrap gap-6">
-                  <div>
-                    <p className="text-[10px] lg:text-xs text-[#4B5675] uppercase tracking-widest mb-2">Portfolio Equity</p>
-                    <p className={`text-4xl lg:text-5xl font-black font-mono tabular-nums ${(realizedPL + unrealizedPL) >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                      {fmtD(equity + unrealizedPL)}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2">
-                      <span className={`text-sm font-bold tabular-nums ${realizedPL >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                        {realizedPL >= 0 ? "+" : ""}{fmtD(realizedPL)}
-                      </span>
-                      <span className="text-[#4B5675] text-xs">realized</span>
-                      {hasLiveData && open.length > 0 && (
-                        <>
-                          <span className="text-[#252345]">·</span>
-                          <span className={`text-sm font-bold tabular-nums ${unrealizedPL >= 0 ? "text-sky-400" : "text-rose-400"}`}>
-                            {unrealizedPL >= 0 ? "+" : ""}{fmtD(unrealizedPL)}
-                          </span>
-                          <span className="text-[#4B5675] text-xs">unrealized</span>
-                          {priceTs && <span className="text-[9px] text-[#333368] flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />live</span>}
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Quick stats */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                      { label: "Account Size",    val: fmtD(account.size),                                   color: "text-[#F1F5F9]" },
-                      { label: "Risk / Trade",    val: `${account.riskPct}% · ${fmtD((account.size * account.riskPct)/100)}`, color: "text-rose-400" },
-                      { label: "Max Daily Risk",  val: fmtD((account.size * account.riskPct * 3)/100),        color: "text-amber-400" },
-                      { label: "Buying Power",    val: fmtD(account.size - riskDeployed),                    color: "text-sky-400" },
-                    ].map(s => (
-                      <div key={s.label}>
-                        <p className="text-[9px] lg:text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{s.label}</p>
-                        <p className={`text-sm lg:text-base font-black font-mono ${s.color}`}>{s.val}</p>
+            {/* Settings */}
+            {settings && (
+              <section className={`${card} p-5 space-y-4`} aria-label="Account settings">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="w-48">
+                    <Field label="Starting amount">
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--mx-text-3)]">$</span>
+                        <input value={startInput} onChange={e => setStartInput(e.target.value)} inputMode="decimal" className={`${input} pl-7 font-mono`} />
                       </div>
-                    ))}
+                    </Field>
                   </div>
-
-                  <button type="button" onClick={() => setEditing(true)}
-                    className="self-start text-xs text-[#4B5675] hover:text-[#7B8DB4] border border-[#252345] hover:border-[#333368] px-4 py-2 rounded-xl transition-all shrink-0">
-                    Edit
-                  </button>
-                </div>
-
-                {/* Risk gauge */}
-                <div className="mt-5 pt-4 border-t border-white/[0.05]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold">Risk Deployed ({open.length} open)</span>
-                    <span className={`text-xs font-bold font-mono ${riskPct > 70 ? "text-rose-400" : riskPct > 40 ? "text-amber-400" : "text-emerald-400"}`}>
-                      {fmtD(riskDeployed)} / {fmtD(maxRisk)}
-                    </span>
+                  <button type="button" onClick={saveStart} className="h-11 px-5 rounded-full bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] text-[14px]">Save</button>
+                  <div className="flex gap-2">
+                    {[10_000, 25_000, 100_000].map(v => <button key={v} type="button" onClick={() => setStartInput(String(v))} className={btnQuiet}>{usd(v, 0)}</button>)}
                   </div>
-                  <div className="h-2 bg-[#0D0B1A] rounded-full overflow-hidden border border-[#1C1933]">
-                    {/* eslint-disable-next-line react/forbid-dom-props */}
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${riskPct > 70 ? "bg-rose-500" : riskPct > 40 ? "bg-amber-500" : "bg-emerald-500"}`}
-                      style={{ width: `${riskPct}%` }}
-                    />
-                  </div>
-                  <p className="text-[9px] text-[#4B5675] mt-1.5">Max risk = 5× your per-trade risk limit ({fmtD((account.size * account.riskPct)/100)} × 5)</p>
                 </div>
-              </>
-            ) : (
-              <div className="flex items-end gap-3 flex-wrap">
-                <div>
-                  <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Account Size ($)</label>
-                  <input value={accountInput} onChange={e => setAccountInput(e.target.value)} placeholder="100000"
-                    className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/50 w-40" />
+                <p className="text-[13px] text-[var(--mx-text-3)]">Tip: practise with the amount you’d really invest. Trading $100,000 of pretend money doesn’t feel like your real savings.</p>
+                <div className="pt-4 border-t border-[var(--mx-line)] flex flex-wrap items-center gap-3">
+                  {confirmReset ? (
+                    <>
+                      <span className="text-[14px]">Delete all practice trades and start fresh?</span>
+                      <button type="button" onClick={startOver} className="h-9 px-4 rounded-full bg-[var(--mx-down)] text-black text-[13px]">Yes, start over</button>
+                      <button type="button" onClick={() => setConfirmReset(false)} className={btnQuiet}>Cancel</button>
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setConfirmReset(true)} className={btnQuiet}>Start over</button>
+                  )}
                 </div>
-                <div>
-                  <label className="text-[9px] text-[#4B5675] uppercase tracking-wider font-semibold block mb-1.5">Risk Per Trade (%)</label>
-                  <input value={riskInput} onChange={e => setRiskInput(e.target.value)} placeholder="1"
-                    className="bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/50 w-24" />
-                </div>
-                <button type="button" onClick={saveAccountSettings}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-xl text-sm font-bold transition-all">Save</button>
-                <button type="button" onClick={() => setEditing(false)} className="text-xs text-[#4B5675] hover:text-[#7B8DB4] px-2 py-2">Cancel</button>
-              </div>
+              </section>
             )}
-          </div>
 
-          {/* ── Stats strip ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
-            {[
-              { label: "Open Positions",  val: pending.length > 0 ? `${open.length} (+${pending.length} pending)` : String(open.length), color: open.length > 0 ? "text-sky-400" : pending.length > 0 ? "text-amber-400" : "text-[#F1F5F9]" },
-              { label: "Closed Trades",   val: String(closed.length),                                           color: "text-[#F1F5F9]" },
-              { label: "Win Rate",        val: winRate != null ? `${winRate}%` : "—",                           color: winRate != null ? (winRate >= 50 ? "text-emerald-400" : "text-rose-400") : "text-[#4B5675]" },
-              { label: "Wins / Losses",   val: `${wins.length}W · ${losses.length}L`,                          color: "text-[#F1F5F9]" },
-              { label: "Avg R:R",         val: avgRR != null ? `${avgRR.toFixed(2)}:1` : "—",                  color: avgRR != null ? (avgRR >= 2 ? "text-emerald-400" : avgRR >= 1 ? "text-amber-400" : "text-rose-400") : "text-[#4B5675]" },
-              { label: "Realized P&L",    val: closed.length > 0 ? `${realizedPL >= 0 ? "+" : ""}${fmtD(realizedPL)}` : "—", color: realizedPL >= 0 ? "text-emerald-400" : "text-rose-400" },
-            ].map(s => (
-              <div key={s.label} className="glass surface-sheen border border-[#252345] rounded-2xl px-4 py-3.5">
-                <p className="text-[9px] lg:text-[10px] text-[#4B5675] uppercase tracking-widest font-semibold mb-1">{s.label}</p>
-                <p className={`text-lg lg:text-xl font-black font-mono tabular-nums ${s.color}`}>{s.val}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* ── Recommended Plays ── */}
-          <RecommendedPlays onSelect={handleSelectPlay} />
-
-          {/* ── Sizer + Signals ── */}
-          <div id="position-sizer" className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-            {/* Sizer */}
-            <PositionSizer
-              key={playKey}
-              initSymbol={
-                selectedPlay ? selectedPlay.symbol.replace(".US","").replace(".COMM","")
-                : sizerSignal ? sizerSignal.symbol.replace(".US","").replace(".COMM","")
-                : initSymbol
-              }
-              initSignal={selectedPlay?.signal ?? sizerSignal?.signal ?? initSignal}
-              initEntry={
-                selectedPlay ? selectedPlay.price.toFixed(2)
-                : sizerSignal ? sizerSignal.price.toFixed(2)
-                : (params.get("price") ?? "")
-              }
-              initStop={
-                selectedPlay ? selectedPlay.stop
-                : sizerSignal ? ""
-                : (params.get("stop") ?? "")
-              }
-              initTarget={
-                selectedPlay ? selectedPlay.target
-                : sizerSignal ? ""
-                : (params.get("target") ?? "")
-              }
-              account={account}
-              onTaken={handleTaken}
-              onSymbolChange={s => { if (s.length >= 1) setChartSymbol(s); }}
-            />
-
-            {/* Signals + Rules */}
-            <div className="space-y-4">
-              <div className="glass surface-sheen border border-[#252345] rounded-2xl overflow-hidden">
-                <div className="px-5 pt-4 pb-3 border-b border-[#1C1933]">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Recent Signals — tap to load</p>
+            {/* Account summary */}
+            <section className={`${card} p-5 sm:p-6`} aria-label="Account summary">
+              <div className="flex flex-wrap items-end justify-between gap-6">
+                <div>
+                  <p className="text-[13px] text-[var(--mx-text-3)]">Total value</p>
+                  <p className="mt-1 font-mono text-[36px] sm:text-[44px] leading-none tracking-[-0.02em]">{usd(sum.total)}</p>
+                  <p className={`mt-2 text-[14px] ${tone(sum.gain)}`}>
+                    {sum.gain === 0 ? "No change yet" : `${sum.gain > 0 ? "Up" : "Down"} ${usd(Math.abs(sum.gain))} (${signedPct(sum.gainPct)})`}
+                    <span className="text-[var(--mx-text-3)]"> since you started with {usd(account.size, 0)}</span>
+                  </p>
                 </div>
-                {signals.length === 0 ? (
-                  <div className="px-5 py-8 text-center space-y-3">
-                    <p className="text-3xl">⚡</p>
-                    <p className="text-sm font-semibold text-[#7B8DB4]">No signals yet</p>
-                    <p className="text-xs text-[#4B5675]">Run an analysis to generate your first signal</p>
-                    <Link href="/analysis" className="inline-block mt-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all">
-                      Go to Signals →
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="p-3 space-y-2">
-                    {signals.map((s, i) => {
-                      const ticker = s.symbol.replace(".US","").replace(".COMM","");
-                      const active = sizerSignal?.symbol === s.symbol && sizerSignal?.time === s.time;
-                      return (
-                        <button key={i} type="button" onClick={() => { const next = active ? null : s; setSizerSignal(next); if (next) setChartSymbol(next.symbol.replace(".US","").replace(".COMM","")); }}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                            active ? "bg-emerald-500/8 border-emerald-500/30" : "bg-[#0D0B1A] border-[#1C1933] hover:border-[#333368]"
-                          }`}>
-                          <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
-                            s.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                          }`}>{s.signal}</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold">{ticker}</p>
-                            <p className="text-[10px] text-[#4B5675] truncate">{s.name || ticker} · {ago(s.time)}</p>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-mono font-bold">${s.price.toFixed(2)}</p>
-                            <p className={`text-[9px] font-semibold ${s.confidence === "High" ? "text-emerald-400" : s.confidence === "Medium" ? "text-amber-400" : "text-rose-400"}`}>{s.confidence}</p>
-                          </div>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={active ? "#34D399" : "#4B5675"} strokeWidth="2.5" strokeLinecap="round"><polyline points="9 18 15 12 9 6"/></svg>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <dl className="grid grid-cols-3 gap-6 sm:gap-10">
+                  {[
+                    ["Cash", usd(sum.cash, 0), "ready to invest"],
+                    ["Invested", usd(sum.invested, 0), `${sum.openCount} ${sum.openCount === 1 ? "stock" : "stocks"}`],
+                    ["Results", sum.closedCount ? `${sum.wins}/${sum.closedCount}` : "—", sum.closedCount ? "trades made money" : "no finished trades"],
+                  ].map(([k, v, s]) => (
+                    <div key={k}>
+                      <dt className="text-[13px] text-[var(--mx-text-3)]">{k}</dt>
+                      <dd className="mt-1 font-mono text-[18px] sm:text-[20px]">{v}</dd>
+                      <dd className="text-[12px] text-[var(--mx-text-3)]">{s}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            </section>
+
+            <div className="grid xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] gap-6 items-start">
+              {/* Ticket + ideas */}
+              <div id="ticket" className="space-y-6 scroll-mt-20">
+                <Ticket key={prefill.key} prefill={prefill} cash={sum.cash} now={now} quotes={quotes} onQuote={saveQuote} onPlace={onPlace}
+                  onSymbol={s => setChartSymbol(s)} />
+
+                {ideas.length > 0 && (
+                  <section className={`${card} p-5`} aria-labelledby="ideas-h">
+                    <h2 id="ideas-h" className="text-[15px]">Ideas from your signals</h2>
+                    <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)]">Tap one to fill in the trade. Always decide for yourself.</p>
+                    <ul className="mt-3 space-y-2">
+                      {ideas.map(i => (
+                        <li key={i.symbol}>
+                          <button type="button" onClick={() => pickIdea(i)} className="w-full flex items-center justify-between gap-3 rounded-[10px] border border-[var(--mx-line)] px-3 py-2.5 text-left hover:border-[var(--mx-line-strong)] transition-colors">
+                            <span className="flex items-center gap-2">
+                              <span className="font-mono text-[14px]">{i.symbol}</span>
+                              <span className={`text-[12px] ${i.side === "BUY" ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}`}>{i.side === "BUY" ? "Buy idea" : "Sell idea"}</span>
+                            </span>
+                            <span className="text-[12px] text-[var(--mx-text-3)]">{i.confidence} confidence →</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
                 )}
               </div>
 
-              {/* Trading rules */}
-              <div className="glass surface-sheen border border-[#252345] rounded-2xl px-5 py-4">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675] mb-3">Paper Trading Rules</p>
-                <div className="space-y-2">
-                  {[
-                    ["1%", "Never risk more than 1% per trade"],
-                    ["Pre", "Define stop loss before entering"],
-                    ["R:R", "Only take trades with 2:1+ reward/risk"],
-                    ["Log", "Record every trade with a reason"],
-                    ["Rev", "Review closed trades weekly"],
-                  ].map(([tag, rule]) => (
-                    <div key={tag} className="flex items-center gap-3">
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shrink-0 w-8 text-center">{tag}</span>
-                      <p className="text-xs text-[#7B8DB4]">{rule}</p>
+              {/* Chart + positions */}
+              <div className="space-y-6 min-w-0">
+                {chartSymbol && (
+                  <section className="rounded-[14px] overflow-hidden border border-[var(--mx-line)]" aria-label={`${chartSymbol} chart`}>
+                    <TraxoraChart symbol={chartSymbol} height={380} />
+                  </section>
+                )}
+
+                <section id="your-stocks" className="space-y-3 scroll-mt-20" aria-labelledby="hold-h">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <h2 id="hold-h" className="text-[18px] tracking-[-0.01em]">Your stocks</h2>
+                    {holdings.length > 0 && <span className="text-[12.5px] text-[var(--mx-text-3)]">Prices update every {stockOpen ? "30 seconds" : "2 minutes"}</span>}
+                  </div>
+                  {holdings.length === 0 ? (
+                    <div className="rounded-[14px] border border-dashed border-[var(--mx-line-strong)] px-6 py-10 text-center">
+                      <p className="text-[15px]">You don’t own anything yet.</p>
+                      <p className="mt-1 text-[13px] text-[var(--mx-text-3)]">Try buying {usd(1000, 0)} of a company you know, like Apple (AAPL).</p>
                     </div>
-                  ))}
-                </div>
+                  ) : (
+                    <ul className="space-y-3">
+                      {holdings.map(o => <Holding key={o.id} o={o} quote={quotes[o.symbol]} onSell={onSell} onLevels={onLevels} />)}
+                    </ul>
+                  )}
+                </section>
+
+                {waiting.length > 0 && (
+                  <section className="space-y-3" aria-labelledby="wait-h">
+                    <h2 id="wait-h" className="text-[18px] tracking-[-0.01em]">Waiting orders</h2>
+                    <ul className="space-y-2">
+                      {waiting.map(o => {
+                        const q = quotes[o.symbol];
+                        const what = o.orderType === "limit"
+                          ? `${o.signal === "BUY" ? "Buy" : "Sell short"} ${qty(o.shares)} ${o.symbol} if the price ${o.signal === "BUY" ? "drops to" : "rises to"} ${usd(o.limitPrice ?? o.entry)}`
+                          : `${o.signal === "BUY" ? "Buy" : "Sell short"} ${o.amount != null ? usd(o.amount) + " of" : qty(o.shares)} ${o.symbol} when the market opens`;
+                        return (
+                          <li key={o.id} className={`${card} px-4 py-3 flex items-center justify-between gap-3`}>
+                            <div className="min-w-0">
+                              <p className="text-[14px]">{what}</p>
+                              <p className="text-[12.5px] text-[var(--mx-text-3)]">{q ? `Now ${usd(q.price)} · ` : ""}placed {ago(o.time)}</p>
+                            </div>
+                            <button type="button" onClick={() => cancel(o.id)} className={btnQuiet}>Cancel</button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
+
+                {activity.length > 0 && (
+                  <section className="space-y-3" aria-labelledby="act-h">
+                    <h2 id="act-h" className="text-[18px] tracking-[-0.01em]">What happened</h2>
+                    <ul className={`${card} divide-y divide-[var(--mx-line)]`}>
+                      {activity.slice(0, 6).map(a => (
+                        <li key={a.id} className="px-4 py-3 flex items-start justify-between gap-3 text-[14px]">
+                          <span className="text-[var(--mx-text-2)]">{a.text}</span>
+                          <span className="shrink-0 text-[12px] text-[var(--mx-text-3)]">{ago(a.at)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                {history.length > 0 && (
+                  <section className="space-y-3" aria-labelledby="hist-h">
+                    <h2 id="hist-h" className="text-[18px] tracking-[-0.01em]">Finished trades</h2>
+                    <ul className={`${card} divide-y divide-[var(--mx-line)]`}>
+                      {history.map(o => {
+                        const p = o.closePrice != null ? profit(o, o.closePrice) : o.status === "WIN" ? o.potential : -o.riskDollar;
+                        const pc = o.closePrice != null ? profitPct(o, o.closePrice) : null;
+                        const why = o.exitReason === "stop" ? "Sold at your safety level" : o.exitReason === "target" ? "Reached your goal" : "You sold";
+                        return (
+                          <li key={o.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-[14px]"><span className="font-mono">{clean(o.symbol)}</span> <span className="text-[var(--mx-text-3)]">· {why}</span></p>
+                              <p className="text-[12.5px] text-[var(--mx-text-3)]">
+                                {o.signal === "BUY" ? "Bought" : "Shorted"} at {usd(o.entry)}{o.closePrice != null ? `, closed at ${usd(o.closePrice)}` : ""} · {ago(o.closedAt ?? o.time)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className={`font-mono text-[14px] ${tone(p)}`}>{signedUsd(p)}{pc != null ? ` (${signedPct(pc)})` : ""}</span>
+                              <button type="button" aria-label={`Remove ${o.symbol} from history`} onClick={() => removeHistory(o.id)} className="w-7 h-7 grid place-items-center rounded-full text-[var(--mx-text-3)] hover:text-[var(--mx-text)]">×</button>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                )}
+
+                <details className={`${card} p-5 group`}>
+                  <summary className="cursor-pointer list-none flex items-center justify-between text-[15px]">
+                    How practice trading works here
+                    <span aria-hidden="true" className="text-[var(--mx-text-3)] transition-transform group-open:rotate-45 text-[18px]">+</span>
+                  </summary>
+                  <ul className="mt-4 space-y-2.5 text-[14px] leading-relaxed text-[var(--mx-text-2)]">
+                    <li><b className="font-normal text-[var(--mx-text)]">Real prices, pretend money.</b> Prices come from public sources and can be up to 15 minutes behind.</li>
+                    <li><b className="font-normal text-[var(--mx-text)]">Market hours matter.</b> US stocks trade 9:30 AM–4:00 PM ET on weekdays. Orders placed outside those hours wait for the open. Crypto trades all the time.</li>
+                    <li><b className="font-normal text-[var(--mx-text)]">No perfect fills.</b> Buying “now” costs a tiny bit more than the price you see, and selling gets a tiny bit less — just like a real broker.</li>
+                    <li><b className="font-normal text-[var(--mx-text)]">Auto-sell works for you.</b> If the price reaches your safety level or goal, we sell for you. If the price jumps past it, you get the next price — this happens in real trading too.</li>
+                    <li><b className="font-normal text-[var(--mx-text)]">Cash is limited.</b> You can only spend the cash you have. Money in open trades and waiting orders isn’t available.</li>
+                    <li><b className="font-normal text-[var(--mx-text)]">It keeps working while you’re away.</b> When you come back, we look at what prices did in the meantime and fill your orders and auto-sells the way a broker would have.</li>
+                  </ul>
+                </details>
               </div>
             </div>
           </div>
+        </main>
+      </div>
 
-          {/* ── Chart ── */}
-          {chartSymbol && (
-            <div className="rounded-2xl overflow-hidden">
-              <TraxoraChart symbol={chartSymbol} height={440} />
-            </div>
-          )}
-
-          {/* ── Pending Orders ── */}
-          <div id="orders-and-positions" />
-          {pending.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Pending Orders ({pending.length})</p>
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-[9px] text-amber-400/70">Waiting for price to reach entry</span>
-              </div>
-              <div className="space-y-2">
-                {pending.map(t => {
-                  const livePrice = livePrices[t.symbol] ?? null;
-                  const gap = livePrice != null ? Math.abs(livePrice - t.entry) : null;
-                  const gapPct = gap != null ? (gap / t.entry) * 100 : null;
-                  const awayDir = livePrice != null
-                    ? (t.signal === "BUY"
-                        ? livePrice > t.entry ? `needs ↓ ${fmtD(livePrice - t.entry)}` : "at entry — filling soon"
-                        : livePrice < t.entry ? `needs ↑ ${fmtD(t.entry - livePrice)}` : "at entry — filling soon")
-                    : null;
-
-                  return (
-                    <div key={t.id} className="border border-amber-500/20 bg-amber-500/5 rounded-2xl px-5 py-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
-                          t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                        }`}>{t.signal}</span>
-                        <p className="text-sm font-bold flex-1">{t.symbol}</p>
-                        {livePrice != null && (
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-black font-mono text-[#F1F5F9]">${livePrice.toFixed(2)}</p>
-                            {gapPct != null && gapPct > 0.1 && (
-                              <p className="text-[10px] text-amber-400 font-mono">{awayDir}</p>
-                            )}
-                            {gapPct != null && gapPct <= 0.1 && (
-                              <p className="text-[10px] text-emerald-400 font-mono animate-pulse">filling…</p>
-                            )}
-                          </div>
-                        )}
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25 shrink-0">PENDING</span>
-                        <p className="text-[10px] text-[#4B5675] shrink-0">{ago(t.time)}</p>
-                      </div>
-
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
-                        {[
-                          { l: "Entry",  v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
-                          { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: "text-rose-400" },
-                          { l: "Target", v: `$${t.target.toFixed(2)}`, c: "text-emerald-400" },
-                          { l: "Shares", v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
-                          { l: "Risk",   v: fmtD(t.riskDollar),        c: "text-rose-400" },
-                          { l: "Upside", v: fmtD(t.potential),         c: "text-emerald-400" },
-                        ].map(r => (
-                          <div key={r.l} className="bg-[#0D0B1A] border border-[#1C1933] rounded-xl p-2 text-center">
-                            <p className={`text-xs font-black font-mono ${r.c}`}>{r.v}</p>
-                            <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mt-0.5">{r.l}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {t.note && <p className="text-xs text-[#4B5675] mb-3 italic">&ldquo;{t.note}&rdquo;</p>}
-
-                      <button
-                        type="button"
-                        onClick={() => cancelPending(t.id)}
-                        className="text-xs font-semibold px-4 py-2 rounded-xl transition-all border text-[#4B5675] border-[#333368] hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/5"
-                      >
-                        Cancel Order ✕
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Open Positions ── */}
-          {open.length > 0 && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Open Positions ({open.length})</p>
-                <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
-              </div>
-              <div className="space-y-2">
-                {open.map(t => {
-                  const livePrice  = livePrices[t.symbol] ?? null;
-                  const pl         = livePrice != null ? calcLivePL(t, livePrice)    : null;
-                  const plPct      = livePrice != null ? calcLivePLPct(t, livePrice) : null;
-                  const stopHit    = livePrice != null && isStopHit(t, livePrice);
-                  const targetHit  = livePrice != null && isTargetHit(t, livePrice);
-                  const breached   = stopHit || targetHit;
-
-                  const cardBorder = stopHit
-                    ? "border-rose-500/60 bg-rose-500/5 animate-pulse"
-                    : targetHit
-                      ? "border-emerald-500/60 bg-emerald-500/5 animate-pulse"
-                      : "border-sky-500/20 bg-sky-500/5";
-
-                  return (
-                  <div key={t.id} className={`border rounded-2xl px-5 py-4 ${cardBorder}`}>
-
-                    {/* Breach alert banner */}
-                    {breached && (
-                      <div className={`flex items-center gap-2 mb-3 px-3 py-2 rounded-xl text-xs font-black ${
-                        targetHit ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border border-rose-500/30"
-                      }`}>
-                        <span className={`w-2 h-2 rounded-full animate-ping inline-block ${targetHit ? "bg-emerald-500" : "bg-rose-500"}`} />
-                        {targetHit ? "🎯 TARGET HIT — ready to close as WIN" : "⚠️ STOP HIT — ready to close as LOSS"}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-3 mb-3">
-                      <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
-                        t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                      }`}>{t.signal}</span>
-                      <p className="text-sm font-bold flex-1">{t.symbol.replace(".US","").replace(".COMM","")}</p>
-
-                      {/* Live price + P&L */}
-                      {livePrice != null && (
-                        <div className="text-right shrink-0">
-                          <p className="text-sm font-black font-mono text-[#F1F5F9]">${livePrice.toFixed(2)}</p>
-                          {pl != null && plPct != null && (
-                            <p className={`text-[10px] font-bold font-mono ${pl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                              {pl >= 0 ? "+" : ""}{fmtD(pl)} ({plPct >= 0 ? "+" : ""}{plPct.toFixed(2)}%)
-                            </p>
-                          )}
-                        </div>
-                      )}
-
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/25 shrink-0">OPEN</span>
-                      <p className="text-[10px] text-[#4B5675] shrink-0">{ago(t.time)}</p>
-                      <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1 shrink-0">
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-3">
-                      {[
-                        { l: "Entry",  v: `$${t.entry.toFixed(2)}`,  c: "text-amber-400" },
-                        { l: "Stop",   v: `$${t.stop.toFixed(2)}`,   c: stopHit  ? "text-rose-400 font-black"    : "text-rose-400" },
-                        { l: "Target", v: `$${t.target.toFixed(2)}`, c: targetHit ? "text-emerald-400 font-black" : "text-emerald-400" },
-                        { l: "Shares", v: fmtS(t.shares),            c: "text-[#F1F5F9]" },
-                        { l: "Risk",   v: fmtD(t.riskDollar),        c: "text-rose-400" },
-                        { l: "Upside", v: fmtD(t.potential),         c: "text-emerald-400" },
-                      ].map(r => (
-                        <div key={r.l} className={`rounded-xl p-2 text-center border ${
-                          (r.l === "Stop" && stopHit) ? "bg-rose-500/10 border-rose-500/30" :
-                          (r.l === "Target" && targetHit) ? "bg-emerald-500/10 border-emerald-500/30" :
-                          "bg-[#0D0B1A] border-[#1C1933]"
-                        }`}>
-                          <p className={`text-xs font-black font-mono ${r.c}`}>{r.v}</p>
-                          <p className="text-[8px] text-[#4B5675] uppercase tracking-widest mt-0.5">{r.l}</p>
-                        </div>
-                      ))}
-                    </div>
-                    {t.note && <p className="text-xs text-[#4B5675] mb-3 italic">&ldquo;{t.note}&rdquo;</p>}
-
-                    {/* Close trade */}
-                    {closingId === t.id ? (() => {
-                      const cp      = parseFloat(closeInput);
-                      const validCp = !isNaN(cp) && cp > 0;
-                      const pl      = validCp ? (t.signal === "BUY" ? 1 : -1) * (cp - t.entry) * t.shares : null;
-                      const isWin   = pl != null && pl >= 0;
-                      return (
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <input
-                          type="number"
-                          value={closeInput}
-                          onChange={e => setCloseInput(e.target.value)}
-                          placeholder="Close price"
-                          className="flex-1 min-w-0 bg-[#0D0B1A] border border-[#252345] rounded-xl px-3 py-2 text-sm font-mono text-[#F1F5F9] focus:outline-none focus:border-emerald-500/40"
-                        />
-                        <button type="button" onClick={() => closeTrade(t.id)} disabled={!validCp}
-                          className={`text-white px-4 py-2 rounded-xl text-xs font-black transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-                            !validCp ? "bg-[#333368]" : isWin ? "bg-emerald-600 hover:bg-emerald-500" : "bg-rose-600 hover:bg-rose-500"
-                          }`}>
-                          {validCp
-                            ? `Close · ${pl! >= 0 ? "+" : "-"}$${Math.abs(pl!).toFixed(2)} ${isWin ? "✓" : "✗"}`
-                            : "Enter close price"}
-                        </button>
-                        <button type="button" onClick={() => { setClosingId(null); setCloseInput(""); }}
-                          className="text-xs text-[#4B5675] hover:text-[#94A3B8] px-2 py-2 transition-colors">Cancel</button>
-                      </div>
-                      );
-                    })() : (
-                      <button type="button" onClick={() => {
-                        setClosingId(t.id);
-                        const lp = livePrices[t.symbol];
-                        if (lp) setCloseInput(lp.toFixed(2));
-                      }}
-                        className={`text-xs font-semibold px-4 py-2 rounded-xl transition-all border ${
-                          breached
-                            ? targetHit
-                              ? "text-emerald-400 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20"
-                              : "text-rose-400 border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20"
-                            : "text-sky-400 border-sky-500/25 hover:border-sky-500/50"
-                        }`}>
-                        {breached ? (targetHit ? "Close as Win →" : "Close as Loss →") : "Close Position →"}
-                      </button>
-                    )}
-                  </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Trade History ── */}
-          {closed.length > 0 && (
-            <div className="space-y-3">
-              <p className="text-[10px] font-black uppercase tracking-widest text-[#4B5675]">Trade History ({closed.length})</p>
-              <div className="space-y-2">
-                {closed.map(t => {
-                  const isWin = t.status === "WIN";
-                  const pl = t.closePrice != null
-                    ? (t.signal === "BUY" ? t.closePrice - t.entry : t.entry - t.closePrice) * t.shares
-                    : (isWin ? t.potential : -t.riskDollar);
-                  return (
-                    <div key={t.id} className={`rounded-2xl px-5 py-4 border ${isWin ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20"}`}>
-                      <div className="flex items-center gap-3">
-                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg border shrink-0 ${
-                          t.signal === "BUY" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25" : "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                        }`}>{t.signal}</span>
-                        <p className="text-sm font-bold flex-1">{t.symbol}</p>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${isWin ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" : "bg-rose-500/15 text-rose-400 border-rose-500/30"}`}>
-                          {isWin ? "WIN" : "LOSS"}
-                        </span>
-                        <span className={`text-sm font-black font-mono tabular-nums ${pl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-                          {pl >= 0 ? "+" : ""}{fmtD(pl)}
-                        </span>
-                        <p className="text-[10px] text-[#4B5675] hidden sm:block">{t.closedAt ? ago(t.closedAt) : ago(t.time)}</p>
-                        <button type="button" aria-label="Remove trade" onClick={() => removeTaken(t.id)} className="text-[#2D3A52] hover:text-rose-400 transition-colors ml-1">
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-4 mt-2 flex-wrap">
-                        <span className="text-[10px] font-mono text-[#4B5675]">Entry <span className="text-amber-400 font-bold">${t.entry.toFixed(2)}</span></span>
-                        {t.closePrice && <span className="text-[10px] font-mono text-[#4B5675]">Close <span className="text-[#F1F5F9] font-bold">${t.closePrice.toFixed(2)}</span></span>}
-                        <span className="text-[10px] font-mono text-[#4B5675]">Shares <span className="text-[#F1F5F9] font-bold">{fmtS(t.shares)}</span></span>
-                        <span className="text-[10px] font-mono text-[#4B5675]">R:R <span className="text-violet-400 font-bold">{(t.potential/t.riskDollar).toFixed(1)}:1</span></span>
-                        {t.note && <span className="text-[10px] text-[#4B5675] italic">&ldquo;{t.note}&rdquo;</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {taken.length === 0 && pending.length === 0 && (
-            <div className="border border-dashed border-[#252345] rounded-2xl px-6 py-14 text-center">
-              <p className="text-4xl mb-4">📋</p>
-              <p className="text-base font-bold text-[#7B8DB4] mb-2">No trades logged yet</p>
-              <p className="text-sm text-[#4B5675]">Use the Position Sizer above to calculate your size, then log the trade.</p>
-            </div>
-          )}
-
+      {toast && (
+        <div role="status" className="fixed z-50 left-1/2 -translate-x-1/2 bottom-24 lg:bottom-8 max-w-[92vw] rounded-full bg-[var(--mx-text)] text-[var(--mx-canvas)] px-5 py-3 text-[14px] shadow-[var(--mx-shadow)]">
+          {toast}
         </div>
-      </main>
+      )}
     </div>
   );
 }
 
-export default function TradePlannerPage() {
+export default function PaperPage() {
   return (
     <PaywallGuard>
       <Suspense>
-        <TradePlannerContent />
+        <PaperContent />
       </Suspense>
     </PaywallGuard>
   );
