@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
 import { syncFetch } from "../lib/syncFetch";
+import type { SportEvent } from "../lib/sportsEvents";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,8 @@ type WatchItem = { id: string; league: string; homeTeam: string; awayTeam: strin
 const LEAGUE_ORDER = [
   "World Cup", "NFL", "NBA", "MLB", "NHL",
   "College Football", "College Basketball", "WNBA",
-  "Premier League", "Champions League", "La Liga", "Serie A", "Bundesliga", "MLS",
+  "Premier League", "Champions League", "Europa League", "La Liga", "Serie A", "Bundesliga", "Ligue 1",
+  "Eredivisie", "Championship", "Liga MX", "MLS",
 ];
 
 // One tab per sport. Soccer bundles its leagues; every other sport stands alone.
@@ -38,7 +40,7 @@ const SPORT_TABS: Array<{ id: string; label: string; match: (g: GamePrediction) 
   { id: "nfl",    label: "NFL", match: g => g.league === "NFL" },
   { id: "nba",    label: "NBA", match: g => g.league === "NBA" },
   { id: "mlb",    label: "MLB", match: g => g.league === "MLB" },
-  { id: "nhl",    label: "NHL", match: g => g.league === "NHL" },
+  { id: "nhl",    label: "Ice hockey (NHL)", match: g => g.league === "NHL" },
   { id: "soccer", label: "Soccer", match: g => g.leagueGroup === "Soccer" },
   { id: "cfb",    label: "College Football", match: g => g.league === "College Football" },
   { id: "cbb",    label: "College Basketball", match: g => g.league === "College Basketball" },
@@ -138,12 +140,32 @@ function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
   );
 }
 
+/** A scheduled match or event in a sport we don't predict. */
+function EventCard({ e, todayKey, tomorrowKey }: { e: SportEvent; todayKey: string; tomorrowKey: string }) {
+  const d = localDateKey(e.start);
+  const day = d === todayKey ? "Today" : d === tomorrowKey ? "Tomorrow" : new Date(e.start).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const time = new Date(e.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const range = e.end && localDateKey(e.end) !== d ? ` – ${new Date(e.end).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "";
+  return (
+    <li className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[12px] text-[var(--mx-text-3)] truncate">{e.league}</span>
+        {e.live && <span className="shrink-0 text-[12px] px-2 py-0.5 rounded-full border border-[var(--mx-text)] text-[var(--mx-text)]">Live now</span>}
+      </div>
+      <p className="text-[15px] text-[var(--mx-text)] leading-snug">{e.name}</p>
+      <p className="text-[13px] text-[var(--mx-text-2)]">{e.live && range ? `On now${range}` : `${day}${range || `, ${time}`}`}</p>
+      {e.url && <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-[13px] underline text-[var(--mx-text-2)]">Watch the games →</a>}
+    </li>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function SportsPage() {
   const { status, data: session } = useSession();
 
   const [games,      setGames]      = useState<GamePrediction[]>([]);
+  const [events,     setEvents]     = useState<SportEvent[]>([]);
   const [configured, setConfigured] = useState(true);
   const [loading,    setLoading]    = useState(true);
   const [failed,     setFailed]     = useState(false);
@@ -159,6 +181,8 @@ export default function SportsPage() {
 
 
   useEffect(() => {
+    fetch("/api/sports/events", { cache: "no-store" }).then(r => (r.ok ? r.json() : null))
+      .then((d: { events?: SportEvent[] } | null) => setEvents(d?.events ?? [])).catch(() => {});
     fetch("/api/sports/predictions", { cache: "no-store" })
       .then(r => r.ok ? r.json() : null)
       .then((d: { games?: GamePrediction[]; configured?: boolean } | null) => {
@@ -245,7 +269,17 @@ export default function SportsPage() {
     return m;
   }, [games]);
 
-  const activeTab = SPORT_TABS.find(t => t.id === sportTab) ?? SPORT_TABS[0];
+  const eventSports = useMemo(() => [...new Set(events.map(e => e.sport))].sort(), [events]);
+  const eventSport = sportTab.startsWith("ev:") ? sportTab.slice(3) : null;
+  const activeTab = useMemo(() => eventSport ? { id: sportTab, label: eventSport, match: () => false } : SPORT_TABS.find(t => t.id === sportTab) ?? SPORT_TABS[0], [eventSport, sportTab]);
+  const eventsShown = useMemo(() => {
+    let list = eventSport ? events.filter(e => e.sport === eventSport) : sportTab === "all" ? events : [];
+    if (dateFilter === "today") list = list.filter(e => e.live || localDateKey(e.start) === todayKey);
+    if (dateFilter === "tomorrow") list = list.filter(e => localDateKey(e.start) === tomorrowKey);
+    const bySport = new Map<string, SportEvent[]>();
+    for (const e of list) bySport.set(e.sport, [...(bySport.get(e.sport) ?? []), e]);
+    return [...bySport.entries()];
+  }, [events, eventSport, sportTab, dateFilter, todayKey, tomorrowKey]);
 
   const grouped = useMemo(() => {
     let filtered = games.filter(activeTab.match);
@@ -262,7 +296,7 @@ export default function SportsPage() {
       .filter(l => l.games.length > 0);
   }, [games, activeTab, dateFilter, todayKey, tomorrowKey]);
 
-  const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0);
+  const totalFiltered = grouped.reduce((s, l) => s + l.games.length, 0) + eventsShown.reduce((s, [, l]) => s + l.length, 0);
 
   const shownTabs = SPORT_TABS.filter(t => t.id === "all" || (tabCounts.get(t.id) ?? 0) > 0);
   const followed = watchlist.map(w => games.find(g => g.id === w.id)).filter((g): g is GamePrediction => g !== undefined);
@@ -279,12 +313,12 @@ export default function SportsPage() {
             <header>
               <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">Sports</h1>
               <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">
-                Who’s more likely to win, based on each team’s record this season. Just for fun — not betting advice.
+                What’s on across many sports — from football and cricket to chess and tennis. For the big team leagues we also show who’s more likely to win, based on this season’s record. Just for fun — not betting advice.
               </p>
               <Link href="/sports/track-record" className="mt-2 inline-block text-[13px] text-[var(--mx-text-2)] underline hover:text-[var(--mx-text)]">How often has this been right?</Link>
             </header>
 
-            {!loading && games.length > 0 && (
+            {!loading && (games.length > 0 || events.length > 0) && (
               <div className="space-y-3">
                 <div className="flex gap-2" role="group" aria-label="Day">
                   {(["today", "tomorrow", "all"] as const).map(f => (
@@ -297,6 +331,11 @@ export default function SportsPage() {
                   {shownTabs.map(t => (
                     <button key={t.id} type="button" onClick={() => setSportTab(t.id)} className={pill(sportTab === t.id)} aria-pressed={sportTab === t.id}>
                       {t.id === "all" ? "All sports" : t.label}
+                    </button>
+                  ))}
+                  {eventSports.map(sp => (
+                    <button key={sp} type="button" onClick={() => setSportTab(`ev:${sp}`)} className={pill(sportTab === `ev:${sp}`)} aria-pressed={sportTab === `ev:${sp}`}>
+                      {sp}
                     </button>
                   ))}
                 </div>
@@ -338,7 +377,7 @@ export default function SportsPage() {
               </div>
             )}
 
-            {!loading && !failed && grouped.map(section => (
+            {!loading && !failed && (eventSport ? [] : grouped).map(section => (
               <section key={section.league} aria-labelledby={`lg-${section.league}`} className="space-y-3">
                 <h2 id={`lg-${section.league}`} className="text-[18px]">{section.league} <span className="text-[14px] text-[var(--mx-text-3)]">{section.games.length} {section.games.length === 1 ? "game" : "games"}</span></h2>
                 <ul className={grid}>
@@ -349,6 +388,24 @@ export default function SportsPage() {
                 </ul>
               </section>
             ))}
+
+            {!loading && eventsShown.length > 0 && (
+              <div className="space-y-6">
+                {!eventSport && <h2 className="text-[20px] pt-2">More sports <span className="text-[14px] text-[var(--mx-text-3)]">schedules only — we don’t predict these</span></h2>}
+                {eventsShown.map(([sport, list]) => (
+                  <section key={sport} aria-labelledby={`ev-${sport}`} className="space-y-3">
+                    <h3 id={`ev-${sport}`} className="text-[18px]">{sport} <span className="text-[14px] text-[var(--mx-text-3)]">{list.length} {list.length === 1 ? "event" : "events"}</span></h3>
+                    {eventSport && <p className="text-[13px] text-[var(--mx-text-3)] -mt-1">Schedule only — we don’t make predictions for {sport.toLowerCase()}.</p>}
+                    <ul className={grid}>{(eventSport ? list : list.slice(0, 6)).map(e => <EventCard key={e.id} e={e} todayKey={todayKey} tomorrowKey={tomorrowKey} />)}</ul>
+                    {!eventSport && list.length > 6 && (
+                      <button type="button" onClick={() => setSportTab(`ev:${sport}`)} className="text-[14px] underline text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">See all {sport.toLowerCase()} ({list.length})</button>
+                    )}
+                  </section>
+                ))}
+              </div>
+            )}
+
+            {!loading && <p className="text-[12.5px] text-[var(--mx-text-3)]">Horse racing and boxing aren’t included yet — there’s no free public schedule for them.</p>}
           </div>
         </main>
       </div>

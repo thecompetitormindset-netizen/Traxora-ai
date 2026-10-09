@@ -19,7 +19,6 @@ export function OptionsAttentionView({ state }: { state: ListState }) {
   const ideas = rows.filter(a => stateOf(a) === "validated");
 
   const top = data?.reasons?.[0]?.reason ?? null;
-  const checked = data?.scan ? data.scan.thin + data.scan.checked + data.scan.unavailable : rows.length;
 
   return (
     <section className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5 text-[var(--mx-text)]" aria-labelledby="opt-attn-h">
@@ -36,7 +35,7 @@ export function OptionsAttentionView({ state }: { state: ListState }) {
           No option ideas right now.{" "}
           {data.session.status !== "OPEN"
             ? "The market is closed — we’ll check again after it opens."
-            : `None of the ${checked.toLocaleString("en-US")} stocks we’ve checked passed every safety check${top ? ` (most often: ${top.toLowerCase()})` : ""}.`}
+            : `Nothing passed every safety check${top ? ` (most often: ${top.toLowerCase()})` : ""}. Waiting is often the right call.`}
         </p>
       ) : (
         <>

@@ -44,6 +44,11 @@ export const LEAGUES: League[] = [
   { sport: "soccer",     league: "ita.1",                      label: "Serie A",           group: "Soccer" },
   { sport: "soccer",     league: "ger.1",                      label: "Bundesliga",        group: "Soccer" },
   { sport: "soccer",     league: "usa.1",                      label: "MLS",               group: "Soccer" },
+  { sport: "soccer",     league: "fra.1",                      label: "Ligue 1",           group: "Soccer" },
+  { sport: "soccer",     league: "ned.1",                      label: "Eredivisie",        group: "Soccer" },
+  { sport: "soccer",     league: "uefa.europa",                label: "Europa League",     group: "Soccer" },
+  { sport: "soccer",     league: "mex.1",                      label: "Liga MX",           group: "Soccer" },
+  { sport: "soccer",     league: "eng.2",                      label: "Championship",      group: "Soccer" },
 ];
 
 const MIN_GAMES_PLAYED = 3; // below this, a record is too small a sample to trust

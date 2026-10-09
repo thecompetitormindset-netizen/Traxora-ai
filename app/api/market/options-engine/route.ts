@@ -97,7 +97,7 @@ async function overview(origin: string, actor: string, force: boolean): Promise<
   // Nothing checked yet today (first visit, or no database): check the
   // popular names right away so the page has something to show.
   if (summaries.length === 0) {
-    const fresh = await generateOnce("lazy");
+    const fresh = memCache?.run_date === etTradingDate() ? { rows: memCache.rows, persisted: false } : await generateOnce("lazy");
     persisted = fresh.persisted;
     summaries = fresh.rows.map(r => ({ symbol: r.symbol, review_status: r.review_status, code: r.output?.no_trade_reason?.code ?? null, detail: r.output?.no_trade_reason?.detail ?? null }));
     candidates = fresh.rows.filter(r => r.review_status === "APPROVED_CANDIDATE");

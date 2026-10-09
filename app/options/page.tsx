@@ -56,9 +56,8 @@ function Overview() {
   const marketOpen = data?.session.status === "OPEN";
   const reasons = data?.reasons ?? [];
   const top = reasons[0] ? [reasons[0].reason, reasons[0].count] as const : null;
-  const n = (x: number) => x.toLocaleString("en-US");
 
-  // Keep the progress line moving while the background scan runs.
+  // Pick up new ideas while the background scan runs.
   useEffect(() => {
     if (!scan?.running) return;
     const id = window.setInterval(() => { if (document.visibilityState === "visible") reload(); }, 20_000);
@@ -79,11 +78,7 @@ function Overview() {
     : "No option ideas right now.";
   const why = !data || ideas.length > 0 ? null
     : !marketOpen ? "The market is closed, so prices aren’t fresh enough to check safely. We’ll look again after it opens at 9:30 AM ET."
-    : `None of the stocks we’ve checked passed all our safety checks${top ? ` (most often: ${top[0].toLowerCase()})` : ""}. That’s normal — waiting is often the right call.`;
-  const progress = !scan ? null
-    : scan.finished ? `We checked all ${n(scan.total)} US stocks and funds that have options.`
-    : !scan.running && scan.checked === 0 ? `When the market opens, we check all ${n(scan.total)} US stocks and funds that have options.`
-    : `Checked ${n(scan.thin + scan.checked + scan.unavailable)} of ${n(scan.total)} US stocks and funds with options so far${scan.running ? " — still going" : ""}.`;
+    : `Nothing passed all our safety checks${top ? ` (most often: ${top[0].toLowerCase()})` : ""}. That’s normal — waiting is often the right call.`;
 
   return (
     <div className="space-y-6">
@@ -114,16 +109,6 @@ function Overview() {
           <>
             <p className="text-[24px] sm:text-[28px] leading-tight tracking-[-0.02em]" style={{ fontWeight: 450 }}>{headline}</p>
             {why && <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)] max-w-[64ch]">{why}</p>}
-            {progress && (
-              <div className="mt-4">
-                <p className="text-[13px] text-[var(--mx-text-3)]">{progress}</p>
-                {scan && !scan.finished && scan.total > 0 && (
-                  <div className="mt-2 h-1 max-w-sm rounded-full bg-[var(--mx-raised-2)] overflow-hidden" aria-hidden="true">
-                    <div className="h-full bg-[var(--mx-text)] transition-[width] duration-700" style={{ width: `${Math.min(100, ((scan.thin + scan.checked + scan.unavailable) / scan.total) * 100)}%` }} />
-                  </div>
-                )}
-              </div>
-            )}
             {state.kind === "ready" && state.message && <p className="mt-2 text-[13px] text-[var(--mx-text-3)]">{state.message}</p>}
           </>
         )}
@@ -160,7 +145,6 @@ function Overview() {
             {reasons.map(r => (
               <li key={r.reason} className="flex items-center justify-between gap-3 px-5 py-3">
                 <span className="text-[14px] text-[var(--mx-text-2)]">{r.reason}</span>
-                <span className="text-[14px] text-[var(--mx-text-3)] shrink-0">{n(r.count)} {r.count === 1 ? "stock" : "stocks"}</span>
               </li>
             ))}
           </ul>
