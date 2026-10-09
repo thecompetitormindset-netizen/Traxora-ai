@@ -6,8 +6,6 @@ import Link from "next/link";
 import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
-import SentimentWidget from "../components/SentimentWidget";
-import DiscoverSection from "../components/DiscoverSection";
 import OnboardingModal from "../components/OnboardingModal";
 import { scopedKey } from "../lib/userState";
 import { getSignalCache, setSignalCache } from "../lib/signalCache";
@@ -300,172 +298,25 @@ type DashValueStock = {
   score: number; isDip: boolean;
 };
 
-function ValueStockCard({ s }: { s: DashValueStock }) {
-  const up = (s.changePct ?? 0) >= 0;
-  const fullSym = s.symbol.includes(".") ? s.symbol : `${s.symbol}.US`;
-  const [watched, setWatched] = useState(() =>
-    typeof window !== "undefined" && loadCustomWatchlist().some(w => w.symbol === fullSym)
-  );
 
-  function toggleWatch(e: React.MouseEvent) {
-    e.preventDefault();
-    const wl = loadCustomWatchlist();
-    if (watched) {
-      saveCustomWatchlist(wl.filter(w => w.symbol !== fullSym));
-    } else {
-      saveCustomWatchlist([...wl, { symbol: fullSym, name: s.name }]);
-    }
-    setWatched(v => !v);
-  }
 
-  return (
-    <div className={`bg-[#0D0B1A] rounded-xl border border-l-2 p-3.5 flex flex-col gap-2 hover:border-[#333368] transition-colors ${
-      s.isDip ? "border-amber-500/20 border-l-amber-400" : "border-[#252345] border-l-sky-500/40"
-    }`}>
-      {/* Symbol row */}
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="font-black font-mono text-sm text-[var(--text-primary,#F1F5F9)]">{s.symbol}</span>
-            {s.isDip && (
-              <span className="text-[8px] font-black px-1 py-px rounded bg-amber-500/15 text-amber-400 border border-amber-500/25">DIP</span>
-            )}
-          </div>
-          <p className="text-[9px] text-[#4B5675] truncate mt-px">{s.name}</p>
-        </div>
-        <div className="text-right shrink-0">
-          {s.price !== null
-            ? <>
-                <p className="text-sm font-black font-mono text-[var(--text-primary,#F1F5F9)]">${s.price.toFixed(2)}</p>
-                <p className={`text-[10px] font-mono font-bold ${up ? "text-emerald-400" : "text-rose-400"}`}>
-                  {up ? "+" : ""}{(s.changePct ?? 0).toFixed(2)}%
-                </p>
-              </>
-            : <p className="text-sm text-[#4B5675] animate-pulse">—</p>
-          }
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div className="flex gap-2 flex-wrap">
-        {s.pe       !== null && <span className="text-[9px] font-mono text-[#4B5675]">P/E <span className="text-sky-400 font-bold">{s.pe}x</span></span>}
-        {s.forwardPe !== null && <span className="text-[9px] font-mono text-[#4B5675]">Fwd <span className="text-sky-400 font-bold">{s.forwardPe}x</span></span>}
-        {s.pb       !== null && <span className="text-[9px] font-mono text-[#4B5675]">P/B <span className="text-sky-400 font-bold">{s.pb}x</span></span>}
-        {s.divYield !== null && s.divYield > 0 && <span className="text-[9px] font-mono text-[#4B5675]">Yield <span className="text-emerald-400 font-bold">{s.divYield.toFixed(1)}%</span></span>}
-      </div>
-
-      {/* Score dots */}
-      <div className="flex gap-0.5">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className={`flex-1 h-1 rounded-full ${i < s.score ? "bg-sky-400" : "bg-[#252345]"}`} />
-        ))}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-1 border-t border-[#1A1838]">
-        <Link href={`/analysis?symbol=${encodeURIComponent(s.symbol + ".US")}`}
-          className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
-          Analyse →
-        </Link>
-        <button type="button" onClick={toggleWatch}
-          title={watched ? "Remove from watchlist" : "Add to watchlist"}
-          className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-lg border transition-colors ${
-            watched
-              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20"
-              : "bg-[#1A1838] text-[#4B5675] border-[#252345] hover:text-emerald-400 hover:border-emerald-500/30"
-          }`}>
-          {watched ? "★ Watching" : "☆ Watch"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ValuePicksSection() {
-  const [valuePicks, setValuePicks] = useState<DashValueStock[]>([]);
-  const [dipAlerts,  setDipAlerts]  = useState<DashValueStock[]>([]);
-  const [loading,    setLoading]    = useState(true);
-  const [showAllVal, setShowAllVal] = useState(false);
-  const [showAllDip, setShowAllDip] = useState(false);
-
-  const [scanEmpty, setScanEmpty] = useState(false);
-
+/** One plain line about the market's mood; the full page is /market-sentiment. */
+function MoodLine() {
+  const [m, setM] = useState<{ overallScore: number; vix: number | null } | null>(null);
   useEffect(() => {
-    fetch("/api/market/value-scan", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then((d: { valuePicks?: DashValueStock[]; dipAlerts?: DashValueStock[]; scanned?: number } | null) => {
-        if (!d) { setScanEmpty(true); return; }
-        setValuePicks(d.valuePicks ?? []);
-        setDipAlerts(d.dipAlerts  ?? []);
-        // scanned === 0 means every screener source failed — not "still running"
-        if ((d.scanned ?? 0) === 0) setScanEmpty(true);
-      })
-      .catch(() => setScanEmpty(true))
-      .finally(() => setLoading(false));
+    fetch("/api/sentiment", { cache: "no-store" }).then(r => (r.ok ? r.json() : null)).then(d => { if (d && typeof d.overallScore === "number") setM(d); }).catch(() => {});
   }, []);
-
-  const skeletons = Array.from({ length: 6 });
-  const visibleVal = showAllVal ? valuePicks : valuePicks.slice(0, 6);
-  const visibleDip = showAllDip ? dipAlerts  : dipAlerts.slice(0, 6);
-
+  if (!m) return null;
+  const s = m.overallScore;
+  const mood = s >= 40 ? "very upbeat" : s >= 10 ? "upbeat" : s > -10 ? "mixed" : s > -40 ? "worried" : "very worried";
+  const calm = m.vix == null ? null : m.vix < 15 ? "calm" : m.vix < 20 ? "steady" : m.vix < 30 ? "nervous" : "very nervous";
   return (
-    <div className="lg:col-span-3 space-y-5">
-
-      {/* ── Dip Alerts ── */}
-      {(loading || dipAlerts.length > 0) && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold uppercase tracking-widest text-amber-400">Buy the Dip</h2>
-              {!loading && <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/25 animate-pulse">{dipAlerts.length} today</span>}
-            </div>
-            {dipAlerts.length > 6 && (
-              <button type="button" onClick={() => setShowAllDip(v => !v)}
-                className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold transition-colors">
-                {showAllDip ? "Show less ↑" : `See all ${dipAlerts.length} ↓`}
-              </button>
-            )}
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
-            {loading
-              ? skeletons.map((_, i) => <div key={i} className="h-32 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)
-              : visibleDip.map(s => <ValueStockCard key={s.symbol} s={s} />)
-            }
-          </div>
-        </div>
-      )}
-
-      {/* ── Value Picks ── */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-[#7B8DB4]">Undervalued Picks</h2>
-            {!loading && valuePicks.length > 0 && (
-              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">{valuePicks.length} found</span>
-            )}
-          </div>
-          {valuePicks.length > 6 && (
-            <button type="button" onClick={() => setShowAllVal(v => !v)}
-              className="text-[11px] text-sky-400 hover:text-sky-300 font-semibold transition-colors">
-              {showAllVal ? "Show less ↑" : `See all ${valuePicks.length} ↓`}
-            </button>
-          )}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5">
-          {loading
-            ? skeletons.map((_, i) => <div key={i} className="h-32 bg-[#13112A] rounded-xl border border-[#252345] animate-pulse" />)
-            : visibleVal.length > 0
-            ? visibleVal.map(s => <ValueStockCard key={s.symbol} s={s} />)
-            : <p className="col-span-full text-xs text-[#4B5675] py-4 text-center">
-                {scanEmpty
-                  ? "Value screener sources are unreachable right now — Yahoo may be rate-limiting and the EODHD screener add-on may not be active on your plan."
-                  : "Screener running — check back in a moment"}
-              </p>
-          }
-        </div>
-        <p className="text-[9px] text-[#333368] mt-2">Scanned from a 42-stock value universe (Finnhub + Yahoo data) · not financial advice · refreshes every 30 min</p>
-      </div>
-    </div>
+    <Link href="/market-sentiment" className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] px-5 py-4 hover:border-[var(--mx-line-strong)] transition-colors">
+      <span className="text-[14px] text-[var(--mx-text-2)]">
+        Market mood today: <span className="text-[var(--mx-text)]">{mood}</span>{calm ? <> · prices are <span className="text-[var(--mx-text)]">{calm}</span></> : null}
+      </span>
+      <span className="text-[13px] text-[var(--mx-text-3)] shrink-0">More →</span>
+    </Link>
   );
 }
 
@@ -494,7 +345,6 @@ function DashboardContent() {
   const [trendingStocks, setTrendingStocks] = useState<StockCard[]>([]);
   const [poppedSymbols, setPoppedSymbols]   = useState<Set<string>>(new Set());
   const [priceAlerts, setPriceAlerts]       = useState<AlertMap>(() => typeof window !== "undefined" ? loadAlerts() : {});
-  const [copiedSymbol, setCopiedSymbol]     = useState<string | null>(null); // symbol whose Claude prompt was just copied
   const [alertForm, setAlertForm]           = useState<string | null>(null); // symbol whose form is open
   const [alertAbove, setAlertAbove]         = useState("");
   const [alertBelow, setAlertBelow]         = useState("");
@@ -888,22 +738,7 @@ function DashboardContent() {
     setStocks((s) => s.filter((c) => c.symbol !== symbol));
   }
 
-  function copyClaudePrompt(item: { symbol: string; name: string; signal: "BUY" | "HOLD" | "SELL" | null; trade: TradeLevels | null }) {
-    if (!item.trade || !item.signal || item.signal === "HOLD") return;
-    const side = item.signal === "BUY" ? "buy" : "sell";
-    const lines = [
-      `Using my connected Robinhood Agentic account, ${side} ${item.symbol.replace(".US", "").replace(".COMM", "")} (${item.name}).`,
-      `Entry zone: ${item.trade.entryZone}`,
-      `Stop loss: ${item.trade.stopLoss}`,
-      `Target: ${item.trade.takeProfit}`,
-      `R:R ${item.trade.rrRatio} — ${item.trade.entryReason}`,
-      `Size the position conservatively for the account balance. Confirm the order details with me before submitting.`,
-    ];
-    navigator.clipboard.writeText(lines.join("\n")).then(() => {
-      setCopiedSymbol(item.symbol);
-      setTimeout(() => setCopiedSymbol((s) => (s === item.symbol ? null : s)), 2000);
-    });
-  }
+
 
   function openAlertForm(symbol: string) {
     const existing = priceAlerts[symbol];
@@ -1071,60 +906,19 @@ function DashboardContent() {
               <OptionsAttentionView state={optionsList.state} />
             </div>
 
-            {/* Market Sentiment */}
+            {/* Market mood — one line; the full page has the detail */}
             <div className="lg:col-span-3">
-              <SentimentWidget horizontal />
-            </div>
-
-            {/* ── Section divider: Discover ── */}
-            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-              <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Sports · Crypto · IPO</span>
-              <div className="flex-1 h-px bg-[#252345]" />
-            </div>
-
-            {/* Discover — sports betting, crypto & IPO feature cards */}
-            <div className="lg:col-span-3">
-              <DiscoverSection />
-            </div>
-
-            {/* ── Section divider: Value ── */}
-            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-              <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Undervalued</span>
-              <div className="flex-1 h-px bg-[#252345]" />
-            </div>
-
-            {/* ── Value Picks ── */}
-            <ValuePicksSection />
-
-            {/* ── Section divider: Market ── */}
-            <div className="lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-              <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Market</span>
-              <div className="flex-1 h-px bg-[#252345]" />
+              <MoodLine />
             </div>
 
             {/* Watchlist — full width */}
             <div id="watchlist" className="order-4 lg:order-none lg:col-span-3 scroll-mt-20">
               <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6" data-tour="dashboard-watchlist">
                 <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                  <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Market</h2>
-                  <span className="text-[10px] font-mono text-[#333368]">
-                    {displayStocks.length}
-                    {trendingStocks.length > 0 && <span className="text-teal-400/70"> +{trendingStocks.length}</span>}
+                  <h2 className="text-[18px] text-[var(--mx-text)]">Your watchlist</h2>
+                  <span className="text-[13px] text-[var(--mx-text-3)]">
+                    {buyCount ? `${buyCount} leaning buy` : ""}{buyCount && sellCount ? " · " : ""}{sellCount ? `${sellCount} leaning sell` : ""}{!buyCount && !sellCount ? "nothing stands out" : ""}
                   </span>
-                  <div className="flex items-center gap-1.5 ml-1">
-                    {[
-                      { label: "BUY",  count: buyCount,  cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-                      { label: "HOLD", count: holdCount, cls: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-                      { label: "SELL", count: sellCount, cls: "bg-rose-500/10 text-rose-400 border-rose-500/20" },
-                    ].filter(s => s.count > 0).map(s => (
-                      <span key={s.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border font-mono ${s.cls}`}>
-                        {s.count} {s.label}
-                      </span>
-                    ))}
-                  </div>
                 </div>
                 <div className="flex items-center gap-3">
                   {displayStocks.length > 6 && (
@@ -1198,7 +992,7 @@ function DashboardContent() {
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <p className="text-base font-black tracking-tight text-[#F1F5F9]">{stock.symbol.replace(".US","").replace(".COMM","")}</p>
                             {stock.isNew && (
-                              <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20">TRENDING</span>
+                              <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-teal-500/10 text-teal-400 border border-teal-500/20">Trending</span>
                             )}
                           </div>
                           <p className="text-[11px] text-[#4B5675] truncate max-w-[140px]">{stock.name}</p>
@@ -1208,15 +1002,13 @@ function DashboardContent() {
                           : stock.signal
                           ? (
                             <div className="flex flex-col items-end gap-0.5">
-                              <span className={`signal-pop text-[11px] font-bold px-2.5 py-0.5 rounded-lg border ${signalBadgeCls(stock.signal)}`}>{stock.signal}</span>
+                              <span className={`text-[12px] px-2.5 py-0.5 rounded-full border ${signalBadgeCls(stock.signal)}`}>{stock.signal === "BUY" ? "Leaning buy" : stock.signal === "SELL" ? "Leaning sell" : "Wait"}</span>
                               {stock.confidence && (
-                                <span className={`text-[9px] font-semibold ${stock.confidence === "High" ? "text-emerald-400" : stock.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
-                                  {stock.confidence}
-                                </span>
+                                <span className="text-[12px] text-[var(--mx-text-3)]">{stock.confidence.toLowerCase()} confidence</span>
                               )}
                             </div>
                           )
-                          : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
+                          : <span className="text-[12px] text-[var(--mx-text-3)]">No read yet</span>
                         }
                       </div>
 
@@ -1247,11 +1039,10 @@ function DashboardContent() {
                             <span className="text-[#4B5675]">·</span>
                             <span className="text-[9px] text-[#4B5675] shrink-0">Goal</span>
                             <span className="font-bold text-emerald-400">{stock.trade.takeProfit}</span>
-                            <span className="ml-auto text-[8px] text-[#4B5675]">{stock.trade.rrRatio}</span>
                           </div>
                         </div>
                       ) : stock.signal === "HOLD" ? (
-                        <p className="text-[11px] text-[#4B5675] mt-2.5 italic">Wait for clearer structure</p>
+                        <p className="text-[12px] text-[var(--mx-text-3)] mt-2.5">No clear direction yet — waiting is fine.</p>
                       ) : null}
 
                       {stock.earningsDate && (
@@ -1270,25 +1061,15 @@ function DashboardContent() {
                       {!editMode && (
                         <div className="mt-3 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => { e.stopPropagation(); haptic.tap(); }} className="glow-green text-[11px] text-emerald-400 font-medium">Analyse →</Link>
+                            <Link href={`/analysis?symbol=${encodeURIComponent(stock.isNew ? stock.symbol + ".US" : stock.symbol)}`} onClick={(e) => { e.stopPropagation(); haptic.tap(); }} className="text-[12px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">See why →</Link>
                             {(stock.signal === "BUY" || stock.signal === "SELL") && stock.price && (
                               <Link
                                 href={`/paper?symbol=${encodeURIComponent(stock.symbol)}&side=${stock.signal}&price=${stock.price !== null ? stock.price.toFixed(2) : ""}${stock.trade ? `&stop=${encodeURIComponent(stock.trade.stopLoss)}&target=${encodeURIComponent(stock.trade.takeProfit)}` : ""}`}
                                 onClick={(e) => { e.stopPropagation(); haptic.medium(); }}
                                 className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
                               >
-                                Trade →
+                                Practise →
                               </Link>
-                            )}
-                            {(stock.signal === "BUY" || stock.signal === "SELL") && stock.trade && (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(stock); }}
-                                title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                                className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
-                              >
-                                {copiedSymbol === stock.symbol ? "Copied!" : "Copy for AI →"}
-                              </button>
                             )}
                           </div>
                           <button
@@ -1362,166 +1143,6 @@ function DashboardContent() {
               </div>
             </div>{/* /watchlist lg:col-span-3 */}
 
-            {/* ── Section divider: Futures ── */}
-            <div className="order-5 lg:order-none lg:col-span-3 flex items-center gap-4 pt-3 lg:pt-4">
-              <div className="flex-1 h-px bg-[#252345]" />
-              <span className="text-[9px] lg:text-[10px] font-bold uppercase tracking-widest text-[#333368]">Futures</span>
-              <div className="flex-1 h-px bg-[#252345]" />
-            </div>
-
-            {/* Futures — full width */}
-            <div className="order-5 lg:order-none lg:col-span-3">
-            <section>
-            <div className="flex items-center justify-between gap-2 mb-4 lg:mb-6">
-              <div className="flex items-center gap-2">
-                <h2 className="text-sm lg:text-base font-bold uppercase tracking-widest text-[#7B8DB4]">Futures</h2>
-                <span className="text-[10px] font-mono text-[#333368]">{futures.length}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                {futures.length > 6 && (
-                  <button type="button" onClick={() => setShowAllFutures(v => !v)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors font-medium">
-                    {showAllFutures ? "Show less ↑" : `See all ${futures.length} ↓`}
-                  </button>
-                )}
-                <Link href="/intelligence?section=futures" className="text-[10px] font-semibold text-violet-400 hover:text-violet-300 transition-colors">View all →</Link>
-                <button
-                  type="button"
-                  onClick={() => { setEditFutures((v) => !v); setAddFuturesInput(""); setAddFuturesError(null); }}
-                  className={`text-xs font-medium transition-colors ${editFutures ? "text-amber-400 hover:text-amber-300" : "text-[#4B5675] hover:text-[#94A3B8]"}`}
-                >
-                  {editFutures ? "Done" : "Edit"}
-                </button>
-              </div>
-            </div>
-
-            {editFutures && (
-              <div className="mb-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={addFuturesInput}
-                    onChange={(e) => { setAddFuturesInput(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "")); setAddFuturesError(null); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") addFuture(); }}
-                    placeholder="Add futures root — ES, GC, CL, ZN, HG, PL…"
-                    className="flex-1 bg-[#13112A] border border-[#252345] focus:border-[#333368] rounded-xl px-4 py-2.5 text-sm text-[#F1F5F9] placeholder:text-[#4B5675] outline-none transition-colors font-mono"
-                    disabled={addFuturesLoading}
-                  />
-                  <button
-                    type="button"
-                    onClick={addFuture}
-                    disabled={addFuturesLoading || !addFuturesInput.trim()}
-                    className="flex items-center gap-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-400 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all disabled:opacity-40"
-                  >
-                    {addFuturesLoading
-                      ? <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                      : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                    }
-                    Add
-                  </button>
-                </div>
-                {addFuturesError && <p className="text-[11px] text-rose-400 mt-1.5 ml-1">{addFuturesError}</p>}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(showAllFutures ? futures : futures.slice(0, 6)).map((f) => {
-                const analysisHref = `/analysis?symbol=${encodeURIComponent(f.symbol)}`;
-                return (
-                  <div
-                    key={f.symbol}
-                    className={`relative group bg-[#13112A] rounded-2xl p-4 lg:p-5 border border-l-2 border-[#252345] ${signalBorder(f.signal)} ${!editFutures ? "cursor-pointer hover:border-[#333368] hover:bg-[#1A1838] transition-colors" : ""}`}
-                    onClick={!editFutures ? () => router.push(analysisHref) : undefined}
-                  >
-                    {editFutures && (
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); removeFuture(f.symbol); }}
-                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 hover:bg-rose-400 text-white flex items-center justify-center transition-colors z-10 text-[11px] font-bold shadow-lg leading-none"
-                      >
-                        ×
-                      </button>
-                    )}
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4 lg:mb-5">
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <p className="font-bold lg:text-lg tracking-tight">{f.symbol.replace(".COMM", "")}</p>
-                          <span className="text-[8px] font-bold px-1.5 py-px rounded-md bg-violet-500/10 text-violet-400 border border-violet-500/20">FUT</span>
-                        </div>
-                        <p className="text-xs text-[#4B5675] mt-0.5 truncate max-w-[130px] lg:max-w-[160px]">{f.name}</p>
-                      </div>
-                      {f.loading
-                        ? <span className="text-xs text-[#4B5675] animate-pulse">…</span>
-                        : f.signal
-                        ? (
-                          <div className="flex flex-col items-end gap-1">
-                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border ${signalBadgeCls(f.signal)}`}>{f.signal}</span>
-                            {f.confidence && (
-                              <span className={`text-[9px] font-semibold ${f.confidence === "High" ? "text-emerald-400" : f.confidence === "Medium" ? "text-amber-400" : "text-[#4B5675]"}`}>
-                                {f.confidence}
-                              </span>
-                            )}
-                          </div>
-                        )
-                        : <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg border bg-[#1A1838] text-[#4B5675] border-[#252345]">—</span>
-                      }
-                    </div>
-                    {/* Price */}
-                    <p className="text-xl lg:text-2xl font-bold font-mono text-[#F1F5F9]">
-                      {f.price !== null ? `$${f.price.toFixed(2)}` : <span className="animate-pulse text-[#4B5675]">——</span>}
-                    </p>
-                    <div className="flex items-end justify-between mt-1">
-                      <p className={`text-xs lg:text-sm font-medium font-mono ${changeColor(f.change)}`}>
-                        {f.change !== null ? `${f.change >= 0 ? "+" : ""}${f.change.toFixed(2)}% today` : "—"}
-                      </p>
-                      {f.sparkline && <Sparkline closes={f.sparkline} positive={(f.change ?? 0) >= 0} />}
-                    </div>
-                    {/* Trade plan */}
-                    {f.trade && f.signal !== "HOLD" ? (
-                      <div className={`mt-2 rounded-lg px-2.5 py-2 border text-[10px] font-mono ${f.signal === "BUY" ? "bg-emerald-500/5 border-emerald-500/15" : "bg-rose-500/5 border-rose-500/15"}`}>
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[9px] text-[#4B5675] shrink-0">Buy</span>
-                          <span className="font-bold text-amber-400">{f.trade.entryZone}</span>
-                          <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[9px] text-[#4B5675] shrink-0">Safety</span>
-                          <span className="font-bold text-rose-400">{f.trade.stopLoss}</span>
-                          <span className="text-[#1C1A3A] shrink-0">·</span>
-                          <span className="text-[9px] text-[#4B5675] shrink-0">Goal</span>
-                          <span className="font-bold text-emerald-400">{f.trade.takeProfit}</span>
-                          <span className="ml-auto text-[8px] text-[#4B5675] shrink-0">{f.trade.rrRatio}</span>
-                        </div>
-                      </div>
-                    ) : f.signal === "HOLD" ? (
-                      <p className="text-[10px] text-[#4B5675] mt-2">Wait for clearer direction</p>
-                    ) : null}
-                    {/* Footer link */}
-                    {!editFutures && (
-                      <div className="mt-3 flex items-center gap-3">
-                        <Link
-                          href={analysisHref}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[11px] text-emerald-400 hover:text-emerald-300 transition-colors font-medium"
-                        >
-                          Analyse →
-                        </Link>
-                        {(f.signal === "BUY" || f.signal === "SELL") && f.trade && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); haptic.medium(); copyClaudePrompt(f); }}
-                            title="Copy signal details (includes risk disclaimer) to paste into Claude"
-                            className="text-[11px] text-[#4B5675] hover:text-[#94A3B8] font-medium transition-colors"
-                          >
-                            {copiedSymbol === f.symbol ? "Copied!" : "Copy for AI →"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-          </div>{/* /futures lg:col-span-3 */}
 
             {/* ── PORTFOLIO HERO ── */}
             {(() => {

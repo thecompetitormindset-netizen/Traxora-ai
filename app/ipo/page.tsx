@@ -34,19 +34,6 @@ function Skeleton({ h = "h-4", w = "w-full" }: { h?: string; w?: string }) {
   return <div className={`${h} ${w} rounded-lg bg-[#252345] animate-pulse`} />;
 }
 
-function RatingBadge({ rating }: { rating: IPOItem["rating"] }) {
-  const styles = {
-    Strong:      "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
-    Watch:       "bg-amber-500/15 text-amber-400 border-amber-500/25",
-    Speculative: "bg-rose-500/15 text-rose-400 border-rose-500/25",
-  };
-  const icons = { Strong: "↑", Watch: "~", Speculative: "↓" };
-  return (
-    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${styles[rating]}`}>
-      {icons[rating]} {rating}
-    </span>
-  );
-}
 
 function VerdictBadge({ verdict }: { verdict: IPOAnalysis["verdict"] }) {
   const map = {
@@ -62,21 +49,7 @@ function VerdictBadge({ verdict }: { verdict: IPOAnalysis["verdict"] }) {
   );
 }
 
-function StatusBadge({ status }: { status: IPOItem["status"] }) {
-  if (status === "priced")   return <span className="text-[10px] px-2 py-0.5 rounded-lg bg-sky-500/10 text-sky-400 border border-sky-500/20 font-semibold">Priced</span>;
-  if (status === "expected") return <span className="text-[10px] px-2 py-0.5 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20 font-semibold">Expected</span>;
-  return <span className="text-[10px] px-2 py-0.5 rounded-lg bg-[#252345] text-[#4B5675] border border-[#333368] font-semibold">Filed</span>;
-}
 
-function PerfPill({ pct }: { pct: number | null }) {
-  if (pct == null) return <span className="text-[#4B5675] text-xs font-mono">—</span>;
-  const pos = pct >= 0;
-  return (
-    <span className={`text-sm font-black font-mono ${pos ? "text-emerald-400" : "text-rose-400"}`}>
-      {pos ? "+" : ""}{pct.toFixed(1)}%
-    </span>
-  );
-}
 
 // ── AI Analysis Panel ─────────────────────────────────────────────────────────
 
@@ -280,104 +253,56 @@ function AIPanel({ ipo }: { ipo: IPOItem }) {
 
 // ── IPO Cards ─────────────────────────────────────────────────────────────────
 
+const RATING_WORDS: Record<IPOItem["rating"], string> = {
+  Strong: "Larger listing on a major exchange",
+  Watch: "Worth watching",
+  Speculative: "Higher risk",
+};
+
 function IPOCard({ ipo, showPerf }: { ipo: IPOItem; showPerf?: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  const gained = ipo.perfPct != null && ipo.perfPct > 0;
-  const lost   = ipo.perfPct != null && ipo.perfPct < 0;
-
-  const borderColor =
-    ipo.rating === "Strong"      ? "border-emerald-500/20 hover:border-emerald-500/40" :
-    ipo.rating === "Watch"       ? "border-amber-500/20 hover:border-amber-500/40" :
-    showPerf && gained           ? "border-emerald-500/20 hover:border-emerald-500/40" :
-    showPerf && lost             ? "border-rose-500/20 hover:border-rose-500/40" :
-                                   "border-[#252345] hover:border-rose-500/20";
-
+  const priceText = ipo.price ? `$${ipo.price.replace("-", "–$")}` : null;
   return (
-    <div
-      className={`card-shine glass surface-sheen card-hover-glow border rounded-2xl p-5 cursor-pointer transition-colors ${borderColor}`}
-      onClick={() => setExpanded(v => !v)}
-    >
-      {/* Top row */}
+    <li className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold text-[#F1F5F9] leading-snug">{ipo.name}</p>
-            {ipo.isSpac && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#252345] text-[#4B5675] font-bold uppercase tracking-widest">SPAC</span>
-            )}
-          </div>
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {ipo.symbol && (
-              <span className="text-[11px] font-mono font-bold text-emerald-400">{ipo.symbol}</span>
-            )}
-            {ipo.exchange && (
-              <span className="text-[10px] text-[#4B5675]">{ipo.exchange}</span>
-            )}
-            <RatingBadge rating={ipo.rating} />
-            {!showPerf && <StatusBadge status={ipo.status} />}
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          {showPerf ? (
-            <>
-              <PerfPill pct={ipo.perfPct} />
-              {ipo.perfPct != null && <p className="text-[9px] text-[#4B5675] mt-0.5">vs IPO price</p>}
-              <p className="text-[10px] text-[#4B5675] mt-1">{fmtDate(ipo.date)}</p>
-            </>
-          ) : (
-            <>
-              <p className="text-[10px] text-[#4B5675]">{fmtDate(ipo.date)}</p>
-              <p className={`text-[10px] font-semibold mt-0.5 ${
-                daysUntil(ipo.date) === "Today" || daysUntil(ipo.date) === "Tomorrow"
-                  ? "text-violet-400" : "text-[#4B5675]"
-              }`}>{daysUntil(ipo.date)}</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Metrics */}
-      <div className="grid grid-cols-3 gap-2 mt-4">
-        <div className="bg-[#0D0B1A]/60 rounded-xl p-2.5 text-center">
-          <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">{showPerf ? "IPO Price" : "Price"}</p>
-          <p className="text-xs font-mono font-bold text-[#F1F5F9] mt-0.5">
-            {ipo.ipoPrice ? `$${ipo.ipoPrice.toFixed(2)}` : ipo.price ? `$${ipo.price}` : "TBD"}
+        <div className="min-w-0">
+          <p className="text-[15px] text-[var(--mx-text)]">{ipo.name}</p>
+          <p className="mt-0.5 text-[12px] text-[var(--mx-text-3)]">
+            {[ipo.symbol, ipo.exchange].filter(Boolean).join(" · ") || "Ticker not set yet"}
           </p>
         </div>
-        {showPerf ? (
-          <div className="bg-[#0D0B1A]/60 rounded-xl p-2.5 text-center">
-            <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">Now</p>
-            <p className={`text-xs font-mono font-bold mt-0.5 ${gained ? "text-emerald-400" : lost ? "text-rose-400" : "text-[#F1F5F9]"}`}>
-              {ipo.currentPrice ? `$${ipo.currentPrice.toFixed(2)}` : "—"}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-[#0D0B1A]/60 rounded-xl p-2.5 text-center">
-            <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">Shares</p>
-            <p className="text-xs font-mono font-bold text-[#F1F5F9] mt-0.5">
-              {ipo.shares ? `${(ipo.shares / 1e6).toFixed(1)}M` : "TBD"}
-            </p>
-          </div>
-        )}
-        <div className="bg-[#0D0B1A]/60 rounded-xl p-2.5 text-center">
-          <p className="text-[9px] text-[#4B5675] uppercase tracking-widest">Raise</p>
-          <p className="text-xs font-mono font-bold text-[#F1F5F9] mt-0.5">{fmtMoney(ipo.totalValue)}</p>
-        </div>
+        <p className="shrink-0 text-right text-[13px] text-[var(--mx-text-2)]">
+          {showPerf ? fmtDate(ipo.date) : daysUntil(ipo.date)}
+        </p>
       </div>
 
-      {/* Expanded: rating reason + AI panel */}
+      {showPerf ? (
+        <p className="mt-4 text-[14px] text-[var(--mx-text-2)]">
+          Listed at {ipo.ipoPrice ? `$${ipo.ipoPrice.toFixed(2)}` : priceText ?? "an unknown price"}
+          {ipo.currentPrice != null && <> → now ${ipo.currentPrice.toFixed(2)}</>}
+          {ipo.perfPct != null && <span className={ipo.perfPct >= 0 ? "text-[var(--mx-up)]" : "text-[var(--mx-down)]"}> ({ipo.perfPct >= 0 ? "+" : "−"}{Math.abs(ipo.perfPct).toFixed(1)}%)</span>}
+        </p>
+      ) : (
+        <p className="mt-4 text-[14px] text-[var(--mx-text-2)]">
+          {priceText ? `Expected price ${priceText} a share` : "Price not set yet"}
+          {ipo.totalValue ? ` · raising ${fmtMoney(ipo.totalValue)}` : ""}
+        </p>
+      )}
+
+      <p className="mt-1 text-[13px] text-[var(--mx-text-3)]">
+        {ipo.isSpac ? "Shell company that plans to buy a business later — higher risk" : RATING_WORDS[ipo.rating]}
+      </p>
+
+      <button type="button" onClick={() => setExpanded(v => !v)} className="mt-3 text-[13px] text-[var(--mx-text-2)] underline hover:text-[var(--mx-text)]">
+        {expanded ? "Hide details" : "More details"}
+      </button>
       {expanded && (
-        <div className="mt-3">
-          <p className="text-[11px] text-[#7B8DB4] leading-relaxed pt-3 border-t border-[#252345]">{ipo.ratingReason}</p>
-          {ipo.isSpac && (
-            <p className="text-[10px] text-rose-400 mt-2">
-              SPACs are blank-check shells that raise money to acquire an unknown company. Higher risk, often underperform post-merger.
-            </p>
-          )}
+        <div className="mt-3 pt-3 border-t border-[var(--mx-line)] space-y-2">
+          <p className="text-[13px] text-[var(--mx-text-2)]">{ipo.ratingReason}{ipo.shares ? ` · ${(ipo.shares / 1e6).toFixed(1)} million shares` : ""}</p>
           <AIPanel ipo={ipo} />
         </div>
       )}
-    </div>
+    </li>
   );
 }
 
@@ -390,127 +315,55 @@ export default function IPOPage() {
   const [error,   setError]   = useState<string | null>(null);
 
   useEffect(() => {
-  }, []);
-
-  useEffect(() => {
     fetch("/api/ipo")
       .then(r => r.json())
       .then(d => {
-        if ((d as { error?: string }).error) { setError((d as { error: string }).error); return; }
+        if ((d as { error?: string }).error) { setError("We couldn’t load the list right now. Please try again shortly."); return; }
         setData(d as { upcoming: IPOItem[]; recent: IPOItem[] });
       })
-      .catch(() => setError("Failed to load IPO data"))
+      .catch(() => setError("We couldn’t load the list right now. Please try again shortly."))
       .finally(() => setLoading(false));
   }, []);
 
   const items = tab === "upcoming" ? (data?.upcoming ?? []) : (data?.recent ?? []);
-
-  const upcomingStrong = data?.upcoming.filter(i => i.rating === "Strong").length ?? 0;
-  const upcomingWatch  = data?.upcoming.filter(i => i.rating === "Watch").length  ?? 0;
-  const recentGainers  = data?.recent.filter(i => (i.perfPct ?? 0) > 0).length   ?? 0;
-  const recentLosers   = data?.recent.filter(i => (i.perfPct ?? 0) < 0).length   ?? 0;
+  const pill = (on: boolean) => `h-9 px-4 rounded-full border text-[14px] transition-colors ${on ? "border-[var(--mx-text)] bg-[var(--mx-text)] text-[var(--mx-canvas)]" : "border-[var(--mx-line)] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]"}`;
 
   return (
     <PaywallGuard>
-    <div className="flex min-h-screen text-[#F1F5F9]">
+    <div className="flex min-h-screen text-[var(--mx-text)]">
       <Sidebar />
-      <main className="app-ambient min-w-0 flex-1 p-3 sm:p-4 xl:p-5 !pb-36 page-enter">
+      <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
-        <div className="max-w-7xl mx-auto w-full">
+        <main className="min-w-0 flex-1 p-4 lg:p-8 !pb-36 page-enter">
+          <div className="max-w-5xl mx-auto w-full space-y-6">
+            <header>
+              <h1 className="text-[30px] lg:text-[40px] leading-[1.05] tracking-[-0.03em]">New listings (IPOs)</h1>
+              <p className="mt-2 text-[15px] text-[var(--mx-text-2)] max-w-[62ch]">An IPO is when a company starts selling its shares to the public for the first time. New listings can move a lot in their first weeks.</p>
+            </header>
 
-          {/* Header */}
-          <div className="mt-3 mb-3">
-            <h1 className="reveal text-2xl font-black tracking-tight text-gradient-green">IPO Tracker</h1>
-          </div>
-
-          {/* Summary strip */}
-          {!loading && data && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-              <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl p-4 text-center">
-                <p className="num-reveal text-2xl font-black font-mono text-emerald-400">{upcomingStrong}</p>
-                <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Strong Upcoming</p>
-              </div>
-              <div className="card-shine glass surface-sheen border border-amber-500/20 rounded-2xl p-4 text-center">
-                <p className="num-reveal text-2xl font-black font-mono text-amber-400">{upcomingWatch}</p>
-                <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Watch Upcoming</p>
-              </div>
-              <div className="card-shine glass surface-sheen border border-emerald-500/20 rounded-2xl p-4 text-center">
-                <p className="num-reveal text-2xl font-black font-mono text-emerald-400">{recentGainers}</p>
-                <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Recent Gainers</p>
-              </div>
-              <div className="card-shine glass surface-sheen border border-rose-500/20 rounded-2xl p-4 text-center">
-                <p className="num-reveal text-2xl font-black font-mono text-rose-400">{recentLosers}</p>
-                <p className="text-[10px] text-[#4B5675] mt-1 uppercase tracking-widest">Recent Losers</p>
-              </div>
+            <div className="flex gap-2" role="group" aria-label="Show">
+              <button type="button" onClick={() => setTab("upcoming")} className={pill(tab === "upcoming")} aria-pressed={tab === "upcoming"}>Coming soon{data ? ` (${data.upcoming.length})` : ""}</button>
+              <button type="button" onClick={() => setTab("recent")} className={pill(tab === "recent")} aria-pressed={tab === "recent"}>Recently listed{data ? ` (${data.recent.length})` : ""}</button>
             </div>
-          )}
 
-          {/* Tabs */}
-          <div className="flex gap-2 mb-5">
-            {(["upcoming", "recent"] as const).map(t => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => setTab(t)}
-                className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors capitalize ${
-                  tab === t
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                    : "bg-[#13112A] text-[#4B5675] border border-[#252345] hover:text-[#94A3B8]"
-                }`}
-              >
-                {t === "upcoming" ? `Upcoming (${data?.upcoming.length ?? "…"})` : `Recent (${data?.recent.length ?? "…"})`}
-              </button>
-            ))}
-          </div>
+            {error && <p className="text-[15px] text-[var(--mx-text-2)]">{error}</p>}
 
+            {loading && <ul className="grid sm:grid-cols-2 gap-3">{[1, 2, 3, 4].map(i => <li key={i} className="h-36 rounded-[14px] bg-[var(--mx-raised)] animate-pulse" />)}</ul>}
 
-          {/* Error */}
-          {error && (
-            <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 text-sm text-rose-400">
-              {error}
-            </div>
-          )}
-
-          {/* Loading skeletons */}
-          {loading && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[1,2,3,4,5,6].map(i => (
-                <div key={i} className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-5 space-y-3">
-                  <Skeleton h="h-5" w="w-3/4" />
-                  <Skeleton h="h-4" w="w-1/2" />
-                  <div className="grid grid-cols-3 gap-2 mt-4">
-                    {[1,2,3].map(j => <Skeleton key={j} h="h-10" />)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!loading && items.length === 0 && !error && (
-            <div className="card-shine glass surface-sheen border border-[#252345] rounded-2xl p-8 text-center">
-              <p className="text-[#4B5675] text-sm">
-                {tab === "upcoming"
-                  ? "No upcoming IPOs found in the next 60 days."
-                  : "No recent IPOs found in the last 90 days."}
+            {!loading && !error && items.length === 0 && (
+              <p className="py-10 text-center text-[15px] text-[var(--mx-text-2)]">
+                {tab === "upcoming" ? "No new listings are scheduled in the next two months." : "No companies listed in the last three months."}
               </p>
-            </div>
-          )}
+            )}
 
-          {/* Cards */}
-          {!loading && items.length > 0 && (
-            <div className="grid grid-cols-1 sm:[grid-template-columns:repeat(auto-fit,minmax(340px,1fr))] gap-4">
-              {items.map((ipo, i) => (
-                <IPOCard key={i} ipo={ipo} showPerf={tab === "recent"} />
-              ))}
-            </div>
-          )}
+            {!loading && items.length > 0 && (
+              <ul className="grid sm:grid-cols-2 gap-3">{items.map((ipo, i) => <IPOCard key={i} ipo={ipo} showPerf={tab === "recent"} />)}</ul>
+            )}
 
-          <p className="text-[10px] text-[#333368] text-center mt-10">
-            IPO data from Finnhub · AI analysis by Claude Haiku · Not financial advice · Data cached 30 min
-          </p>
-        </div>
-      </main>
+            <p className="text-[12.5px] text-[var(--mx-text-3)]">Source: Finnhub and Nasdaq. For learning — not financial advice.</p>
+          </div>
+        </main>
+      </div>
     </div>
     </PaywallGuard>
   );

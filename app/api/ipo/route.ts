@@ -61,15 +61,48 @@ function rateIPO(ipo: FinnhubIPO): { rating: IPOItem["rating"]; reason: string }
   return { rating: "Speculative",   reason: hasSymbol ? "Small offering, limited institutional coverage" : "No exchange / symbol assigned yet" };
 }
 
+// Backup source with no key: Nasdaq's public IPO calendar, one request per month.
+type NasdaqIpoRow = { proposedTickerSymbol?: string; companyName?: string; proposedExchange?: string; proposedSharePrice?: string; sharesOffered?: string; expectedPriceDate?: string; pricedDate?: string; filedDate?: string; dollarValueOfSharesOffered?: string };
+async function fetchNasdaqRange(from: string, to: string): Promise<FinnhubIPO[]> {
+  const months = new Set<string>();
+  for (let d = new Date(from + "T12:00:00Z"); d <= new Date(to + "T12:00:00Z"); d.setUTCMonth(d.getUTCMonth() + 1)) months.add(d.toISOString().slice(0, 7));
+  months.add(to.slice(0, 7));
+  const n = (v?: string) => { const x = parseFloat((v ?? "").replace(/[$,]/g, "")); return Number.isFinite(x) ? x : null; };
+  const iso = (v?: string) => { const m = (v ?? "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return m ? `${m[3]}-${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}` : ""; };
+  const out: FinnhubIPO[] = [];
+  await Promise.all([...months].map(async ym => {
+    try {
+      const r = await fetch(`https://api.nasdaq.com/api/ipo/calendar?date=${ym}`, {
+        cache: "no-store", signal: AbortSignal.timeout(8_000),
+        headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36", Accept: "application/json", Origin: "https://www.nasdaq.com", Referer: "https://www.nasdaq.com/" },
+      });
+      if (!r.ok) return;
+      const d = (await r.json() as { data?: { priced?: { rows?: NasdaqIpoRow[] | null }; upcoming?: { upcomingTable?: { rows?: NasdaqIpoRow[] | null } }; filed?: { rows?: NasdaqIpoRow[] | null } } }).data;
+      const add = (rows: NasdaqIpoRow[] | null | undefined, status: string, dateOf: (x: NasdaqIpoRow) => string) => {
+        for (const x of rows ?? []) {
+          const date = dateOf(x);
+          if (!x.companyName || !date || date < from || date > to) continue;
+          out.push({ date, exchange: x.proposedExchange ?? null, name: x.companyName, numberOfShares: n(x.sharesOffered), price: x.proposedSharePrice ?? null, status, symbol: x.proposedTickerSymbol ?? "", totalSharesValue: n(x.dollarValueOfSharesOffered) });
+        }
+      };
+      add(d?.priced?.rows, "priced", x => iso(x.pricedDate));
+      add(d?.upcoming?.upcomingTable?.rows, "expected", x => iso(x.expectedPriceDate));
+      add(d?.filed?.rows, "filed", x => iso(x.filedDate));
+    } catch { /* leave empty */ }
+  }));
+  return out;
+}
+
 async function fetchIPORange(from: string, to: string): Promise<FinnhubIPO[]> {
   const key = process.env.FINNHUB_API_KEY;
-  if (!key) return [];
+  if (!key) return fetchNasdaqRange(from, to);
   try {
     const url = `https://finnhub.io/api/v1/calendar/ipo?from=${from}&to=${to}&token=${key}`;
     const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(8_000) });
     const d = await r.json() as { ipoCalendar?: FinnhubIPO[] };
-    return Array.isArray(d?.ipoCalendar) ? d.ipoCalendar : [];
-  } catch { return []; }
+    if (Array.isArray(d?.ipoCalendar) && d.ipoCalendar.length) return d.ipoCalendar;
+    return fetchNasdaqRange(from, to);
+  } catch { return fetchNasdaqRange(from, to); }
 }
 
 async function fetchQuote(symbol: string): Promise<number | null> {
