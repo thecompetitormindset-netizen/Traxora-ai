@@ -48,9 +48,14 @@ let memCache: { run_date: string; rows: Row[] } | null = null;
 let inflight: Promise<{ rows: Row[]; persisted: boolean }> | null = null;
 let lastStoreError: string | null = null;
 
-function noteStoreError(where: string, err: { code?: string; message?: string } | null | undefined) {
+function noteStoreError(where: string, err: { code?: string; message?: string; details?: string } | null | undefined) {
   if (!err) return;
-  lastStoreError = `${where}: ${err.code ? `[${err.code}] ` : ""}${(err.message ?? "unknown error").slice(0, 160)}`;
+  // Network failures ("fetch failed") carry the real cause (DNS, TLS…) in
+  // details; the database host is public, so name it to make config errors obvious.
+  let host = "unset";
+  try { host = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").host || "invalid"; } catch { host = "invalid URL"; }
+  const cause = /Caused by: ([^\n]+)/.exec(err.details ?? "")?.[1];
+  lastStoreError = `${where}: ${err.code ? `[${err.code}] ` : ""}${(err.message ?? "unknown error").slice(0, 120)}${cause ? ` — ${cause.slice(0, 120)}` : ""} (host: ${host})`;
   console.error("[options-analysis]", lastStoreError);
 }
 
@@ -115,7 +120,7 @@ async function generate(actor: string): Promise<{ rows: Row[]; persisted: boolea
   const ivRows = results.filter(r => r.atmIv !== null).map(r => ({ symbol: r.row.symbol, as_of_date: runDate, atm_iv: r.atmIv }));
   if (ivRows.length) {
     const { error: ivErr } = await db.from("options_iv_history").upsert(ivRows, { onConflict: "symbol,as_of_date" });
-    if (ivErr) noteStoreError("iv-history", ivErr);
+    if (ivErr && !lastStoreError) noteStoreError("iv-history", ivErr);
   }
   return { rows, persisted };
 }
