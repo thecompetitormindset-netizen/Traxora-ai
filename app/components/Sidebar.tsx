@@ -89,7 +89,7 @@ const TabIcon = {
 
 function Wordmark() {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 px-2.5" aria-label="Traxora — Overview">
+    <Link href="/" className="flex items-center gap-2.5 px-2.5" aria-label="Traxora home">
       <span aria-hidden="true" className="grid place-items-center w-6 h-6 rounded-[6px] bg-[var(--mx-text)] text-[var(--mx-canvas)]">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 16 9 10 13 14 21 6"/></svg>
       </span>
