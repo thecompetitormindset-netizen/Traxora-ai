@@ -4,6 +4,7 @@
 // app used to show: same meaning, drawn in the current text colour, so they
 // follow light/dark themes and sit quietly next to text.
 
+export type IconName = Name;
 type Name =
   | "chart" | "search" | "zap" | "target" | "trend-up" | "trend-down" | "sunrise" | "dot"
   | "rocket" | "calendar" | "radar" | "book" | "news" | "check" | "globe" | "trophy" | "mail"
