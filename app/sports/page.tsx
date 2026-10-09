@@ -490,7 +490,7 @@ export default function SportsPage() {
           {/* Empty but configured */}
           {!loading && configured && !failed && games.length === 0 && (
             <div className="text-center py-16">
-              <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games in the next 10 days</p>
+              <p className="text-sm font-bold text-[#7B8DB4] mb-1">No games in the next 7 days</p>
               <p className="text-xs text-[#4B5675]">Most of these leagues are seasonal — check back when a sport&rsquo;s season is active.</p>
             </div>
           )}
@@ -503,7 +503,7 @@ export default function SportsPage() {
               </p>
               <p className="text-xs text-[#4B5675]">
                 {(tabCounts.get(activeTab.id) ?? 0) === 0 && activeTab.id !== "all"
-                  ? `${activeTab.label} has no games in the next 10 days — the season may not be active right now.`
+                  ? `${activeTab.label} has no games in the next 7 days — the season may not be active right now.`
                   : confFilter > 0 ? `Try "All Games" — no picks hit ${confFilter}%+ confidence right now.` : "Try “All Upcoming” to see every scheduled game."}
               </p>
             </div>
