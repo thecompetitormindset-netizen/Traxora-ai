@@ -46,7 +46,7 @@ export default function PrivacyPage() {
         </Section>
 
         <Section title="2. Information We Collect">
-          <p><strong className="text-[#CBD5E1]">Account data:</strong> When you sign in with Google, we receive your name, email address, and profile picture from Google OAuth. We do not store passwords.</p>
+          <p><strong className="text-[#CBD5E1]">Account data:</strong> Traxora works without an account. Signing in with Google is optional — it is needed only for AI features and to sync your data across devices. If you sign in, we receive your name, email address and profile picture from Google OAuth. We do not store passwords.</p>
           <p><strong className="text-[#CBD5E1]">Usage data:</strong> We log which features you use, signals you view, and general usage patterns to improve the product.</p>
           <p><strong className="text-[#CBD5E1]">Stored data:</strong> Your watchlist, trade journal entries, and settings are stored in your browser&apos;s localStorage and in our database (Supabase) linked to your account email. No financial account information is collected.</p>
           <p><strong className="text-[#CBD5E1]">Payment data:</strong> Traxora is free and does not collect payments. Earlier Ko-fi memberships were processed by Ko-fi; we only ever received membership status — no card or billing details reached our servers.</p>

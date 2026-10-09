@@ -65,7 +65,7 @@ export default function TermsPage() {
         </Section>
 
         <Section title="4. Accounts and Access">
-          <p>You must sign in with a Google account to use Traxora AI. You are responsible for maintaining the security of your Google account. We reserve the right to suspend or terminate access for violations of these terms.</p>
+          <p>Traxora AI can be used without an account. Signing in with Google is optional and needed only for AI features and cross-device sync; if you sign in, you are responsible for maintaining the security of your Google account. We reserve the right to suspend or terminate access for violations of these terms.</p>
           <p>Traxora AI is currently free to use. There are no paid plans.</p>
         </Section>
 
