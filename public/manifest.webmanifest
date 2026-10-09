@@ -3,7 +3,7 @@
   "name": "Traxora AI",
   "short_name": "Traxora",
   "description": "AI-powered Smart Money trading signals — BUY/SELL/HOLD with Order Blocks, FVGs, volume profile, options analysis, and daily morning briefings.",
-  "start_url": "/dashboard",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "dir": "ltr",
