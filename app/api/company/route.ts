@@ -4,7 +4,7 @@ export async function GET(req: Request) {
 
   const apiKey = process.env.EODHD_API_KEY;
   if (!apiKey) {
-    return Response.json({ error: "Missing EODHD_API_KEY" }, { status: 500 });
+    return Response.json({ error: "Company details are unavailable right now." }, { status: 503 });
   }
 
   const url =

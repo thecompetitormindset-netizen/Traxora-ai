@@ -2,10 +2,11 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { auth } from "@/auth";
-import { supabaseAdmin } from "@/app/lib/supabase";
+import { supabaseAdmin, supabaseConfigured, syncUnavailable } from "@/app/lib/supabase";
 
 // GET — pull portfolio from Supabase (called on login / device switch)
 export async function GET() {
+  if (!supabaseConfigured()) return syncUnavailable();
   const session = await auth();
   if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,6 +26,7 @@ export async function GET() {
 
 // POST — push portfolio to Supabase (called on every portfolio change, debounced)
 export async function POST(req: Request) {
+  if (!supabaseConfigured()) return syncUnavailable();
   const session = await auth();
   if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -6,6 +6,7 @@ import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
+import { syncFetch } from "../lib/syncFetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -210,7 +211,7 @@ export default function SportsPage() {
     if (pruned.length !== local.length) saveWatchlist(pruned);
     setWatchlist(pruned);
 
-    fetch("/api/user/sports-watchlist")
+    syncFetch("/api/user/sports-watchlist")
       .then(r => r.json())
       .then((data: { items?: WatchItem[] | null }) => {
         if (!Array.isArray(data.items) || data.items.length === 0) { watchlistInitialized.current = true; return; }
@@ -228,7 +229,7 @@ export default function SportsPage() {
   useEffect(() => {
     if (!watchlistInitialized.current) { watchlistInitialized.current = true; return; }
     const id = setTimeout(() => {
-      fetch("/api/user/sports-watchlist", {
+      syncFetch("/api/user/sports-watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: watchlist }),

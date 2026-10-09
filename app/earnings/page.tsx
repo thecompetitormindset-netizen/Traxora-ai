@@ -26,6 +26,7 @@ type CalendarData = {
   week:   string;
   monday: string;
   days:   CalendarDay[];
+  unavailable?: boolean;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,7 +134,9 @@ function EarningsContent() {
       const res    = await fetch(`/api/market/earnings-calendar${params}`, { cache: "no-store" });
       const json   = await res.json();
       if (!res.ok || json.error) throw new Error(json.error ?? `Error ${res.status}`);
-      setData(json as CalendarData);
+      const cal = json as CalendarData;
+      setData({ ...cal, days: Array.isArray(cal.days) ? cal.days : [] });
+      if (cal.unavailable) setError("The earnings calendar is unavailable right now. Try again later.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load calendar");
     } finally {

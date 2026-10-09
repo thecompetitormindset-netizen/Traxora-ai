@@ -41,7 +41,8 @@ export default function CompanyPage({
           `/api/company?symbol=${encodeURIComponent(decodedSymbol)}`,
         );
         const data = await res.json();
-        setCompany(data);
+        // An error body is not company data — fall back to the "not available" state.
+        setCompany(res.ok && !data?.error ? data : null);
       } catch {
         setCompany(null);
       } finally {

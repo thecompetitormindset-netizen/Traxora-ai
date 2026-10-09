@@ -13,3 +13,14 @@ export function supabaseAdmin() {
   if (!serviceKey) throw new Error("SUPABASE_SERVICE_ROLE_KEY not set");
   return createClient(url, serviceKey, { auth: { persistSession: false } });
 }
+
+// Account sync needs the service-role database. When it isn't configured
+// (e.g. local development without secrets), sync routes answer this instead
+// of throwing — the app keeps working from this device's storage.
+export function supabaseConfigured(): boolean {
+  return Boolean(url && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
+export function syncUnavailable(): Response {
+  return Response.json({ syncUnavailable: true }, { status: 200 });
+}

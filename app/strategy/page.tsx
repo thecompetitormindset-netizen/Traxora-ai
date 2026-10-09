@@ -8,6 +8,7 @@ import PaywallGuard from "@/app/components/PaywallGuard";
 import { loadTrades, calcPL, STARTING_CAPITAL, type PaperTrade } from "@/app/lib/paperTrades";
 import { scopedKey, setCurrentUser } from "@/app/lib/userState";
 import PortfolioAllocationChart from "@/app/components/PortfolioAllocationChart";
+import { syncFetch } from "../lib/syncFetch";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ function StrategyContent() {
 
     build(loadTakenLocal());
     // Cross-device: also pull the /paper planner's server-synced trades
-    fetch("/api/paper-trades")
+    syncFetch("/api/paper-trades")
       .then(r => (r.ok ? r.json() : null))
       .then((data: { trades?: TakenTradeLite[] } | null) => {
         if (!data || !Array.isArray(data.trades) || data.trades.length === 0) return;

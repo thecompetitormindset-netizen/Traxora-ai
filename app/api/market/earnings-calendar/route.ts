@@ -135,6 +135,8 @@ export async function GET(req: Request) {
 
     return Response.json({ week: weekLabel, monday: isoDate(monday), days });
   } catch {
-    return Response.json({ week: "", monday: "", days: {} });
+    // Calendar source unavailable (e.g. no Alpha Vantage key, rate limit).
+    // Always return a list so the page can say so instead of crashing.
+    return Response.json({ week: "", monday: "", days: [], unavailable: true });
   }
 }

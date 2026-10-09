@@ -8,6 +8,7 @@ import Topbar from "../components/Topbar";
 import { getJournal, clearJournal, saveJournalEntry, type JournalEntry } from "../components/AutoJournal";
 import { haptic } from "../lib/haptics";
 import NotebookSection from "../components/fieldnotes/NotebookSection";
+import { syncFetch } from "../lib/syncFetch";
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -55,7 +56,7 @@ export default function JournalPage() {
     setEntries(local);
 
     // Hydrate from Supabase — saveJournalEntry handles dedup + scoped key
-    fetch("/api/user/journal")
+    syncFetch("/api/user/journal")
       .then((r) => r.json())
       .then((data: { entries?: JournalEntry[] | null }) => {
         if (!Array.isArray(data.entries) || data.entries.length === 0) return;
@@ -75,7 +76,7 @@ export default function JournalPage() {
   useEffect(() => {
     if (entries.length === 0) return;
     const id = setTimeout(() => {
-      fetch("/api/user/journal", {
+      syncFetch("/api/user/journal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entries: getJournal() }),

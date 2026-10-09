@@ -19,6 +19,7 @@ import ProductTour, { type TourStep } from "../components/ProductTour";
 import { OptionsAttentionView } from "../components/fieldnotes/OptionsAttention";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
 import OverviewHeader from "../components/OverviewHeader";
+import { syncFetch } from "../lib/syncFetch";
 
 const DASHBOARD_TOUR_KEY = "traxora_dashboard_tour_v2";
 
@@ -597,7 +598,7 @@ function DashboardContent() {
     refresh();
     // Cross-device: trades taken on /paper sync through Supabase — pull them
     // so a trade closed on the phone shows up in this card on desktop too.
-    fetch("/api/paper-trades")
+    syncFetch("/api/paper-trades")
       .then(r => (r.ok ? r.json() : null))
       .then((data: { trades?: TakenTradeLite[] } | null) => {
         if (data && Array.isArray(data.trades) && data.trades.length > 0) {
@@ -616,7 +617,7 @@ function DashboardContent() {
     const wl = watchlist;
 
     // Pull from Supabase in background — overrides localStorage if server has different data
-    fetch("/api/user/watchlist")
+    syncFetch("/api/user/watchlist")
       .then((r) => r.json())
       .then((data: { items?: Array<{ symbol: string; name: string }> | null }) => {
         if (!active || !Array.isArray(data.items) || data.items.length === 0) return;
@@ -693,7 +694,7 @@ function DashboardContent() {
   useEffect(() => {
     if (!watchlistInitialized.current) { watchlistInitialized.current = true; return; }
     const id = setTimeout(() => {
-      fetch("/api/user/watchlist", {
+      syncFetch("/api/user/watchlist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ items: watchlist }),

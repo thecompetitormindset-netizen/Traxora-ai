@@ -11,6 +11,7 @@ import Link from "next/link";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
 import { useSession } from "next-auth/react";
+import { syncFetch } from "../lib/syncFetch";
 
 const TraxoraChart = dynamic(() => import("@/app/components/TraxoraChart"), { ssr: false });
 
@@ -76,7 +77,7 @@ function saveTaken(t: TakenTrade[]) {
 }
 function persistTaken(t: TakenTrade[]) {
   saveTaken(t);
-  fetch("/api/paper-trades", {
+  syncFetch("/api/paper-trades", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ trades: t }),
@@ -485,7 +486,7 @@ function TradePlannerContent() {
     // saved while the network/POST silently failed). Never blindly replace —
     // a fresh device pulling an empty server must not erase local history,
     // and a device with local history must upload it.
-    fetch("/api/paper-trades")
+    syncFetch("/api/paper-trades")
       .then(r => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
       .then((data: { trades?: TakenTrade[] }) => {
         const server = Array.isArray(data.trades) ? data.trades : [];
@@ -504,7 +505,7 @@ function TradePlannerContent() {
         setTaken(merged);
         saveTaken(merged);
         if (serverBehind) {
-          fetch("/api/paper-trades", {
+          syncFetch("/api/paper-trades", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ trades: merged }),

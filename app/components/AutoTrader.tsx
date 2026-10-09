@@ -310,7 +310,7 @@ export default function AutoTrader() {
           const ar  = await fetch("/api/ai/analyze", {
             method:  "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol: s.symbol, price: q.price, previousClose: q.previousClose, open: q.open, high: q.high, low: q.low, dayChangePercent: dcp }),
+            body: JSON.stringify({ symbol: s.symbol, price: q.price, previousClose: q.previousClose, open: q.open, high: q.high, low: q.low, dayChangePercent: dcp, quick: true }),
           });
           const analysis = await ar.json();
           return { q, dcp, analysis };
@@ -390,7 +390,7 @@ export default function AutoTrader() {
       if (!qr?.price) return;
       checkBotPriceEvents(id, s.symbol, qr.price);
       const dcp = qr.previousClose ? ((qr.price - qr.previousClose) / qr.previousClose) * 100 : 0;
-      const ar  = await fetch("/api/ai/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: s.symbol, price: qr.price, previousClose: qr.previousClose, open: qr.open, high: qr.high, low: qr.low, dayChangePercent: dcp }) }).then(r => r.json());
+      const ar  = await fetch("/api/ai/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ symbol: s.symbol, price: qr.price, previousClose: qr.previousClose, open: qr.open, high: qr.high, low: qr.low, dayChangePercent: dcp, quick: true }) }).then(r => r.json());
       runBotTrade(id, s.symbol, qr.price, ar.signal ?? "HOLD", ar.confidence ?? "Low", style);
     } catch { /* silent */ }
   }, []);

@@ -378,7 +378,7 @@ function FuturesPanel() {
           const analyzeRes = await fetch("/api/ai/analyze", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ symbol, price, previousClose: prev, dayChangePercent: change ?? 0 }),
+            body: JSON.stringify({ symbol, price, previousClose: prev, dayChangePercent: change ?? 0, quick: true }),
           }).then(r => r.json());
           signal     = analyzeRes?.signal ?? null;
           confidence = analyzeRes?.confidence ?? null;

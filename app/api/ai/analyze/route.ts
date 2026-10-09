@@ -156,7 +156,10 @@ export async function POST(req: Request) {
   if (!session?.user) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
-  if (!checkRateLimit(`analyze:${session.user.email}`, 20, 60_000)) {
+  // Quick reads (dashboard cards) are rules-only — no AI call — and a full
+  // watchlist + futures refresh issues ~20 at once, so they get a wider limit.
+  const isQuick = await req.clone().json().then((b: { quick?: boolean }) => b?.quick === true).catch(() => false);
+  if (!checkRateLimit(`analyze:${isQuick ? "quick" : "full"}:${session.user.email}`, isQuick ? 120 : 20, 60_000)) {
     return Response.json({ error: "Rate limit exceeded" }, { status: 429 });
   }
   try {
