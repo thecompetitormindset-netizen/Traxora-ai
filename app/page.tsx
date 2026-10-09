@@ -174,7 +174,7 @@ export default function HomePage() {
   const primaryLabel = "Open dashboard";
 
   return (
-    <div className="min-h-screen bg-[var(--mx-canvas)] text-[var(--mx-text)] overflow-x-clip">
+    <div className="lp-root min-h-screen bg-[var(--mx-canvas)] text-[var(--mx-text)] overflow-x-clip">
       {/* ── Nav ── */}
       <header className="sticky top-0 z-30 border-b border-[var(--mx-line)] bg-[color-mix(in_srgb,var(--mx-canvas)_80%,transparent)] backdrop-blur-md">
         <nav className="max-w-6xl mx-auto h-14 px-4 sm:px-8 flex items-center justify-between gap-4" aria-label="Main">

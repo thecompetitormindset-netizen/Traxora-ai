@@ -140,7 +140,7 @@ code, kbd {
 ::-webkit-scrollbar-thumb, ::-webkit-scrollbar-thumb:hover { background: var(--mx-line-strong) !important; }
 
 /* Headings: large and calm — regular weight, tight tracking. */
-html[data-theme] main h1 { font-weight: 450 !important; letter-spacing: -0.025em !important; }
+html[data-theme] main h1 { font-weight: 500 !important; letter-spacing: -0.02em !important; }
 main h2 { letter-spacing: -0.012em; }
 html[data-theme] main .font-black, html[data-theme] main .font-extrabold { font-weight: 600 !important; }
 
@@ -251,7 +251,7 @@ html[data-theme] [class*="bg-linear-to-"] {
 }
 .sidebar-desktop { width: var(--mx-sidebar-w) !important; background: var(--mx-rail) !important; border-right: 1px solid var(--mx-line) !important; }
 .d-nav-item {
-  padding: 7px 10px; border-radius: 7px; font-size: 13.5px; font-weight: 450; gap: 10px;
+  padding: 7px 10px; border-radius: 7px; font-size: 14px; font-weight: 400; gap: 10px;
   color: var(--mx-text-2);
 }
 .d-nav-item:hover { color: var(--mx-text); background: var(--mx-raised); }
@@ -259,7 +259,7 @@ html[data-theme] [class*="bg-linear-to-"] {
 
 /* Mono micro-labels used across the new frame. */
 .mx-label {
-  font-size: 12.5px; letter-spacing: 0; color: var(--mx-text-3);
+  font-size: 12px; letter-spacing: 0; color: var(--mx-text-3);
 }
 
 /* ── Neutralise the legacy clean/ember orange branding ─────────────────────── */

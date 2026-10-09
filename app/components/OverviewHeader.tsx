@@ -35,13 +35,13 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       : "Nothing needs your attention right now.";
 
   const lede = [
-    data ? `${analyzed} options analyses finished${validated ? `, ${validated} validated` : " with no qualifying candidate"}.` : "Options analysis is loading.",
-    `${watchCount} symbol${watchCount === 1 ? "" : "s"} on your watchlist${watchSignals ? `, ${watchSignals} with a strong signal` : ""}.`,
-    data && !open ? "The next regular session opens at 9:30 ET." : null,
+    data ? (validated ? `${validated} of ${analyzed} stocks have an option idea that passed every check.` : `We checked ${analyzed} stocks for option ideas — none passed today.`) : "Checking options…",
+    `${watchCount} ${watchCount === 1 ? "stock" : "stocks"} on your watchlist${watchSignals ? `, ${watchSignals} with a strong signal` : ""}.`,
+    data && !open ? "The market opens at 9:30 AM ET." : null,
   ].filter(Boolean).join(" ");
 
   const stats = [
-    { k: "Options", v: data ? String(validated) : "—", s: data ? `validated · ${analyzed - validated} no trade` : "loading", href: "/options" },
+    { k: "Options", v: data ? String(validated) : "—", s: data ? `${validated === 1 ? "idea" : "ideas"} · ${analyzed} stocks checked` : "checking…", href: "/options" },
     { k: "Watchlist", v: String(watchCount), s: `${watchSignals} strong signal${watchSignals === 1 ? "" : "s"}`, href: "#watchlist" },
     { k: "Practice trading", v: String(paperOpen), s: paperValue !== null ? `open · $${Math.round(paperValue).toLocaleString("en-US")} pretend money` : "open trades", href: "/paper" },
   ];

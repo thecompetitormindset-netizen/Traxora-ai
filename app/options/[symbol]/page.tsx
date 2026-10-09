@@ -171,12 +171,12 @@ function Research({ symbol }: { symbol: string }) {
 
       {load.kind === "ready" && (
         <>
-          <h1 className="fn-title">{symbol}{load.data.detail.display.price != null && <span className="fn-num" style={{ marginLeft: 12, fontSize: "0.6em", color: "var(--fn-text-2)" }}>${load.data.detail.display.price.toFixed(2)}</span>}</h1>
+          <h1 className="fn-title">{symbol}{load.data.detail.display.price != null && <span className="fn-num text-[20px]" style={{ marginLeft: 12, color: "var(--fn-text-2)" }}>${load.data.detail.display.price.toFixed(2)}</span>}</h1>
           <SimpleAnswer d={load.data.detail} />
           <details className="fn-surface" style={{ padding: 0 }}>
-            <summary className="cursor-pointer list-none flex items-center justify-between" style={{ padding: "16px 20px", fontSize: 15 }}>
+            <summary className="cursor-pointer list-none flex items-center justify-between" style={{ padding: "16px 20px", fontSize: 14 }}>
               <span>See the full analysis <span className="fn-meta">— chart, checks and data details</span></span>
-              <span aria-hidden="true" className="fn-meta" style={{ fontSize: 18 }}>+</span>
+              <span aria-hidden="true" className="fn-meta" style={{ fontSize: 16 }}>+</span>
             </summary>
             <div style={{ padding: "0 16px 16px" }}>
               <ResearchView

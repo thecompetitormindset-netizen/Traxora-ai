@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "./monochrome.css";
 import "./monochrome.generated.css";
+import "./typescale.css";
 import { Analytics } from "@vercel/analytics/next";
 import Providers from "./providers";
 import CookieBanner from "./components/CookieBanner";

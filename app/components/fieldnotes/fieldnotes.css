@@ -41,14 +41,15 @@
   /* radii */
   --fn-r: var(--mx-radius); --fn-r-sm: 7px; --fn-r-lg: var(--mx-radius-lg);
   /* type */
-  --fn-fs-meta: 12.5px; --fn-fs-sm: 13.5px; --fn-fs-base: 15px; --fn-fs-lg: 18px; --fn-fs-xl: 22px; --fn-fs-title: 34px;
+  /* Same six-step scale as the rest of the app (app/typescale.css). */
+  --fn-fs-meta: 12px; --fn-fs-sm: 14px; --fn-fs-base: 14px; --fn-fs-lg: 16px; --fn-fs-xl: 20px; --fn-fs-title: 28px;
   /* One typeface everywhere: numbers use Geist with tabular figures, not a mono font. */
   --fn-mono: var(--font-geist), ui-sans-serif, system-ui, sans-serif;
 
   color: var(--fn-text);
   font-size: var(--fn-fs-base);
   line-height: 1.5;
-  letter-spacing: -0.006em;
+  letter-spacing: -0.02em;
 }
 
 /* ── Page frame ───────────────────────────────────────────────────────────── */
@@ -56,11 +57,11 @@
 /* Pages sit directly on the app canvas — no boxed frame. */
 .fn-page { margin-top: var(--fn-5); min-width: 0; }
 
-.fn-title { font-size: var(--fn-fs-title); line-height: 1.08; font-weight: 450; letter-spacing: -0.028em; margin: 0; }
-.fn-h2 { font-size: var(--fn-fs-lg); font-weight: 450; margin: 0; letter-spacing: -0.012em; }
-.fn-h3 { font-size: var(--fn-fs-base); font-weight: 650; margin: 0; }
+.fn-title { font-size: var(--fn-fs-title); line-height: 1.08; font-weight: 500; letter-spacing: -0.02em; margin: 0; }
+.fn-h2 { font-size: var(--fn-fs-lg); font-weight: 500; margin: 0; letter-spacing: -0.02em; }
+.fn-h3 { font-size: var(--fn-fs-base); font-weight: 600; margin: 0; }
 .fn-label { font-size: var(--fn-fs-sm); font-weight: 600; color: var(--fn-text-2); }
-.fn-caps { font-family: var(--fn-mono); font-size: 12.5px; font-weight: 400; color: var(--fn-muted); }
+.fn-caps { font-family: var(--fn-mono); font-size: 12px; font-weight: 400; color: var(--fn-muted); }
 .fn-meta { font-size: var(--fn-fs-meta); color: var(--fn-muted); }
 .fn-body { font-size: var(--fn-fs-base); color: var(--fn-text); }
 .fn-text-2 { color: var(--fn-text-2); }
@@ -192,7 +193,7 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   min-height: 40px; padding: 0 var(--fn-4);
   border-radius: var(--fn-r-sm);
-  font-size: var(--fn-fs-sm); font-weight: 650;
+  font-size: var(--fn-fs-sm); font-weight: 600;
   border: 1px solid var(--fn-control);
   background: transparent; color: var(--fn-text);
   cursor: pointer; text-decoration: none;
@@ -220,7 +221,7 @@
   background: var(--fn-surface); color: var(--fn-text);
   font-size: var(--fn-fs-base);
 }
-.fn-textarea { font-family: var(--fn-mono); font-size: 13px; line-height: 1.5; min-height: 240px; resize: vertical; }
+.fn-textarea { font-family: var(--fn-mono); font-size: 14px; line-height: 1.5; min-height: 240px; resize: vertical; }
 .fn-input::placeholder, .fn-textarea::placeholder { color: var(--fn-muted); }
 .fn-input[aria-invalid="true"], .fn-textarea[aria-invalid="true"] { border-color: var(--fn-neg); }
 
@@ -248,7 +249,7 @@
 
 .fn-details > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
-  min-height: 40px; font-size: var(--fn-fs-sm); font-weight: 650; color: var(--fn-text);
+  min-height: 40px; font-size: var(--fn-fs-sm); font-weight: 600; color: var(--fn-text);
 }
 .fn-details > summary::-webkit-details-marker { display: none; }
 .fn-details > summary::before {
