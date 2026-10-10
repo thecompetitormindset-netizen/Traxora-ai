@@ -1,5 +1,7 @@
 export const runtime = "nodejs";
 
+import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+
 export async function GET() {
   try {
     const trendRes = await fetch(
@@ -27,8 +29,10 @@ export async function GET() {
           if (!meta || meta.regularMarketPrice == null) return null;
 
           const price = meta.regularMarketPrice as number;
-          const prev  = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
-          const changePct = prev ? ((price - prev) / prev) * 100 : 0;
+          // Previous SESSION close from the daily series — meta.chartPreviousClose
+          // is the close before the range's first bar, two sessions back here.
+          const prev  = resolvePreviousClose(meta, d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []) ?? price;
+          const changePct = changePctOrZero(price, prev);
 
           return {
             symbol,

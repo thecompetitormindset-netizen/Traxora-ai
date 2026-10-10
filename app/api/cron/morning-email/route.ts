@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { postToDiscord, buildBriefingEmbed } from "@/app/lib/discord";
+import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
@@ -78,9 +79,12 @@ async function fetchQuote(symbol: string) {
     const meta = d?.chart?.result?.[0]?.meta;
     if (!meta?.regularMarketPrice) return null;
     const price  = meta.regularMarketPrice as number;
-    const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
+    // Previous SESSION close from the daily series. meta.chartPreviousClose is
+    // the close before the range's first bar, so at range=2d it is two sessions
+    // back and renders a two-day move as today's change in the email.
+    const prev   = resolvePreviousClose(meta, d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []) ?? price;
     const open   = (meta.regularMarketOpen ?? price) as number;
-    const chg    = prev ? ((price - prev) / prev) * 100 : 0;
+    const chg    = changePctOrZero(price, prev);
     const high   = (meta.regularMarketDayHigh ?? price) as number;
     const low    = (meta.regularMarketDayLow  ?? price) as number;
     const vol    = (meta.regularMarketVolume  ?? 0)     as number;

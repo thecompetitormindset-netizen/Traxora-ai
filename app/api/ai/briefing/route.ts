@@ -5,6 +5,7 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
+import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -128,10 +129,12 @@ async function yq(ticker: string): Promise<Q | null> {
     const q    = d?.chart?.result?.[0]?.indicators?.quote?.[0];
     if (!meta?.regularMarketPrice) return null;
     const price     = meta.regularMarketPrice as number;
-    const prevClose = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
+    // Previous SESSION close from the daily series. meta.chartPreviousClose is
+    // the close before the first bar of the range — 10 days back here.
+    const prevClose = resolvePreviousClose(meta, (q?.close ?? []) as (number | null)[]) ?? price;
     return {
       price, prevClose,
-      changePct:  prevClose ? ((price - prevClose) / prevClose) * 100 : 0,
+      changePct:  changePctOrZero(price, prevClose),
       volume:     meta.regularMarketVolume,
       avgVol:     meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month,
       high52w:    meta.fiftyTwoWeekHigh,
