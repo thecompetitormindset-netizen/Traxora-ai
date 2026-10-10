@@ -3,6 +3,7 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
 import { cacheGet, cacheSet } from "../../lib/sentiment";
+import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 const CACHE_KEY = "sentiment:market-data";
 const CACHE_TTL = 15 * 60 * 1_000; // 15 minutes
@@ -130,21 +131,25 @@ export async function GET() {
     ]);
     const newsItems = avItems.length > 0 ? avItems : await fetchFinnhubNews();
 
+    // Previous SESSION closes from each daily series. These previously read
+    // meta.chartPreviousClose, which is the close before the first bar of the
+    // range — six days back for the range=6d request above — so every "change
+    // today" below was really a six-day move, and it feeds the sentiment score.
     const vix      = vixData.meta?.regularMarketPrice as number | undefined;
-    const prevVix  = (vixData.meta?.chartPreviousClose ?? vixData.meta?.previousClose) as number | undefined;
-    const vixChg   = vix != null && prevVix ? ((vix - prevVix) / prevVix) * 100 : 0;
+    const prevVix  = resolvePreviousClose(vixData.meta, vixData.closes) ?? undefined;
+    const vixChg   = vix != null ? changePctOrZero(vix, prevVix ?? null) : 0;
 
     const spyPrice = spyData.meta?.regularMarketPrice  as number | undefined;
-    const spyPrev  = spyData.meta?.chartPreviousClose as number | undefined;
-    const spyChg   = spyPrice && spyPrev ? ((spyPrice - spyPrev) / spyPrev) * 100 : 0;
+    const spyPrev  = resolvePreviousClose(spyData.meta, spyData.closes);
+    const spyChg   = spyPrice ? changePctOrZero(spyPrice, spyPrev) : 0;
 
     const qqqPrice = qqqData.meta?.regularMarketPrice  as number | undefined;
-    const qqqPrev  = qqqData.meta?.chartPreviousClose as number | undefined;
-    const qqqChg   = qqqPrice && qqqPrev ? ((qqqPrice - qqqPrev) / qqqPrev) * 100 : 0;
+    const qqqPrev  = resolvePreviousClose(qqqData.meta, qqqData.closes);
+    const qqqChg   = qqqPrice ? changePctOrZero(qqqPrice, qqqPrev) : 0;
 
     const iwmPrice = iwmData.meta?.regularMarketPrice  as number | undefined;
-    const iwmPrev  = iwmData.meta?.chartPreviousClose as number | undefined;
-    const iwmChg   = iwmPrice && iwmPrev ? ((iwmPrice - iwmPrev) / iwmPrev) * 100 : 0;
+    const iwmPrev  = resolvePreviousClose(iwmData.meta, iwmData.closes);
+    const iwmChg   = iwmPrice ? changePctOrZero(iwmPrice, iwmPrev) : 0;
 
     if (vix == null) {
       return Response.json({ error: "Market data unavailable" }, { status: 503 });

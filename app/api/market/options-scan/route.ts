@@ -4,6 +4,7 @@ export const maxDuration = 45;
 
 import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
+import { checkQuoteSanity, resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
@@ -54,8 +55,12 @@ export async function fetchQuote(symbol: string) {
     const lows:    number[] = (q.low    ?? []).filter(isNum);
     const opens:   number[] = (q.open   ?? []).filter(isNum);
     const price  = meta.regularMarketPrice as number;
-    const prev   = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
-    const open   = (meta.regularMarketOpen ?? prev) as number;
+    // Previous SESSION close from the daily series. Never meta.chartPreviousClose:
+    // this request uses range=1y, so that field is a price from a year ago, which
+    // is what rendered OXY as +32.62% in a single session and, because the score
+    // reads changePct, pushed it to the top of the ranking.
+    const prev   = resolvePreviousClose(meta, closes);
+    const open   = (meta.regularMarketOpen ?? prev ?? price) as number;
     const high   = (meta.regularMarketDayHigh ?? price) as number;
     const low    = (meta.regularMarketDayLow  ?? price) as number;
     const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
@@ -255,6 +260,10 @@ export async function runOptionsScan() {
     Promise.all(UNIVERSE.map(fetchOptionsIV)),
   ]);
 
+  // Quotes rejected by the plausibility gate — returned so a data problem is
+  // visible rather than silently shrinking the scan.
+  const suspect: { symbol: string; reason: string }[] = [];
+
   const results: {
     symbol:       string;
     name:         string;
@@ -291,11 +300,22 @@ export async function runOptionsScan() {
 
     const opt = optionsData[i]; // may be null — that's fine
 
-    const changePct = ((q.price - q.prev) / q.prev) * 100;
+    // Plausibility gate BEFORE scoring. The score's momentum term reads
+    // changePct, so one bad quote distorts the whole ranking rather than just
+    // its own row. Every name in UNIVERSE is a large cap or major index fund,
+    // so the 20% single-session gate applies to all of them.
+    const sanity = checkQuoteSanity({ symbol: q.symbol, price: q.price, previousClose: q.prev });
+    if (!sanity.ok) {
+      console.error(`[options-scan] suspect quote excluded from ranking — ${sanity.reason}`);
+      suspect.push({ symbol: q.symbol, reason: sanity.reason });
+      continue;
+    }
+    const changePct = sanity.changePct;
+
     const sm = smartMoneyScore(
       {
         price:         q.price,
-        previousClose: q.prev,
+        previousClose: q.prev as number,
         open:          q.open,
         high:          q.high,
         low:           q.low,
@@ -408,7 +428,7 @@ export async function runOptionsScan() {
     r.dte !== null && r.dte >= 14
   ).sort((a, b) => b.score - a.score);
 
-  return { plays: premium, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length };
+  return { plays: premium, scanned: UNIVERSE.length, found: results.length, withIV: results.filter(r => r.hasOptions).length, suspect };
 }
 
 export async function GET(req: Request) {

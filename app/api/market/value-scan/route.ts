@@ -1,4 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
+import { computeChangePct, resolvePreviousClose } from "@/app/lib/quoteSanity";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
@@ -112,13 +113,22 @@ async function yahooQuote(symbol: string) {
       { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" },
     );
     if (!res.ok) return null;
-    const data = await res.json() as { chart?: { result?: Array<{ meta?: { regularMarketPrice?: number; chartPreviousClose?: number } }> } };
-    const meta = data.chart?.result?.[0]?.meta;
+    const data = await res.json() as {
+      chart?: { result?: Array<{
+        meta?: { regularMarketPrice?: number; previousClose?: number; chartPreviousClose?: number };
+        indicators?: { quote?: Array<{ close?: (number | null)[] }> };
+      }> };
+    };
+    const result = data.chart?.result?.[0];
+    const meta = result?.meta;
     const price = meta?.regularMarketPrice ?? null;
-    const prev  = meta?.chartPreviousClose ?? null;
+    // Previous SESSION close from the daily series. This read only
+    // meta.chartPreviousClose, which is the close before the range's first bar
+    // rather than the prior session, and had no other source to fall back to.
+    const prev  = resolvePreviousClose(meta, result?.indicators?.quote?.[0]?.close ?? []);
     return {
       price,
-      changePct: price != null && prev != null && prev > 0 ? ((price - prev) / prev) * 100 : null,
+      changePct: price != null ? computeChangePct(price, prev) : null,
     };
   } catch { return null; }
 }

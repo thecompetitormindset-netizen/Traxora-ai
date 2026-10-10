@@ -2,6 +2,7 @@ export const runtime = "nodejs";
 export const maxDuration = 30;
 
 import { viewer } from "@/app/lib/viewer";
+import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 const STATIC_UNIVERSE = [
   "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","ORCL",
@@ -75,10 +76,13 @@ async function fetchExtendedQuote(symbol: string): Promise<StockData | null> {
     if (!meta || meta.regularMarketPrice == null) return null;
 
     const price   = meta.regularMarketPrice as number;
-    const prevCls = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
-    const changePct = prevCls ? ((price - prevCls) / prevCls) * 100 : 0;
 
     const closes:  number[] = (q?.close  ?? []).filter(Boolean);
+    // Previous SESSION close from the daily series. meta.chartPreviousClose is
+    // the close before the first bar of the range — 10 days back here.
+    const prevCls = resolvePreviousClose(meta, closes) ?? price;
+    const changePct = changePctOrZero(price, prevCls);
+
     const volumes: number[] = (q?.volume ?? []).filter(Boolean);
     const opens:   number[] = (q?.open   ?? []).filter(Boolean);
     const highs:   number[] = (q?.high   ?? []).filter(Boolean);

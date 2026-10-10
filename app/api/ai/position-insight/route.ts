@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 import { checkRateLimit } from "@/app/lib/rateLimit";
+import { resolvePreviousClose } from "@/app/lib/quoteSanity";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -22,7 +23,12 @@ async function fetchQuote(symbol: string) {
     if (!meta?.regularMarketPrice) return null;
 
     const price   = meta.regularMarketPrice as number;
-    const prev    = (meta.previousClose ?? meta.chartPreviousClose ?? price) as number;
+    // Previous SESSION close from the daily series. meta.chartPreviousClose is
+    // the close before the first bar of the range — 30 days back here.
+    const prev    = resolvePreviousClose(
+      meta,
+      (res?.indicators?.quote?.[0]?.close ?? []) as (number | null)[],
+    ) ?? price;
     const open    = (meta.regularMarketOpen ?? price) as number;
     const high    = (meta.regularMarketDayHigh ?? price) as number;
     const low     = (meta.regularMarketDayLow  ?? price) as number;
