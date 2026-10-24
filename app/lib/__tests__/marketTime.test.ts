@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  humanDuration,
+  nextMarketOpen,
   nyseEarlyCloses,
   nyseHolidays,
   nyseSessionStatus,
@@ -133,5 +135,68 @@ describe("nyseSessionStatus no longer expires", () => {
       expect(open, `${year} open days`).toBeGreaterThan(245);
       expect(open, `${year} open days`).toBeLessThan(255);
     }
+  });
+});
+
+// Walking forward to the next open is only possible because the calendar is
+// derived — the old lists ran out, so there was nothing to walk into.
+describe("nextMarketOpen", () => {
+  // Comma placement varies between ICU builds, so normalise it away.
+  const etOpen = (d: Date) =>
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" })
+      .format(d).replace(/,/g, "");
+
+  it("returns null while the session is open", () => {
+    expect(nextMarketOpen(new Date("2027-01-05T15:00:00Z"))).toBeNull();
+  });
+
+  it("skips the weekend from a Saturday", () => {
+    // Sat 24 Oct 2026 → Mon 26 Oct, 9:30 ET.
+    const next = nextMarketOpen(new Date("2026-10-24T12:00:00Z"))!;
+    expect(etOpen(next)).toBe("Mon 9:30 AM");
+  });
+
+  it("opens later the same morning when asked before the bell", () => {
+    // Mon 26 Oct 2026, 08:00 ET.
+    const next = nextMarketOpen(new Date("2026-10-26T12:00:00Z"))!;
+    expect(etOpen(next)).toBe("Mon 9:30 AM");
+  });
+
+  it("rolls to the next day after the close", () => {
+    // Mon 26 Oct 2026, 17:00 ET → Tuesday.
+    const next = nextMarketOpen(new Date("2026-10-26T21:00:00Z"))!;
+    expect(etOpen(next)).toBe("Tue 9:30 AM");
+  });
+
+  it("steps over a holiday", () => {
+    // Thanksgiving, Thu 26 Nov 2026 → the Friday half day still opens at 9:30.
+    const next = nextMarketOpen(new Date("2026-11-26T15:00:00Z"))!;
+    expect(etOpen(next)).toBe("Fri 9:30 AM");
+  });
+
+  it("steps over a holiday that lands against a weekend", () => {
+    // Fri 3 Jul 2026 is the observed Independence Day → Monday the 6th.
+    const next = nextMarketOpen(new Date("2026-07-03T15:00:00Z"))!;
+    expect(etOpen(next)).toBe("Mon 9:30 AM");
+  });
+
+  it("still resolves years past the old horizon", () => {
+    for (const from of ["2027-01-01T15:00:00Z", "2030-12-25T15:00:00Z", "2040-07-04T15:00:00Z"]) {
+      const next = nextMarketOpen(new Date(from));
+      expect(next, from).not.toBeNull();
+      expect(nyseSessionStatus(next!).status).toBe("OPEN");
+      expect(next!.getTime()).toBeGreaterThan(Date.parse(from));
+    }
+  });
+});
+
+describe("humanDuration", () => {
+  it("stays coarse", () => {
+    expect(humanDuration(30_000)).toBe("under a minute");
+    expect(humanDuration(9 * 60_000)).toBe("9m");
+    expect(humanDuration(2 * 3_600_000)).toBe("2h");
+    expect(humanDuration(2 * 3_600_000 + 40 * 60_000)).toBe("2h 40m");
+    expect(humanDuration(2 * 86_400_000 + 21 * 3_600_000)).toBe("2d 21h");
+    expect(humanDuration(3 * 86_400_000)).toBe("3d");
   });
 });

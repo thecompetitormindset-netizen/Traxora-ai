@@ -852,8 +852,16 @@ function DashboardContent() {
               options={optionsList.state}
               watchCount={watchlist.length}
               watchSignals={stocks.filter(c => (c.signal === "BUY" || c.signal === "SELL") && c.confidence === "High").length}
-              paperOpen={paperStats.openCount}
-              paperValue={paperStats.accountValue}
+              paper={{
+                accountValue:    paperStats.accountValue,
+                realizedPL:      paperStats.realizedPL,
+                openCount:       paperStats.openCount,
+                closedCount:     paperStats.closedCount,
+                winRate:         paperStats.winRate,
+                // accountValue already starts from the user's configured size,
+                // so derive the base rather than assuming the default.
+                startingCapital: paperStats.accountValue - paperStats.realizedPL,
+              }}
               refreshIn={refreshCountdown}
               actions={<>
               {notifPermission === "default" && (

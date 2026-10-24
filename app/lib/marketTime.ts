@@ -202,6 +202,45 @@ export function nyseSessionStatus(d: Date = new Date()): SessionStatus {
   return { ...base, early_close: early, status: "OPEN", detail: early ? "Regular session (early close 13:00 ET)" : "Regular session" };
 }
 
+/**
+ * The next instant the regular session opens, or null if the market is already
+ * open. Walks forward a day at a time over the derived calendar, which only
+ * works now that the calendar has no expiry — the old lists ran out and every
+ * date past them was UNKNOWN.
+ */
+export function nextMarketOpen(from: Date = new Date()): Date | null {
+  if (nyseSessionStatus(from).status === "OPEN") return null;
+
+  // 9:30 ET on a given ET calendar date, as a UTC instant.
+  const openAt = (y: number, m: number, d: number): Date => {
+    const naive = Date.UTC(y, m - 1, d, 9, 30);
+    // The offset depends on the date itself; probing at the naive instant is
+    // exact outside the overnight DST switch, which is never a session start.
+    return new Date(naive - etOffsetHours(new Date(naive)) * 3_600_000);
+  };
+
+  const { y, m, day } = etParts(from);
+  // A fortnight is more than enough to clear any holiday run.
+  for (let i = 0; i < 14; i++) {
+    const probe = new Date(Date.UTC(y, m - 1, day + i));
+    const candidate = openAt(probe.getUTCFullYear(), probe.getUTCMonth() + 1, probe.getUTCDate());
+    if (candidate > from && nyseSessionStatus(candidate).status === "OPEN") return candidate;
+  }
+  return null;
+}
+
+/** "2d 21h", "6h 40m", "in under a minute" — coarse on purpose. */
+export function humanDuration(ms: number): string {
+  if (ms <= 60_000) return "under a minute";
+  const mins = Math.floor(ms / 60_000);
+  const days = Math.floor(mins / 1440);
+  const hours = Math.floor((mins % 1440) / 60);
+  const minutes = mins % 60;
+  if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+  if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+  return `${minutes}m`;
+}
+
 // "2026-10-08T15:59:59" (Eastern wall-clock, no zone — how CBOE reports
 // last_trade_time) → UTC ISO string. Returns null for anything unparseable.
 export function etNaiveToIso(naive: string | null | undefined): string | null {
