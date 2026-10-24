@@ -16,14 +16,17 @@ type RawStock = {
   high: number | null;
   low: number | null;
   changePercent: number;
-  volume: number;
-  avgVolume: number;
+  volume: number | null;
+  avgVolume: number | null;
   high52w: number | null;
   low52w: number | null;
-  volumeRatio: number;
+  /** Null when the volume history was unavailable — not a neutral 1. */
+  volumeRatio: number | null;
   yearRangePct: number | null;
   history5d: number[];
   news: NewsItem[];
+  /** False when this row is ranked on price momentum alone. */
+  enriched?: boolean;
   score: number;
 };
 
@@ -51,10 +54,11 @@ type ScanResult = {
   name?: string;
   price?: number;
   changePercent?: number;
-  volumeRatio?: number;
+  volumeRatio?: number | null;
   yearRangePct?: number | null;
-  volume?: number;
-  avgVolume?: number;
+  volume?: number | null;
+  avgVolume?: number | null;
+  enriched?: boolean;
   news?: NewsItem[];
 };
 
@@ -136,6 +140,9 @@ export default function AutoScanner() {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<ScanResult[]>([]);
   const [scannedCount, setScannedCount] = useState(0);
+  // How many scanned rows had volume and 52-week data behind their rank. Null
+  // until a scan has reported it.
+  const [enrichedCount, setEnrichedCount] = useState<number | null>(null);
   const [trending, setTrending] = useState<string[]>([]);
   const [marketCtx, setMarketCtx] = useState("");
   const [done, setDone]       = useState(false);
@@ -160,6 +167,7 @@ export default function AutoScanner() {
 
       const top: RawStock[] = scanData.top ?? [];
       setScannedCount(scanData.scanned ?? 0);
+      setEnrichedCount(typeof scanData.enriched === "number" ? scanData.enriched : null);
       setTrending(scanData.trending ?? []);
       setProgress(50);
 
@@ -229,6 +237,14 @@ export default function AutoScanner() {
                   {scannedCount > 0 && (
                     <p className="text-[9px] text-[#4B5675]">
                       {scannedCount} stocks scanned · {trending.length > 0 ? `Trending: ${trending.slice(0,3).join(", ")}` : ""}
+                    </p>
+                  )}
+                  {/* The order depends on volume and 52-week data that the
+                      upstream source often withholds. Saying so beats
+                      presenting a partial ranking as a complete one. */}
+                  {scannedCount > 0 && enrichedCount !== null && enrichedCount < scannedCount && (
+                    <p className="text-[9px] text-amber-400/90">
+                      Ranked on partial data — {enrichedCount} of {scannedCount} have volume history
                     </p>
                   )}
                 </div>
@@ -340,10 +356,20 @@ export default function AutoScanner() {
 
                           {/* Volume + 52w bars */}
                           <div className="mt-2 space-y-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] text-[#4B5675] w-10 shrink-0">Vol</span>
-                              <VolBar ratio={r.volumeRatio ?? 1} volume={r.volume} avgVolume={r.avgVolume} />
-                            </div>
+                            {/* No bar at all when the ratio is unknown — a bar
+                                drawn at 1.0x would read as "average volume"
+                                rather than "we could not find out". */}
+                            {r.volumeRatio != null && r.volume != null && r.avgVolume != null ? (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] text-[#4B5675] w-10 shrink-0">Vol</span>
+                                <VolBar ratio={r.volumeRatio} volume={r.volume} avgVolume={r.avgVolume} />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[9px] text-[#4B5675] w-10 shrink-0">Vol</span>
+                                <span className="text-[9px] text-[#4B5675]">unavailable</span>
+                              </div>
+                            )}
                             {r.yearRangePct != null && (
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[9px] text-[#4B5675] w-10 shrink-0">52W</span>
@@ -362,7 +388,7 @@ export default function AutoScanner() {
                                   <Glyph e="📰" /> {r.news!.length} news
                                 </span>
                               )}
-                              {(r.volumeRatio ?? 1) >= 2 && (
+                              {r.volumeRatio != null && r.volumeRatio >= 2 && (
                                 <span className="text-[9px] text-rose-400 bg-rose-500/10 border border-rose-500/20 px-1.5 py-px rounded-md">
                                   <Glyph e="⚡" /> Vol surge
                                 </span>
