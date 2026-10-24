@@ -81,8 +81,12 @@ async function probe({ name, url, pick, headers = {}, note = "", skip = null, as
     });
     const ms = Date.now() - started;
     if (!res.ok) {
-      const hint = res.status === 429 ? " (rate limited — your IP)"
-        : res.status === 403 ? " (forbidden — key may lack this endpoint)"
+      // The 403 hint used to mention a key even for sources that take none,
+      // which pointed at the wrong cause. Only say that where a key is in play.
+      const keyed = /token=|apiKey=|api_key=|apikey=/.test(url);
+      const hint = res.status === 429 ? " (rate limited — this machine's IP)"
+        : res.status === 403 ? (keyed ? " (forbidden — key may lack this endpoint)" : " (forbidden — no key involved; host is refusing this client)")
+        : res.status === 401 ? (keyed ? " (unauthorized — key rejected, or a placeholder was sent)" : " (unauthorized)")
         : res.status === 404 ? " (not found — path may have moved)"
         : "";
       return { name, status: "http_error", ms, detail: `HTTP ${res.status}${hint}`, note };
@@ -97,15 +101,52 @@ async function probe({ name, url, pick, headers = {}, note = "", skip = null, as
     let got;
     try { got = pick(body); }
     catch (e) { return { name, status: "bad_shape", ms, detail: `200, but reading it threw: ${e.message}`.slice(0, 90), note }; }
+    // For a source we are about to write a parser against, the field NAMES
+    // matter as much as whether it answered. Printing them removes the last
+    // guess: an undocumented endpoint's shape cannot be looked up.
+    const dump = probeDump && name === probeDump && !asText
+      ? describeShape(body)
+      : null;
+
     return got == null
-      ? { name, status: "bad_shape", ms, detail: "200, but the expected field is missing", note }
-      : { name, status: "ok", ms, detail: String(got).slice(0, 70), note };
+      ? { name, status: "bad_shape", ms, detail: "200, but the expected field is missing", note, dump: describeShape(body) }
+      : { name, status: "ok", ms, detail: String(got).slice(0, 70), note, dump };
   } catch (e) {
     return { name, status: "unreachable", ms: Date.now() - started, detail: String(e.message ?? e).slice(0, 80), note };
   }
 }
 
 const dig = (d, path) => path.split(".").reduce((v, k) => (v == null ? v : v[k]), d);
+
+/** Pass --dump=<probe name> to print that source's field names and scalars. */
+const probeDump = (process.argv.find(a => a.startsWith("--dump=")) ?? "").split("=")[1] || null;
+
+/**
+ * A compact picture of an object's scalar fields, two levels deep. Enough to
+ * write a parser from, and short enough to paste back. Arrays are summarised
+ * by length rather than dumped, and long strings are clipped, so this never
+ * turns into a wall of output.
+ */
+function describeShape(body, depth = 0, prefix = "") {
+  if (body == null || typeof body !== "object") return [];
+  const lines = [];
+  for (const [k, v] of Object.entries(body)) {
+    const path = prefix ? `${prefix}.${k}` : k;
+    if (Array.isArray(v)) {
+      lines.push(`${path}[] — ${v.length} item(s)`);
+      if (depth < 2 && v.length > 0 && typeof v[0] === "object") {
+        lines.push(...describeShape(v[0], depth + 1, `${path}[0]`));
+      }
+    } else if (v !== null && typeof v === "object") {
+      if (depth < 2) lines.push(...describeShape(v, depth + 1, path));
+      else lines.push(`${path} — {object}`);
+    } else {
+      const shown = typeof v === "string" ? `"${v.slice(0, 40)}"` : String(v);
+      lines.push(`${path} = ${shown}`);
+    }
+  }
+  return lines;
+}
 
 const polygonKey = process.env.POLYGON_API_KEY;
 const fredKey    = process.env.FRED_API_KEY;
@@ -130,11 +171,12 @@ const PROBES = [
     note: "free key, official, daily close only. The clean option for VIX.",
   },
   {
+    // The %5E-encoded form answered 404, so try the caret as-is.
     name: "stooq:vix",
-    url: "https://stooq.com/q/l/?s=%5Evix&f=sd2t2ohlcv&h&e=csv",
+    url: "https://stooq.com/q/l/?s=^vix&f=sd2t2ohlcv&h&e=csv",
     asText: true,
     pick: t => { const l = t.trim().split("\n"); return l.length > 1 ? l[1] : null; },
-    note: "no key, CSV, unofficial.",
+    note: "no key, CSV, unofficial. Only a backup now that Cboe answers.",
   },
 
   // ── Daily bars: volume history and 52-week range, scan's missing inputs ───
@@ -206,6 +248,11 @@ for (const p of PROBES) {
   const ms = r.ms == null ? "" : `${DIM}${String(r.ms).padStart(5)}ms${OFF}`;
   console.log(`${label[r.status]} ${r.name.padEnd(26)} ${ms}  ${r.detail}`);
   if (r.note) console.log(`${DIM}           ${r.note}${OFF}`);
+  if (r.dump?.length) {
+    console.log(`${DIM}           ── fields ──${OFF}`);
+    for (const line of r.dump.slice(0, 40)) console.log(`${DIM}           ${line}${OFF}`);
+    if (r.dump.length > 40) console.log(`${DIM}           … ${r.dump.length - 40} more${OFF}`);
+  }
 }
 
 const keys = {
