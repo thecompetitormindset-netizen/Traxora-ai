@@ -2,6 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
+import { auth } from "@/auth";
 import { newYahooStats, wasThrottled, yahooFetch, yahooTotals } from "@/app/lib/yahooFetch";
 
 // Are the market-data sources reachable from where the app actually runs?
@@ -70,13 +71,37 @@ async function yahooCheck(source: string, url: string, pick: (d: unknown) => unk
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dig = (d: unknown, path: string): any => path.split(".").reduce<any>((v, k) => (v == null ? v : v[k]), d as any);
 
-export async function GET(req: Request) {
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
+
+/**
+ * Two ways in, because they serve different callers.
+ *
+ * A monitor has no session, so it presents CRON_SECRET. A person wants to read
+ * this in a browser, and Vercel hides a secret's value once it is saved — so
+ * requiring the secret would mean rotating it just to look at a health page.
+ * Being signed in as the owner is enough.
+ */
+async function authorized(req: Request): Promise<boolean> {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return Response.json({ error: "CRON_SECRET not configured" }, { status: 500 });
-  const auth = req.headers.get("authorization");
-  const query = new URL(req.url).searchParams.get("secret");
-  if (auth !== `Bearer ${secret}` && query !== secret) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  if (secret) {
+    const header = req.headers.get("authorization");
+    const query = new URL(req.url).searchParams.get("secret");
+    if (header === `Bearer ${secret}` || query === secret) return true;
+  }
+  try {
+    const session = await auth();
+    return session?.user?.email === OWNER_EMAIL;
+  } catch {
+    return false;
+  }
+}
+
+export async function GET(req: Request) {
+  if (!(await authorized(req))) {
+    return Response.json(
+      { error: "Unauthorized", hint: "Sign in as the owner, or pass CRON_SECRET as a Bearer token or ?secret=" },
+      { status: 401 },
+    );
   }
 
   const symbol = (new URL(req.url).searchParams.get("symbol") ?? "AAPL").toUpperCase().slice(0, 6);
