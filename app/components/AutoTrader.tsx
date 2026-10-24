@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buyStock, sellStock, getPortfolio, checkPriceEvents, type Portfolio } from "../lib/trading";
 import { scopedKey } from "../lib/userState";
+import { nyseSessionStatus } from "../lib/marketTime";
 import { Glyph } from "./Icon";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -94,29 +95,12 @@ function runBotTrade(id: string, symbol: string, price: number, signal: string, 
 }
 
 // ── Market hours guard ────────────────────────────────────────────────────────
-// 2026 NYSE full holidays (market closed all day)
-const NYSE_HOLIDAYS_2026 = new Set([
-  "2026-01-01","2026-01-19","2026-02-16","2026-04-03",
-  "2026-05-25","2026-06-19","2026-07-03","2026-09-07",
-  "2026-11-26","2026-12-25",
-]);
-// 2026 early-close days: market closes at 1:00 PM ET
-const NYSE_EARLY_CLOSE_2026 = new Set(["2026-11-27","2026-12-24"]);
-
+// Uses the shared NYSE calendar rather than a local copy. The copy that lived
+// here listed one year of holidays and would have treated every 2027 holiday as
+// a normal trading day; it also read the browser's local clock, so the ET
+// conversion was wrong for anyone not already on Eastern time.
 function isMarketOpen(): boolean {
-  const now = new Date();
-  const day = now.getDay();
-  if (day === 0 || day === 6) return false;
-  const jan = new Date(now.getFullYear(), 0, 1).getTimezoneOffset();
-  const jul = new Date(now.getFullYear(), 6, 1).getTimezoneOffset();
-  const dst = now.getTimezoneOffset() < Math.max(jan, jul);
-  const etOffsetMin = (dst ? -4 : -5) * 60;
-  const et = new Date(now.getTime() + (now.getTimezoneOffset() + etOffsetMin) * 60_000);
-  const dateKey = et.toISOString().slice(0, 10); // "YYYY-MM-DD" in ET
-  if (NYSE_HOLIDAYS_2026.has(dateKey)) return false;
-  const totalMins = et.getHours() * 60 + et.getMinutes();
-  const closeMins = NYSE_EARLY_CLOSE_2026.has(dateKey) ? 13 * 60 : 16 * 60;
-  return totalMins >= 9 * 60 + 30 && totalMins < closeMins;
+  return nyseSessionStatus(new Date()).status === "OPEN";
 }
 
 // ── Singleton guard — prevents duplicate intervals if component mounts twice ──

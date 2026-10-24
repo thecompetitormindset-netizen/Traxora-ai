@@ -66,11 +66,13 @@ describe("payload builder", () => {
 });
 
 describe("market calendar", () => {
-  it("knows holidays, early closes and its own coverage limit", () => {
+  it("knows holidays and early closes", () => {
     expect(nyseSessionStatus(new Date("2026-11-26T15:00:00Z")).status).toBe("CLOSED");          // Thanksgiving
     expect(nyseSessionStatus(new Date("2026-11-27T18:30:00Z")).status).toBe("CLOSED");          // 13:30 ET early close
     expect(nyseSessionStatus(new Date("2026-11-27T17:30:00Z")).status).toBe("OPEN");
-    expect(nyseSessionStatus(new Date("2027-01-05T15:00:00Z")).status).toBe("UNKNOWN");
+    // The calendar is derived, so a date in a later year is an ordinary session
+    // rather than the UNKNOWN that used to close the G3 gate from 1 January on.
+    expect(nyseSessionStatus(new Date("2027-01-05T15:00:00Z")).status).toBe("OPEN");
   });
 
   it("converts ET wall-clock times across DST", () => {

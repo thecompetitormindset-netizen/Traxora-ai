@@ -55,18 +55,128 @@ export function marketSession(d: Date = new Date()): MarketSession {
   return "post";                          // after 16:00
 }
 
-// ── NYSE trading calendar (v4.1 options analysis) ──────────────────────────────
-// Holidays and 1:00 PM ET early closes. Coverage is explicit: any date after
-// CALENDAR_VERIFIED_THROUGH returns UNKNOWN rather than guessing, so the
-// options analysis fails closed (G3) instead of trading through an unlisted
-// holiday. Extend both lists from the published NYSE schedule each year.
-export const CALENDAR_VERIFIED_THROUGH = "2026-12-31";
+// ── NYSE trading calendar ──────────────────────────────────────────────────────
+// Derived from the Exchange's published rules rather than listed per year, so
+// the calendar does not expire. Previously both lists covered a single year and
+// every later date returned UNKNOWN, which made the options analysis fail closed
+// (G3_SESSION) for every symbol from 1 January onwards.
+//
+// What is derivable: the nine scheduled holidays and the three 1:00 PM ET early
+// closes, all of which follow fixed rules. What is not: unscheduled closures for
+// national mourning or emergencies, which have no rule and are listed below.
 
-const NYSE_HOLIDAYS = new Set([
-  "2026-01-01", "2026-01-19", "2026-02-16", "2026-04-03", "2026-05-25",
-  "2026-06-19", "2026-07-03", "2026-09-07", "2026-11-26", "2026-12-25",
+const pad = (n: number) => String(n).padStart(2, "0");
+const iso = (y: number, m: number, d: number) => `${y}-${pad(m)}-${pad(d)}`;
+
+/** Day of week for a calendar date, 0 = Sunday. */
+const dowOf = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+
+const isWeekdayDow = (w: number) => w >= 1 && w <= 5;
+
+/** Day-of-month of the nth given weekday, e.g. the 3rd Monday of January. */
+function nthWeekday(y: number, m: number, weekday: number, n: number): number {
+  return 1 + ((weekday - dowOf(y, m, 1) + 7) % 7) + (n - 1) * 7;
+}
+
+/** Day-of-month of the last given weekday in a month. */
+function lastWeekday(y: number, m: number, weekday: number): number {
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return days - ((dowOf(y, m, days) - weekday + 7) % 7);
+}
+
+/** Easter Sunday by the Gregorian computus. Good Friday is two days earlier. */
+function easterSunday(y: number): { m: number; d: number } {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  return { m: month, d: ((h + l - 7 * m + 114) % 31) + 1 };
+}
+
+function shiftDays(y: number, m: number, d: number, by: number): string {
+  const t = new Date(Date.UTC(y, m - 1, d + by));
+  return iso(t.getUTCFullYear(), t.getUTCMonth() + 1, t.getUTCDate());
+}
+
+/**
+ * Where a fixed-date holiday is actually observed.
+ *
+ * A holiday on Saturday moves back to the Friday and one on Sunday forward to
+ * the Monday — except that the Exchange stays open on the last trading day of
+ * the year, so a New Year's Day falling on Saturday is simply not observed.
+ */
+function observedDate(y: number, m: number, d: number): string | null {
+  const w = dowOf(y, m, d);
+  if (w === 6) return m === 1 && d === 1 ? null : shiftDays(y, m, d, -1);
+  if (w === 0) return shiftDays(y, m, d, +1);
+  return iso(y, m, d);
+}
+
+/**
+ * Closures with no rule behind them: days of mourning and emergencies. These
+ * cannot be derived, so a new one has to be added here when it is announced.
+ * A missing entry makes the day look open; the freshness gates still reject the
+ * stale quotes that would come back from a closed market.
+ */
+const NYSE_AD_HOC_CLOSURES = new Set([
+  "2012-10-29", "2012-10-30", // Hurricane Sandy
+  "2018-12-05",               // National day of mourning — George H. W. Bush
+  "2025-01-09",               // National day of mourning — Jimmy Carter
 ]);
-const NYSE_EARLY_CLOSES = new Set(["2026-11-27", "2026-12-24"]);
+
+/** Juneteenth became an Exchange holiday in 2022; MLK Day in 1998. */
+const JUNETEENTH_FROM = 2022;
+const MLK_FROM = 1998;
+
+function buildCalendar(y: number): { holidays: Set<string>; earlyCloses: Set<string> } {
+  const holidays = new Set<string>();
+  const add = (date: string | null) => { if (date) holidays.add(date); };
+
+  add(observedDate(y, 1, 1));                                   // New Year's Day
+  if (y >= MLK_FROM) add(iso(y, 1, nthWeekday(y, 1, 1, 3)));    // MLK Day — 3rd Monday
+  add(iso(y, 2, nthWeekday(y, 2, 1, 3)));                       // Washington's Birthday — 3rd Monday
+  const easter = easterSunday(y);                               // Good Friday
+  add(shiftDays(y, easter.m, easter.d, -2));
+  add(iso(y, 5, lastWeekday(y, 5, 1)));                         // Memorial Day — last Monday
+  if (y >= JUNETEENTH_FROM) add(observedDate(y, 6, 19));        // Juneteenth
+  add(observedDate(y, 7, 4));                                   // Independence Day
+  add(iso(y, 9, nthWeekday(y, 9, 1, 1)));                       // Labor Day — 1st Monday
+  const thanksgiving = nthWeekday(y, 11, 4, 4);                 // 4th Thursday
+  add(iso(y, 11, thanksgiving));
+  add(observedDate(y, 12, 25));                                 // Christmas
+
+  // 1:00 PM ET early closes. The day before a fixed-date holiday is only a half
+  // day when both it and the holiday itself fall on weekdays — otherwise the
+  // observance rules above have already moved things around.
+  const earlyCloses = new Set<string>();
+  earlyCloses.add(iso(y, 11, thanksgiving + 1));                // Friday after Thanksgiving
+  if (isWeekdayDow(dowOf(y, 7, 3)) && isWeekdayDow(dowOf(y, 7, 4))) earlyCloses.add(iso(y, 7, 3));
+  if (isWeekdayDow(dowOf(y, 12, 24)) && isWeekdayDow(dowOf(y, 12, 25))) earlyCloses.add(iso(y, 12, 24));
+
+  return { holidays, earlyCloses };
+}
+
+const calendarCache = new Map<number, ReturnType<typeof buildCalendar>>();
+
+export function nyseCalendar(year: number) {
+  let cal = calendarCache.get(year);
+  if (!cal) { cal = buildCalendar(year); calendarCache.set(year, cal); }
+  return cal;
+}
+
+/** Every scheduled NYSE holiday in a year, as ET date strings, ascending. */
+export function nyseHolidays(year: number): string[] {
+  return [...nyseCalendar(year).holidays].sort();
+}
+
+/** Every 1:00 PM ET early close in a year, ascending. */
+export function nyseEarlyCloses(year: number): string[] {
+  return [...nyseCalendar(year).earlyCloses].sort();
+}
 
 export type SessionStatus = {
   status: "OPEN" | "CLOSED" | "UNKNOWN";
@@ -77,15 +187,16 @@ export type SessionStatus = {
 
 export function nyseSessionStatus(d: Date = new Date()): SessionStatus {
   const date = etTradingDate(d);
+  const { y, mins } = etParts(d);
   const base = { calendar: "NYSE" as const, early_close: false };
-  if (date > CALENDAR_VERIFIED_THROUGH) {
-    return { ...base, status: "UNKNOWN", detail: `Trading calendar not verified past ${CALENDAR_VERIFIED_THROUGH}` };
-  }
-  if (isWeekend(d))               return { ...base, status: "CLOSED", detail: "Weekend" };
-  if (NYSE_HOLIDAYS.has(date))    return { ...base, status: "CLOSED", detail: "NYSE holiday" };
-  const early = NYSE_EARLY_CLOSES.has(date);
+  // "UNKNOWN" stays in the type: stored analyses from before the calendar was
+  // computed can still carry it, and the schema validates those rows.
+  if (isWeekend(d))                       return { ...base, status: "CLOSED", detail: "Weekend" };
+  if (NYSE_AD_HOC_CLOSURES.has(date))     return { ...base, status: "CLOSED", detail: "Unscheduled NYSE closure" };
+  const cal = nyseCalendar(y);
+  if (cal.holidays.has(date))             return { ...base, status: "CLOSED", detail: "NYSE holiday" };
+  const early = cal.earlyCloses.has(date);
   const closeMins = early ? 780 : 960;
-  const { mins } = etParts(d);
   if (mins < 570)        return { ...base, early_close: early, status: "CLOSED", detail: "Before regular session" };
   if (mins >= closeMins) return { ...base, early_close: early, status: "CLOSED", detail: "After regular session" };
   return { ...base, early_close: early, status: "OPEN", detail: early ? "Regular session (early close 13:00 ET)" : "Regular session" };
