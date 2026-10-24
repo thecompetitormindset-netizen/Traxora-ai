@@ -22,6 +22,20 @@ const STRATEGY_WORDS: Record<string, string> = {
 };
 const usd = (n: number) => `$${Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+/**
+ * The response was cast rather than checked, and the page reads
+ * data.detail.display.* straight away. Only the fields it dereferences without
+ * a guard are verified here.
+ */
+function hasDetail(body: unknown): boolean {
+  if (typeof body !== "object" || body === null) return false;
+  const detail = (body as { detail?: unknown }).detail;
+  if (typeof detail !== "object" || detail === null) return false;
+  const display = (detail as { display?: unknown }).display;
+  return typeof display === "object" && display !== null
+    && typeof (display as { symbol?: unknown }).symbol === "string";
+}
+
 /** The plain answer shown first; the full analysis sits below it, folded. */
 function SimpleAnswer({ d }: { d: ResearchDetail }) {
   const a = d.display;
@@ -107,7 +121,13 @@ function Research({ symbol }: { symbol: string }) {
       try {
         const { res, body } = await fetchDetail("GET");
         if (!live) return;
-        if (res.ok) setLoad({ kind: "ready", data: body });
+        // The page reads data.detail.display.* immediately, so a 200 carrying
+        // anything else took it to the error boundary rather than to one of the
+        // states below.
+        if (res.ok && !hasDetail(body)) {
+          setLoad({ kind: "error", message: "The analysis service returned something unexpected." });
+        }
+        else if (res.ok) setLoad({ kind: "ready", data: body });
         else if (res.status === 404) setLoad({ kind: "unavailable", message: "Required market data couldn't be retrieved for this symbol. It may not have listed options, or the sources may be unavailable." });
         else if (res.status === 400) setLoad({ kind: "unavailable", message: "That doesn't look like a US ticker. Use 1–5 letters, e.g. AAPL." });
         else setLoad({ kind: "error", message: res.status === 401 ? "Your session has ended. Sign in again." : `The analysis service returned an error (${res.status}).` });

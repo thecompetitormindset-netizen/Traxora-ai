@@ -593,8 +593,13 @@ function DashboardContent() {
     if (stockSyms.length === 0) return;
     fetch(`/api/earnings?symbols=${encodeURIComponent(stockSyms.join(","))}`)
       .then((r) => r.json())
-      .then((data: Record<string, string | null>) => {
-        setStocks((s) => s.map((c) => data[c.symbol] !== undefined ? { ...c, earningsDate: data[c.symbol] } : c));
+      .then((data: unknown) => {
+        // The lookup below runs inside a state updater, which React calls after
+        // this promise has settled — so a throw there escapes the .catch and
+        // reaches the error boundary. Check the shape before queueing it.
+        if (typeof data !== "object" || data === null) return;
+        const map = data as Record<string, string | null>;
+        setStocks((s) => s.map((c) => map[c.symbol] !== undefined ? { ...c, earningsDate: map[c.symbol] } : c));
       })
       .catch(() => { /* best-effort */ });
   }, [watchlist]);
