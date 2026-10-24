@@ -80,6 +80,24 @@ export function hasFinnhubKey(): boolean {
 }
 
 /**
+ * Record a 200 the caller judged a real answer.
+ *
+ * finnhubJson leaves the ok/miss decision to callers, so they need a way to
+ * register it that keeps the process totals in step. Incrementing the passed-in
+ * stats object directly does not: it credits the per-request counter and
+ * silently skips `totals`, which showed up in production as a since_boot count
+ * lower than the single request that produced it.
+ */
+export function recordFinnhubOk(stats?: FinnhubStats): void {
+  record("ok", stats);
+}
+
+/** Record a 200 whose body carried nothing usable. */
+export function recordFinnhubMiss(stats?: FinnhubStats): void {
+  record("miss", stats);
+}
+
+/**
  * Finnhub serves US equities and ETFs through /quote. Crypto and continuous
  * futures live on different endpoints with different symbologies, so pairs like
  * `BTC-USD` would come back as a zeroed body — a miss that costs a call and a

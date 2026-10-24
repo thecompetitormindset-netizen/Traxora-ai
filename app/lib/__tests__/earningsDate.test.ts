@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { finnhubTotals, newFinnhubStats } from "../finnhubFetch";
 import {
   EARNINGS_HORIZON_DAYS,
   __clearEarningsDayCache,
@@ -247,6 +248,20 @@ describe("resolveEarningsDates source order", () => {
 
     expect(seen.finnhub).toBe(0);
     expect(got["BTC-USD"]).toBeNull();
+  });
+
+  it("moves the process totals in step with the per-request counters", async () => {
+    // Bumping the passed-in stats object directly credited only the
+    // per-request counter, so production reported a since_boot ok count lower
+    // than the one request that produced it — which is impossible.
+    const stats = newFinnhubStats();
+    const before = finnhubTotals().ok;
+
+    mockProviders({ finnhub: () => json({ earningsCalendar: [{ date: "2026-11-05", symbol: "AAPL" }] }) });
+    await resolveEarningsDates(["AAPL"], { today, finnhubStats: stats });
+
+    expect(stats.ok).toBe(1);
+    expect(finnhubTotals().ok).toBe(before + 1);
   });
 
   it("keys the result by every requested symbol, even unknown ones", async () => {

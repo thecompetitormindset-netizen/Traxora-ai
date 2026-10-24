@@ -30,7 +30,7 @@
 // turns on — not a full replacement.
 
 import { etTradingDate, nyseCalendar } from "./marketTime";
-import { finnhubJson, isFinnhubEligible, type FinnhubStats } from "./finnhubFetch";
+import { finnhubJson, isFinnhubEligible, recordFinnhubOk, type FinnhubStats } from "./finnhubFetch";
 import { yahooFetch, type YahooStats } from "./yahooFetch";
 
 /** Dates beyond this are not shown, matching the behaviour this replaces. */
@@ -147,7 +147,9 @@ async function fromFinnhub(
   // An empty calendar is a real answer — this company is not due to report
   // inside the window — so a 200 counts as ok either way. finnhubJson leaves
   // the ok/miss call to the caller precisely because only here is that known.
-  if (stats) stats.ok++;
+  // Goes through recordFinnhubOk rather than touching the stats object, so the
+  // process totals move with it.
+  recordFinnhubOk(stats);
 
   return pickNextEarningsDate(dates, today);
 }
