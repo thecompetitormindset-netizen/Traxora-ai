@@ -5,30 +5,52 @@ import { stateOf } from "./fieldnotes/uiState";
 import HeroMetric from "./overview/HeroMetric";
 import WhyBreakdown, { type WhyRow } from "./overview/WhyBreakdown";
 import NeedsYou, { type NeedsYouItem } from "./overview/NeedsYou";
+import SinceYouLastLooked from "./overview/SinceYouLastLooked";
+import { useRecentSessions } from "./overview/useRecentSessions";
+import { humanDuration, nextMarketOpen } from "../lib/marketTime";
 
-// The top of Overview: one sentence that answers "does anything need me?", then
-// the three cards the reference design leads with — the headline number, the
-// decomposition that explains it, and the short list of things worth acting on.
+// The top of Overview: the headline number, what explains it, and the short
+// list of things worth acting on.
 //
-// Everything shown is derived from data the page already has. Where the engine
-// has not reported a figure the row is omitted rather than shown as zero, so an
+// The headline adapts to the session, because one metric cannot answer both
+// questions. While the market is open the useful number is what the engine
+// found today. It is shut about four fifths of the week, and a count of the
+// engine's output is zero for all of it — so out of hours the headline becomes
+// the figure that is actually the reader's own and never stops being true:
+// their practice record. The card beside it swaps the same way, from "why
+// today's names did not pass" to "what you missed".
+//
+// Everything shown is derived from data the page already has. Where a figure
+// has not been reported the row is omitted rather than shown as zero, so an
 // empty card means "no data", never "nothing happened".
+
+export type PaperSummary = {
+  accountValue: number;
+  realizedPL: number;
+  openCount: number;
+  closedCount: number;
+  winRate: number | null;
+  startingCapital: number;
+};
 
 type Props = {
   options: ListState;
   watchCount: number;
   watchSignals: number;       // BUY/SELL with high confidence
-  paperOpen: number;
-  paperValue: number | null;
+  paper: PaperSummary;
   refreshIn: number;
   actions?: React.ReactNode;  // alerts controls, rendered quietly on the right
 };
 
 const etDate = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", month: "short", day: "numeric" });
+const etOpenDay = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "long" });
+const etOpenTime = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
 
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
+const signed = (n: number, digits = 1) => `${n >= 0 ? "+" : "−"}${Math.abs(n).toFixed(digits)}`;
 
-export default function OverviewHeader({ options, watchCount, watchSignals, paperOpen, paperValue, refreshIn, actions }: Props) {
+export default function OverviewHeader({ options, watchCount, watchSignals, paper, refreshIn, actions }: Props) {
+  const now = new Date();
   const data = options.kind === "ready" ? options.data : null;
   const states = (data?.analyses ?? []).map(stateOf);
   const validated = states.filter(s => s === "validated").length;
@@ -65,16 +87,37 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       ? `The analysis could not be loaded.`
       : `Checking the market…`;
 
-  const support = [
+  const sessionSupport = [
     checked !== null && universe !== null
       ? { k: "Names checked", v: checked.toLocaleString("en-US"), s: `of ${universe.toLocaleString("en-US")}` }
       : null,
     { k: "Watchlist", v: String(watchCount), s: watchSignals > 0 ? `${watchSignals} strong ${plural(watchSignals, "signal")}` : "nothing standing out" },
     {
       k: "Practice trades",
-      v: String(paperOpen),
-      s: paperValue !== null ? `$${Math.round(paperValue).toLocaleString("en-US")} pretend money` : "open",
+      v: String(paper.openCount),
+      s: `$${Math.round(paper.accountValue).toLocaleString("en-US")} pretend money`,
     },
+  ].filter((x): x is { k: string; v: string; s: string } => x !== null);
+
+  // ── Out-of-hours headline: the reader's own record ──────────────────────────
+  // Return as a percentage of starting capital so the figure means the same
+  // thing whatever account size someone set.
+  const plPct = paper.startingCapital > 0 ? (paper.realizedPL / paper.startingCapital) * 100 : 0;
+  const tradedYet = paper.closedCount > 0 || paper.openCount > 0;
+  const openAt = !open ? nextMarketOpen(now) : null;
+  const opensIn = openAt ? humanDuration(openAt.getTime() - now.getTime()) : null;
+  const opensLabel = openAt
+    ? `${etOpenDay.format(openAt)} ${etOpenTime.format(openAt)} ET, in ${opensIn}`
+    : null;
+
+  const closedSupport = [
+    paper.closedCount > 0 && paper.winRate !== null
+      ? { k: "Hit rate", v: `${paper.winRate}%`, s: `${paper.closedCount} closed` }
+      : null,
+    paper.openCount > 0
+      ? { k: "Still open", v: String(paper.openCount), s: "practice trades" }
+      : null,
+    openAt ? { k: "Market opens", v: opensIn!, s: etOpenDay.format(openAt) } : null,
   ].filter((x): x is { k: string; v: string; s: string } => x !== null);
 
   // ── Why: the engine's own no-trade reasons, already ranked ──────────────────
@@ -108,16 +151,20 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       reason: "Trend, day range and volume all point the same way.",
       href: "#watchlist",
     } : null,
-    paperOpen > 0 ? {
+    paper.openCount > 0 ? {
       id: "paper",
-      badge: String(paperOpen),
+      badge: String(paper.openCount),
       tone: "mute",
-      title: `${paperOpen} practice ${plural(paperOpen, "trade")} still open`,
+      title: `${paper.openCount} practice ${plural(paper.openCount, "trade")} still open`,
       reason: "Close them out to see how the read actually worked.",
       href: "/paper",
     } : null,
   ];
   const needs = needsAll.filter((x): x is NeedsYouItem => x !== null);
+
+  // Past sessions are only worth fetching when the "why" card has stepped
+  // aside for them, which is exactly when the market is shut.
+  const recent = useRecentSessions(data !== null && !open);
 
   return (
     <header className="mb-8 lg:mb-10">
@@ -143,30 +190,63 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
       </h1>
 
       <div data-tour="overview-stats" className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
-        <HeroMetric
-          label="Ideas that passed every check"
-          value={data ? String(validated) : "—"}
-          quiet={!data || validated === 0}
-          chip={
-            scanning ? { text: "still scanning", tone: "wait" }
-            : data ? { text: open ? "market open" : "market closed", tone: "mute" }
-            : undefined
+        {data && !open ? (
+          // Out of hours the engine's output is zero by construction, so the
+          // headline becomes the one figure that is the reader's own.
+          <HeroMetric
+            label="Your practice record"
+            value={tradedYet ? `${signed(plPct)}%` : "—"}
+            quiet={!tradedYet}
+            chip={{ text: "market closed", tone: "mute" }}
+            caption={
+              tradedYet
+                ? `${signed(Math.round(paper.realizedPL), 0)} on $${Math.round(paper.startingCapital).toLocaleString("en-US")} of pretend money. ${sessionDetail}${opensLabel ? ` Opens ${opensLabel}.` : ""}`
+                : `No practice trades yet — the record fills in once you take one. ${sessionDetail}${opensLabel ? ` The market opens ${opensLabel}.` : ""}`
+            }
+            support={closedSupport}
+            href="/paper"
+          />
+        ) : (
+          <HeroMetric
+            label="Ideas that passed every check"
+            value={data ? String(validated) : "—"}
+            quiet={!data || validated === 0}
+            chip={
+              scanning ? { text: "still scanning", tone: "wait" }
+              : data ? { text: "market open", tone: "mute" }
+              : undefined
+            }
+            caption={heroCaption}
+            support={sessionSupport}
+            href={validated > 0 ? "/options" : undefined}
+          />
+        )}
+
+        {data && !open ? (
+          <SinceYouLastLooked
+            sessions={recent.kind === "ready" ? recent.sessions : []}
+            loading={recent.kind === "loading"}
+            available={recent.kind === "ready" ? recent.available : true}
+          />
+        ) : (
+          <WhyBreakdown
+            title={validated > 0 ? "Why the rest did not pass" : "Why nothing passed"}
+            subtitle={checked !== null ? `Across ${checked.toLocaleString("en-US")} ${plural(checked, "name")} checked today` : undefined}
+            rows={whyRows}
+            total={whyTotal}
+            footnote={whyFootnote || undefined}
+            emptyText={scanning ? "Still checking — reasons appear as names finish." : "No reasons reported yet."}
+          />
+        )}
+
+        <NeedsYou
+          items={needs}
+          emptyText={
+            data && !open && opensLabel
+              ? `Nothing needs you right now. The market opens ${opensLabel}.`
+              : "Nothing needs your attention right now."
           }
-          caption={heroCaption}
-          support={support}
-          href={validated > 0 ? "/options" : undefined}
         />
-
-        <WhyBreakdown
-          title={validated > 0 ? "Why the rest did not pass" : "Why nothing passed"}
-          subtitle={checked !== null ? `Across ${checked.toLocaleString("en-US")} ${plural(checked, "name")} checked today` : undefined}
-          rows={whyRows}
-          total={whyTotal}
-          footnote={whyFootnote || undefined}
-          emptyText={scanning ? "Still checking — reasons appear as names finish." : "No reasons reported yet."}
-        />
-
-        <NeedsYou items={needs} />
       </div>
     </header>
   );
