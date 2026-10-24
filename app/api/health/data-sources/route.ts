@@ -81,25 +81,51 @@ const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
  * requiring the secret would mean rotating it just to look at a health page.
  * Being signed in as the owner is enough.
  */
-async function authorized(req: Request): Promise<boolean> {
+type Denial = "no_session" | "not_owner" | "session_error";
+
+/**
+ * Says which of the two ways in failed, because "Unauthorized" alone leaves no
+ * way to tell being signed out from being signed in as the wrong account, and
+ * those have different fixes. The owner's address is never echoed back.
+ */
+async function authorize(req: Request): Promise<{ ok: true } | { ok: false; why: Denial }> {
   const secret = process.env.CRON_SECRET;
   if (secret) {
     const header = req.headers.get("authorization");
     const query = new URL(req.url).searchParams.get("secret");
-    if (header === `Bearer ${secret}` || query === secret) return true;
+    if (header === `Bearer ${secret}` || query === secret) return { ok: true };
   }
   try {
     const session = await auth();
-    return session?.user?.email === OWNER_EMAIL;
+    if (!session?.user?.email) return { ok: false, why: "no_session" };
+    if (session.user.email !== OWNER_EMAIL) return { ok: false, why: "not_owner" };
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, why: "session_error" };
   }
 }
 
+const DENIAL_HINT: Record<Denial, string> = {
+  no_session:
+    "No signed-in session on this request. Sign in to the app in this browser, then reload — " +
+    "or pass CRON_SECRET as a Bearer token or ?secret=.",
+  not_owner:
+    "Signed in, but not as the owner account. Sign in with the address OWNER_EMAIL is set to, " +
+    "or set OWNER_EMAIL in the environment to the account you use.",
+  session_error:
+    "The session could not be read. Check AUTH_SECRET and AUTH_URL in the environment.",
+};
+
 export async function GET(req: Request) {
-  if (!(await authorized(req))) {
+  const gate = await authorize(req);
+  if (!gate.ok) {
     return Response.json(
-      { error: "Unauthorized", hint: "Sign in as the owner, or pass CRON_SECRET as a Bearer token or ?secret=" },
+      {
+        error: "Unauthorized",
+        reason: gate.why,
+        hint: DENIAL_HINT[gate.why],
+        owner_email_configured: Boolean(process.env.OWNER_EMAIL),
+      },
       { status: 401 },
     );
   }
