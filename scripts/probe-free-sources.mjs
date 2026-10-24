@@ -20,13 +20,32 @@ import { resolve } from "node:path";
 
 // ── Environment ──────────────────────────────────────────────────────────────
 
+/**
+ * Values Vercel writes when it cannot hand back a secret.
+ *
+ * `vercel env pull` reports "N Secret values cannot be pulled" and writes a
+ * placeholder in their place. Sending one as an API key earns a 401 or 403,
+ * which reads exactly like "this key is not entitled to this endpoint" — the
+ * precise question this script exists to answer. So a placeholder is treated
+ * as absent, and said to be absent.
+ */
+const PLACEHOLDERS = new Set(["[SENSITIVE]", "SENSITIVE"]);
+
+/** Values that mean "nothing here", which is not the same as a withheld secret. */
+const EMPTY = new Set(["", "undefined", "null"]);
+
+const placeheld = new Set();
+
 function loadEnvLocal() {
   try {
     const text = readFileSync(resolve(process.cwd(), ".env.local"), "utf8");
     for (const line of text.split("\n")) {
-      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (/^\s*#/.test(line)) continue;
+      const m = line.match(/^\s*(?:export\s+)?([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
       if (!m) continue;
       const value = m[2].replace(/^["']|["']$/g, "");
+      if (PLACEHOLDERS.has(value)) { placeheld.add(m[1]); continue; }
+      if (EMPTY.has(value)) continue;
       if (!process.env[m[1]]) process.env[m[1]] = value;
     }
   } catch {
@@ -34,6 +53,12 @@ function loadEnvLocal() {
   }
 }
 loadEnvLocal();
+
+/** Why a key is unusable, in words that distinguish the two cases. */
+const missingKey = (name, extra) =>
+  placeheld.has(name)
+    ? `${name} is set in Vercel but came down as a placeholder — paste the real value into .env.local to test it`
+    : `no ${name}${extra ? ` — ${extra}` : ""}`;
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
@@ -101,7 +126,7 @@ const PROBES = [
       ? `https://api.stlouisfed.org/fred/series/observations?series_id=VIXCLS&api_key=${fredKey}&file_type=json&sort_order=desc&limit=1`
       : "",
     pick: d => { const o = dig(d, "observations.0"); return o ? `${o.date} = ${o.value}` : null; },
-    skip: fredKey ? null : "no FRED_API_KEY — free at fredaccount.stlouisfed.org/apikeys",
+    skip: fredKey ? null : missingKey("FRED_API_KEY", "free at fredaccount.stlouisfed.org/apikeys"),
     note: "free key, official, daily close only. The clean option for VIX.",
   },
   {
@@ -117,7 +142,7 @@ const PROBES = [
     name: "polygon:prev-day",
     url: polygonKey ? `https://api.polygon.io/v2/aggs/ticker/AAPL/prev?apiKey=${polygonKey}` : "",
     pick: d => { const r = dig(d, "results.0"); return r ? `c=${r.c} v=${r.v}` : null; },
-    skip: polygonKey ? null : "no POLYGON_API_KEY set",
+    skip: polygonKey ? null : missingKey("POLYGON_API_KEY"),
     note: "KEY ALREADY IN VERCEL. Free: ~5 calls/min, EOD, 2y history.",
   },
   {
@@ -126,7 +151,7 @@ const PROBES = [
       ? `https://api.polygon.io/v2/aggs/ticker/AAPL/range/1/day/2026-07-01/2026-10-20?adjusted=true&sort=asc&limit=120&apiKey=${polygonKey}`
       : "",
     pick: d => { const n = dig(d, "results.length"); return n ? `${n} daily bars` : null; },
-    skip: polygonKey ? null : "no POLYGON_API_KEY set",
+    skip: polygonKey ? null : missingKey("POLYGON_API_KEY"),
     note: "THE IMPORTANT ONE: enough bars for a 20-day volume average and a 52w range.",
   },
   {
@@ -140,7 +165,7 @@ const PROBES = [
     name: "twelvedata:quote",
     url: twelveKey ? `https://api.twelvedata.com/quote?symbol=AAPL&apikey=${twelveKey}` : "",
     pick: d => (d?.close ? `close ${d.close}` : null),
-    skip: twelveKey ? null : "no TWELVE_DATA_API_KEY — free tier is said to be far larger than Alpha Vantage's 25/day",
+    skip: twelveKey ? null : missingKey("TWELVE_DATA_API_KEY", "free tier is said to be far larger than Alpha Vantage's 25/day"),
     note: "worth a free key if Polygon's 5/min proves awkward.",
   },
 
@@ -191,7 +216,18 @@ const keys = {
 };
 console.log(`\n${DIM}Keys visible here (names only, never values):${OFF}`);
 for (const [k, present] of Object.entries(keys)) {
-  console.log(`${DIM}  ${present ? "set    " : "not set"}  ${k}${OFF}`);
+  const state = present ? "usable     "
+    : placeheld.has(k) ? "placeholder"
+    : "absent     ";
+  console.log(`${DIM}  ${state}  ${k}${OFF}`);
+}
+if (placeheld.size > 0) {
+  console.log(
+    `\n${YELLOW}${placeheld.size} key(s) came down as "[SENSITIVE]".${OFF} Vercel will not re-reveal a saved\n` +
+    `secret, so these cannot be tested until a real value is in .env.local —\n` +
+    `either paste the one you saved elsewhere, or mint a fresh free key.\n` +
+    `Nothing is wrong with the key in production; it just cannot be read back.`,
+  );
 }
 
 const working = results.filter(r => r.status === "ok").map(r => r.name);
