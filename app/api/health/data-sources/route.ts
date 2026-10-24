@@ -4,6 +4,8 @@ export const maxDuration = 60;
 
 import { auth } from "@/auth";
 import { newYahooStats, wasThrottled, yahooFetch, yahooTotals } from "@/app/lib/yahooFetch";
+import { finnhubTotals, hasFinnhubKey, newFinnhubStats } from "@/app/lib/finnhubFetch";
+import { marketQuote } from "@/app/lib/marketQuote";
 
 // Are the market-data sources reachable from where the app actually runs?
 //
@@ -132,6 +134,12 @@ export async function GET(req: Request) {
 
   const symbol = (new URL(req.url).searchParams.get("symbol") ?? "AAPL").toUpperCase().slice(0, 6);
   const stats = newYahooStats();
+  const fhStats = newFinnhubStats();
+
+  // The path indices and heatmap actually take, reported with the provider that
+  // answered. This is the line that says whether the Finnhub swap is in effect:
+  // "finnhub" means the reliable source served it, "yahoo" means it fell back.
+  const resolved = await marketQuote(symbol, { finnhubStats: fhStats, yahooStats: stats });
 
   const checks = await Promise.all([
     yahooCheck("yahoo:chart-1y", `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`,
@@ -162,14 +170,23 @@ export async function GET(req: Request) {
     checked_at: new Date().toISOString(),
     // Which keyed providers exist, without revealing any of them.
     keys: {
-      finnhub: Boolean(process.env.FINNHUB_API_KEY),
+      finnhub: hasFinnhubKey(),
       eodhd: Boolean(process.env.EODHD_API_KEY),
       alpha_vantage: Boolean(process.env.ALPHA_VANTAGE_API_KEY),
+    },
+    // What indices and heatmap would get for this symbol, and from whom.
+    resolved_quote: {
+      price: resolved.price,
+      change: resolved.change,
+      source: resolved.source,
     },
     checks,
     // Counters from the throttled client: rate_limited above zero means Yahoo
     // pushed back even with the queue in front of it.
     yahoo: { this_request: stats, since_boot: yahooTotals(), throttled: wasThrottled(stats) },
+    // miss means Finnhub answered 200 with a zeroed body — a symbol its free
+    // tier does not carry, which falls through to Yahoo rather than failing.
+    finnhub: { this_request: fhStats, since_boot: finnhubTotals() },
     summary: failing.length === 0
       ? "All sources answered with the field the app reads."
       : `${failing.length} of ${checks.length} sources failing: ${failing.map(c => c.source).join(", ")}`,
