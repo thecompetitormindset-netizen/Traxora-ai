@@ -1,44 +1,44 @@
 import { viewer } from "@/app/lib/viewer";
-import { yahooFetch } from "@/app/lib/yahooFetch";
-export const dynamic = "force-dynamic";
+import { earningsLabel, resolveEarningsDates } from "@/app/lib/earningsDate";
+import { etTradingDate } from "@/app/lib/marketTime";
 
+export const runtime     = "nodejs";
+export const dynamic     = "force-dynamic";
+export const maxDuration = 30;
+
+// The dashboard's "Earns in 3d" badges.
+//
+// This was one Yahoo quoteSummary call per symbol. Yahoo answered 1 of 9
+// requests from this deployment across three cold instances, and every failure
+// path returned null — which renders as no badge, indistinguishable from "no
+// earnings coming up". For a pre-trade safety check that is the wrong way to
+// fail, so the lookup now goes through three free sources before giving up.
+//
+// The response shape is unchanged: symbol → label or null.
 
 export async function GET(req: Request) {
   const session = await viewer();
   if (!session?.user?.email) return Response.json({}, { status: 401 });
-  const { searchParams } = new URL(req.url);
-  const symbols = (searchParams.get("symbols") ?? "")
-    .split(",").map((s) => s.trim()).filter(Boolean).slice(0, 15);
 
-  if (symbols.length === 0) return Response.json({});
+  const { searchParams } = new URL(req.url);
+  const requested = (searchParams.get("symbols") ?? "")
+    .split(",").map(s => s.trim()).filter(Boolean).slice(0, 15);
+
+  if (requested.length === 0) return Response.json({});
+
+  // Strip the app's own suffixes before asking any provider, but key the
+  // response by exactly what the caller sent.
+  const cleanOf = new Map(requested.map(s => [s, s.replace(/\.(US|COMM)$/, "")]));
+  const clean = [...new Set(cleanOf.values())];
+
+  const today = etTradingDate();
+  const hits = await resolveEarningsDates(clean, { today, budgetMs: 25_000 });
 
   const result: Record<string, string | null> = {};
-
-  await Promise.allSettled(symbols.map(async (sym) => {
-    const clean = sym.replace(/\.(US|COMM)$/, "");
-    try {
-      const res = await yahooFetch(
-        `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(clean)}?modules=calendarEvents`,
-        { timeoutMs: 5000, budgetMs: 7_000, label: clean },
-      );
-      if (!res) { result[sym] = null; return; }
-      const data = await res.json();
-      const dates = data?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate;
-      if (!Array.isArray(dates) || dates.length === 0) { result[sym] = null; return; }
-      const ts = dates[0]?.raw as number | undefined;
-      if (!ts) { result[sym] = null; return; }
-      const daysUntil = Math.ceil((ts * 1000 - Date.now()) / 86_400_000);
-      if (daysUntil < 0 || daysUntil > 90) { result[sym] = null; return; }
-      const d = new Date(ts * 1000);
-      const label = daysUntil === 0 ? "Earns today"
-        : daysUntil === 1 ? "Earns tomorrow"
-        : daysUntil <= 7  ? `Earns in ${daysUntil}d`
-        : `Earns ${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
-      result[sym] = label;
-    } catch {
-      result[sym] = null;
-    }
-  }));
+  for (const original of requested) {
+    const hit = hits[cleanOf.get(original)!];
+    result[original] = hit ? earningsLabel(hit.date, today) : null;
+  }
 
   return Response.json(result);
 }
