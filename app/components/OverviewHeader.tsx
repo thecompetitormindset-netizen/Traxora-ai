@@ -34,18 +34,33 @@ export default function OverviewHeader({ options, watchCount, watchSignals, pape
   const validated = states.filter(s => s === "validated").length;
   const open = data?.session.status === "OPEN";
 
+  // "Weekend", "NYSE holiday", "Before regular session" — say which, rather than
+  // leaving a bare zero to look like a fault.
+  const sessionDetail = data
+    ? data.session.detail === "Weekend" ? "The market is closed for the weekend."
+      : data.session.detail === "NYSE holiday" ? "The market is closed for a holiday."
+      : data.session.detail === "Before regular session" ? "It has not opened yet today."
+      : data.session.detail === "After regular session" ? "It has closed for today."
+      : `The market is closed (${data.session.detail.toLowerCase()}).`
+    : "";
+
   const scan = data?.scan ?? null;
   const scanning = !!scan?.running;
   const checked = scan?.checked ?? null;
   const universe = scan?.total ?? null;
 
   // ── Hero: the one number the rest of the block explains ─────────────────────
+  // A zero outside the session is not the checks rejecting things: no structure
+  // is proposed at all while the market is shut, so saying "nothing cleared the
+  // checks" would blame the wrong thing for roughly four fifths of the week.
   const heroCaption = data
     ? validated > 0
       ? `Contract, source, liquidity and pricing checks all passed. Fills and results remain uncertain, and these are for paper trading only.`
-      : scanning
-        ? `Still working through the market. Ideas appear here as names clear every check.`
-        : `No structure cleared every check today. That is a normal outcome, not a failure.`
+      : !open
+        ? `Ideas are only proposed during the regular session, 9:30–16:00 ET on trading days. ${sessionDetail}`
+        : scanning
+          ? `Still working through the market. Ideas appear here as names clear every check.`
+          : `No structure cleared every check today. That is a normal outcome, not a failure.`
     : options.kind === "error"
       ? `The analysis could not be loaded.`
       : `Checking the market…`;
