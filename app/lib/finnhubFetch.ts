@@ -131,11 +131,99 @@ export function parseFinnhubQuote(body: unknown): FinnhubQuote | null {
   };
 }
 
-export type FinnhubQuoteOptions = {
+export type FinnhubOptions = {
   timeoutMs?: number;
   budgetMs?: number;
   stats?: FinnhubStats;
+  /** Appears in the throttle log line. Never pass anything secret. */
+  label?: string;
 };
+
+/** Retained for the original callers; the options are the same. */
+export type FinnhubQuoteOptions = FinnhubOptions;
+
+export type FinnhubResult<T> =
+  | { kind: "ok"; data: T }
+  | { kind: "rateLimited" }
+  | { kind: "failed" }
+  | { kind: "skipped" };
+
+/**
+ * One Finnhub GET through the concurrency gate.
+ *
+ * `pathAndQuery` is everything after `/api/v1/` without the token, which this
+ * appends — so a token never has to be assembled, logged or passed around at a
+ * call site.
+ *
+ * This records `rateLimited`, `failed` and `skipped` itself but deliberately
+ * does NOT record `ok`: Finnhub answers 200 with an empty or zeroed payload for
+ * things it does not carry, so only the caller can say whether a 200 was a real
+ * answer or a miss. Callers must record one of those two.
+ */
+export async function finnhubJson<T>(
+  pathAndQuery: string,
+  opts: FinnhubOptions = {},
+): Promise<FinnhubResult<T>> {
+  const { timeoutMs = DEFAULT_TIMEOUT_MS, budgetMs = DEFAULT_BUDGET_MS, stats, label } = opts;
+
+  const key = process.env.FINNHUB_API_KEY;
+  if (!key) {
+    record("skipped", stats);
+    return { kind: "skipped" };
+  }
+
+  const deadline = Date.now() + budgetMs;
+  if (!(await acquire(deadline))) {
+    record("skipped", stats);
+    return { kind: "skipped" };
+  }
+
+  try {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      record("skipped", stats);
+      return { kind: "skipped" };
+    }
+
+    const joiner = pathAndQuery.includes("?") ? "&" : "?";
+    const url = `https://finnhub.io/api/v1/${pathAndQuery}${joiner}token=${encodeURIComponent(key)}`;
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(Math.min(timeoutMs, remaining)),
+      });
+    } catch {
+      record("failed", stats);
+      return { kind: "failed" };
+    }
+
+    if (res.status === 429) {
+      // The minute's budget is spent; a retry would only spend the next one.
+      // Never log the URL — it carries the token.
+      console.warn(`[finnhub] rate limited${label ? ` — ${label}` : ""}`);
+      record("rateLimited", stats);
+      return { kind: "rateLimited" };
+    }
+    if (!res.ok) {
+      // 403 here means the endpoint is not on this key's plan. That is a
+      // permanent "no" rather than a transient one, but it is still just no
+      // answer as far as the caller is concerned.
+      record("failed", stats);
+      return { kind: "failed" };
+    }
+
+    try {
+      return { kind: "ok", data: await res.json() as T };
+    } catch {
+      record("failed", stats);
+      return { kind: "failed" };
+    }
+  } finally {
+    active--;
+  }
+}
 
 /**
  * One quote, or null for every failure mode: no key, ineligible symbol,
@@ -145,63 +233,20 @@ export type FinnhubQuoteOptions = {
  */
 export async function finnhubQuote(
   symbol: string,
-  opts: FinnhubQuoteOptions = {},
+  opts: FinnhubOptions = {},
 ): Promise<FinnhubQuote | null> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, budgetMs = DEFAULT_BUDGET_MS, stats } = opts;
-
-  const key = process.env.FINNHUB_API_KEY;
-  if (!key || !isFinnhubEligible(symbol)) {
-    record("skipped", stats);
+  if (!isFinnhubEligible(symbol)) {
+    record("skipped", opts.stats);
     return null;
   }
 
-  const deadline = Date.now() + budgetMs;
-  if (!(await acquire(deadline))) {
-    record("skipped", stats);
-    return null;
-  }
+  const res = await finnhubJson<QuoteBody>(
+    `quote?symbol=${encodeURIComponent(symbol)}`,
+    { ...opts, label: opts.label ?? symbol },
+  );
+  if (res.kind !== "ok") return null;
 
-  try {
-    const remaining = deadline - Date.now();
-    if (remaining <= 0) {
-      record("skipped", stats);
-      return null;
-    }
-
-    let res: Response;
-    try {
-      res = await fetch(
-        `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(key)}`,
-        {
-          cache: "no-store",
-          signal: AbortSignal.timeout(Math.min(timeoutMs, remaining)),
-        },
-      );
-    } catch {
-      record("failed", stats);
-      return null;
-    }
-
-    if (res.status === 429) {
-      // The minute's budget is spent; a retry would only spend the next one.
-      // Never log the URL — it carries the token.
-      console.warn(`[finnhub] rate limited — ${symbol}`);
-      record("rateLimited", stats);
-      return null;
-    }
-    if (!res.ok) {
-      record("failed", stats);
-      return null;
-    }
-
-    let body: unknown;
-    try { body = await res.json(); }
-    catch { record("failed", stats); return null; }
-
-    const quote = parseFinnhubQuote(body);
-    record(quote ? "ok" : "miss", stats);
-    return quote;
-  } finally {
-    active--;
-  }
+  const quote = parseFinnhubQuote(res.data);
+  record(quote ? "ok" : "miss", opts.stats);
+  return quote;
 }

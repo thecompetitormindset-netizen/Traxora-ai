@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { newYahooStats, wasThrottled, yahooFetch, yahooTotals } from "@/app/lib/yahooFetch";
 import { finnhubTotals, hasFinnhubKey, newFinnhubStats } from "@/app/lib/finnhubFetch";
 import { marketQuote } from "@/app/lib/marketQuote";
+import { resolveEarningsDates } from "@/app/lib/earningsDate";
 
 // Are the market-data sources reachable from where the app actually runs?
 //
@@ -141,6 +142,16 @@ export async function GET(req: Request) {
   // "finnhub" means the reliable source served it, "yahoo" means it fell back.
   const resolved = await marketQuote(symbol, { finnhubStats: fhStats, yahooStats: stats });
 
+  // The earnings lookup's three-source chain, reporting who answered. This is
+  // the only way to find out whether Finnhub's /calendar/earnings is on this
+  // key's plan: a 403 is indistinguishable from any other no at the call site,
+  // but "source": "nasdaq" here means Finnhub declined it.
+  const earnings = await resolveEarningsDates([symbol], {
+    budgetMs: 15_000,
+    finnhubStats: fhStats,
+    yahooStats: stats,
+  });
+
   const checks = await Promise.all([
     yahooCheck("yahoo:chart-1y", `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1y`,
       d => dig(d, "chart.result.0.meta.regularMarketPrice"), stats),
@@ -180,6 +191,10 @@ export async function GET(req: Request) {
       change: resolved.change,
       source: resolved.source,
     },
+    // What the dashboard's earnings badge would get, and from whom. null means
+    // all three sources came up empty, which for one symbol may simply mean it
+    // is not due to report inside the 90-day window.
+    resolved_earnings: earnings[symbol] ?? null,
     checks,
     // Counters from the throttled client: rate_limited above zero means Yahoo
     // pushed back even with the queue in front of it.
