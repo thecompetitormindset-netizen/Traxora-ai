@@ -1,4 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 export const dynamic = "force-dynamic";
 
 
@@ -16,11 +17,11 @@ export async function GET(req: Request) {
   await Promise.allSettled(symbols.map(async (sym) => {
     const clean = sym.replace(/\.(US|COMM)$/, "");
     try {
-      const res = await fetch(
+      const res = await yahooFetch(
         `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(clean)}?modules=calendarEvents`,
-        { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+        { timeoutMs: 5000, budgetMs: 7_000, label: clean },
       );
-      if (!res.ok) { result[sym] = null; return; }
+      if (!res) { result[sym] = null; return; }
       const data = await res.json();
       const dates = data?.quoteSummary?.result?.[0]?.calendarEvents?.earnings?.earningsDate;
       if (!Array.isArray(dates) || dates.length === 0) { result[sym] = null; return; }

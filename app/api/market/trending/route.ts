@@ -1,14 +1,14 @@
 export const runtime = "nodejs";
 
 import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooJson } from "@/app/lib/yahooFetch";
 
 export async function GET() {
   try {
-    const trendRes = await fetch(
+    const trendData = await yahooJson<{ finance?: { result?: Array<{ quotes?: { symbol: string }[] }> } }>(
       "https://query1.finance.yahoo.com/v1/finance/trending/US?count=15",
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+      { timeoutMs: 5000, budgetMs: 8_000, label: "trending" },
     );
-    const trendData = await trendRes.json();
     const symbols: string[] = (trendData?.finance?.result?.[0]?.quotes ?? [])
       .map((q: { symbol: string }) => q.symbol)
       .filter((s: string) => !s.includes("=") && !s.includes("^") && !s.includes("-"));

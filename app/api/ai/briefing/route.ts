@@ -6,6 +6,7 @@ import path from "path";
 
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
 import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -120,11 +121,13 @@ interface Q {
   open?: number; high?: number; low?: number; name?: string;
 }
 
+const lastNumber = (xs: (number | null)[] | undefined): number | undefined =>
+  (xs ?? []).filter((v): v is number => typeof v === "number").at(-1);
+
 async function yq(ticker: string): Promise<Q | null> {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=10d`;
-    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(4000) });
-    const d   = await r.json();
+    const d   = await yahooJson<YahooChartResponse>(url, { timeoutMs: 4000, budgetMs: 30_000, label: ticker });
     const meta = d?.chart?.result?.[0]?.meta;
     const q    = d?.chart?.result?.[0]?.indicators?.quote?.[0];
     if (!meta?.regularMarketPrice) return null;
@@ -139,9 +142,10 @@ async function yq(ticker: string): Promise<Q | null> {
       avgVol:     meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month,
       high52w:    meta.fiftyTwoWeekHigh,
       low52w:     meta.fiftyTwoWeekLow,
-      open:       (q?.open  ?? []).filter(Boolean).at(-1),
-      high:       (q?.high  ?? []).filter(Boolean).at(-1),
-      low:        (q?.low   ?? []).filter(Boolean).at(-1),
+      // filter(Boolean) does not narrow away the nulls these arrays carry.
+      open:       lastNumber(q?.open),
+      high:       lastNumber(q?.high),
+      low:        lastNumber(q?.low),
       name:       meta.shortName ?? meta.longName,
     };
   } catch { return null; }
@@ -150,8 +154,7 @@ async function yq(ticker: string): Promise<Q | null> {
 async function yNews(sym: string): Promise<string[]> {
   try {
     const url = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(sym)}&newsCount=3&quotesCount=0`;
-    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(3000) });
-    const d   = await r.json();
+    const d   = await yahooJson<{ news?: { title?: string; publisher?: string }[] }>(url, { timeoutMs: 3000, budgetMs: 30_000, label: `${sym} news` });
     return ((d?.news ?? []) as { title?: string; publisher?: string }[])
       .slice(0, 3).map(n => `${n.title ?? ""} (${n.publisher ?? ""})`);
   } catch { return []; }

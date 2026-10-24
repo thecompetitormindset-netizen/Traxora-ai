@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { postToDiscord, buildBriefingEmbed } from "@/app/lib/discord";
 import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
@@ -74,8 +75,7 @@ const WATCHLIST = [
 async function fetchQuote(symbol: string) {
   try {
     const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
-    const r   = await fetch(url, { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(6000) });
-    const d   = await r.json();
+    const d   = await yahooJson<YahooChartResponse>(url, { timeoutMs: 6000, budgetMs: 40_000, label: symbol });
     const meta = d?.chart?.result?.[0]?.meta;
     if (!meta?.regularMarketPrice) return null;
     const price  = meta.regularMarketPrice as number;
