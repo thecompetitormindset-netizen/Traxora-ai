@@ -17,8 +17,8 @@
 // protection is the five-minute cache instead.
 
 import { computeChangePct, resolvePreviousClose } from "./quoteSanity";
-import { finnhubQuote, type FinnhubStats } from "./finnhubFetch";
-import { yahooFetch, type YahooChartResponse, type YahooStats } from "./yahooFetch";
+import { finnhubQuote, type FinnhubQuote, type FinnhubStats } from "./finnhubFetch";
+import { yahooFetch, yahooJson, type YahooChartResponse, type YahooStats } from "./yahooFetch";
 
 export type QuoteSource = "finnhub" | "yahoo";
 
@@ -118,4 +118,135 @@ export async function marketQuote(symbol: string, opts: MarketQuoteOptions = {})
 /** Resolve a list of symbols together, preserving input order. */
 export async function marketQuotes(symbols: string[], opts: MarketQuoteOptions = {}): Promise<MarketQuote[]> {
   return Promise.all(symbols.map(s => marketQuote(s, opts)));
+}
+
+// ---------------------------------------------------------------------------
+// The wider quote, for callers that need more than price and change
+// ---------------------------------------------------------------------------
+
+/**
+ * Everything the analysis paths read, with every field that might be absent
+ * typed as absent.
+ *
+ * That typing is the point. smartMoneyScore already treats a null volume as
+ * "unknown" and declines to produce a volume signal from it:
+ *
+ *   const volRatio = volume != null && avgVolume && avgVolume > 0 ? … : null;
+ *
+ * but its callers were substituting values before it ever got the chance —
+ * `avgVolume ?? volume` yields a ratio of exactly 1.0, and
+ * `fiftyTwoWeekHigh ?? price` collapses the 52-week range onto the current
+ * price. Both read downstream as real, unremarkable readings. Passing the
+ * nulls through lets the scorer do what it was written to do.
+ */
+export type FullQuote = {
+  symbol: string;
+  name: string | null;
+  price: number;
+  previousClose: number;
+  changePercent: number;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  volume: number | null;
+  avgVolume: number | null;
+  high52w: number | null;
+  low52w: number | null;
+  /** Daily closes over the requested range, ascending. Empty without Yahoo. */
+  closes: number[];
+  /** True when the volume history arrived, so volume-based signals are real. */
+  enriched: boolean;
+  source: QuoteSource | "mixed";
+};
+
+type ChartResult = NonNullable<NonNullable<YahooChartResponse["chart"]>["result"]>[number];
+
+const positives = (a: (number | null | undefined)[] | undefined): number[] =>
+  (a ?? []).filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+
+const orNull = (v: number | null | undefined): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v > 0 ? v : null;
+
+/**
+ * Merge a Finnhub quote and a Yahoo chart result into one record, or null when
+ * neither carried a price. Finnhub's price wins where both arrive: it is the
+ * live leg, and Yahoo's copy may be an older print.
+ *
+ * Pure, so the substitution rules can be tested without network access.
+ */
+export function mergeFullQuote(
+  symbol: string,
+  fh: FinnhubQuote | null,
+  result: ChartResult | null,
+): FullQuote | null {
+  const meta = result?.meta ?? null;
+  const q = result?.indicators?.quote?.[0];
+  const closes = positives(q?.close);
+
+  const yahooPrice = orNull(meta?.regularMarketPrice) ?? closes.at(-1) ?? null;
+  const price = fh?.price ?? yahooPrice;
+  if (price === null) return null;
+
+  const previousClose = fh?.previousClose ?? resolvePreviousClose(meta, closes) ?? price;
+  const volume = orNull(meta?.regularMarketVolume) ?? positives(q?.volume).at(-1) ?? null;
+
+  // Only an average computed from enough history, or one Yahoo supplied
+  // directly. Never today's volume standing in for its own average.
+  const volumes = positives(q?.volume);
+  const avgVolume = volumes.length >= 5
+    ? Math.round(volumes.slice(-20).reduce((s, v) => s + v, 0) / Math.min(volumes.length, 20))
+    : orNull(meta?.averageDailyVolume10Day) ?? orNull(meta?.averageDailyVolume3Month) ?? null;
+
+  const source: FullQuote["source"] =
+    fh && result ? "mixed" : fh ? "finnhub" : "yahoo";
+
+  return {
+    symbol,
+    name: meta?.shortName ?? meta?.longName ?? null,
+    price,
+    previousClose,
+    changePercent: computeChangePct(price, previousClose) ?? 0,
+    open: fh?.open ?? orNull(meta?.regularMarketOpen) ?? positives(q?.open).at(-1) ?? null,
+    high: fh?.high ?? orNull(meta?.regularMarketDayHigh) ?? positives(q?.high).at(-1) ?? null,
+    low:  fh?.low  ?? orNull(meta?.regularMarketDayLow)  ?? positives(q?.low).at(-1)  ?? null,
+    volume,
+    avgVolume,
+    high52w: orNull(meta?.fiftyTwoWeekHigh),
+    low52w:  orNull(meta?.fiftyTwoWeekLow),
+    closes,
+    enriched: volume !== null && avgVolume !== null && avgVolume > 0,
+    source,
+  };
+}
+
+export type FullQuoteOptions = MarketQuoteOptions & {
+  /** Yahoo chart range; pick the shortest the caller's series needs. */
+  range?: string;
+};
+
+/**
+ * Price and change from Finnhub, the rest from Yahoo where it answers.
+ *
+ * Both are attempted together rather than in sequence: the enrichment is worth
+ * having whenever it is available, and the Finnhub leg is what guarantees the
+ * caller gets a usable record at all.
+ */
+export async function fullQuote(symbol: string, opts: FullQuoteOptions = {}): Promise<FullQuote | null> {
+  const {
+    range = "10d",
+    finnhubBudgetMs = 8_000,
+    yahooBudgetMs = 12_000,
+    finnhubStats,
+    yahooStats,
+  } = opts;
+
+  const [fh, chart] = await Promise.all([
+    finnhubQuote(symbol, { budgetMs: finnhubBudgetMs, stats: finnhubStats }).catch(() => null),
+    yahooJson<YahooChartResponse>(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${encodeURIComponent(range)}`,
+      { timeoutMs: 8_000, budgetMs: yahooBudgetMs, label: symbol, stats: yahooStats },
+    ).catch(() => null),
+  ]);
+
+  return mergeFullQuote(symbol, fh, chart?.chart?.result?.[0] ?? null);
 }
