@@ -317,8 +317,17 @@ export default function IPOPage() {
   useEffect(() => {
     fetch("/api/ipo")
       .then(r => r.json())
-      .then(d => {
-        if ((d as { error?: string }).error) { setError("We couldn’t load the list right now. Please try again shortly."); return; }
+      .then((d: unknown) => {
+        if (d && typeof d === "object" && (d as { error?: string }).error) {
+          setError("We couldn’t load the list right now. Please try again shortly.");
+          return;
+        }
+        // Both lists are read straight into .length, so a body without them
+        // took the page to the error boundary instead of this message.
+        const ok = d && typeof d === "object"
+          && Array.isArray((d as { upcoming?: unknown }).upcoming)
+          && Array.isArray((d as { recent?: unknown }).recent);
+        if (!ok) { setError("We couldn’t load the list right now. Please try again shortly."); return; }
         setData(d as { upcoming: IPOItem[]; recent: IPOItem[] });
       })
       .catch(() => setError("We couldn’t load the list right now. Please try again shortly."))

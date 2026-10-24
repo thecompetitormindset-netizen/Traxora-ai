@@ -54,8 +54,16 @@ export default function MarketSentimentPage() {
   const load = useCallback(async () => {
     try {
       const r = await fetch("/api/sentiment", { cache: "no-store" });
-      const d = await r.json() as Mood & { error?: string };
-      if (!r.ok || d.error) { setFailed(true); return; }
+      const d = await r.json().catch(() => null) as (Mood & { error?: string }) | null;
+      if (!r.ok || !d || d.error) { setFailed(true); return; }
+      // label and the scores are rendered without a guard — label.toLowerCase()
+      // in particular — so an unexpected body must land on the failure state
+      // rather than the error boundary.
+      const usable = typeof d.label === "string"
+        && typeof d.overallScore === "number"
+        && typeof d.fearGreed === "number"
+        && typeof d.regime === "string";
+      if (!usable) { setFailed(true); return; }
       setM(d); setFailed(false);
     } catch { setFailed(true); }
   }, []);
