@@ -1,5 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
-import { yahooFetch } from "@/app/lib/yahooFetch";
+import { fullQuote } from "@/app/lib/marketQuote";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
@@ -34,18 +34,6 @@ export type MoversData = {
 let cache: { at: number; data: MoversData } | null = null;
 const TTL = 5 * 60_000;
 
-type ChartMeta = { regularMarketPrice?: number; chartPreviousClose?: number; previousClose?: number; regularMarketVolume?: number };
-
-/** Finnhub quote when a key is configured (production): c = price, dp = % change. */
-async function finnhubRow(symbol: string, key: string): Promise<MoverRow | null> {
-  try {
-    const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${key}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return null;
-    const q = await r.json() as { c?: number; dp?: number | null };
-    return q.c && q.c > 0 && typeof q.dp === "number" ? { symbol, price: q.c, change: q.dp, volume: null } : null;
-  } catch { return null; }
-}
-
 /** Runs `fn` over items a few at a time, so providers don't rate-limit a burst. */
 async function inBatches<T, R>(items: T[], size: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];
@@ -53,23 +41,14 @@ async function inBatches<T, R>(items: T[], size: number, fn: (t: T) => Promise<R
   return out;
 }
 
+// This route already preferred Finnhub, but reached it with a bare fetch —
+// outside the concurrency gate and invisible to the counters, so its load and
+// its throttling went unrecorded. fullQuote gives the same preference through
+// the shared client, and keeps Yahoo's volume figure when Yahoo answers.
 async function row(symbol: string): Promise<MoverRow | null> {
-  const key = process.env.FINNHUB_API_KEY;
-  if (key) { const f = await finnhubRow(symbol, key); if (f) return f; }
-  try {
-    const r = await yahooFetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
-      timeoutMs: 8000, budgetMs: 11_000, label: symbol,
-    });
-    if (!r) return null;
-    const j = await r.json() as { chart?: { result?: Array<{ meta?: ChartMeta; indicators?: { quote?: Array<{ close?: (number | null)[] }> } }> } };
-    const res = j.chart?.result?.[0];
-    const m = res?.meta;
-    const closes = (res?.indicators?.quote?.[0]?.close ?? []).filter((c): c is number => typeof c === "number");
-    const price = m?.regularMarketPrice ?? closes.at(-1) ?? null;
-    const prev = closes.length >= 2 ? closes.at(-2)! : m?.previousClose ?? null;
-    if (!price || !prev) return null;
-    return { symbol, price, change: ((price - prev) / prev) * 100, volume: m?.regularMarketVolume ?? null };
-  } catch { return null; }
+  const q = await fullQuote(symbol, { range: "5d", yahooBudgetMs: 11_000 });
+  if (!q) return null;
+  return { symbol: q.symbol, price: q.price, change: q.changePercent, volume: q.volume };
 }
 
 export async function GET() {

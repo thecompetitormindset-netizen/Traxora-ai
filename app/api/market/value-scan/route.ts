@@ -1,6 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
-import { computeChangePct, resolvePreviousClose } from "@/app/lib/quoteSanity";
-import { yahooFetch } from "@/app/lib/yahooFetch";
+import { marketQuote } from "@/app/lib/marketQuote";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
@@ -106,32 +105,14 @@ async function finnhubMetrics(symbol: string, key: string) {
   } catch { return null; }
 }
 
-async function yahooQuote(symbol: string) {
-  try {
-    const ySym = symbol.replace(".", "-"); // BRK.B → BRK-B
-    const res = await yahooFetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=2d`,
-      { timeoutMs: 8_000, budgetMs: 22_000, label: ySym },
-    );
-    if (!res) return null;
-    const data = await res.json() as {
-      chart?: { result?: Array<{
-        meta?: { regularMarketPrice?: number; previousClose?: number; chartPreviousClose?: number };
-        indicators?: { quote?: Array<{ close?: (number | null)[] }> };
-      }> };
-    };
-    const result = data.chart?.result?.[0];
-    const meta = result?.meta;
-    const price = meta?.regularMarketPrice ?? null;
-    // Previous SESSION close from the daily series. This read only
-    // meta.chartPreviousClose, which is the close before the range's first bar
-    // rather than the prior session, and had no other source to fall back to.
-    const prev  = resolvePreviousClose(meta, result?.indicators?.quote?.[0]?.close ?? []);
-    return {
-      price,
-      changePct: price != null ? computeChangePct(price, prev) : null,
-    };
-  } catch { return null; }
+// The fundamentals here already came from Finnhub; only the price did not, so
+// a throttled Yahoo left a row with every ratio and no price — and `isDip`,
+// which keys off changePct, silently stopped firing. marketQuote asks Finnhub
+// for the price too, and keeps Yahoo as the fallback.
+async function priceQuote(symbol: string) {
+  const ySym = symbol.replace(".", "-"); // BRK.B → BRK-B
+  const q = await marketQuote(ySym, { yahooBudgetMs: 22_000 });
+  return q.price === null ? null : { price: q.price, changePct: q.change };
 }
 
 // ── Cache — fundamentals change slowly; don't re-hit Finnhub every page load ──
@@ -154,7 +135,7 @@ export async function GET() {
   const results = await Promise.all(UNIVERSE.map(async (u) => {
     const [metrics, quote] = await Promise.all([
       finnhubKey ? finnhubMetrics(u.symbol, finnhubKey) : Promise.resolve(null),
-      yahooQuote(u.symbol),
+      priceQuote(u.symbol),
     ]);
     if (!metrics && !quote) return null;
     const s: ValueStock = {

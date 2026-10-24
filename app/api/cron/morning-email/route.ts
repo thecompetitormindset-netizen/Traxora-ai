@@ -1,8 +1,7 @@
 import { Resend } from "resend";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { postToDiscord, buildBriefingEmbed } from "@/app/lib/discord";
-import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
-import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
+import { fullQuote } from "@/app/lib/marketQuote";
 
 export const runtime  = "nodejs";
 export const maxDuration = 60;
@@ -72,27 +71,44 @@ const WATCHLIST = [
 ];
 
 // ── Fetch quote ───────────────────────────────────────────────────────────────
+//
+// This fabricated five of the inputs it handed to smartMoneyScore, and the
+// scorer was written to receive them as null:
+//
+//   avgVol = averageDailyVolume ?? vol    → a volume ratio of exactly 1.0
+//   high52 = fiftyTwoWeekHigh  ?? price   → the 52-week range collapsed
+//   low52  = fiftyTwoWeekLow   ?? price     onto the current price
+//   high   = regularMarketDayHigh ?? price → a day range of zero, so the
+//   low    = regularMarketDayLow  ?? price   position in it defaults to 50%
+//
+// smartMoneyScore computes `volume != null && avgVolume > 0 ? … : null` — it
+// declines to invent a volume signal. The substitution happened before it ever
+// saw the data, so a throttled fetch produced a confident "average volume,
+// mid-range" reading. In a cron that emails whatever it gathered, with nobody
+// watching, that is the worst place in the app for it.
+//
+// Nulls now pass through, and the price and change come from Finnhub.
 async function fetchQuote(symbol: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=2d`;
-    const d   = await yahooJson<YahooChartResponse>(url, { timeoutMs: 6000, budgetMs: 40_000, label: symbol });
-    const meta = d?.chart?.result?.[0]?.meta;
-    if (!meta?.regularMarketPrice) return null;
-    const price  = meta.regularMarketPrice as number;
-    // Previous SESSION close from the daily series. meta.chartPreviousClose is
-    // the close before the range's first bar, so at range=2d it is two sessions
-    // back and renders a two-day move as today's change in the email.
-    const prev   = resolvePreviousClose(meta, d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? []) ?? price;
-    const open   = (meta.regularMarketOpen ?? price) as number;
-    const chg    = changePctOrZero(price, prev);
-    const high   = (meta.regularMarketDayHigh ?? price) as number;
-    const low    = (meta.regularMarketDayLow  ?? price) as number;
-    const vol    = (meta.regularMarketVolume  ?? 0)     as number;
-    const avgVol = (meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month ?? vol) as number;
-    const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
-    const low52  = (meta.fiftyTwoWeekLow  ?? price) as number;
-    return { symbol, price, prev, open, chg, high, low, vol, avgVol, high52, low52,
-             name: (meta.shortName ?? symbol) as string };
+    const q = await fullQuote(symbol, { range: "2d", yahooBudgetMs: 40_000 });
+    if (!q) return null;
+    return {
+      symbol,
+      price:  q.price,
+      prev:   q.previousClose,
+      open:   q.open,
+      chg:    q.changePercent,
+      high:   q.high,
+      low:    q.low,
+      vol:    q.volume,
+      avgVol: q.avgVolume,
+      high52: q.high52w,
+      low52:  q.low52w,
+      name:   q.name ?? symbol,
+      /** False when the volume history was unavailable, so volume-derived
+       *  signals in this row are absent rather than neutral. */
+      enriched: q.enriched,
+    };
   } catch { return null; }
 }
 

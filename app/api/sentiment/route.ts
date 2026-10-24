@@ -4,24 +4,32 @@ export const maxDuration = 30;
 
 import { cacheGet, cacheSet } from "../../lib/sentiment";
 import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { fullQuote } from "@/app/lib/marketQuote";
+import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
 
 const CACHE_KEY = "sentiment:market-data";
 const CACHE_TTL = 15 * 60 * 1_000; // 15 minutes
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
+// ^VIX is an index, which Finnhub's free tier does not carry, so this one has
+// no alternative — but it was using a bare fetch, outside the rate limiter and
+// invisible to the counters. Going through yahooJson at least queues it and
+// records when it is throttled.
+//
+// That matters more here than the code suggests: the handler returns 503 when
+// VIX is missing, and VIX supplies 60% of the Fear & Greed base. There is no
+// honest score without it, so that hard failure is correct and stays.
 async function yq(sym: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=6d`;
-    const r = await fetch(url, {
-      cache: "no-store",
-      headers: { "User-Agent": "Mozilla/5.0" },
-      signal: AbortSignal.timeout(7_000),
-    });
-    const d = await r.json();
-    const meta   = d?.chart?.result?.[0]?.meta;
-    const closes: number[] = d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close ?? [];
-    return { meta, closes };
+    const d = await yahooJson<YahooChartResponse>(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=6d`,
+      { timeoutMs: 7_000, budgetMs: 12_000, label: sym },
+    );
+    const result = d?.chart?.result?.[0];
+    const closes = (result?.indicators?.quote?.[0]?.close ?? [])
+      .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+    return { meta: result?.meta ?? null, closes };
   } catch { return { meta: null, closes: [] }; }
 }
 
@@ -122,11 +130,15 @@ export async function GET() {
   if (cached) return Response.json(cached);
 
   try {
-    const [vixData, spyData, qqqData, iwmData, avItems] = await Promise.all([
+    // The three ETFs go through fullQuote, which prefers Finnhub for the price
+    // and still returns the Yahoo close series the 5-day momentum term needs —
+    // so their changes stay right even when Yahoo is shut out, and only the
+    // momentum term degrades.
+    const [vixData, spy, qqq, iwm, avItems] = await Promise.all([
       yq("^VIX"),
-      yq("SPY"),
-      yq("QQQ"),
-      yq("IWM"),
+      fullQuote("SPY", { range: "6d", yahooBudgetMs: 12_000 }),
+      fullQuote("QQQ", { range: "6d", yahooBudgetMs: 12_000 }),
+      fullQuote("IWM", { range: "6d", yahooBudgetMs: 12_000 }),
       fetchAVNews(),
     ]);
     const newsItems = avItems.length > 0 ? avItems : await fetchFinnhubNews();
@@ -139,17 +151,14 @@ export async function GET() {
     const prevVix  = resolvePreviousClose(vixData.meta, vixData.closes) ?? undefined;
     const vixChg   = vix != null ? changePctOrZero(vix, prevVix ?? null) : 0;
 
-    const spyPrice = spyData.meta?.regularMarketPrice  as number | undefined;
-    const spyPrev  = resolvePreviousClose(spyData.meta, spyData.closes);
-    const spyChg   = spyPrice ? changePctOrZero(spyPrice, spyPrev) : 0;
+    const spyPrice = spy?.price;
+    const spyChg   = spy?.changePercent ?? 0;
 
-    const qqqPrice = qqqData.meta?.regularMarketPrice  as number | undefined;
-    const qqqPrev  = resolvePreviousClose(qqqData.meta, qqqData.closes);
-    const qqqChg   = qqqPrice ? changePctOrZero(qqqPrice, qqqPrev) : 0;
+    const qqqPrice = qqq?.price;
+    const qqqChg   = qqq?.changePercent ?? 0;
 
-    const iwmPrice = iwmData.meta?.regularMarketPrice  as number | undefined;
-    const iwmPrev  = resolvePreviousClose(iwmData.meta, iwmData.closes);
-    const iwmChg   = iwmPrice ? changePctOrZero(iwmPrice, iwmPrev) : 0;
+    const iwmPrice = iwm?.price;
+    const iwmChg   = iwm?.changePercent ?? 0;
 
     if (vix == null) {
       return Response.json({ error: "Market data unavailable" }, { status: 503 });
@@ -157,7 +166,7 @@ export async function GET() {
 
     // Fear & Greed composite
     const fgBase   = vixToFG(vix);
-    const fgMomentum = Math.max(-12, Math.min(12, momentum5d(spyData.closes) * 2.5));
+    const fgMomentum = Math.max(-12, Math.min(12, momentum5d(spy?.closes ?? []) * 2.5));
     const newsAvg  = newsItems.length > 0
       ? newsItems.reduce((s, n) => s + n.score, 0) / newsItems.length
       : 0;
@@ -175,7 +184,7 @@ export async function GET() {
     // Individual component inputs (each 0–100) so the dashboard widget
     // can show the actual math rather than just the composite output.
     const vixInput      = vixToFG(vix);                                                    // VIX  → 0-100
-    const momentumInput = Math.round(Math.max(0, Math.min(100, 50 + momentum5d(spyData.closes) * 5))); // trend → 0-100
+    const momentumInput = Math.round(Math.max(0, Math.min(100, 50 + momentum5d(spy?.closes ?? []) * 5))); // trend → 0-100
     const newsInput     = fgNews;                                                           // news → 0-100
 
     const payload = {

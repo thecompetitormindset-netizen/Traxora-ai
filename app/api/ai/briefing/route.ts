@@ -5,8 +5,8 @@ import { promises as fs } from "fs";
 import path from "path";
 
 import { SYSTEM_FRAMEWORK } from "@/app/lib/systemFramework";
-import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
-import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
+import { fullQuote } from "@/app/lib/marketQuote";
+import { yahooJson } from "@/app/lib/yahooFetch";
 
 export const runtime     = "nodejs";
 export const maxDuration = 55;
@@ -121,32 +121,30 @@ interface Q {
   open?: number; high?: number; low?: number; name?: string;
 }
 
-const lastNumber = (xs: (number | null)[] | undefined): number | undefined =>
-  (xs ?? []).filter((v): v is number => typeof v === "number").at(-1);
-
+// Every figure in the briefing came from Yahoo, so a throttled call rendered
+// the whole line as "N/A" — which in a market briefing reads as a quiet
+// session rather than a failed fetch.
+//
+// fullQuote takes the price and change from Finnhub and the rest from Yahoo
+// where it answers. The Q fields below are all optional and row() already
+// guards each one, so a line now carries a real price and change and simply
+// omits the volume surge and 52-week position it could not establish.
 async function yq(ticker: string): Promise<Q | null> {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=10d`;
-    const d   = await yahooJson<YahooChartResponse>(url, { timeoutMs: 4000, budgetMs: 30_000, label: ticker });
-    const meta = d?.chart?.result?.[0]?.meta;
-    const q    = d?.chart?.result?.[0]?.indicators?.quote?.[0];
-    if (!meta?.regularMarketPrice) return null;
-    const price     = meta.regularMarketPrice as number;
-    // Previous SESSION close from the daily series. meta.chartPreviousClose is
-    // the close before the first bar of the range — 10 days back here.
-    const prevClose = resolvePreviousClose(meta, (q?.close ?? []) as (number | null)[]) ?? price;
+    const q = await fullQuote(ticker, { range: "10d", yahooBudgetMs: 30_000 });
+    if (!q) return null;
     return {
-      price, prevClose,
-      changePct:  changePctOrZero(price, prevClose),
-      volume:     meta.regularMarketVolume,
-      avgVol:     meta.averageDailyVolume10Day ?? meta.averageDailyVolume3Month,
-      high52w:    meta.fiftyTwoWeekHigh,
-      low52w:     meta.fiftyTwoWeekLow,
-      // filter(Boolean) does not narrow away the nulls these arrays carry.
-      open:       lastNumber(q?.open),
-      high:       lastNumber(q?.high),
-      low:        lastNumber(q?.low),
-      name:       meta.shortName ?? meta.longName,
+      price:      q.price,
+      prevClose:  q.previousClose,
+      changePct:  q.changePercent,
+      volume:     q.volume    ?? undefined,
+      avgVol:     q.avgVolume ?? undefined,
+      high52w:    q.high52w   ?? undefined,
+      low52w:     q.low52w    ?? undefined,
+      open:       q.open      ?? undefined,
+      high:       q.high      ?? undefined,
+      low:        q.low       ?? undefined,
+      name:       q.name      ?? undefined,
     };
   } catch { return null; }
 }
