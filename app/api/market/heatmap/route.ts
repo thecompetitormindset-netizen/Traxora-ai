@@ -36,6 +36,12 @@ async function fetchQuote(symbol: string): Promise<Row> {
   }
 }
 
+// Keyed on the requested symbols, since the caller chooses them. Without this
+// every heatmap render refetched the whole grid.
+const cache = new Map<string, { at: number; rows: Row[] }>();
+const TTL = 5 * 60_000;
+const MAX_KEYS = 50;
+
 export async function GET(req: Request) {
   const session = await viewer();
   if (!session?.user) return new Response("Unauthorized", { status: 401 });
@@ -44,6 +50,16 @@ export async function GET(req: Request) {
   const syms = (url.searchParams.get("symbols") ?? "").split(",").map(s => s.trim()).filter(Boolean);
   if (syms.length === 0) return Response.json([], { status: 200 });
 
+  const key = syms.join(",");
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < TTL) return Response.json(hit.rows);
+
   const rows = await Promise.all(syms.map(fetchQuote));
+  if (rows.some(r => r.price !== null)) {
+    // The key comes from the query string, so the map is bounded and evicts
+    // oldest-first rather than growing with whatever callers ask for.
+    if (cache.size >= MAX_KEYS) cache.delete(cache.keys().next().value as string);
+    cache.set(key, { at: Date.now(), rows });
+  }
   return Response.json(rows);
 }

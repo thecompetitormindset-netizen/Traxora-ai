@@ -154,9 +154,18 @@ function formatAge(unix: number): string {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+// The heaviest Yahoo caller on the site: a 55-name universe plus news for the
+// top 15, previously refetched in full on every request. The result is a
+// ranking, not a live quote, so a few minutes of staleness costs nothing.
+type ScanResult = { scanned: number; trending: string[]; top: StockData[] };
+let cache: { at: number; data: ScanResult } | null = null;
+const TTL = 5 * 60_000;
+
 export async function GET() {
   const session = await viewer();
   if (!session?.user?.email) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (cache && Date.now() - cache.at < TTL) return Response.json(cache.data);
 
   try {
     // 1. Trending tickers
@@ -198,11 +207,15 @@ export async function GET() {
     });
     top15.sort((a, b) => b.score - a.score);
 
-    return Response.json({
+    const data: ScanResult = {
       scanned: valid.length,
       trending: trending.slice(0, 5),
       top: top15.slice(0, 12),
-    });
+    };
+    // Only hold a pass that actually found something, so a throttled run does
+    // not pin an empty board for the next five minutes.
+    if (valid.length > 0) cache = { at: Date.now(), data };
+    return Response.json(data);
   } catch {
     return Response.json({ scanned: 0, trending: [], top: [] });
   }
