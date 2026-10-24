@@ -4,6 +4,7 @@ export const maxDuration = 25;
 
 import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -233,11 +234,11 @@ function backtestSignal(closes: number[], highs: number[], lows: number[], vols:
 
 async function fetchCoin(coin: { symbol: string; ticker: string; name: string }): Promise<CryptoMover | null> {
   try {
-    const res = await fetch(
+    const res = await yahooFetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(coin.symbol)}?interval=1d&range=1y`,
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15_000) },
+      { timeoutMs: 15_000, budgetMs: 18_000, label: coin.symbol },
     );
-    if (!res.ok) return null;
+    if (!res) return null;
     const json = await res.json();
     const result = json?.chart?.result?.[0];
     if (!result) return null;

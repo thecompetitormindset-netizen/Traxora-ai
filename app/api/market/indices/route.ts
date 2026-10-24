@@ -1,4 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 10;
@@ -24,11 +25,11 @@ export type IndexRow = {
 // this app (technicals, crypto-movers), still works unauthenticated per symbol.
 async function fetchQuote({ symbol, label }: { symbol: string; label: string }): Promise<IndexRow> {
   try {
-    const res = await fetch(
+    const res = await yahooFetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`,
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8_000) },
+      { timeoutMs: 8_000, budgetMs: 7_000, label: symbol },
     );
-    if (!res.ok) return { symbol, label, price: null, change: null };
+    if (!res) return { symbol, label, price: null, change: null };
     const json = await res.json();
     const result = json?.chart?.result?.[0];
     const closes: number[] = (result?.indicators?.quote?.[0]?.close ?? []).filter((v: unknown) => typeof v === "number");

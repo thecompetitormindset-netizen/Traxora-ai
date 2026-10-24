@@ -1,5 +1,6 @@
 import { viewer } from "@/app/lib/viewer";
 import { computeChangePct, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
@@ -108,11 +109,11 @@ async function finnhubMetrics(symbol: string, key: string) {
 async function yahooQuote(symbol: string) {
   try {
     const ySym = symbol.replace(".", "-"); // BRK.B → BRK-B
-    const res = await fetch(
+    const res = await yahooFetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ySym)}?interval=1d&range=2d`,
-      { headers: { "User-Agent": "Mozilla/5.0" }, cache: "no-store" },
+      { timeoutMs: 8_000, budgetMs: 22_000, label: ySym },
     );
-    if (!res.ok) return null;
+    if (!res) return null;
     const data = await res.json() as {
       chart?: { result?: Array<{
         meta?: { regularMarketPrice?: number; previousClose?: number; chartPreviousClose?: number };

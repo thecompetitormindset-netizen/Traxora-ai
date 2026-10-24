@@ -5,6 +5,7 @@ export const maxDuration = 45;
 import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
 import { checkQuoteSanity, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
@@ -37,11 +38,11 @@ export const BACKTEST_FORWARD = 14;  // days ahead — matches the 14+ DTE gate 
 // risk this whole feature exists to close — no independent re-derivation).
 export async function fetchQuote(symbol: string) {
   try {
-    const res  = await fetch(
+    const res  = await yahooFetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(10_000) },
+      { timeoutMs: 10_000, budgetMs: 30_000, label: symbol },
     );
-    if (!res.ok) return null;
+    if (!res) return null;
     const data   = await res.json();
     const result = data?.chart?.result?.[0];
     const meta   = result?.meta;

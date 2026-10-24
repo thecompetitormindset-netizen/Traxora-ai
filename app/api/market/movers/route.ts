@@ -1,4 +1,5 @@
 import { viewer } from "@/app/lib/viewer";
+import { yahooFetch } from "@/app/lib/yahooFetch";
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
@@ -56,10 +57,10 @@ async function row(symbol: string): Promise<MoverRow | null> {
   const key = process.env.FINNHUB_API_KEY;
   if (key) { const f = await finnhubRow(symbol, key); if (f) return f; }
   try {
-    const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
-      cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(8000),
+    const r = await yahooFetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`, {
+      timeoutMs: 8000, budgetMs: 11_000, label: symbol,
     });
-    if (!r.ok) return null;
+    if (!r) return null;
     const j = await r.json() as { chart?: { result?: Array<{ meta?: ChartMeta; indicators?: { quote?: Array<{ close?: (number | null)[] }> } }> } };
     const res = j.chart?.result?.[0];
     const m = res?.meta;

@@ -3,6 +3,7 @@ export const maxDuration = 30;
 
 import { viewer } from "@/app/lib/viewer";
 import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { yahooJson } from "@/app/lib/yahooFetch";
 
 const STATIC_UNIVERSE = [
   "AAPL","MSFT","NVDA","TSLA","AMZN","GOOGL","META","AMD","NFLX","ORCL",
@@ -48,11 +49,10 @@ async function batchRun<T, R>(
 
 async function fetchTrending(): Promise<string[]> {
   try {
-    const res = await fetch(
+    const data = await yahooJson<{ finance?: { result?: Array<{ quotes?: { symbol: string }[] }> } }>(
       "https://query1.finance.yahoo.com/v1/finance/trending/US?count=20",
-      { cache: "no-store", headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(5000) },
+      { timeoutMs: 5000, budgetMs: 8_000, label: "trending" },
     );
-    const data = await res.json();
     return (data?.finance?.result?.[0]?.quotes ?? []).map((q: { symbol: string }) => q.symbol);
   } catch {
     return [];

@@ -1,3 +1,4 @@
+import { yahooJson } from "@/app/lib/yahooFetch";
 // Cached endpoint — one call returns prices for all 20 pool symbols.
 // Upstream fetches use next: { revalidate: 60 } so a fresh batch is
 // fetched at most once per minute regardless of visitor count.
@@ -57,16 +58,15 @@ async function fetchOne(
   }
 
   try {
-    const res = await fetch(
+    const d = await yahooJson<{ chart?: { result?: Array<{ meta?: Record<string, number | undefined> }> } }>(
       `https://query1.finance.yahoo.com/v8/finance/chart/${item.yahoo}?interval=1m&range=1d`,
-      { next: { revalidate: 60 }, headers: { "User-Agent": "Mozilla/5.0" } },
+      { timeoutMs: 6_000, budgetMs: 7_000, label: item.yahoo },
     );
-    const d = await res.json();
     const meta = d?.chart?.result?.[0]?.meta;
     if (meta?.regularMarketPrice && (meta.previousClose ?? meta.chartPreviousClose)) {
       return {
         price:         meta.regularMarketPrice,
-        previousClose: meta.previousClose ?? meta.chartPreviousClose,
+        previousClose: (meta.previousClose ?? meta.chartPreviousClose)!,
       };
     }
   } catch { /* fall through */ }
