@@ -3,35 +3,14 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
 import { cacheGet, cacheSet } from "../../lib/sentiment";
-import { changePctOrZero, resolvePreviousClose } from "@/app/lib/quoteSanity";
+import { changePctOrZero } from "@/app/lib/quoteSanity";
 import { fullQuote } from "@/app/lib/marketQuote";
-import { yahooJson, type YahooChartResponse } from "@/app/lib/yahooFetch";
+import { vixQuote } from "@/app/lib/vixQuote";
 
 const CACHE_KEY = "sentiment:market-data";
 const CACHE_TTL = 15 * 60 * 1_000; // 15 minutes
 
 // ── Helpers ────────────────────────────────────────────────────────────────
-
-// ^VIX is an index, which Finnhub's free tier does not carry, so this one has
-// no alternative — but it was using a bare fetch, outside the rate limiter and
-// invisible to the counters. Going through yahooJson at least queues it and
-// records when it is throttled.
-//
-// That matters more here than the code suggests: the handler returns 503 when
-// VIX is missing, and VIX supplies 60% of the Fear & Greed base. There is no
-// honest score without it, so that hard failure is correct and stays.
-async function yq(sym: string) {
-  try {
-    const d = await yahooJson<YahooChartResponse>(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=6d`,
-      { timeoutMs: 7_000, budgetMs: 12_000, label: sym },
-    );
-    const result = d?.chart?.result?.[0];
-    const closes = (result?.indicators?.quote?.[0]?.close ?? [])
-      .filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
-    return { meta: result?.meta ?? null, closes };
-  } catch { return { meta: null, closes: [] }; }
-}
 
 function momentum5d(closes: number[]): number {
   const v = closes.filter(Boolean);
@@ -135,7 +114,11 @@ export async function GET() {
     // so their changes stay right even when Yahoo is shut out, and only the
     // momentum term degrades.
     const [vixData, spy, qqq, iwm, avItems] = await Promise.all([
-      yq("^VIX"),
+      // VIX no longer depends on Yahoo. vixQuote tries FRED when a key is set,
+      // then Cboe — which publishes VIX and answered keylessly in 448ms — and
+      // only then Yahoo. This route returned 503 without VIX, so at Yahoo's
+      // roughly one-in-six it was down most of the time.
+      vixQuote(),
       fullQuote("SPY", { range: "6d", yahooBudgetMs: 12_000 }),
       fullQuote("QQQ", { range: "6d", yahooBudgetMs: 12_000 }),
       fullQuote("IWM", { range: "6d", yahooBudgetMs: 12_000 }),
@@ -143,12 +126,11 @@ export async function GET() {
     ]);
     const newsItems = avItems.length > 0 ? avItems : await fetchFinnhubNews();
 
-    // Previous SESSION closes from each daily series. These previously read
-    // meta.chartPreviousClose, which is the close before the first bar of the
-    // range — six days back for the range=6d request above — so every "change
-    // today" below was really a six-day move, and it feeds the sentiment score.
-    const vix      = vixData.meta?.regularMarketPrice as number | undefined;
-    const prevVix  = resolvePreviousClose(vixData.meta, vixData.closes) ?? undefined;
+    const vix      = vixData?.level;
+    // Null when no source stated a previous close. It is never substituted
+    // from a `close` field, so term structure degrades to "flat" rather than
+    // reporting a direction that was inferred from the current level.
+    const prevVix  = vixData?.previousClose ?? undefined;
     const vixChg   = vix != null ? changePctOrZero(vix, prevVix ?? null) : 0;
 
     const spyPrice = spy?.price;
@@ -206,6 +188,11 @@ export async function GET() {
       iwmPrice:  iwmPrice  ? +iwmPrice.toFixed(2) : null,
       iwmChange: iwmChg    ? +iwmChg.toFixed(2)   : null,
       vixTermStructure: termStructure,
+      // Which source supplied VIX, so a fall-through is visible in the
+      // response rather than only in the logs. "yahoo" means both preferred
+      // sources failed; absent term structure means none stated a previous
+      // close, rather than that the curve is genuinely flat.
+      vixSource: vixData?.source ?? null,
       putCallProxy:     pcProxy,
       topHeadlines: newsItems.slice(0, 10).map(n => ({
         title:     n.title,
