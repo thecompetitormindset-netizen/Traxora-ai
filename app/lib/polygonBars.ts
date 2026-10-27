@@ -120,6 +120,19 @@ async function awaitSlot(deadline: number): Promise<boolean> {
   }
 }
 
+/**
+ * Take a slot, waiting up to `deadline` for one.
+ *
+ * Exported because the grouped-daily fetch must share this budget rather than
+ * keep its own. It did not, at first: it used a plain fetch, fired four calls
+ * back to back and was throttled after two. Two clients each believing they
+ * have five calls a minute have five calls a minute between them, and the
+ * provider is the one keeping score.
+ */
+export async function acquirePolygonSlot(deadline: number): Promise<boolean> {
+  return awaitSlot(deadline);
+}
+
 /** Visible for tests and for the health route. */
 export function polygonBudgetRemaining(): number {
   const now = Date.now();

@@ -6,7 +6,7 @@ import { auth } from "@/auth";
 import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
 import { etTradingDate } from "@/app/lib/marketTime";
 import { toSeries, type DailyBar } from "@/app/lib/polygonBars";
-import { barsFor, barsForMany, latestStoredDate, liquidSymbols, storedSymbolCount, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
+import { barsFor, barsForMany, latestStoredDate, liquidSymbols, storedDateCount, storedSymbolCount, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
 import { backtestDirection } from "@/app/api/market/options-scan/route";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import {
@@ -253,6 +253,22 @@ export async function GET(req: Request) {
   }
 
   const universeSize = await storedSymbolCount(latest);
+
+  // Scoring needs a long enough series per symbol before a hit rate means
+  // anything. Until the backfill reaches that depth no symbol qualifies, and
+  // the run finds nothing — which looks like a failure unless it says so.
+  const storedDates = await storedDateCount();
+  if (storedDates < MIN_HISTORY_SESSIONS) {
+    return Response.json({
+      runDate, graded, picked: 0,
+      storedDates,
+      datesNeeded: MIN_HISTORY_SESSIONS,
+      universeSize,
+      note:
+        `history is still filling: ${storedDates} of ${MIN_HISTORY_SESSIONS} trading dates stored. ` +
+        `No symbol has enough series to score honestly yet — bars-sync runs hourly and will reach it.`,
+    });
+  }
 
   // Ordered by volume, so an offset walks PAST the names everyone watches into
   // the part of the market that is liquid enough to trade and quiet enough

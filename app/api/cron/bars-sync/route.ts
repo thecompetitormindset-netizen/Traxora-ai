@@ -109,7 +109,18 @@ export async function GET(req: Request) {
   for (const date of missing.slice(0, MAX_DATES_PER_RUN)) {
     if (Date.now() >= deadline) break;
 
-    const result = await polygonGroupedDaily(date);
+    // Each call waits for a slot in the shared per-minute budget, bounded by
+    // the run's own deadline, so the run spends its time fetching rather than
+    // collecting 429s.
+    const result = await polygonGroupedDaily(date, 20_000, deadline);
+
+    if (result.outcome === "rate_limited" || result.outcome === "budget") {
+      // The minute is spent. Every remaining date in this run would meet the
+      // same wall, so stop and report progress instead of marching through
+      // them. The next invocation continues from here.
+      skipped.push({ date, outcome: result.outcome, detail: result.detail });
+      break;
+    }
 
     if (result.outcome === "not_entitled") {
       // A permanent no, not a transient one. Stop rather than spend the rest
@@ -148,8 +159,31 @@ export async function GET(req: Request) {
     else skipped.push({ date, outcome: "write_failed" });
   }
 
+  // Drop bars that have fallen out of the lookback window, so storage
+  // plateaus rather than growing without end. About 4,100 symbols a day means
+  // roughly a million rows a year, and the free tier allows 500MB — a table
+  // that only ever grows would eventually take the whole project down with it,
+  // and it would do so silently.
+  //
+  // Safe to run unconditionally: these rows are a cache of public market data
+  // and can be refetched. The picks that reference them keep their own
+  // entry_price, so grading never depends on a bar still being here.
+  let pruned = 0;
+  try {
+    const cutoff = iso(Date.now() - (LOOKBACK_DAYS + 30) * DAY_MS);
+    const { error, count } = await db
+      .from("daily_bars")
+      .delete({ count: "exact" })
+      .lt("date", cutoff);
+    if (error) console.error("bars-sync prune error:", error.message);
+    else pruned = count ?? 0;
+  } catch (err) {
+    console.error("bars-sync prune threw:", err instanceof Error ? err.message : err);
+  }
+
   const remaining = Math.max(0, missing.length - done.length);
   return Response.json({
+    pruned,
     datesWritten: done,
     rowsWritten: written,
     skipped,
