@@ -28,6 +28,20 @@ type Check = {
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
+/**
+ * Strip anything that looks like a credential out of text headed for the
+ * response body.
+ *
+ * Several of these providers take the key in the query string, and a fetch
+ * error can carry the URL it failed on. This body is read in a browser and
+ * gets pasted around while diagnosing, so a key reaching it would travel
+ * further than a log line ever would. Cheap insurance against a leak that
+ * would be unrecoverable.
+ */
+function redact(text: string): string {
+  return text.replace(/([?&](?:apiKey|api_key|apikey|token|api_token)=)[^&\s]+/gi, "$1[redacted]");
+}
+
 /** Non-Yahoo sources: a plain fetch, since nothing throttles them. */
 async function plainCheck(source: string, url: string, pick: (d: unknown) => unknown, headers: Record<string, string> = {}): Promise<Check> {
   const started = Date.now();
@@ -50,7 +64,7 @@ async function plainCheck(source: string, url: string, pick: (d: unknown) => unk
       : { source, status: "ok", ms, detail: String(got).slice(0, 80) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    return { source, status: "unreachable", ms: Date.now() - started, detail: msg.slice(0, 90) };
+    return { source, status: "unreachable", ms: Date.now() - started, detail: redact(msg).slice(0, 90) };
   }
 }
 
@@ -73,6 +87,14 @@ async function yahooCheck(source: string, url: string, pick: (d: unknown) => unk
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const dig = (d: unknown, path: string): any => path.split(".").reduce<any>((v, k) => (v == null ? v : v[k]), d as any);
+
+/**
+ * A 120-day window for the daily-bar check, which comfortably covers the ~60
+ * sessions the options engine needs once weekends and holidays are removed.
+ * Polygon's free tier carries about two years, so this stays well inside it.
+ */
+const polygonTo = () => new Date().toISOString().slice(0, 10);
+const polygonFrom = () => new Date(Date.now() - 120 * 86_400_000).toISOString().slice(0, 10);
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
@@ -172,6 +194,30 @@ export async function GET(req: Request) {
           `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${process.env.FINNHUB_API_KEY}`,
           d => { const c = dig(d, "c"); return typeof c === "number" && c > 0 ? `last ${c}` : null; })]
       : []),
+
+    // Daily bars, which is the one gap left: the options engine needs about 60
+    // of them per symbol for EMA20, EMA50, the 5-day trend, a 20-day average
+    // volume and the 52-week range, and Finnhub's free tier has no candles.
+    // Those inputs are end-of-day by nature, so a free end-of-day source is
+    // enough — only the live price has to be current, and Finnhub serves that.
+    //
+    // Checking it here rather than from a laptop is the point: the key lives
+    // in this environment, and `vercel env pull` cannot read a saved secret
+    // back out, so locally it is only ever the string "[SENSITIVE]". A 401
+    // from a laptop therefore says nothing about whether the key works.
+    ...(process.env.POLYGON_API_KEY
+      ? [plainCheck("polygon:daily-bars",
+          `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${polygonFrom()}/${polygonTo()}` +
+          `?adjusted=true&sort=asc&limit=200&apiKey=${process.env.POLYGON_API_KEY}`,
+          d => {
+            const n = dig(d, "results.length");
+            if (!n) return null;
+            const last = dig(d, `results.${n - 1}`);
+            // Report the bar count AND a sample, so a 200 carrying an empty or
+            // malformed series cannot read as success.
+            return `${n} daily bars, last close ${last?.c ?? "?"} vol ${last?.v ?? "?"}`;
+          })]
+      : []),
   ]);
 
   const failing = checks.filter(c => c.status !== "ok");
@@ -184,6 +230,7 @@ export async function GET(req: Request) {
       finnhub: hasFinnhubKey(),
       eodhd: Boolean(process.env.EODHD_API_KEY),
       alpha_vantage: Boolean(process.env.ALPHA_VANTAGE_API_KEY),
+      polygon: Boolean(process.env.POLYGON_API_KEY),
     },
     // What indices and heatmap would get for this symbol, and from whom.
     resolved_quote: {
