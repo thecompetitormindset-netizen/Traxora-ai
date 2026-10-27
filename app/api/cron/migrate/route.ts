@@ -39,6 +39,45 @@ async function authorized(req: Request): Promise<boolean> {
   }
 }
 
+/**
+ * How to verify the database's certificate.
+ *
+ * Supabase signs its Postgres certificates with its own CA rather than a
+ * publicly-trusted one, so Node rejects them out of the box with
+ * "self-signed certificate in certificate chain". There are two honest ways
+ * past that and one dishonest one.
+ *
+ * The right way is to hand Node the CA. Supabase publishes it — project
+ * Settings → Database → SSL Configuration → Download certificate — and
+ * putting its contents in SUPABASE_CA_CERT keeps verification fully on: the
+ * connection is still proved to be Supabase's.
+ *
+ * The escape hatch is DATABASE_SSL_INSECURE, which turns verification off. It
+ * exists because being permanently unable to apply a migration is its own kind
+ * of failure, but it is deliberately a separate, explicit variable rather than
+ * a silent fallback. A connection string carries the database password, and
+ * unverified TLS means anything that can sit in the path can read it. When it
+ * is used, the response says so, every time — a weakened connection should
+ * never be quiet about it.
+ */
+function sslOptions(): { ca?: string; rejectUnauthorized: boolean } {
+  const ca = process.env.SUPABASE_CA_CERT;
+  if (ca && ca.includes("BEGIN CERTIFICATE")) {
+    return { ca, rejectUnauthorized: true };
+  }
+  if (process.env.DATABASE_SSL_INSECURE === "true") {
+    return { rejectUnauthorized: false };
+  }
+  return { rejectUnauthorized: true };
+}
+
+export function sslMode(): "verified-with-supabase-ca" | "verified-with-system-ca" | "UNVERIFIED" {
+  const ca = process.env.SUPABASE_CA_CERT;
+  if (ca && ca.includes("BEGIN CERTIFICATE")) return "verified-with-supabase-ca";
+  if (process.env.DATABASE_SSL_INSECURE === "true") return "UNVERIFIED";
+  return "verified-with-system-ca";
+}
+
 /** Supabase names it differently depending on where it was copied from. */
 function connectionString(): string | null {
   return (
@@ -102,10 +141,7 @@ export async function GET(req: Request) {
 
   const client = new Client({
     connectionString: conn,
-    // Supabase presents a publicly-trusted certificate. Verification stays on:
-    // a connection carrying the database password is the last place to turn it
-    // off for convenience.
-    ssl: { rejectUnauthorized: true },
+    ssl: sslOptions(),
     connectionTimeoutMillis: 10_000,
     statement_timeout: 20_000,
   });
@@ -124,8 +160,13 @@ export async function GET(req: Request) {
       error: "Migration failed",
       // The password lives in the connection string; keep it out of the body.
       detail: message.replace(/postgres(ql)?:\/\/[^\s]+/gi, "[connection string]").slice(0, 200),
-      hint: /self.signed|certificate/i.test(message)
-        ? "TLS verification failed. Check the host in the connection string is the Supabase one, not a proxy."
+      sslMode: sslMode(),
+      hint: /self.signed|certificate|CERT_/i.test(message)
+        ? "Supabase signs its database certificates with its own CA, which Node does not trust by default. " +
+          "Fix it properly: Supabase → Settings → Database → SSL Configuration → Download certificate, " +
+          "then paste the file's contents into Vercel as SUPABASE_CA_CERT (Production) and redeploy. " +
+          "That keeps verification on. As a last resort set DATABASE_SSL_INSECURE=true, which disables " +
+          "verification for this connection and will be reported on every run."
         : /password|authentication/i.test(message)
         ? "Authentication failed — the [YOUR-PASSWORD] placeholder may not have been replaced."
         : undefined,
@@ -134,8 +175,17 @@ export async function GET(req: Request) {
     await client.end().catch(() => {});
   }
 
+  const mode = sslMode();
   return Response.json({
     applied,
+    sslMode: mode,
+    // A weakened connection is reported on every successful run too, not only
+    // when something fails. An insecure setting added to get unblocked is
+    // exactly the kind that gets forgotten.
+    warning: mode === "UNVERIFIED"
+      ? "TLS verification is disabled for the database connection (DATABASE_SSL_INSECURE). " +
+        "Set SUPABASE_CA_CERT to the downloaded Supabase certificate and remove this flag."
+      : undefined,
     note: `${applied.length} statement group(s) applied. All are "if not exists", so this is a no-op once the schema is in place.`,
   });
 }
