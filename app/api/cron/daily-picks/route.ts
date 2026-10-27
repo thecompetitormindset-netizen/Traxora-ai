@@ -1,0 +1,241 @@
+export const runtime     = "nodejs";
+export const dynamic     = "force-dynamic";
+export const maxDuration = 60;
+
+import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
+import { etTradingDate } from "@/app/lib/marketTime";
+import { polygonBars, toSeries, polygonBudgetRemaining } from "@/app/lib/polygonBars";
+import { finnhubQuote } from "@/app/lib/finnhubFetch";
+import { backtestDirection, UNIVERSE } from "@/app/api/market/options-scan/route";
+import { smartMoneyScore } from "@/app/lib/smartMoney";
+import {
+  MAX_PICKS_PER_DAY, PICK_HORIZON_SESSIONS, gradePick, selectPicks, sliceForDate,
+  type Candidate,
+} from "@/app/lib/dailyPicks";
+
+// Computes the day's picks once, and grades the ones whose horizon has passed.
+//
+// Run it pre-market. That timing is what makes the result stable: nothing
+// recomputes while people are looking at it, so the picks cannot change
+// between two viewers or between morning and afternoon. The database's
+// primary key on (run_date, symbol) plus ignoreDuplicates enforces the same
+// thing against an accidental second run.
+//
+// Polygon's free tier allows about five calls a minute. A per-request fetch
+// cannot live inside that, but a scheduled job can: it waits for the budget
+// instead of refusing, which is the one place waiting is the right answer.
+// Whatever the universe costs here, the reader pays nothing.
+
+const DAY_MS = 86_400_000;
+
+/** Leaves room to grade and write before the 60s ceiling. */
+const WORK_BUDGET_MS = 42_000;
+
+/**
+ * How many names one run can look at.
+ *
+ * Polygon's free tier releases five calls a minute, and a run has under a
+ * minute, so five is what fits — the sixth would spend the whole budget
+ * waiting. This is an honest ceiling rather than a chosen number.
+ */
+const SLICE = 5;
+
+function unauthorized(): Response {
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}
+
+function authorized(req: Request): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  const header = req.headers.get("authorization");
+  const query = new URL(req.url).searchParams.get("secret");
+  return header === `Bearer ${secret}` || query === secret;
+}
+
+/** Build one candidate from a symbol's bars, or null if there is not enough history. */
+async function evaluate(symbol: string, trending: Set<string>, deadline: number): Promise<Candidate | null> {
+  if (Date.now() >= deadline) return null;
+
+  const [barsResult, live] = await Promise.all([
+    polygonBars(symbol, { waitForSlot: true, waitBudgetMs: 90_000 }).catch(() => ({ bars: [], outcome: "failed" as const })),
+    finnhubQuote(symbol, { budgetMs: 6_000 }).catch(() => null),
+  ]);
+
+  const bars = barsResult.bars;
+  // The backtest needs warmup plus the forward window; without both, any hit
+  // rate it produced would be drawn from too few signals to mean anything.
+  if (bars.length < 120) return null;
+
+  const { closes, highs, lows, volumes } = toSeries(bars);
+  const price = live?.price ?? closes.at(-1) ?? null;
+  if (!price) return null;
+
+  const prev = closes.at(-2) ?? price;
+  const changePercent = prev > 0 ? ((price - prev) / prev) * 100 : 0;
+  const recentVol = volumes.slice(-20);
+  const avgVolume = recentVol.length >= 15 ? recentVol.reduce((s, v) => s + v, 0) / recentVol.length : null;
+  const todayVolume = volumes.at(-1) ?? null;
+  const volumeRatio = todayVolume !== null && avgVolume !== null && avgVolume > 0 ? todayVolume / avgVolume : null;
+
+  const yearHighs = highs.slice(-252);
+  const yearLows = lows.slice(-252);
+
+  const sm = smartMoneyScore(
+    {
+      price, previousClose: prev,
+      open: bars.at(-1)?.open ?? null,
+      high: bars.at(-1)?.high ?? null,
+      low: bars.at(-1)?.low ?? null,
+      volume: todayVolume,
+      avgVolume,
+      high52w: yearHighs.length > 0 ? Math.max(...yearHighs) : null,
+      low52w: yearLows.length > 0 ? Math.min(...yearLows) : null,
+      changePercent,
+    },
+    {
+      trend5dPct: closes.length >= 6 && closes.at(-6)! > 0
+        ? ((price - closes.at(-6)!) / closes.at(-6)!) * 100
+        : null,
+    },
+  );
+
+  // HOLD is not a pick. Only a directional call can be graded, and only a
+  // directional call is worth showing as one of the day's few.
+  if (sm.signal === "HOLD") return null;
+
+  return {
+    symbol,
+    direction: sm.signal,
+    price,
+    backtest: backtestDirection(closes, highs, lows, volumes, sm.signal),
+    volumeRatio,
+    trending: trending.has(symbol),
+    confidence: sm.confidence,
+  };
+}
+
+export async function GET(req: Request) {
+  if (!authorized(req)) return unauthorized();
+  if (!supabaseConfigured()) {
+    return Response.json({ error: "Supabase not configured" }, { status: 503 });
+  }
+
+  const db = supabaseAdmin();
+  const runDate = etTradingDate();
+  const deadline = Date.now() + WORK_BUDGET_MS;
+
+  // ── Grade picks whose horizon has passed ──────────────────────────────────
+  let graded = 0;
+  try {
+    const { data: unresolved } = await db
+      .from("daily_picks")
+      .select("run_date, symbol, direction, entry_price, horizon_days")
+      .is("resolved_at", null);
+
+    for (const row of unresolved ?? []) {
+      // Calendar days ~= sessions * 7/5, plus slack for holidays. Grading early
+      // would measure a shorter horizon than the pick claimed.
+      const matureAfterMs = (row.horizon_days as number) * 1.5 * DAY_MS;
+      if (Date.now() - Date.parse(`${row.run_date}T20:00:00Z`) < matureAfterMs) continue;
+      if (Date.now() >= deadline) break;
+
+      const { bars } = await polygonBars(row.symbol as string, { waitForSlot: true, waitBudgetMs: 60_000 });
+      if (bars.length === 0) continue;
+
+      // The bar `horizon_days` sessions after entry — not simply the latest,
+      // which would grade over however long it happened to take to get round
+      // to it.
+      const entryIdx = bars.findIndex(b => b.date >= (row.run_date as string));
+      if (entryIdx < 0) continue;
+      const exitIdx = entryIdx + (row.horizon_days as number);
+      const exit = bars[exitIdx];
+      if (!exit) continue;
+
+      const outcome = gradePick(row.direction as "BUY" | "SELL", Number(row.entry_price), exit.close);
+      if (!outcome) continue;
+
+      await db.from("daily_picks")
+        .update({
+          outcome_date: exit.date,
+          outcome_price: exit.close,
+          return_pct: outcome.returnPct,
+          correct: outcome.correct,
+          resolved_at: new Date().toISOString(),
+        })
+        .eq("run_date", row.run_date)
+        .eq("symbol", row.symbol);
+      graded++;
+    }
+  } catch (err) {
+    console.error("daily-picks grading error:", err instanceof Error ? err.message : err);
+  }
+
+  // ── Already have today's picks? Then leave them alone ─────────────────────
+  const { data: existing } = await db
+    .from("daily_picks")
+    .select("symbol")
+    .eq("run_date", runDate);
+
+  if (existing && existing.length > 0) {
+    return Response.json({
+      runDate, graded, picked: existing.length,
+      note: "picks for this date already exist and were not recomputed",
+    });
+  }
+
+  // ── Select today's ────────────────────────────────────────────────────────
+  // Trending names are penalised rather than excluded, so this list only has
+  // to be best-effort; failing to get it costs a nuance, not the run.
+  const trending = new Set<string>();
+
+  const candidates: Candidate[] = [];
+  const skipped: string[] = [];
+  for (const symbol of sliceForDate(UNIVERSE, runDate, SLICE)) {
+    if (Date.now() >= deadline) { skipped.push(symbol); continue; }
+    try {
+      const c = await evaluate(symbol, trending, deadline);
+      if (c) candidates.push(c);
+      else skipped.push(symbol);
+    } catch {
+      skipped.push(symbol);
+    }
+  }
+
+  const picks = selectPicks(candidates, MAX_PICKS_PER_DAY);
+
+  if (picks.length > 0) {
+    const rows = picks.map((p, i) => ({
+      run_date: runDate,
+      symbol: p.symbol,
+      rank: i + 1,
+      direction: p.direction,
+      conviction: p.conviction,
+      entry_price: p.price,
+      as_of: new Date().toISOString(),
+      horizon_days: PICK_HORIZON_SESSIONS,
+      why: p.why,
+      backtest: p.backtest,
+    }));
+    // ignoreDuplicates: a pick that has been shown is never rewritten.
+    const { error } = await db.from("daily_picks").upsert(rows, { onConflict: "run_date,symbol", ignoreDuplicates: true });
+    if (error) {
+      console.error("daily-picks write error:", error.message);
+      return Response.json({ runDate, graded, picked: 0, error: error.message }, { status: 500 });
+    }
+  }
+
+  return Response.json({
+    runDate,
+    graded,
+    considered: sliceForDate(UNIVERSE, runDate, SLICE),
+    evaluated: candidates.length,
+    skipped: skipped.length,
+    picked: picks.length,
+    // Fewer than the maximum is a real answer, not a failure: a day with one
+    // trustworthy setup should show one.
+    note: picks.length < MAX_PICKS_PER_DAY
+      ? `${picks.length} candidate(s) cleared the certainty bar out of ${candidates.length} evaluated`
+      : undefined,
+    polygon_budget_left: polygonBudgetRemaining(),
+  });
+}

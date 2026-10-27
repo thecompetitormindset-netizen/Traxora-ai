@@ -154,3 +154,42 @@ create table if not exists options_analyses (
 -- alter table options_engine_runs     enable row level security;
 -- alter table options_iv_history      enable row level security;
 -- alter table options_analyses        enable row level security;
+
+-- ── Daily picks ───────────────────────────────────────────────────────────────
+-- A handful of names per trading day, chosen for certainty rather than noise,
+-- stored once and served to everyone unchanged.
+--
+-- The primary key is (run_date, symbol) so a second run on the same day cannot
+-- replace a pick that has already been shown — an upsert with
+-- ignoreDuplicates makes the day's selection immutable at the database level
+-- rather than by convention. A record that could be rewritten after the fact
+-- is not a record.
+--
+-- entry_price is stored at selection time because grading depends on it, and
+-- re-deriving it later from whatever a provider says today would silently
+-- change history.
+create table if not exists daily_picks (
+  run_date       date        not null,          -- ET trading date
+  symbol         text        not null,
+  rank           int         not null,          -- 1 = highest conviction that day
+  direction      text        not null,          -- BUY (calls) | SELL (puts)
+  conviction     numeric     not null,
+  entry_price    numeric     not null,
+  as_of          timestamptz not null,
+  horizon_days   int         not null,          -- sessions before grading
+  why            jsonb       not null default '[]'::jsonb,
+  backtest       jsonb,                         -- the walk-forward stats behind it
+
+  -- Filled in by the same job once the horizon has passed.
+  outcome_date   date,
+  outcome_price  numeric,
+  return_pct     numeric,
+  correct        boolean,
+  resolved_at    timestamptz,
+
+  created_at     timestamptz default now(),
+  primary key (run_date, symbol)
+);
+
+create index if not exists daily_picks_run_date_idx on daily_picks (run_date desc);
+create index if not exists daily_picks_unresolved_idx on daily_picks (resolved_at) where resolved_at is null;

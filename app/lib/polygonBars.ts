@@ -100,6 +100,26 @@ function takeSlot(): boolean {
   return true;
 }
 
+/**
+ * Wait for a slot instead of refusing, for the scheduled job.
+ *
+ * The two callers want opposite things from an exhausted budget. A user
+ * request must refuse: holding the page for up to a minute to avoid a fallback
+ * is a bad trade. A nightly job has nothing better to do than wait, and
+ * waiting is what lets it cover a whole universe on five calls a minute.
+ */
+async function awaitSlot(deadline: number): Promise<boolean> {
+  for (;;) {
+    if (takeSlot()) return true;
+    const now = Date.now();
+    if (now >= deadline) return false;
+    // Sleep until the oldest call leaves the window, capped so the deadline is
+    // still observed promptly.
+    const waitMs = starts.length > 0 ? Math.max(250, WINDOW_MS - (now - starts[0]) + 50) : 250;
+    await new Promise(r => setTimeout(r, Math.min(waitMs, deadline - now)));
+  }
+}
+
 /** Visible for tests and for the health route. */
 export function polygonBudgetRemaining(): number {
   const now = Date.now();
@@ -153,6 +173,13 @@ export type PolygonBarsOptions = {
   timeoutMs?: number;
   /** Skip the cache; for the scheduled refresh. */
   force?: boolean;
+  /**
+   * Wait for the per-minute budget rather than refusing. Only for scheduled
+   * jobs — a user request should never block on this.
+   */
+  waitForSlot?: boolean;
+  /** Ceiling on that wait. */
+  waitBudgetMs?: number;
 };
 
 export type PolygonOutcome = "ok" | "cached" | "no_key" | "budget" | "failed" | "empty";
@@ -176,7 +203,7 @@ export async function polygonBars(
   symbol: string,
   opts: PolygonBarsOptions = {},
 ): Promise<PolygonResult> {
-  const { days = 400, timeoutMs = 8_000, force = false } = opts;
+  const { days = 400, timeoutMs = 8_000, force = false, waitForSlot = false, waitBudgetMs = 90_000 } = opts;
 
   const key = process.env.POLYGON_API_KEY;
   if (!key) return { bars: [], outcome: "no_key" };
@@ -187,7 +214,11 @@ export async function polygonBars(
     if (hit && hit.asOf === stamp) return { bars: hit.bars, outcome: "cached" };
   }
 
-  if (!takeSlot()) {
+  const gotSlot = waitForSlot
+    ? await awaitSlot(Date.now() + waitBudgetMs)
+    : takeSlot();
+
+  if (!gotSlot) {
     // Budget spent. Serving yesterday's cached bars beats serving none, so an
     // expired entry is still offered rather than discarded.
     const stale = cache.get(symbol);
