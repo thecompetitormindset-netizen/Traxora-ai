@@ -109,7 +109,18 @@ export async function GET(req: Request) {
   for (const date of missing.slice(0, MAX_DATES_PER_RUN)) {
     if (Date.now() >= deadline) break;
 
-    const result = await polygonGroupedDaily(date);
+    // Each call waits for a slot in the shared per-minute budget, bounded by
+    // the run's own deadline, so the run spends its time fetching rather than
+    // collecting 429s.
+    const result = await polygonGroupedDaily(date, 20_000, deadline);
+
+    if (result.outcome === "rate_limited" || result.outcome === "budget") {
+      // The minute is spent. Every remaining date in this run would meet the
+      // same wall, so stop and report progress instead of marching through
+      // them. The next invocation continues from here.
+      skipped.push({ date, outcome: result.outcome, detail: result.detail });
+      break;
+    }
 
     if (result.outcome === "not_entitled") {
       // A permanent no, not a transient one. Stop rather than spend the rest

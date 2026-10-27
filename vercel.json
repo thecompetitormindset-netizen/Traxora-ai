@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/bars-sync",
-      "schedule": "20 11 * * 1-5"
+      "schedule": "20 * * * *"
     },
     {
       "path": "/api/cron/morning-email",

@@ -60,6 +60,23 @@ export async function latestStoredDate(): Promise<string | null> {
   return data?.[0]?.date ? String(data[0].date) : null;
 }
 
+/**
+ * How many distinct trading dates the store holds.
+ *
+ * Until this reaches MIN_HISTORY_SESSIONS, no symbol has enough history to be
+ * scored honestly and the picks job will find nothing — which is a state worth
+ * reporting rather than leaving to look like a failure.
+ */
+export async function storedDateCount(): Promise<number> {
+  const db = supabaseAdmin();
+  const { data, error } = await db
+    .from("daily_bars")
+    .select("date")
+    .limit(100_000);
+  if (error) throw new Error(error.message);
+  return new Set((data ?? []).map(r => String(r.date))).size;
+}
+
 /** How many distinct symbols the store holds for a date. */
 export async function storedSymbolCount(date: string): Promise<number> {
   const db = supabaseAdmin();

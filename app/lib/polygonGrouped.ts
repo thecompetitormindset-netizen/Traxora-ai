@@ -21,6 +21,7 @@
 // do not.
 
 import { etTradingDate } from "./marketTime";
+import { acquirePolygonSlot } from "./polygonBars";
 import type { DailyBar } from "./polygonBars";
 
 /**
@@ -104,7 +105,7 @@ export function dateOfGrouped(body: unknown, fallback: string): string {
   return typeof t === "number" ? etTradingDate(new Date(t)) : fallback;
 }
 
-export type GroupedOutcome = "ok" | "no_key" | "empty" | "failed" | "not_entitled";
+export type GroupedOutcome = "ok" | "no_key" | "empty" | "failed" | "not_entitled" | "rate_limited" | "budget";
 
 export type GroupedResult = {
   date: string;
@@ -126,9 +127,21 @@ export type GroupedResult = {
  * An empty result is not an error: markets are closed on weekends and
  * holidays, and Polygon answers those with no rows.
  */
-export async function polygonGroupedDaily(date: string, timeoutMs = 20_000): Promise<GroupedResult> {
+export async function polygonGroupedDaily(
+  date: string,
+  timeoutMs = 20_000,
+  slotDeadline = Date.now() + 30_000,
+): Promise<GroupedResult> {
   const key = process.env.POLYGON_API_KEY;
   if (!key) return { date, bars: [], received: 0, outcome: "no_key" };
+
+  // Share the per-minute budget with every other Polygon call. Without this,
+  // a run fired four grouped requests back to back and was throttled after
+  // two — two clients each assuming five calls a minute still have five
+  // between them.
+  if (!(await acquirePolygonSlot(slotDeadline))) {
+    return { date, bars: [], received: 0, outcome: "budget", detail: "no slot within the run's budget" };
+  }
 
   const url =
     `https://api.polygon.io/v2/aggs/grouped/locale/us/market/stocks/${encodeURIComponent(date)}` +
@@ -137,6 +150,12 @@ export async function polygonGroupedDaily(date: string, timeoutMs = 20_000): Pro
   let body: unknown;
   try {
     const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+    if (res.status === 429) {
+      // The budget is spent on the provider's side regardless of what the
+      // local counter believes. Say so distinctly: a caller should stop the
+      // run rather than march through the remaining dates collecting 429s.
+      return { date, bars: [], received: 0, outcome: "rate_limited", detail: "HTTP 429" };
+    }
     if (res.status === 403) {
       // Never log the URL — it carries the key.
       console.warn(`[polygon] grouped daily not entitled for ${date}`);
