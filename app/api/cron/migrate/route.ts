@@ -59,15 +59,31 @@ export async function GET(req: Request) {
 
   const conn = connectionString();
   if (!conn) {
+    // "Not set" and "set but this build predates it" look identical from here,
+    // and so does "set under a slightly different name". Reporting which
+    // candidate names the running process can see — names only, never values —
+    // turns one error into the answer, instead of a round of guessing.
+    const candidates = ["DATABASE_URL", "POSTGRES_URL", "SUPABASE_DB_URL"];
+    const seen = Object.fromEntries(candidates.map(n => [n, Boolean(process.env[n])]));
+
+    // Anything else that looks like a Postgres URL, in case it was saved under
+    // a name none of the above match.
+    const otherLikelyNames = Object.keys(process.env)
+      .filter(n => /(^|_)(DB|DATABASE|POSTGRES|PG)([_A-Z]*)?(URL|URI|STRING)$/i.test(n))
+      .filter(n => !candidates.includes(n));
+
     return Response.json({
       applied: [],
       error: "No database connection string",
       reason: "missing_database_url",
+      seen,
+      otherLikelyNames,
       hint:
-        "Supabase project → Settings → Database → Connection string → URI. " +
-        "Copy it, replace [YOUR-PASSWORD] with the database password, and add it to Vercel " +
-        "as DATABASE_URL for Production. This is the only manual step; after it, schema " +
-        "changes apply themselves.",
+        otherLikelyNames.length > 0
+          ? `This build sees ${otherLikelyNames.join(", ")} but not DATABASE_URL — rename it to DATABASE_URL in Vercel.`
+          : "This build sees none of them. If the variable is saved in Vercel, the running " +
+            "deployment was built before it was added: Deployments → the top entry → ⋯ → Redeploy. " +
+            "Environment variables are only passed in at build time.",
     }, { status: 503 });
   }
 
