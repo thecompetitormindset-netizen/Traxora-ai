@@ -2,6 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
+import { auth } from "@/auth";
 import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
 import { etTradingDate } from "@/app/lib/marketTime";
 import { polygonBars, toSeries, polygonBudgetRemaining } from "@/app/lib/polygonBars";
@@ -40,16 +41,61 @@ const WORK_BUDGET_MS = 42_000;
  */
 const SLICE = 5;
 
-function unauthorized(): Response {
-  return Response.json({ error: "Unauthorized" }, { status: 401 });
-}
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
-function authorized(req: Request): boolean {
+type Denial = "no_secret_configured" | "secret_mismatch" | "not_owner" | "no_session";
+
+/**
+ * Two ways in, for two different callers.
+ *
+ * The scheduler presents CRON_SECRET. A person wants to run it once by hand —
+ * to see whether it works without waiting for tomorrow morning — and Vercel
+ * hides a secret's value after it is saved, so requiring it would mean
+ * rotating the secret just to press a button. Being signed in as the owner is
+ * enough, exactly as on the health route.
+ *
+ * "Unauthorized" alone was useless here: a wrong secret, an unset secret and
+ * the wrong account have different fixes and looked identical.
+ */
+async function authorize(req: Request): Promise<{ ok: true } | { ok: false; why: Denial }> {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
   const header = req.headers.get("authorization");
   const query = new URL(req.url).searchParams.get("secret");
-  return header === `Bearer ${secret}` || query === secret;
+  const presented = header?.startsWith("Bearer ") ? header.slice(7) : query;
+
+  if (secret && presented) {
+    if (presented === secret) return { ok: true };
+    return { ok: false, why: "secret_mismatch" };
+  }
+  if (!secret && presented) return { ok: false, why: "no_secret_configured" };
+
+  try {
+    const session = await auth();
+    if (!session?.user?.email) return { ok: false, why: "no_session" };
+    if (session.user.email !== OWNER_EMAIL) return { ok: false, why: "not_owner" };
+    return { ok: true };
+  } catch {
+    return { ok: false, why: "no_session" };
+  }
+}
+
+const DENIAL_HINT: Record<Denial, string> = {
+  secret_mismatch:
+    "The secret presented does not match CRON_SECRET. If you pasted the placeholder, " +
+    "use the real value — or just sign in to the app in this browser and reload, which also works.",
+  no_secret_configured:
+    "A secret was presented but CRON_SECRET is not set in this environment.",
+  no_session:
+    "No secret and no signed-in session. Sign in to the app in this browser, then reload.",
+  not_owner:
+    "Signed in, but not as the owner account. Use the address OWNER_EMAIL is set to.",
+};
+
+function unauthorized(why: Denial): Response {
+  return Response.json(
+    { error: "Unauthorized", reason: why, hint: DENIAL_HINT[why] },
+    { status: 401 },
+  );
 }
 
 /** Build one candidate from a symbol's bars, or null if there is not enough history. */
@@ -115,7 +161,8 @@ async function evaluate(symbol: string, trending: Set<string>, deadline: number)
 }
 
 export async function GET(req: Request) {
-  if (!authorized(req)) return unauthorized();
+  const gate = await authorize(req);
+  if (!gate.ok) return unauthorized(gate.why);
   if (!supabaseConfigured()) {
     return Response.json({ error: "Supabase not configured" }, { status: 503 });
   }
