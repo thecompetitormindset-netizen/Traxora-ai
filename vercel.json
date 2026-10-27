@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/migrate",
+      "schedule": "10 11 * * 1-5"
+    },
+    {
       "path": "/api/cron/bars-sync",
       "schedule": "20 11 * * 1-5"
     },
