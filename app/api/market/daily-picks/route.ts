@@ -120,7 +120,13 @@ export async function GET(req: Request) {
       }
     }
 
-    const picks = (rows ?? []).map(r => asPick(r as Row));
+    // Rank is renumbered from the row order rather than served as stored.
+    // The stored value is assigned when a day's picks are written and becomes
+    // wrong the moment one is removed — a lone survivor of a two-pick day came
+    // back as "rank 2" with no rank 1, which would render as a broken list.
+    // Ordering is what the rank describes, so deriving it from the ordering
+    // cannot drift. The stored column stays as the historical record.
+    const picks = (rows ?? []).map((r, i) => ({ ...asPick(r as Row), rank: i + 1 }));
 
     // The realised record across every graded pick — what these calls have
     // actually been worth, as distinct from what the backtest predicted.
