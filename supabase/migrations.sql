@@ -193,3 +193,30 @@ create table if not exists daily_picks (
 
 create index if not exists daily_picks_run_date_idx on daily_picks (run_date desc);
 create index if not exists daily_picks_unresolved_idx on daily_picks (resolved_at) where resolved_at is null;
+
+-- ── Daily bars ────────────────────────────────────────────────────────────────
+-- One row per symbol per trading date, filled by the bars-sync job from
+-- Polygon's grouped endpoint — the whole US market for a date in one call.
+--
+-- This table is what lets the picks be chosen from the entire market rather
+-- than a handful of names. Fetching bars symbol by symbol costs one API call
+-- each against a budget of roughly five a minute, so a universe of thousands
+-- is unreachable that way. One call per DATE is not.
+--
+-- Only liquid, ordinarily-shaped tickers are stored (see polygonGrouped.ts):
+-- an options pick on something with no tradeable chain is not actionable, so
+-- carrying it would cost storage to produce picks nobody could take.
+create table if not exists daily_bars (
+  date    date    not null,
+  symbol  text    not null,
+  open    numeric not null,
+  high    numeric not null,
+  low     numeric not null,
+  close   numeric not null,
+  volume  bigint  not null default 0,
+  primary key (date, symbol)
+);
+
+-- Reading one symbol's history is the hot path for scoring; reading one date
+-- is the hot path for the sync deciding what it already has.
+create index if not exists daily_bars_symbol_date_idx on daily_bars (symbol, date);

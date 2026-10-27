@@ -5,9 +5,9 @@ export const maxDuration = 60;
 import { auth } from "@/auth";
 import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
 import { etTradingDate } from "@/app/lib/marketTime";
-import { polygonBars, toSeries, polygonBudgetRemaining } from "@/app/lib/polygonBars";
-import { finnhubQuote } from "@/app/lib/finnhubFetch";
-import { backtestDirection, UNIVERSE } from "@/app/api/market/options-scan/route";
+import { toSeries, type DailyBar } from "@/app/lib/polygonBars";
+import { barsFor, barsForMany, latestStoredDate, liquidSymbols, storedSymbolCount, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
+import { backtestDirection } from "@/app/api/market/options-scan/route";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import {
   MAX_PICKS_PER_DAY, PICK_HORIZON_SESSIONS, gradePick, selectPicks, sliceForDate,
@@ -33,13 +33,14 @@ const DAY_MS = 86_400_000;
 const WORK_BUDGET_MS = 42_000;
 
 /**
- * How many names one run can look at.
+ * How many names one run scores.
  *
- * Polygon's free tier releases five calls a minute, and a run has under a
- * minute, so five is what fits — the sixth would spend the whole budget
- * waiting. This is an honest ceiling rather than a chosen number.
+ * Bars come from the database now, so this is no longer the five-a-minute API
+ * ceiling it used to be — it is a time budget. Scoring is a backtest across a
+ * year of bars per symbol, which is cheap but not free, and the run has under
+ * a minute.
  */
-const SLICE = 5;
+const FIELD_SIZE = 60;
 
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
@@ -98,22 +99,26 @@ function unauthorized(why: Denial): Response {
   );
 }
 
-/** Build one candidate from a symbol's bars, or null if there is not enough history. */
-async function evaluate(symbol: string, trending: Set<string>, deadline: number): Promise<Candidate | null> {
-  if (Date.now() >= deadline) return null;
-
-  const [barsResult, live] = await Promise.all([
-    polygonBars(symbol, { waitForSlot: true, waitBudgetMs: 90_000 }).catch(() => ({ bars: [], outcome: "failed" as const })),
-    finnhubQuote(symbol, { budgetMs: 6_000 }).catch(() => null),
-  ]);
-
-  const bars = barsResult.bars;
+/**
+ * Build one candidate from stored bars, or null when it cannot be scored.
+ *
+ * Bars arrive from the database rather than from an API call per symbol. That
+ * is the change that lifts the universe ceiling: scoring a name used to cost
+ * one of about five calls a minute, so five names a day was the limit. Reading
+ * costs nothing per symbol, so the field can be the market.
+ *
+ * No live price is fetched either. These are swing picks on a 14-session
+ * horizon chosen before the open, so the previous close is the right entry
+ * reference — and fetching thousands of live quotes would reintroduce exactly
+ * the per-symbol cost this removes.
+ */
+function evaluate(symbol: string, bars: DailyBar[], trending: Set<string>): Candidate | null {
   // The backtest needs warmup plus the forward window; without both, any hit
   // rate it produced would be drawn from too few signals to mean anything.
-  if (bars.length < 120) return null;
+  if (bars.length < MIN_HISTORY_SESSIONS) return null;
 
   const { closes, highs, lows, volumes } = toSeries(bars);
-  const price = live?.price ?? closes.at(-1) ?? null;
+  const price = closes.at(-1) ?? null;
   if (!price) return null;
 
   const prev = closes.at(-2) ?? price;
@@ -186,13 +191,15 @@ export async function GET(req: Request) {
       if (Date.now() - Date.parse(`${row.run_date}T20:00:00Z`) < matureAfterMs) continue;
       if (Date.now() >= deadline) break;
 
-      const { bars } = await polygonBars(row.symbol as string, { waitForSlot: true, waitBudgetMs: 60_000 });
+      // Graded from stored bars, like everything else — so grading costs no
+      // API calls and cannot be delayed by a rate limit.
+      const bars = await barsFor(row.symbol as string, 1);
       if (bars.length === 0) continue;
 
       // The bar `horizon_days` sessions after entry — not simply the latest,
       // which would grade over however long it happened to take to get round
       // to it.
-      const entryIdx = bars.findIndex(b => b.date >= (row.run_date as string));
+      const entryIdx = bars.findIndex((b: DailyBar) => b.date >= (row.run_date as string));
       if (entryIdx < 0) continue;
       const exitIdx = entryIdx + (row.horizon_days as number);
       const exit = bars[exitIdx];
@@ -235,12 +242,38 @@ export async function GET(req: Request) {
   // to be best-effort; failing to get it costs a nuance, not the run.
   const trending = new Set<string>();
 
+  // The field comes from the stored market, not a hand-written list.
+  const latest = await latestStoredDate();
+  if (!latest) {
+    return Response.json({
+      runDate, graded, picked: 0,
+      error: "No stored bars yet",
+      hint: "Run /api/cron/bars-sync until it reports the history is complete, then retry.",
+    }, { status: 200 });
+  }
+
+  const universeSize = await storedSymbolCount(latest);
+
+  // Ordered by volume, so an offset walks PAST the names everyone watches into
+  // the part of the market that is liquid enough to trade and quiet enough
+  // that nobody is discussing it. The offset rotates by date so a different
+  // band is examined each day and no region is permanently ignored — the
+  // brief's "must not overlook the underrated" made concrete.
+  const offset = universeSize > FIELD_SIZE
+    ? (Math.floor(Date.parse(`${runDate}T00:00:00Z`) / 86_400_000) * FIELD_SIZE) % (universeSize - FIELD_SIZE)
+    : 0;
+
+  const symbols = await liquidSymbols(latest, FIELD_SIZE, offset);
+  const barsBySymbol = await barsForMany(symbols, MIN_HISTORY_SESSIONS);
+
   const candidates: Candidate[] = [];
   const skipped: string[] = [];
-  for (const symbol of sliceForDate(UNIVERSE, runDate, SLICE)) {
+  for (const symbol of symbols) {
     if (Date.now() >= deadline) { skipped.push(symbol); continue; }
+    const bars = barsBySymbol.get(symbol);
+    if (!bars) { skipped.push(symbol); continue; }
     try {
-      const c = await evaluate(symbol, trending, deadline);
+      const c = evaluate(symbol, bars, trending);
       if (c) candidates.push(c);
       else skipped.push(symbol);
     } catch {
@@ -274,7 +307,9 @@ export async function GET(req: Request) {
   return Response.json({
     runDate,
     graded,
-    considered: sliceForDate(UNIVERSE, runDate, SLICE),
+    universeSize,
+    fieldOffset: offset,
+    considered: symbols.length,
     evaluated: candidates.length,
     skipped: skipped.length,
     picked: picks.length,
@@ -283,6 +318,5 @@ export async function GET(req: Request) {
     note: picks.length < MAX_PICKS_PER_DAY
       ? `${picks.length} candidate(s) cleared the certainty bar out of ${candidates.length} evaluated`
       : undefined,
-    polygon_budget_left: polygonBudgetRemaining(),
   });
 }
