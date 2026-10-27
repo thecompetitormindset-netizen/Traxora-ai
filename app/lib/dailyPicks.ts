@@ -90,15 +90,33 @@ const CONFIDENCE_POINTS: Record<Candidate["confidence"], number> = {
 };
 
 /**
- * The edge over simply holding.
+ * The edge over simply holding, in the direction the pick actually asserts.
  *
  * A hit rate alone says nothing: if a stock rose in 60% of all 14-day windows,
  * a 60% hit rate is the market, not a signal. What matters is the gap between
  * what the signal returned and what the same period returned regardless.
+ *
+ * The direction is not optional here, and getting it wrong is not academic.
+ * This was first written as `avgReturn - baseline` for both directions, which
+ * is right for a call and backwards for a put. It promoted a real NFLX SELL
+ * candidate to rank 1 on these numbers:
+ *
+ *   73.5% of 102 signals "went the right way"
+ *   averaged -1.5% against -1.7% for holding
+ *
+ * The price did fall after the signal — but by LESS than it fell anyway, so
+ * the signal was worse than doing nothing. The subtraction returned +0.2 and
+ * waved it through. A put wants the price lower than baseline, so for SELL the
+ * terms are the other way round.
+ *
+ * This is the whole reason the edge check exists: a high hit rate on a stock
+ * that drifts downward is the drift, not a signal.
  */
-export function edgeOver(stats: BacktestStats): number | null {
+export function edgeOver(stats: BacktestStats, direction: Candidate["direction"]): number | null {
   if (stats.avgReturn === null || stats.baselineAvgReturn === null) return null;
-  return stats.avgReturn - stats.baselineAvgReturn;
+  return direction === "BUY"
+    ? stats.avgReturn - stats.baselineAvgReturn
+    : stats.baselineAvgReturn - stats.avgReturn;
 }
 
 /**
@@ -145,16 +163,19 @@ export function scoreCandidate(c: Candidate): ScoredCandidate {
     };
   }
 
-  const edge = edgeOver(c.backtest);
+  const edge = edgeOver(c.backtest, c.direction);
   if (edge === null) {
     return { ...c, conviction: 0, why, rejected: "no baseline to compare the backtest against" };
   }
   if (edge <= 0) {
+    const verb = c.direction === "BUY" ? "rose" : "fell";
     return {
       ...c,
       conviction: 0,
       why,
-      rejected: `signal averaged ${c.backtest.avgReturn?.toFixed(1)}% against ${c.backtest.baselineAvgReturn?.toFixed(1)}% for simply holding — no edge`,
+      rejected:
+        `price ${verb} ${Math.abs(c.backtest.avgReturn ?? 0).toFixed(1)}% after the signal against ` +
+        `${Math.abs(c.backtest.baselineAvgReturn ?? 0).toFixed(1)}% anyway — no edge over doing nothing`,
     };
   }
 
@@ -167,7 +188,13 @@ export function scoreCandidate(c: Candidate): ScoredCandidate {
   const penalty = crowdingPenalty(c.volumeRatio, c.trending);
 
   why.push(`${c.backtest.hitRate}% of ${c.backtest.count} past signals went the right way`);
-  why.push(`averaged ${c.backtest.avgReturn!.toFixed(1)}% vs ${c.backtest.baselineAvgReturn!.toFixed(1)}% for holding`);
+  // Stated as a gain over doing nothing, in the direction asserted, so the
+  // line cannot read as favourable when it is not — the failure that put a
+  // worse-than-baseline short at rank 1.
+  why.push(
+    `${edge.toFixed(1)} points better than holding ` +
+    `(${c.backtest.avgReturn!.toFixed(1)}% after the signal vs ${c.backtest.baselineAvgReturn!.toFixed(1)}% anyway)`,
+  );
   if (c.confidence !== "Low") why.push(`${c.confidence.toLowerCase()} signal confidence`);
   if (!c.trending && (c.volumeRatio === null || c.volumeRatio <= 2)) {
     why.push("not trending and no volume spike — the crowd has not arrived");
