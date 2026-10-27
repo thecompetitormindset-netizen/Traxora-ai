@@ -6,6 +6,8 @@ import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore, computeCanonicalTrade, type SmScore } from "@/app/lib/smartMoney";
 import { checkQuoteSanity, resolvePreviousClose } from "@/app/lib/quoteSanity";
 import { yahooFetch } from "@/app/lib/yahooFetch";
+import { finnhubQuote } from "@/app/lib/finnhubFetch";
+import { polygonBars, toSeries, withLiveBar } from "@/app/lib/polygonBars";
 
 function calcClosesEMA(closes: number[], period: number): number | null {
   if (closes.length < period) return null;
@@ -36,37 +38,91 @@ export const BACKTEST_FORWARD = 14;  // days ahead — matches the 14+ DTE gate 
 
 // Exported so the options engine reuses this exact fetch (same silent-divergence
 // risk this whole feature exists to close — no independent re-derivation).
+/**
+ * The stock leg for one symbol: a year of daily bars plus a live price.
+ *
+ * This used to be a single Yahoo `range=1y` call, and everything downstream
+ * returned null without it — which is why the options count read 0. Yahoo
+ * answered 2 requests in 15 from this deployment, and took 3.3 to 6.5 seconds
+ * to fail each time.
+ *
+ * Now the two halves come from the sources that answer, fetched together:
+ * Polygon for the bars (84 in 62ms, two years of free history) and Finnhub for
+ * the live price (93ms). Yahoo remains only as a last resort, and only when
+ * Polygon produced nothing, on a short budget — a slow failure costs the page
+ * more than a fast one.
+ *
+ * Polygon's free tier is end-of-day, so during a session its newest bar is
+ * yesterday's. `withLiveBar` appends the live price as a provisional bar so the
+ * EMAs and the 5-day trend below describe today rather than yesterday.
+ */
 export async function fetchQuote(symbol: string) {
   try {
-    const res  = await yahooFetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
-      { timeoutMs: 10_000, budgetMs: 30_000, label: symbol },
-    );
-    if (!res) return null;
-    const data   = await res.json();
-    const result = data?.chart?.result?.[0];
-    const meta   = result?.meta;
-    if (!meta?.regularMarketPrice) return null;
+    const [barsResult, live] = await Promise.all([
+      polygonBars(symbol).catch(() => ({ bars: [], outcome: "failed" as const })),
+      finnhubQuote(symbol, { budgetMs: 6_000 }).catch(() => null),
+    ]);
 
-    const q       = result?.indicators?.quote?.[0] ?? {};
-    const isNum   = (v: unknown): v is number => typeof v === "number";
-    const volumes: number[] = (q.volume ?? []).filter(isNum);
-    const closes:  number[] = (q.close  ?? []).filter(isNum);
-    const highs:   number[] = (q.high   ?? []).filter(isNum);
-    const lows:    number[] = (q.low    ?? []).filter(isNum);
-    const opens:   number[] = (q.open   ?? []).filter(isNum);
-    const price  = meta.regularMarketPrice as number;
+    let bars = barsResult.bars;
+    let meta: Record<string, unknown> = {};
+
+    if (bars.length === 0) {
+      // Polygon had nothing. Yahoo on a tight budget rather than the 30s one
+      // it used to get: if it is going to fail it should do so quickly.
+      const res = await yahooFetch(
+        `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1y`,
+        { timeoutMs: 8_000, budgetMs: 9_000, label: symbol },
+      );
+      if (!res) return null;
+      const data   = await res.json();
+      const result = data?.chart?.result?.[0];
+      meta = result?.meta ?? {};
+      const q = result?.indicators?.quote?.[0] ?? {};
+      const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
+      const yClose: number[] = (q.close ?? []).filter(isNum);
+      const yHigh:  number[] = (q.high  ?? []).filter(isNum);
+      const yLow:   number[] = (q.low   ?? []).filter(isNum);
+      const yOpen:  number[] = (q.open  ?? []).filter(isNum);
+      const yVol:   number[] = (q.volume ?? []).filter(isNum);
+      bars = yClose.map((c, i) => ({
+        date: "", open: yOpen[i] ?? c, high: yHigh[i] ?? c, low: yLow[i] ?? c, close: c, volume: yVol[i] ?? 0,
+      }));
+      if (bars.length === 0) return null;
+    }
+
+    const livePrice = live?.price ?? (typeof meta.regularMarketPrice === "number" ? meta.regularMarketPrice : null);
+    const withToday = withLiveBar(bars, livePrice);
+    const { closes, highs, lows, opens, volumes } = toSeries(withToday);
+
+    const price = livePrice ?? closes.at(-1) ?? null;
+    if (!price) return null;
     // Previous SESSION close from the daily series. Never meta.chartPreviousClose:
-    // this request uses range=1y, so that field is a price from a year ago, which
-    // is what rendered OXY as +32.62% in a single session and, because the score
-    // reads changePct, pushed it to the top of the ranking.
-    const prev   = resolvePreviousClose(meta, closes);
-    const open   = (meta.regularMarketOpen ?? prev ?? price) as number;
-    const high   = (meta.regularMarketDayHigh ?? price) as number;
-    const low    = (meta.regularMarketDayLow  ?? price) as number;
-    const high52 = (meta.fiftyTwoWeekHigh ?? price) as number;
-    const low52  = (meta.fiftyTwoWeekLow  ?? price) as number;
-    const volume = (meta.regularMarketVolume ?? 0) as number;
+    // at range=1y that field is a price from a year ago, which is what rendered
+    // OXY as +32.62% in a single session and, because the score reads changePct,
+    // pushed it to the top of the ranking.
+    const prev = resolvePreviousClose(meta, closes);
+
+    // These used to read `meta.X ?? price`, which collapsed the 52-week range
+    // onto the current price and flattened the day range to zero whenever a
+    // field was absent — the same substitution removed from morning-email.
+    // They are now derived from the bars, which actually contain the answer.
+    const lastBar = withToday.at(-1)!;
+    const open = live?.open ?? lastBar.open;
+    const high = live?.high ?? lastBar.high;
+    const low  = live?.low  ?? lastBar.low;
+
+    // A 52-week window is ~252 sessions. Computed from the series rather than
+    // trusted to a metadata field that may not be there.
+    const yearHighs = highs.slice(-252);
+    const yearLows  = lows.slice(-252);
+    const high52 = yearHighs.length > 0 ? Math.max(...yearHighs) : price;
+    const low52  = yearLows.length  > 0 ? Math.min(...yearLows)  : price;
+
+    // The most recently COMPLETED session's volume. Intraday that is the prior
+    // session, since neither free source reports a running daily volume — so a
+    // volume surge here describes the last close, not the current tape. Stated
+    // plainly rather than papered over with today's price or a zero.
+    const volume = volumes.at(-1) ?? 0;
     const avgVol = volumes.length >= 5
       ? volumes.slice(-20).reduce((s, v) => s + v, 0) / Math.min(volumes.length, 20)
       : volume;
@@ -84,6 +140,9 @@ export async function fetchQuote(symbol: string) {
           : "neutral")
         : null;
 
+    // Neither Polygon's aggregates nor Finnhub's quote carries a company name,
+    // so without the Yahoo fallback this is the ticker. A missing display name
+    // is cosmetic; a missing price is not.
     const name = (meta.shortName ?? meta.longName ?? symbol) as string;
     return { symbol, name, price, prev, open, high, low, high52, low52, volume, avgVol, trend5d, emaAlignment, closes, highs, lows, volumes, opens };
   } catch { return null; }
