@@ -35,14 +35,54 @@ const candidate = (over: Partial<Candidate> = {}): Candidate => ({
 });
 
 describe("edgeOver", () => {
-  it("measures the signal against simply holding", () => {
+  it("measures a call against simply holding", () => {
     // A hit rate alone says nothing: if the stock rose in 60% of all windows,
     // a 60% hit rate is the market, not a signal.
-    expect(edgeOver(stats({ avgReturn: 4.2, baselineAvgReturn: 1.1 }))).toBeCloseTo(3.1, 5);
+    expect(edgeOver(stats({ avgReturn: 4.2, baselineAvgReturn: 1.1 }), "BUY")).toBeCloseTo(3.1, 5);
+  });
+
+  it("inverts the comparison for a put", () => {
+    // A put profits from a fall, so falling MORE than baseline is the edge.
+    expect(edgeOver(stats({ avgReturn: -4.2, baselineAvgReturn: -1.1 }), "SELL")).toBeCloseTo(3.1, 5);
+  });
+
+  it("scores a short that fell less than baseline as negative", () => {
+    // The real case that shipped: NFLX reached rank 1 on these numbers.
+    // The price fell after the signal, but by less than it fell anyway, so the
+    // signal was worse than doing nothing. Direction-blind subtraction gave
+    // +0.2 and waved it through.
+    expect(edgeOver(stats({ avgReturn: -1.5, baselineAvgReturn: -1.7 }), "SELL")).toBeCloseTo(-0.2, 5);
+  });
+
+  it("scores a call that rose less than baseline as negative", () => {
+    expect(edgeOver(stats({ avgReturn: 1.5, baselineAvgReturn: 1.7 }), "BUY")).toBeCloseTo(-0.2, 5);
   });
 
   it("is null without a baseline to compare to", () => {
-    expect(edgeOver(stats({ baselineAvgReturn: null as unknown as number }))).toBeNull();
+    expect(edgeOver(stats({ baselineAvgReturn: null as unknown as number }), "BUY")).toBeNull();
+  });
+});
+
+describe("the NFLX case that shipped", () => {
+  // Kept as its own block because it is the exact candidate that reached rank
+  // 1 in production, and it must never qualify again.
+  const nflx = candidate({
+    symbol: "NFLX",
+    direction: "SELL",
+    backtest: stats({ count: 102, hitRate: 73.5, avgReturn: -1.5, baselineAvgReturn: -1.7 }),
+    confidence: "High",
+    volumeRatio: 1.0,
+    trending: false,
+  });
+
+  it("is rejected despite a 73.5% hit rate and high confidence", () => {
+    const scored = scoreCandidate(nflx);
+    expect(scored.rejected).toMatch(/no edge over doing nothing/);
+    expect(scored.conviction).toBe(0);
+  });
+
+  it("does not survive selection", () => {
+    expect(selectPicks([nflx])).toEqual([]);
   });
 });
 
@@ -101,7 +141,7 @@ describe("scoreCandidate", () => {
   it("explains itself", () => {
     const c = scoreCandidate(candidate());
     expect(c.why.join(" ")).toMatch(/68% of 60 past signals/);
-    expect(c.why.join(" ")).toMatch(/vs 1.1% for holding/);
+    expect(c.why.join(" ")).toMatch(/3.1 points better than holding/);
     expect(c.why.join(" ")).toMatch(/crowd has not arrived/);
   });
 
