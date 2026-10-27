@@ -74,12 +74,32 @@ export async function GET(req: Request) {
     // run, or on a non-trading day — fall back to the most recent day that has
     // any, so the page is never blank, and say which day it is showing.
     const today = etTradingDate();
-    let { data: rows } = await db
+    const { data: todayRows, error: readErr } = await db
       .from("daily_picks")
       .select("symbol, rank, direction, conviction, entry_price, as_of, horizon_days, why, outcome_date, outcome_price, return_pct, correct")
       .eq("run_date", today)
       .order("rank", { ascending: true });
 
+    // An unreadable table and an empty one produce the same `data: null`, and
+    // treating both as "no picks today" is the exact failure this codebase has
+    // spent its time removing: an absence rendered as a fact. A missing table
+    // needs a migration run; an empty one needs the job to fire. Say which.
+    if (readErr) {
+      console.error("daily-picks read error:", readErr.message);
+      return Response.json({
+        available: false,
+        reason: /relation .* does not exist|schema cache/i.test(readErr.message)
+          ? "table_missing"
+          : "query_failed",
+        hint: "Run the daily_picks block from supabase/migrations.sql in the Supabase SQL editor.",
+        detail: readErr.message.slice(0, 160),
+        picks: [],
+        record: null,
+        asOfDate: null,
+      }, { status: 503 });
+    }
+
+    let rows = todayRows;
     let asOfDate = today;
 
     if (!rows || rows.length === 0) {
@@ -120,6 +140,15 @@ export async function GET(req: Request) {
       picks,
       record: trackRecord(outcomes),
     };
+
+    // Empty is two different situations, and the caller cannot tell them apart
+    // from an empty array. Either the job has not run, or it ran and nothing
+    // cleared the certainty bar — the second is a real answer and the UI
+    // should say so rather than looking broken.
+    if (picks.length === 0) {
+      payload.emptyReason = "no_run_yet";
+      payload.hint = "The scheduled job has not produced picks for this date yet.";
+    }
 
     if (history) {
       const { data: past } = await db
