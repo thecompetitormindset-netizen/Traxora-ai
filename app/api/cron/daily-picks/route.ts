@@ -7,10 +7,11 @@ import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
 import { etTradingDate } from "@/app/lib/marketTime";
 import { toSeries, type DailyBar } from "@/app/lib/polygonBars";
 import { barsFor, barsForMany, latestStoredDate, liquidSymbols, storedDateCount, storedSymbolCount, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
+import { PgUnavailable } from "@/app/lib/pgClient";
 import { backtestDirection } from "@/app/api/market/options-scan/route";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import {
-  MAX_PICKS_PER_DAY, PICK_HORIZON_SESSIONS, gradePick, selectPicks, sliceForDate,
+  MAX_PICKS_PER_DAY, PICK_HORIZON_SESSIONS, gradePick, selectPicks,
   type Candidate,
 } from "@/app/lib/dailyPicks";
 
@@ -257,8 +258,20 @@ export async function GET(req: Request) {
   // Scoring needs a long enough series per symbol before a hit rate means
   // anything. Until the backfill reaches that depth no symbol qualifies, and
   // the run finds nothing — which looks like a failure unless it says so.
-  const storedDates = await storedDateCount();
-  if (storedDates < MIN_HISTORY_SESSIONS) {
+  // Counted in the database; see storedDateCount. If that count cannot be had,
+  // the run carries on rather than stopping: this check only exists to EXPLAIN
+  // an empty result while the backfill is shallow. The real guard is per
+  // symbol — barsForMany drops anything under MIN_HISTORY_SESSIONS — so a
+  // missing count costs a clear message, not correctness.
+  let storedDates: number | null = null;
+  try {
+    storedDates = await storedDateCount();
+  } catch (err) {
+    if (!(err instanceof PgUnavailable)) throw err;
+    console.warn("daily-picks: could not count stored dates:", err.message);
+  }
+
+  if (storedDates !== null && storedDates < MIN_HISTORY_SESSIONS) {
     return Response.json({
       runDate, graded, picked: 0,
       storedDates,
@@ -266,7 +279,8 @@ export async function GET(req: Request) {
       universeSize,
       note:
         `history is still filling: ${storedDates} of ${MIN_HISTORY_SESSIONS} trading dates stored. ` +
-        `No symbol has enough series to score honestly yet — bars-sync runs hourly and will reach it.`,
+        `No symbol has enough series to score honestly yet. bars-sync adds a few dates a run — ` +
+        `it runs once each weekday from daily-core, and can be called directly to fill faster.`,
     });
   }
 

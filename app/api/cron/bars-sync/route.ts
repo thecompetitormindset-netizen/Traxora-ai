@@ -4,8 +4,10 @@ export const maxDuration = 60;
 
 import { auth } from "@/auth";
 import { supabaseAdmin, supabaseConfigured } from "@/app/lib/supabase";
-import { etTradingDate, nyseCalendar } from "@/app/lib/marketTime";
+import { nyseCalendar } from "@/app/lib/marketTime";
 import { polygonGroupedDaily, type GroupedBar } from "@/app/lib/polygonGrouped";
+import { storedBarDates } from "@/app/lib/barsStore";
+import { PgUnavailable } from "@/app/lib/pgClient";
 
 // Fills daily_bars from Polygon's grouped endpoint, one trading date per call.
 //
@@ -81,25 +83,43 @@ export async function GET(req: Request) {
   const db = supabaseAdmin();
   const deadline = Date.now() + WORK_BUDGET_MS;
 
-  // Which dates are already stored. One distinct-date query beats asking per
-  // date, and the set is small — at most a year of trading days.
+  // Which dates are already stored.
+  //
+  // This is the question the whole job turns on, and getting it slightly wrong
+  // is indistinguishable from working. It used to be asked over REST, which
+  // caps a response at a fixed number of rows however large a limit is given —
+  // and daily_bars holds roughly 4,100 rows per date, so the answer was part of
+  // one day's rows. The job concluded it held nothing, re-fetched dates it
+  // already had, and reported the backfill getting FURTHER from done on every
+  // run. Twenty-nine manual runs, no progress, no error.
+  //
+  // So it is asked of Postgres: `select distinct date` returns one row per
+  // date and is exact by construction. If that is not available the job stops
+  // rather than falling back, because the fallback is the bug.
   const since = iso(Date.now() - LOOKBACK_DAYS * DAY_MS);
-  const { data: present, error: presentErr } = await db
-    .from("daily_bars")
-    .select("date")
-    .gte("date", since)
-    .limit(500_000);
-
-  if (presentErr) {
+  let have: Set<string>;
+  try {
+    have = await storedBarDates(since);
+  } catch (err) {
+    if (err instanceof PgUnavailable) {
+      return Response.json({
+        error: "Could not determine which dates are already stored",
+        reason: err.reason,
+        hint: err.reason === "no_connection_string"
+          ? "Set DATABASE_URL to the Supabase Postgres connection string. REST cannot answer this accurately: it caps rows, and one trading date is ~4,100 of them, so the sync would re-fetch dates it already has."
+          : "The database refused the query. Check DATABASE_URL and that daily_bars exists — /api/cron/migrate creates it.",
+        detail: err.message,
+      }, { status: 503 });
+    }
+    const message = err instanceof Error ? err.message : String(err);
     return Response.json({
       error: "Could not read daily_bars",
-      reason: /relation .* does not exist|schema cache/i.test(presentErr.message) ? "table_missing" : "query_failed",
-      hint: "Run the daily_bars block from supabase/migrations.sql in the Supabase SQL editor.",
-      detail: presentErr.message.slice(0, 160),
+      reason: /relation .* does not exist/i.test(message) ? "table_missing" : "query_failed",
+      hint: "Run /api/cron/migrate to create daily_bars.",
+      detail: message.slice(0, 160),
     }, { status: 503 });
   }
 
-  const have = new Set((present ?? []).map(r => String(r.date)));
   const missing = tradingDates().filter(d => !have.has(d));
 
   const done: string[] = [];
@@ -184,6 +204,10 @@ export async function GET(req: Request) {
   const remaining = Math.max(0, missing.length - done.length);
   return Response.json({
     pruned,
+    // Reported so progress is checkable from one run's output. When this was
+    // being read over REST it stuck near a single date while the sync claimed
+    // to be writing — the two numbers together would have shown that at once.
+    datesStored: have.size + done.length,
     datesWritten: done,
     rowsWritten: written,
     skipped,
