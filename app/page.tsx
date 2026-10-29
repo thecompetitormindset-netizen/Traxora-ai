@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "./landing.css";
 import { HeroMedia, LayerStack, Reveal, type StackStep } from "./components/landing/Motion";
+import MarketPulse from "./components/landing/MarketPulse";
 
 // Landing page — shown to everyone at "/". No account is needed: every button
 // opens the dashboard. (Only AI-model features ask for sign-in, where used.)
 // Monochrome tokens (app/monochrome.css) plus app/landing.css. The console and
-// preview are labelled illustrations, not live market data. Copy is plain
+// preview are labelled illustrations, not live market data — except the
+// MarketPulse strip below the hero, which is real and says how old it is. Copy is plain
 // language with as few numbers as possible; the six checks describe the real
 // gates in app/lib/optionsAnalysis/rules.ts. No testimonials or performance claims.
 
@@ -227,6 +229,15 @@ export default function HomePage() {
             </a>
             <p className="absolute bottom-5 left-5 sm:bottom-7 sm:left-7 mx-label text-[var(--mx-text-3)]">Illustration — not live data</p>
           </div>
+        </section>
+
+        {/* ── Live market strip ──
+            Deliberately placed outside the hero, which is labelled an
+            illustration. Real figures and a drawing of figures should not sit
+            inside the same frame, or the label stops being believable. This
+            section carries its own age and delay note instead. */}
+        <section className="max-w-6xl mx-auto px-4 sm:px-8">
+          <MarketPulse />
         </section>
 
         {/* ── Checks marquee ── */}
