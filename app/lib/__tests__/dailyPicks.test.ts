@@ -183,14 +183,20 @@ describe("selectPicks", () => {
 
 describe("gradePick", () => {
   it("counts a rise as right for a call and wrong for a put", () => {
-    expect(gradePick("BUY", 100, 110)).toEqual({ returnPct: 10, correct: true });
-    expect(gradePick("SELL", 100, 110)).toEqual({ returnPct: 10, correct: false });
+    expect(gradePick("BUY", 100, 110)).toEqual({ returnPct: 10, correct: true, direction: "BUY" });
+    expect(gradePick("SELL", 100, 110)).toEqual({ returnPct: 10, correct: false, direction: "SELL" });
   });
 
   it("counts a fall as right for a put", () => {
     // A put profits from a fall, so the sign that counts is inverted.
-    expect(gradePick("SELL", 100, 90)).toEqual({ returnPct: -10, correct: true });
-    expect(gradePick("BUY", 100, 90)).toEqual({ returnPct: -10, correct: false });
+    expect(gradePick("SELL", 100, 90)).toEqual({ returnPct: -10, correct: true, direction: "SELL" });
+    expect(gradePick("BUY", 100, 90)).toEqual({ returnPct: -10, correct: false, direction: "BUY" });
+  });
+
+  it("carries the direction, without which returnPct's sign cannot be read", () => {
+    // -10% is a loss on a call and a win on a put. The number alone does not
+    // say which, so it travels with the direction that gives it meaning.
+    expect(gradePick("SELL", 100, 90)!.direction).toBe("SELL");
   });
 
   it("treats dead flat as not correct, in either direction", () => {
@@ -207,14 +213,40 @@ describe("gradePick", () => {
 describe("trackRecord", () => {
   it("reports the realised hit rate and average", () => {
     const r = trackRecord([
-      { returnPct: 10, correct: true },
-      { returnPct: -4, correct: false },
-      { returnPct: 6, correct: true },
-      { returnPct: 2, correct: true },
+      { returnPct: 10, correct: true, direction: "BUY" },
+      { returnPct: -4, correct: false, direction: "BUY" },
+      { returnPct: 6, correct: true, direction: "BUY" },
+      { returnPct: 2, correct: true, direction: "BUY" },
     ]);
     expect(r.count).toBe(4);
     expect(r.hitRate).toBe(75);
     expect(r.avgReturn).toBe(3.5);
+  });
+
+  it("averages in the direction called, so correct shorts do not read as losses", () => {
+    // returnPct is the move in the underlying, so a short that worked is
+    // negative. Averaging the raw numbers reports the system losing money
+    // precisely when it was right — the same direction-blind comparison that
+    // once put a worse-than-baseline short at rank 1.
+    const allRight = trackRecord([
+      { returnPct: -8, correct: true, direction: "SELL" },
+      { returnPct: -6, correct: true, direction: "SELL" },
+    ]);
+
+    expect(allRight.hitRate).toBe(100);
+    expect(allRight.avgReturn).toBe(7);
+  });
+
+  it("nets a right call against a wrong one of the opposite direction", () => {
+    // A call that rose 10% and a short that also rose 10%: one worked, one did
+    // not, and in the direction each asserted they cancel.
+    const mixed = trackRecord([
+      { returnPct: 10, correct: true, direction: "BUY" },
+      { returnPct: 10, correct: false, direction: "SELL" },
+    ]);
+
+    expect(mixed.hitRate).toBe(50);
+    expect(mixed.avgReturn).toBe(0);
   });
 
   it("reports nulls rather than a flattering zero when nothing is graded yet", () => {

@@ -231,9 +231,12 @@ export function selectPicks(candidates: Candidate[], max = MAX_PICKS_PER_DAY): S
 // ── Grading ─────────────────────────────────────────────────────────────────
 
 export type PickOutcome = {
+  /** The move in the UNDERLYING, signed. Negative means the price fell. */
   returnPct: number;
   /** True when the direction was right: up for a call, down for a put. */
   correct: boolean;
+  /** Which way the pick called it. Needed to read returnPct's sign. */
+  direction: "BUY" | "SELL";
 };
 
 /**
@@ -257,16 +260,42 @@ export function gradePick(
     returnPct: Math.round(move * 100) / 100,
     // A put profits from a fall, so the sign that counts is inverted.
     correct: direction === "BUY" ? move > 0 : move < 0,
+    direction,
   };
 }
 
-/** Realised record across graded picks. */
+/**
+ * How far a pick moved IN THE DIRECTION IT CALLED.
+ *
+ * returnPct is the move in the underlying, so a short that worked is negative.
+ * Averaging those raw numbers across both directions produces something that
+ * is not a return at all: a day of correct bearish calls would average to a
+ * loss, and the record would report the system losing money precisely when it
+ * was right.
+ *
+ * This is the same mistake that once put a worse-than-baseline short at rank 1
+ * — a comparison made without reference to the direction being asserted. The
+ * sign has to be read against the call, never on its own.
+ */
+export function moveInFavour(o: PickOutcome): number {
+  return o.direction === "BUY" ? o.returnPct : -o.returnPct;
+}
+
+/**
+ * Realised record across graded picks.
+ *
+ * `avgReturn` is the average move in the direction called, so it is positive
+ * when the picks worked whichever way they pointed. `hitRate` and `avgReturn`
+ * are null — not zero — when nothing has been graded: a fresh install has no
+ * record, and "0% right" is a claim about performance rather than a statement
+ * that there is nothing to report yet.
+ */
 export function trackRecord(outcomes: PickOutcome[]): {
   count: number; hitRate: number | null; avgReturn: number | null;
 } {
   if (outcomes.length === 0) return { count: 0, hitRate: null, avgReturn: null };
   const hits = outcomes.filter(o => o.correct).length;
-  const avg = outcomes.reduce((s, o) => s + o.returnPct, 0) / outcomes.length;
+  const avg = outcomes.reduce((s, o) => s + moveInFavour(o), 0) / outcomes.length;
   return {
     count: outcomes.length,
     hitRate: Math.round((hits / outcomes.length) * 1000) / 10,

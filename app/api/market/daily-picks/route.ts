@@ -132,12 +132,19 @@ export async function GET(req: Request) {
     // actually been worth, as distinct from what the backtest predicted.
     const { data: graded } = await db
       .from("daily_picks")
-      .select("return_pct, correct")
+      // direction comes too: return_pct is the move in the underlying, so a
+      // short that worked is negative, and averaging the raw numbers would
+      // report a loss on exactly the calls that were right.
+      .select("return_pct, correct, direction")
       .not("resolved_at", "is", null);
 
     const outcomes: PickOutcome[] = (graded ?? [])
       .filter(g => g.return_pct !== null && g.correct !== null)
-      .map(g => ({ returnPct: Number(g.return_pct), correct: Boolean(g.correct) }));
+      .map(g => ({
+        returnPct: Number(g.return_pct),
+        correct: Boolean(g.correct),
+        direction: g.direction === "SELL" ? "SELL" : "BUY",
+      }));
 
     const payload: Record<string, unknown> = {
       available: true,

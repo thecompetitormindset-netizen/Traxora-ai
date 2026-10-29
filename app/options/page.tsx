@@ -7,6 +7,7 @@ import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import UserDataSection from "../components/fieldnotes/UserDataSection";
+import DailyPicks from "../components/picks/DailyPicks";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
 import { rankIdeas, stateOf } from "../components/fieldnotes/uiState";
 import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
@@ -115,6 +116,11 @@ function Overview() {
           </>
         )}
       </section>
+
+      {/* The day's picks. Independent of the live scan above: computed before
+          the open, stored, and identical for every viewer — so it loads on its
+          own and a failure in one does not blank the other. */}
+      <DailyPicks />
 
       {ideas.length > 0 && (
         <section aria-labelledby="ideas-h" className="space-y-3">
