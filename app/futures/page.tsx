@@ -46,7 +46,7 @@ function Row({ r }: { r: FuturesRow }) {
         <div className="min-w-0">
           <p className="text-[18px]">{r.name}</p>
           <p className="mt-0.5 text-[13px] text-[var(--mx-text-3)]">
-            {r.symbol.replace(".COMM", "")} · one contract is {r.unit} · {usd(r.tickValue, 2)} a tick
+            Measured on {r.proxyEtf}
           </p>
         </div>
         <p className="text-[15px] tabular-nums shrink-0" style={{ color: tone }}>
@@ -70,6 +70,32 @@ function Row({ r }: { r: FuturesRow }) {
         </p>
       )}
 
+      {/* The sizes this market trades in. A micro is a tenth of the full
+          contract for most of these, and is what a practice account can
+          actually hold — a full E-mini S&P needs more margin than the whole
+          starting balance. */}
+      <ul className="mt-4 grid sm:grid-cols-2 gap-2">
+        {r.sizes.map(s => (
+          <li key={s.symbol} className="rounded-[10px] border border-[var(--mx-line)] bg-[var(--mx-raised)] px-3.5 py-3">
+            <div className="flex items-baseline justify-between gap-2">
+              {/* The space is deliberate: without it the symbol and the size
+                  run together as "ESFull size" when copied or read aloud. */}
+              <span className="text-[14px]">
+                {s.symbol.replace(".COMM", "")}{" "}
+                <span className="ml-1 text-[12px] text-[var(--mx-text-3)]">{s.label}</span>
+              </span>
+              <span className="text-[13px] tabular-nums text-[var(--mx-text-2)]">
+                ~{usd(s.initialMargin)} margin
+              </span>
+            </div>
+            <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)] tabular-nums">
+              {s.unit} · {usd(s.tickValue, 2)} a tick
+              {s.fraction !== null && ` · ${Math.round(1 / s.fraction)}× smaller`}
+            </p>
+          </li>
+        ))}
+      </ul>
+
       {/* Which fund this was measured on, and how it can come apart. */}
       <details className="mt-3 group">
         <summary className="cursor-pointer list-none text-[12.5px] text-[var(--mx-text-3)] hover:text-[var(--mx-text-2)]">
@@ -77,8 +103,8 @@ function Row({ r }: { r: FuturesRow }) {
           <span aria-hidden="true" className="ml-1.5 transition-transform inline-block group-open:rotate-45">+</span>
         </summary>
         <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--mx-text-3)] max-w-[70ch]">
-          {r.proxyCaveat} Margin is roughly {usd(r.initialMargin)} a contract — approximate, and your broker’s
-          requirement will differ.
+          {r.proxyCaveat} Margin figures are approximate — exchanges revise them and your broker will set its
+          own above the minimum.
         </p>
       </details>
     </li>

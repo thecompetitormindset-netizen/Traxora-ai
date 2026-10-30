@@ -5,7 +5,7 @@ export const maxDuration = 20;
 import { viewer } from "@/app/lib/viewer";
 import { supabaseConfigured } from "@/app/lib/supabase";
 import { barsForMany, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
-import { allFutures, type FuturesSpec } from "@/app/lib/futuresContracts";
+import { futuresMarkets, type FuturesMarket, type FuturesSpec } from "@/app/lib/futuresContracts";
 import { evaluate } from "@/app/api/cron/daily-picks/route";
 import { scoreCandidate, MIN_BACKTEST_SAMPLE } from "@/app/lib/dailyPicks";
 
@@ -29,15 +29,26 @@ import { scoreCandidate, MIN_BACKTEST_SAMPLE } from "@/app/lib/dailyPicks";
 // a USO signal as a crude signal without saying so would be the same category
 // of error as every other one this codebase has had to remove.
 
+/** One tradeable size of a market: the full contract, or its micro. */
+export type ContractSize = {
+  symbol: string;
+  label: string;
+  size: "standard" | "micro";
+  unit: string;
+  multiplier: number;
+  tickValue: number;
+  initialMargin: number;
+  /** For a micro, the fraction of the full contract it represents. */
+  fraction: number | null;
+};
+
 export type FuturesRow = {
   symbol: string;
   name: string;
   proxyEtf: string;
   proxyCaveat: string;
-  unit: string;
-  multiplier: number;
-  tickValue: number;
-  initialMargin: number;
+  /** Full size first, micro second where one exists. */
+  sizes: ContractSize[];
   /** Null when the proxy has no directional signal today, or too little history. */
   direction: "BUY" | "SELL" | null;
   /** Null until the backtest has enough occurrences to mean anything. */
@@ -62,11 +73,11 @@ export async function GET() {
     );
   }
 
-  const specs = allFutures();
+  const markets = futuresMarkets();
 
   let bars;
   try {
-    bars = await barsForMany(specs.map(s => s.proxyEtf), MIN_HISTORY_SESSIONS);
+    bars = await barsForMany([...new Set(markets.map(m => m.standard.proxyEtf))], MIN_HISTORY_SESSIONS);
   } catch (err) {
     return Response.json({
       available: false,
@@ -77,16 +88,25 @@ export async function GET() {
     }, { status: 503 });
   }
 
-  const rows: FuturesRow[] = specs.map((spec: FuturesSpec) => {
+  const asSize = (spec: FuturesSpec): ContractSize => ({
+    symbol: spec.symbol,
+    label: spec.size === "micro" ? "Micro" : "Full size",
+    size: spec.size,
+    unit: spec.unit,
+    multiplier: spec.multiplier,
+    tickValue: spec.tickSize * spec.multiplier,
+    initialMargin: spec.initialMargin,
+    fraction: spec.fraction ?? null,
+  });
+
+  const rows: FuturesRow[] = markets.map((market: FuturesMarket) => {
+    const spec = market.standard;
     const base = {
       symbol: spec.symbol,
       name: spec.name,
       proxyEtf: spec.proxyEtf,
       proxyCaveat: spec.proxyCaveat,
-      unit: spec.unit,
-      multiplier: spec.multiplier,
-      tickValue: spec.tickSize * spec.multiplier,
-      initialMargin: spec.initialMargin,
+      sizes: market.micro ? [asSize(spec), asSize(market.micro)] : [asSize(spec)],
       direction: null,
       hitRate: null,
       sample: 0,
