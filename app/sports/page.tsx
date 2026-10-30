@@ -1,5 +1,11 @@
 "use client";
 
+import { everyMs, useClientValue } from "@/app/lib/useClientValue";
+
+const readToday    = () => new Date().toLocaleDateString("en-CA");
+const readTomorrow = () => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA");
+const everyMinute  = everyMs(60_000);
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -176,8 +182,11 @@ export default function SportsPage() {
   const [notifPerm,  setNotifPerm]  = useState<NotificationPermission>("default");
   const watchlistInitialized = useRef(false);
 
-  const todayKey    = useMemo(() => new Date().toLocaleDateString("en-CA"), []);
-  const tomorrowKey = useMemo(() => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA"), []);
+  // Read from the clock through a subscription rather than during render.
+  // Reading it in a useMemo was impure, and it also meant a tab left open
+  // across midnight went on filtering by yesterday's date.
+  const todayKey    = useClientValue(readToday, "", everyMinute);
+  const tomorrowKey = useClientValue(readTomorrow, "", everyMinute);
 
 
   useEffect(() => {

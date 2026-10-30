@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useClientValue, windowEvent } from "@/app/lib/useClientValue";
 import { THEME_EVENT, getTheme, setTheme, type Theme } from "../lib/theme";
 
 const CYCLE: Theme[] = ["clean", "dark"];
@@ -36,23 +36,20 @@ const ICONS: Record<string, React.ReactNode> = {
   dark:  <MoonIcon />,
 };
 
-export default function ThemeToggle() {
-  const [theme, setLocal] = useState<Theme>("clean");
+// The theme already behaves like an external store: it lives outside React and
+// announces its own changes. Reading it as one removes the mirrored copy in
+// state, so the toggle shows the right icon on its first paint rather than
+// flashing the default, and every toggle on the page stays in step without
+// each keeping its own notion of the current theme.
+const subscribeToTheme = windowEvent(THEME_EVENT);
 
-  useEffect(() => {
-    setLocal(getTheme());
-    function handler(e: Event) {
-      setLocal((e as CustomEvent<Theme>).detail);
-    }
-    window.addEventListener(THEME_EVENT, handler);
-    return () => window.removeEventListener(THEME_EVENT, handler);
-  }, []);
+export default function ThemeToggle() {
+  const theme = useClientValue<Theme>(getTheme, "clean", subscribeToTheme);
 
   function cycle() {
     const idx  = CYCLE.indexOf(theme);
     const next = CYCLE[idx === -1 ? 0 : (idx + 1) % CYCLE.length];
-    setTheme(next);
-    setLocal(next);
+    setTheme(next);   // publishes THEME_EVENT, which the subscription picks up
   }
 
   const label = LABELS[theme] ?? "Theme";

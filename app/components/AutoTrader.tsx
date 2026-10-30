@@ -189,7 +189,10 @@ export default function AutoTrader() {
   const [dayTrades,   setDayTrades]   = useState<DayTrade[]>([]);
 
   const activeRef   = useRef(false);
-  const nextScanRef = useRef(Date.now() + SCAN_INTERVAL);
+  // Null until the loop starts. Reading the clock to seed a ref happens during
+  // render, which is impure — and the value was wrong anyway whenever the
+  // component mounted well before the trader was switched on.
+  const nextScanRef = useRef<number | null>(null);
   const loopRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const tickRef     = useRef<ReturnType<typeof setInterval> | null>(null);
   const botLoopsRef = useRef<Record<string, ReturnType<typeof setInterval> | null>>({ apex: null, delta: null, vera: null });
@@ -393,6 +396,8 @@ export default function AutoTrader() {
 
       nextScanRef.current = Date.now() + SCAN_INTERVAL;
       push("signal", "AutoTrader started", "All 20 stocks scanned every 5 min · Signals trade instantly");
+      // Seeded here, when the trader actually starts, rather than at mount.
+      nextScanRef.current = Date.now() + SCAN_INTERVAL;
       refreshDayTrades();
       runFullScan();
       loopRef.current = setInterval(() => {
@@ -400,7 +405,10 @@ export default function AutoTrader() {
         nextScanRef.current = Date.now() + SCAN_INTERVAL;
         runFullScan();
       }, SCAN_INTERVAL);
-      tickRef.current = setInterval(() => setCountdown(Math.max(0, nextScanRef.current - Date.now())), 1000);
+      tickRef.current = setInterval(() => {
+        const due = nextScanRef.current;
+        setCountdown(due === null ? 0 : Math.max(0, due - Date.now()));
+      }, 1000);
       const bots: [string, BotStyle, number][] = [["apex","aggressive",20_000],["delta","balanced",80_000],["vera","conservative",140_000]];
       bots.forEach(([id, style, delay]) => {
         const t = setTimeout(() => {

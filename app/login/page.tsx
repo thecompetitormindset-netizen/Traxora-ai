@@ -1,7 +1,8 @@
 "use client";
 
 import { signIn, useSession } from "next-auth/react";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, Suspense } from "react";
+import { useClientValue } from "@/app/lib/useClientValue";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Icon, type IconName } from "../components/Icon";
@@ -35,11 +36,10 @@ function LoginContent() {
   const errorCode   = searchParams.get("error");
   const errorMsg    = errorCode ? (AUTH_ERRORS[errorCode] ?? AUTH_ERRORS.Default) : null;
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
-  const [inAppBrowser, setInAppBrowser] = useState(false);
-
-  useEffect(() => {
-    setInAppBrowser(isInAppBrowser());
-  }, []);
+  // Read on the first client render rather than corrected after it: the
+  // warning about in-app browsers was appearing a beat late, which is the one
+  // moment it is useful.
+  const inAppBrowser = useClientValue(isInAppBrowser, false);
 
   const justSignedOut = searchParams.get("signedOut");
 

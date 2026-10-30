@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { everyMs, useClientValue } from "@/app/lib/useClientValue";
 
 function getMarketStatus() {
   const now = new Date();
@@ -61,19 +61,16 @@ function getCountdown(): string {
   return `${hh}h ${mm}m ${ss}s`;
 }
 
-export default function MarketStatus() {
-  const [info, setInfo]         = useState({ status: "Closed", label: "Market Closed", color: "text-[#4B5675]", dot: "bg-[#4B5675]" });
-  const [countdown, setCountdown] = useState("");
+// Both values are pure functions of the clock, so they are read on a timer
+// rather than mirrored into state and corrected after mount. The server has no
+// reader's clock, so it renders the closed state and the client replaces it on
+// its first paint instead of a beat later.
+const SERVER_INFO = { status: "Closed", label: "Market Closed", color: "text-[#4B5675]", dot: "bg-[#4B5675]" };
+const everySecond = everyMs(1_000);
 
-  useEffect(() => {
-    setInfo(getMarketStatus());
-    setCountdown(getCountdown());
-    const id = setInterval(() => {
-      setInfo(getMarketStatus());
-      setCountdown(getCountdown());
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
+export default function MarketStatus() {
+  const info      = useClientValue(getMarketStatus, SERVER_INFO, everySecond);
+  const countdown = useClientValue(getCountdown, "", everySecond);
 
   return (
     <div className="flex items-center gap-3 bg-[#13112A] border border-[#252345] rounded-xl px-4 py-2.5">
