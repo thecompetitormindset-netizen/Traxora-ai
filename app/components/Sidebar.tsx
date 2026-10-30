@@ -27,7 +27,7 @@ const GROUPS: NavGroup[] = [
     id: "markets", label: "Markets", items: [
       { name: "Stocks",        href: "/explore" },
       { name: "Crypto",        href: "/explore?view=crypto" },
-      { name: "Futures",       href: "/intelligence?section=futures" },
+      { name: "Futures",       href: "/futures" },
       { name: "Sports",        href: "/sports" },
       { name: "Earnings",      href: "/earnings" },
       { name: "New listings",  href: "/ipo" },

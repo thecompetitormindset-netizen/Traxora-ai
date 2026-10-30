@@ -113,7 +113,7 @@ function unauthorized(why: Denial): Response {
  * reference — and fetching thousands of live quotes would reintroduce exactly
  * the per-symbol cost this removes.
  */
-function evaluate(symbol: string, bars: DailyBar[], trending: Set<string>): Candidate | null {
+export function evaluate(symbol: string, bars: DailyBar[], trending: Set<string>): Candidate | null {
   // The backtest needs warmup plus the forward window; without both, any hit
   // rate it produced would be drawn from too few signals to mean anything.
   if (bars.length < MIN_HISTORY_SESSIONS) return null;
