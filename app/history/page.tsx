@@ -69,6 +69,7 @@ export default function HistoryPage() {
     setCurrentUser(email);
     try {
       const raw = localStorage.getItem(scopedKey("traxora_alerts"));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the signal list from storage for the signed-in user, then owns it
       setSignals(raw ? JSON.parse(raw) : []);
     } catch { setSignals([]); }
   }, [session]);

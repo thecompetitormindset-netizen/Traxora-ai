@@ -108,6 +108,7 @@ export default function NewsPage() {
     }
   }, []);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- reloads when the chosen topic changes, which is what an effect is for
   useEffect(() => { load(topic); }, [topic, load]);
 
   // Auto-refresh every 5 min

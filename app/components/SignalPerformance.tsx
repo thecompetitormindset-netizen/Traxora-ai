@@ -49,6 +49,7 @@ export default function SignalPerformance() {
 
   useEffect(() => {
     const cached = loadCache();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- uses the cached report if there is one, otherwise computes it — a decision that needs the browser's cache and cannot be made during render
     if (cached) { setReport(cached.report); return; }
     evaluate();
   }, []);

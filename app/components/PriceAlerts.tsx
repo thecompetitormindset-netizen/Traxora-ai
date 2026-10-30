@@ -62,6 +62,7 @@ export default function PriceAlerts() {
 
   // Load from localStorage on mount
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds from stored alerts once; the list is edited here afterwards, so it cannot be read as an external store
     setAlerts(loadAlerts());
   }, []);
 
@@ -114,6 +115,7 @@ export default function PriceAlerts() {
 
   // Start polling
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- polls prices on an interval to check alert conditions
     checkPrices(alerts);
     intervalRef.current = setInterval(() => {
       setAlerts(a => { checkPrices(a); return a; });

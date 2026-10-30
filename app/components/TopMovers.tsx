@@ -79,6 +79,7 @@ export default function TopMovers() {
     }
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the initial load — the setState inside happens after the await
   useEffect(() => { load(); }, []);
 
   return (

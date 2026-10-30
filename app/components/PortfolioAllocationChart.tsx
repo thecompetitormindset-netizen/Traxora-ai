@@ -52,6 +52,7 @@ function Donut({ slices }: { slices: Slice[] }) {
       {slices.map((s, i) => {
         const dash   = (s.pct / 100) * C;
         const offset = -(cumulative / 100) * C;
+        // eslint-disable-next-line react-hooks/immutability -- a running total while laying out the ring; the accumulator is local to this loop and never escapes it
         cumulative  += s.pct;
         return (
           <circle key={i} cx={CX} cy={CY} r={R}
@@ -82,6 +83,7 @@ export default function PortfolioAllocationChart() {
 
   useEffect(() => {
     const open = loadTrades().filter(t => t.status === "OPEN");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- derives the allocation from stored trades at mount and on the portfolio event
     setPosCount(open.length);
 
     // Group by sector

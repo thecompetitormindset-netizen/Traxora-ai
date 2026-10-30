@@ -99,6 +99,7 @@ export default function RiskGuard() {
       return;
     }
     _riskGuardStarted = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs the first risk check and schedules the rest on an interval
     runCheck();
     const id = setInterval(runCheck, CHECK_INTERVAL);
     return () => {

@@ -23,6 +23,7 @@ export default function WelcomeModal() {
     const seen = localStorage.getItem(WELCOME_KEY);
     // Wait until the onboarding tour is done so the two modals never stack
     const onboarded = localStorage.getItem("traxora_onboarded_v2");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- decides visibility from two stored flags, and must wait for a session before it can
     if (!seen && onboarded) setVisible(true);
   }, [status, session]);
 

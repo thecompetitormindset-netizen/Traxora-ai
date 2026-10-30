@@ -67,6 +67,7 @@ function IndicesBar({ session }: { session: { user?: unknown } | null }) {
 
   useEffect(() => {
     if (!session?.user) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- serves cached indices if they are fresh, otherwise starts a fetch
     if (!loadCachedIndices()) fetchIndices();
     timerRef.current = setInterval(fetchIndices, INDICES_TTL_MS);
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -151,6 +152,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(scopedKey("recent_symbols"));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds recent searches from storage; the list is appended to here as symbols are visited
       setRecentSymbols(raw ? JSON.parse(raw) : []);
     } catch { setRecentSymbols([]); }
   }, [session]); // re-run when session changes so key is recomputed with correct user
@@ -170,6 +172,7 @@ export default function Topbar({ onSearch }: TopbarProps) {
 
   useEffect(() => {
     if (!query.trim()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the dropdown when the query empties, and debounces the search otherwise
       setResults([]);
       setOpen(false);
       return;
