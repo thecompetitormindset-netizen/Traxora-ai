@@ -365,7 +365,7 @@ function StrategyContent() {
                 </div>
                 {coaching
                   ? <div className="text-[12px] text-[#94A3B8] leading-relaxed whitespace-pre-wrap">{coaching}</div>
-                  : <p className="text-xs text-[#4B5675]">Click "Analyse my trades" to get AI coaching based on your performance patterns.</p>
+                  : <p className="text-xs text-[#4B5675]">Click “Analyse my trades” to get AI coaching based on your performance patterns.</p>
                 }
               </div>
             </>

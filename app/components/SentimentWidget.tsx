@@ -39,7 +39,7 @@ const GAUGE_TICKS = [-100, -50, 0, 50, 100].map((v) => {
   const ca = Math.cos(a), sa = Math.sin(a);
   // Tick lines start just outside arc outer edge (R+2) and extend to R+11
   const r1 = R + 3, r2 = R + 11, rl = R + 23;
-  let lx = CX - rl * ca;
+  const lx = CX - rl * ca;
   let ly = CY - rl * sa;
   let anchor: "start" | "middle" | "end" = "middle";
   if (v === -100) { ly += 10; anchor = "middle"; }

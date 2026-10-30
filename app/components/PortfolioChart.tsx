@@ -125,7 +125,6 @@ export default function PortfolioChart() {
     function onUpdate() { load(); fetchLiveEquity(); }
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, onUpdate);
     return () => window.removeEventListener(PORTFOLIO_UPDATED_EVENT, onUpdate);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Once live equity arrives, rebuild points with the live endpoint

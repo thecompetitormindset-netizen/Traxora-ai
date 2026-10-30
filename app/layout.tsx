@@ -98,7 +98,6 @@ export default function RootLayout({
         {/* Theme script runs before paint to prevent flash */}
         <script
           suppressHydrationWarning
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('traxora-theme');if(t==='dark'||t==='light'||t==='clean'||t==='ember')document.documentElement.setAttribute('data-theme',t);else document.documentElement.setAttribute('data-theme','clean');}catch(e){document.documentElement.setAttribute('data-theme','clean');}})();`,
           }}
@@ -106,7 +105,6 @@ export default function RootLayout({
         {/* JSON-LD structured data for search engines */}
         <script
           type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",

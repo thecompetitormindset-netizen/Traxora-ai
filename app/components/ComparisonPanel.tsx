@@ -87,7 +87,7 @@ export default function ComparisonPanel({ currentSymbol, currentLabel, currentDa
       <div className="flex items-center justify-between mb-5">
         <div>
           <p className="text-xs text-gray-500 uppercase tracking-widest">Performance Comparison</p>
-          <p className="text-sm text-gray-400 mt-0.5">Today's change — {currentLabel.replace(".US", "")} vs benchmarks</p>
+          <p className="text-sm text-gray-400 mt-0.5">Today’s change — {currentLabel.replace(".US", "")} vs benchmarks</p>
         </div>
       </div>
 
