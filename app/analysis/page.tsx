@@ -150,7 +150,6 @@ function AnalysisContent() {
     try {
       if (!localStorage.getItem(scopedKey("traxora_ran_analysis"))) setShowGuide(true);
     } catch { /* ignore */ }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

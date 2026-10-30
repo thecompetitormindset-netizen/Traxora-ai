@@ -16,6 +16,8 @@
 // (traxora_taken_trades): status PENDING/OPEN/WIN/LOSS, entry, shares,
 // closePrice, closedAt — the dashboard and stats pages read those fields.
 
+import { futuresSpec } from "./futuresContracts";
+
 export type Side = "BUY" | "SELL"; // SELL = sell short (bet the price falls)
 export type OrderType = "market" | "limit";
 export type ExitReason = "stop" | "target" | "manual";
@@ -112,24 +114,49 @@ export function marketFillPrice(side: Side, quote: number): number {
   return r4(side === "BUY" ? quote * (1 + SLIPPAGE) : quote * (1 - SLIPPAGE));
 }
 
-export function profit(o: Pick<PaperOrder, "signal" | "entry" | "shares">, price: number): number {
-  return (o.signal === "BUY" ? price - o.entry : o.entry - price) * o.shares;
+/**
+ * Money per 1.00 of price. One for shares and crypto; the contract size for a
+ * future, where a dollar of crude is a thousand dollars of position.
+ */
+function sizeOf(symbol: string | undefined): number {
+  return (symbol ? futuresSpec(symbol)?.multiplier : undefined) ?? 1;
 }
 
-export function profitPct(o: Pick<PaperOrder, "signal" | "entry">, price: number): number {
-  return ((o.signal === "BUY" ? price - o.entry : o.entry - price) / o.entry) * 100;
+export function profit(o: Pick<PaperOrder, "signal" | "entry" | "shares" | "symbol">, price: number): number {
+  return (o.signal === "BUY" ? price - o.entry : o.entry - price) * o.shares * sizeOf(o.symbol);
+}
+
+/**
+ * Return as a share of what the position actually ties up.
+ *
+ * For shares that is the price paid. For a future it is the margin posted,
+ * which is the point: the same move is a far larger percentage because far
+ * less cash is committed, and measuring against the contract value instead
+ * would hide the leverage entirely.
+ */
+export function profitPct(o: Pick<PaperOrder, "signal" | "entry" | "shares" | "symbol">, price: number): number {
+  const move = (o.signal === "BUY" ? price - o.entry : o.entry - price);
+  const spec = o.symbol ? futuresSpec(o.symbol) : null;
+  if (spec) {
+    const committed = spec.initialMargin * o.shares;
+    return committed > 0 ? ((move * o.shares * spec.multiplier) / committed) * 100 : 0;
+  }
+  return (move / o.entry) * 100;
 }
 
 function withRisk(o: PaperOrder): PaperOrder {
   return {
     ...o,
-    riskDollar: o.stop != null ? r2(Math.abs(o.entry - o.stop) * o.shares) : 0,
-    potential: o.target != null ? r2(Math.abs(o.target - o.entry) * o.shares) : 0,
+    riskDollar: o.stop != null ? r2(Math.abs(o.entry - o.stop) * o.shares * sizeOf(o.symbol)) : 0,
+    potential: o.target != null ? r2(Math.abs(o.target - o.entry) * o.shares * sizeOf(o.symbol)) : 0,
   };
 }
 
 /** Cash held back by an order that hasn't filled yet. */
 function reserved(o: PaperOrder): number {
+  const spec = futuresSpec(o.symbol);
+  // A future ties up margin, not the contract's value.
+  if (spec) return spec.initialMargin * o.shares;
   if (o.amount != null && o.orderType !== "limit") return o.amount;
   return (o.limitPrice ?? o.entry) * o.shares * (1 + SLIPPAGE);
 }
@@ -208,14 +235,52 @@ export function placeOrder(t: Ticket, quote: Quote | undefined, cash: number, no
   const ref = t.type === "limit" ? t.limitPrice ?? null : quote?.price ?? null;
   if (!ref || !(ref > 0)) return { ok: false, error: t.type === "limit" ? "Enter the price you want to pay." : "We couldn't get a price for this stock right now." };
 
+  // A future is a contract, not a quantity of something divisible: a dollar
+  // amount buys whole contracts against margin, never a fraction of one.
+  const spec = futuresSpec(symbol);
+
   let shares = t.shares && t.shares > 0 ? t.shares : null;
   let amount: number | null = null;
-  if (!shares && t.dollars && t.dollars > 0) { amount = r2(t.dollars); shares = r4(t.dollars / (ref * (t.type === "market" ? 1 + SLIPPAGE : 1))); }
-  if (!shares || !(shares > 0)) return { ok: false, error: "Enter how much you want to invest." };
-  shares = r4(shares);
+  if (!shares && t.dollars && t.dollars > 0) {
+    if (spec) {
+      // The dollars are margin, so they buy whole contracts. `amount` stays
+      // null deliberately: it means "cash spent at the fill price", and the
+      // fill recomputes shares from it — which for a margined contract would
+      // divide margin by the price of crude and produce nonsense.
+      shares = Math.floor(t.dollars / spec.initialMargin);
+    } else {
+      amount = r2(t.dollars);
+      shares = r4(t.dollars / (ref * (t.type === "market" ? 1 + SLIPPAGE : 1)));
+    }
+  }
+  if (!shares || !(shares > 0)) {
+    return {
+      ok: false,
+      error: spec
+        ? `One ${spec.name} contract needs about $${spec.initialMargin.toLocaleString("en-US")} of margin. Enter at least that much.`
+        : "Enter how much you want to invest.",
+    };
+  }
+  if (spec && !Number.isInteger(shares)) {
+    return { ok: false, error: "Futures trade in whole contracts." };
+  }
+  shares = spec ? shares : r4(shares);
 
-  const cost = amount ?? shares * ref * (t.type === "market" ? 1 + SLIPPAGE : 1);
-  if (cost > cash + 0.005) return { ok: false, error: `You only have $${cash.toLocaleString("en-US", { maximumFractionDigits: 2 })} of practice cash available.` };
+  // Futures are margined rather than bought outright, so what the account puts
+  // up is the margin while the position — and its profit and loss — follow the
+  // full value of the contract. Charging the contract's value as if it were a
+  // cash purchase would remove the leverage that defines the instrument.
+  const cost = spec
+    ? spec.initialMargin * shares
+    : amount ?? shares * ref * (t.type === "market" ? 1 + SLIPPAGE : 1);
+  if (cost > cash + 0.005) {
+    return {
+      ok: false,
+      error: spec
+        ? `${shares} ${spec.name} contract${shares === 1 ? "" : "s"} needs about $${cost.toLocaleString("en-US")} of margin and you have $${cash.toLocaleString("en-US", { maximumFractionDigits: 2 })}.`
+        : `You only have $${cash.toLocaleString("en-US", { maximumFractionDigits: 2 })} of practice cash available.`,
+    };
+  }
 
   const long = t.side === "BUY";
   if (t.stop != null && (long ? t.stop >= ref : t.stop <= ref)) {

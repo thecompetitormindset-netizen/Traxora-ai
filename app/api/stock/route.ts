@@ -1,3 +1,8 @@
+/** The two fields read from EODHD's daily series. */
+type EodhdClose = { date?: string; close?: number };
+/** Alpha Vantage returns its values as strings keyed by a numbered label. */
+type AlphaDaily = Record<string, string>;
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") || "AAPL.US";
@@ -24,11 +29,11 @@ export async function GET(req: Request) {
 
         if (Array.isArray(data) && data.length > 0) {
           const cleaned = data
-            .map((item: any) => ({
+            .map((item: EodhdClose) => ({
               time: item.date,
               value: item.close,
             }))
-            .filter((point: any) => point.time && point.value != null);
+            .filter((point: { time?: string; value?: number }) => point.time && point.value != null);
 
           return Response.json({
             provider: "EODHD",
@@ -56,8 +61,8 @@ export async function GET(req: Request) {
 
       const series = data?.["Time Series (Daily)"];
       if (series) {
-        const cleaned = Object.entries(series)
-          .map(([date, values]: [string, any]) => ({
+        const cleaned = Object.entries(series as Record<string, AlphaDaily>)
+          .map(([date, values]) => ({
             time: date,
             value: Number(values["4. close"]),
           }))

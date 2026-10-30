@@ -528,7 +528,6 @@ export default function MorningBriefing() {
       localStorage.setItem(scopedKey(DATE_KEY_BASE), today);
       fetchBriefing();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus]);
 
   useEffect(() => {
@@ -538,7 +537,6 @@ export default function MorningBriefing() {
     }
     window.addEventListener("traxora-show-briefing", onManual);
     return () => window.removeEventListener("traxora-show-briefing", onManual);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const show = visible || manualOpen;

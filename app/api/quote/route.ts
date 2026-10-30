@@ -1,5 +1,11 @@
 import { toYahooSymbol, toFinnhubSymbol } from "@/app/lib/yahooSymbol";
 
+/** Only the fields read from EODHD's real-time quote. */
+type EodhdRealtime = {
+  error?: unknown; code?: string; close?: number; previousClose?: number;
+  open?: number; high?: number; low?: number; exchange?: string; timestamp?: number;
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") || "AAPL.US";
@@ -76,7 +82,7 @@ export async function GET(req: Request) {
       );
       const raw = await res.text();
       if (res.ok) {
-        let data: any;
+        let data: EodhdRealtime | null;
         try { data = JSON.parse(raw); } catch { data = null; }
         if (data && !data.error && data.close != null) {
           return Response.json({

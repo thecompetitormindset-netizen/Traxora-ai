@@ -1,3 +1,9 @@
+/** Only the fields read from a Yahoo search hit. */
+type YahooQuote = {
+  symbol?: string; quoteType?: string; longname?: string; shortname?: string;
+  exchDisp?: string; exchange?: string; typeDisp?: string; sector?: string;
+};
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const query = searchParams.get("q")?.trim() || "";
@@ -18,7 +24,7 @@ export async function GET(req: Request) {
     if (!res.ok) return Response.json([]);
 
     const data = await res.json();
-    const quotes: any[] = data?.quotes ?? [];
+    const quotes: YahooQuote[] = data?.quotes ?? [];
 
     const formatted = quotes
       .filter((q) => q.symbol && q.quoteType)

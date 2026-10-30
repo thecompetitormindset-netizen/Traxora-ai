@@ -1,5 +1,8 @@
 import { toYahooSymbol } from "@/app/lib/yahooSymbol";
 
+/** Only the fields read from EODHD's daily bars; the feed sends more. */
+type EodhdBar = { date?: string; open?: number; high?: number; low?: number; close?: number; volume?: number };
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const symbol = searchParams.get("symbol") || "AAPL.US";
@@ -18,7 +21,7 @@ export async function GET(req: Request) {
         const data = await res.json();
         const cleaned = Array.isArray(data)
           ? data
-              .map((item: any) => ({
+              .map((item: EodhdBar) => ({
                 date: item.date,
                 open: item.open,
                 high: item.high,
@@ -27,7 +30,7 @@ export async function GET(req: Request) {
                 volume: item.volume,
               }))
               .filter(
-                (item: any) =>
+                (item: { date?: string; open?: number; high?: number; low?: number; close?: number }) =>
                   item.date &&
                   item.open != null &&
                   item.high != null &&

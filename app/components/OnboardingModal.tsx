@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useStoredFlag, writeStoredFlag } from "../lib/useStoredFlag";
 import Link from "next/link";
 import { Icon, type IconName } from "./Icon";
 
@@ -29,20 +30,17 @@ const STEPS: { icon: IconName; title: string; desc: string; action: { label: str
 ];
 
 export default function OnboardingModal() {
-  const [visible, setVisible] = useState(false);
+  // Read storage directly instead of defaulting to hidden and correcting in an
+  // effect, so the introduction does not appear a render after the page does.
+  const onboarded = useStoredFlag(ONBOARD_KEY);
+  const visible = !onboarded;
+
   const [step, setStep]       = useState(0);
   const [exiting, setExiting] = useState(false);
   const [exitDir, setExitDir] = useState<"fwd" | "bwd">("fwd");
 
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(ONBOARD_KEY)) setVisible(true);
-    } catch { /* ssr */ }
-  }, []);
-
   function finish() {
-    try { localStorage.setItem(ONBOARD_KEY, "1"); } catch { /* ignore */ }
-    setVisible(false);
+    writeStoredFlag(ONBOARD_KEY, "1");
   }
 
   function goTo(next: number, direction: "fwd" | "bwd") {

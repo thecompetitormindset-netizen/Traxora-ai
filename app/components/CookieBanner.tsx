@@ -1,28 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Glyph } from "./Icon";
+import { useStoredFlag, writeStoredFlag } from "../lib/useStoredFlag";
 
 const COOKIE_KEY = "traxora_cookie_consent";
 
 export default function CookieBanner() {
-  const [visible, setVisible] = useState(false);
+  // Read straight from storage rather than defaulting to hidden and correcting
+  // in an effect: the banner no longer appears a render late, and a choice made
+  // in another tab closes it here too.
+  const answered = useStoredFlag(COOKIE_KEY);
 
-  useEffect(() => {
-    if (!localStorage.getItem(COOKIE_KEY)) setVisible(true);
-  }, []);
+  const accept = () => writeStoredFlag(COOKIE_KEY, "accepted");
+  const decline = () => writeStoredFlag(COOKIE_KEY, "declined");
 
-  function accept() {
-    localStorage.setItem(COOKIE_KEY, "accepted");
-    setVisible(false);
-  }
-
-  function decline() {
-    localStorage.setItem(COOKIE_KEY, "declined");
-    setVisible(false);
-  }
-
-  if (!visible) return null;
+  if (answered) return null;
 
   return (
     <div className="fixed bottom-44 left-4 right-4 z-[var(--z-float)] max-w-lg mx-auto sm:bottom-6">

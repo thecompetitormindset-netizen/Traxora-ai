@@ -91,7 +91,7 @@ export async function GET(req: Request) {
   // Batch-fetch quotes from Yahoo Finance v7 (multiple symbols in one request)
   const symbols = UNIVERSE.map(u => u.symbol).join(",");
 
-  let liveData: Record<string, { price: number | null; change: number | null; volume: number | null; avgVolume: number | null }> = {};
+  const liveData: Record<string, { price: number | null; change: number | null; volume: number | null; avgVolume: number | null }> = {};
 
   try {
     const res = await fetch(

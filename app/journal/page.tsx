@@ -296,7 +296,7 @@ export default function JournalPage() {
               {/* Next focus */}
               {review.nextFocusArea && (
                 <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-xl p-3">
-                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">This Week's Focus</p>
+                  <p className="text-[10px] text-[#4B5675] uppercase tracking-widest mb-1">This Week’s Focus</p>
                   <p className="text-xs text-emerald-300 leading-relaxed">{review.nextFocusArea}</p>
                 </div>
               )}

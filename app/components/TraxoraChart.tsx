@@ -534,7 +534,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       applyBars();
     } catch { setError(true); }
     finally { setLoading(false); }
-  }, [symbol, interval, applyBars]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [symbol, interval, applyBars]);  
 
   useEffect(() => { loadData(); }, [loadData]);
 
