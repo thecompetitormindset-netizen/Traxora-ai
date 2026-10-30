@@ -138,7 +138,13 @@ export async function GET(req: Request) {
     );
 
     return Response.json({ symbol, price: stockPrice, expiry: chosenExpiry, expiries, dte, chain, maxOI });
-  } catch {
-    return Response.json(null);
+  } catch (err) {
+    // A bare null with a 200 left the caller unable to tell a broken feed from
+    // a symbol with no options. Paper trading now prices against this route,
+    // and a fill must never be built on an answer we could not get.
+    return Response.json(
+      { error: "chain_unavailable", detail: err instanceof Error ? err.message.slice(0, 120) : "request failed" },
+      { status: 503 },
+    );
   }
 }

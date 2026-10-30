@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
+import OptionsPaper from "../components/paper/OptionsPaper";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
 import { syncFetch } from "../lib/syncFetch";
@@ -795,6 +796,14 @@ function PaperContent() {
                     </ul>
                   </section>
                 )}
+
+                {/* Options practice. Its own account and its own storage key,
+                    deliberately separate from the stock side above — the two
+                    teach different things, and keeping them apart means this
+                    cannot disturb trading that already works. */}
+                <div className="pt-2 border-t border-[var(--mx-line)]">
+                  <OptionsPaper />
+                </div>
 
                 <details className={`${card} p-5 group`}>
                   <summary className="cursor-pointer list-none flex items-center justify-between text-[15px]">

@@ -43,6 +43,10 @@ export type PicksPayload = {
   reason?: string;
   hint?: string;
   history?: HistoryPick[];
+  /** Every pick ever stored, which is usually more than `history` returns. */
+  historyTotal?: number | null;
+  /** The width of the window `history` represents. */
+  historyLimit?: number;
 };
 
 export type PicksState =

@@ -84,16 +84,24 @@ export default function NewsPage() {
   const [topic,   setTopic]   = useState<Topic>("market");
   const [items,   setItems]   = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed,  setFailed]  = useState(false);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
 
   const load = useCallback(async (t: Topic) => {
     setLoading(true);
     try {
       const res  = await fetch(`/api/news?topic=${t}&limit=24`, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setItems(Array.isArray(data) ? data : []);
+      if (!Array.isArray(data)) throw new Error("unexpected response");
+      setItems(data);
+      setFailed(false);
       setLastFetch(new Date());
     } catch {
+      // "No news for this topic" is a claim about the world. A feed that did
+      // not answer is a claim about us, and the reader can act on the second
+      // one — by trying again — in a way the first gives them no reason to.
+      setFailed(true);
       setItems([]);
     } finally {
       setLoading(false);
@@ -166,7 +174,16 @@ export default function NewsPage() {
                   : (
                     <Panel hover={false} padding="md" className="col-span-full p-10 text-center">
                       <p className="text-2xl mb-2"><Glyph e="📰" /></p>
-                      <p className="text-sm text-[var(--text-secondary)]">No news found for this topic right now.</p>
+                      {failed ? (
+                        <>
+                          <p className="text-sm text-[var(--text-primary)]">We couldn’t load the news feed.</p>
+                          <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                            The source didn’t answer. Use Refresh to try again.
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm text-[var(--text-secondary)]">No stories for this topic right now.</p>
+                      )}
                     </Panel>
                   )
               }

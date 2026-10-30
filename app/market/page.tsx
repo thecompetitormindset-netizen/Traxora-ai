@@ -23,7 +23,10 @@ type QuoteData = {
 
 function MarketContent() {
   const searchParams = useSearchParams();
-  const symbol = searchParams.get("symbol") || "AAPL.US";
+  // Plain "AAPL". The ".US" suffix is a data provider's symbol format, and
+  // both toYahooSymbol and toFinnhubSymbol strip it before use — so carrying it
+  // here only ever showed the reader a ticker nobody calls it by.
+  const symbol = searchParams.get("symbol") || "AAPL";
 
   const [quantity, setQuantity] = useState(1);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");

@@ -241,6 +241,8 @@ export default function DailyPicks() {
   const { data } = state;
   const horizon = data.picks[0]?.horizonDays ?? 14;
   const history = data.history ?? [];
+  // Only claim completeness when the route's count agrees it is complete.
+  const truncated = typeof data.historyTotal === "number" && data.historyTotal > history.length;
 
   // Not configured at all — local development without secrets. Distinct from
   // having no picks, and saying "no picks today" here would be inventing an
@@ -309,13 +311,19 @@ export default function DailyPicks() {
       {history.length > 0 && (
         <details className={`${card} group`}>
           <summary className="cursor-pointer list-none flex items-center justify-between p-5 text-[15px]">
-            <span>Every pick so far, and what it was worth</span>
+            <span>Past picks, and what they were worth</span>
             <span aria-hidden="true" className="text-[var(--mx-text-3)] transition-transform group-open:rotate-45 text-[18px]">+</span>
           </summary>
           <HistoryRows history={history} />
+          {/* This list is a WINDOW, not the archive — the route caps it. Saying
+              "every pick ever shown" was true the day it was written and would
+              quietly stop being true a few weeks later, which is precisely the
+              kind of claim this screen exists to avoid making. */}
           <p className="px-5 py-4 text-[12.5px] leading-relaxed text-[var(--mx-text-3)]">
-            Every pick ever shown is here, graded or still running — the losers included. A record that
-            only kept its winners would not be a record.
+            {truncated
+              ? `The ${history.length} most recent of ${data.historyTotal} picks, graded or still running. `
+              : "Every pick so far, graded or still running. "}
+            The losers are here too — a record that only kept its winners would not be a record.
           </p>
         </details>
       )}

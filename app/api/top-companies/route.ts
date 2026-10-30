@@ -7,7 +7,15 @@ export async function GET() {
       { cache: "no-store" },
     );
 
-    if (!res.ok) return Response.json([], { status: 200 });
+    // An empty array with a 200 tells the caller there are no companies. What
+    // actually happened is that we could not find out, and the caller has no
+    // way to tell those apart — so the failure is reported as a failure.
+    if (!res.ok) {
+      return Response.json(
+        { error: "source_unavailable", detail: `Wikipedia returned HTTP ${res.status}` },
+        { status: 503 },
+      );
+    }
 
     const html = await res.text();
     const $ = load(html);
@@ -26,8 +34,21 @@ export async function GET() {
       }
     });
 
+    // Zero rows from a page that loaded means the scrape broke — the table's
+    // markup moved — not that the S&P 500 has no constituents. Serving that as
+    // an empty list would turn a silent parser failure into a stated fact.
+    if (companies.length === 0) {
+      return Response.json(
+        { error: "parse_failed", detail: "The constituents table was not found on the source page." },
+        { status: 503 },
+      );
+    }
+
     return Response.json(companies);
-  } catch {
-    return Response.json([]);
+  } catch (err) {
+    return Response.json(
+      { error: "source_unavailable", detail: err instanceof Error ? err.message.slice(0, 120) : "request failed" },
+      { status: 503 },
+    );
   }
 }
