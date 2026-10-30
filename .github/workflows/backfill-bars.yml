@@ -20,7 +20,12 @@ on:
       site:
         description: "Base URL of the deployment to fill"
         required: true
-        default: "https://traxora.ai"
+        # The host the app declares as its own in app/layout.tsx (metadataBase)
+        # and app/sitemap.ts. An earlier default of "traxora.ai" was a guess at
+        # a custom domain that is not attached to the deployment, so every call
+        # died in DNS and the run looked busy for twenty minutes without ever
+        # reaching the app.
+        default: "https://traxora-ai.vercel.app"
       runs:
         description: "Maximum calls to make (each adds a few trading dates)"
         required: true
@@ -55,17 +60,46 @@ jobs:
           echo "Filling $SITE, up to $max calls."
           echo
 
+          answered=0   # calls the deployment actually answered
+          hiccups=0    # calls that could not be made for a transient reason
+
           for i in $(seq 1 "$max"); do
             # The secret goes in a header, never the URL: a URL ends up in logs.
+            rc=0
             body=$(curl -sS --max-time 90 \
                      -H "Authorization: Bearer $CRON_SECRET" \
                      -w '\n%{http_code}' \
-                     "$SITE/api/cron/bars-sync") || {
-              echo "::warning::Call $i could not be made. Retrying after a pause."
-              sleep 30
-              continue
-            }
+                     "$SITE/api/cron/bars-sync") || rc=$?
 
+            if [ "$rc" -ne 0 ]; then
+              # Which failure it is decides whether waiting could ever help.
+              # A name that does not resolve, or a host that refuses the
+              # connection, is a wrong URL — the next thirty-nine attempts
+              # will fail the same way and the run will still report success
+              # at the end. Say so once and stop.
+              case "$rc" in
+                6)
+                  echo "::error::Cannot resolve the host in SITE ($SITE). Check the URL — the deployment's own address is the one in app/layout.tsx (metadataBase)."
+                  exit 1
+                  ;;
+                7)
+                  echo "::error::Nothing is listening at $SITE. Check the URL and that the deployment is live."
+                  exit 1
+                  ;;
+                *)
+                  hiccups=$((hiccups + 1))
+                  echo "::warning::Call $i could not be made (curl exit $rc). Retrying after a pause."
+                  if [ "$hiccups" -ge 5 ] && [ "$answered" -eq 0 ]; then
+                    echo "::error::Five calls in and the deployment has not answered once. Stopping rather than spending the rest of the budget on calls that are not arriving."
+                    exit 1
+                  fi
+                  sleep 30
+                  continue
+                  ;;
+              esac
+            fi
+
+            answered=$((answered + 1))
             code=$(printf '%s' "$body" | tail -n1)
             json=$(printf '%s' "$body" | sed '$d')
 
@@ -113,4 +147,11 @@ jobs:
           done
 
           echo
+          if [ "$answered" -eq 0 ]; then
+            # A green tick on a run that never got an answer is the same
+            # mistake the rest of this codebase keeps fixing: a failure
+            # dressed as a result.
+            echo "::error::Used all $max attempts and the deployment never answered. Nothing was filled."
+            exit 1
+          fi
           echo "::warning::Used all $max calls and the history is not complete yet. Run the workflow again to continue."
