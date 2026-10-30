@@ -38,29 +38,6 @@ export const MAX_PICKS_PER_DAY = 3;
  */
 export const MIN_BACKTEST_SAMPLE = 20;
 
-/**
- * Which names a run looks at today.
- *
- * Polygon's free tier releases about five calls a minute and a scheduled run
- * has under a minute, so only a handful of symbols fit — a real ceiling, not a
- * chosen number. The universe is therefore walked in a rotating window keyed
- * to the date.
- *
- * That turns the constraint to advantage. The brief asked specifically not to
- * overlook names nobody watches, and a fixed slice would guarantee most of the
- * universe was never once examined. Rotating means every name gets its turn.
- *
- * Deterministic for a given date, so a re-run reconsiders the same names and
- * cannot quietly produce a different answer than the morning's run.
- */
-export function sliceForDate(universe: readonly string[], runDate: string, size: number): string[] {
-  if (universe.length === 0 || size <= 0) return [];
-  const days = Math.floor(Date.parse(`${runDate}T00:00:00Z`) / 86_400_000);
-  if (!Number.isFinite(days)) return [];
-  const start = (((days * size) % universe.length) + universe.length) % universe.length;
-  return Array.from({ length: Math.min(size, universe.length) }, (_, i) => universe[(start + i) % universe.length]);
-}
-
 export type Candidate = {
   symbol: string;
   direction: "BUY" | "SELL";

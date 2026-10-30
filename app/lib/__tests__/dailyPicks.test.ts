@@ -6,7 +6,6 @@ import {
   gradePick,
   scoreCandidate,
   selectPicks,
-  sliceForDate,
   trackRecord,
   type Candidate,
 } from "../dailyPicks";
@@ -251,38 +250,5 @@ describe("trackRecord", () => {
 
   it("reports nulls rather than a flattering zero when nothing is graded yet", () => {
     expect(trackRecord([])).toEqual({ count: 0, hitRate: null, avgReturn: null });
-  });
-});
-
-describe("sliceForDate", () => {
-  const universe = ["A", "B", "C", "D", "E", "F", "G"];
-
-  it("is deterministic for a given date", () => {
-    // A re-run on the same date must reconsider the same names, so it cannot
-    // quietly produce a different answer than the morning's run.
-    expect(sliceForDate(universe, "2026-10-27", 3)).toEqual(sliceForDate(universe, "2026-10-27", 3));
-  });
-
-  it("moves on to different names the next day", () => {
-    const mon = sliceForDate(universe, "2026-10-26", 3);
-    const tue = sliceForDate(universe, "2026-10-27", 3);
-    expect(tue).not.toEqual(mon);
-  });
-
-  it("wraps around rather than running off the end", () => {
-    const seen = new Set<string>();
-    for (let d = 1; d <= 20; d++) {
-      const date = `2026-11-${String(d).padStart(2, "0")}`;
-      for (const s of sliceForDate(universe, date, 3)) seen.add(s);
-    }
-    // Every name gets looked at over a cycle — the point of rotating at all,
-    // since a fixed slice would guarantee most of the universe was never once
-    // examined.
-    expect(seen.size).toBe(universe.length);
-  });
-
-  it("never asks for more than the universe holds", () => {
-    expect(sliceForDate(["A", "B"], "2026-10-27", 5)).toHaveLength(2);
-    expect(sliceForDate([], "2026-10-27", 5)).toEqual([]);
   });
 });

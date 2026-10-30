@@ -17,6 +17,10 @@ type Company = {
 export default function TopCompaniesPage() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed load and an empty list are different facts. Collapsing them into
+  // an empty array told the reader there are no companies, when what actually
+  // happened is that we could not find out.
+  const [failed, setFailed] = useState(false);
   const [query, setQuery] = useState("");
   const router = useRouter();
 
@@ -24,9 +28,13 @@ export default function TopCompaniesPage() {
     async function loadCompanies() {
       try {
         const res = await fetch("/api/top-companies");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        setCompanies(Array.isArray(data) ? data : []);
+        if (!Array.isArray(data)) throw new Error("unexpected response");
+        setCompanies(data);
+        setFailed(false);
       } catch {
+        setFailed(true);
         setCompanies([]);
       } finally {
         setLoading(false);
@@ -63,7 +71,9 @@ export default function TopCompaniesPage() {
               Click any company to view full details and AI analysis.
             </p>
           </div>
-          {!loading && (
+          {/* Hidden when the load failed: "0 companies" beside "we couldn't
+              load the list" are two different stories about the same moment. */}
+          {!loading && !failed && (
             <span className="text-xs text-[var(--text-secondary)] border border-[var(--border)] px-3 py-1.5 rounded-xl">
               {filtered.length} companies
             </span>
@@ -84,8 +94,22 @@ export default function TopCompaniesPage() {
         <Panel padding="none" hover={false} className="mt-5 glass surface-sheen overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-[var(--text-secondary)] text-sm animate-pulse">Loading companies…</div>
+          ) : failed ? (
+            <div className="p-8 text-center text-sm">
+              <p className="text-[var(--text-primary)]">We couldn’t load the company list.</p>
+              <p className="mt-1 text-[var(--text-secondary)]">
+                The data source didn’t answer. Nothing is wrong with your search — try again shortly.
+              </p>
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="p-8 text-center text-[var(--text-secondary)] text-sm">No companies found.</div>
+            <div className="p-8 text-center text-[var(--text-secondary)] text-sm">
+              {/* A search that matches nothing is a real answer. An empty list
+                  with no search behind it is a different one, and saying so
+                  separates "nothing matched" from "nothing arrived". */}
+              {query.trim()
+                ? `No companies match “${query.trim()}”.`
+                : "The list came back empty."}
+            </div>
           ) : (
             <>
               <div className="grid grid-cols-3 text-[10px] text-[var(--text-secondary)] px-5 py-3 border-b border-[var(--border)] uppercase tracking-widest font-semibold">

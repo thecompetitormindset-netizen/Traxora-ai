@@ -19,6 +19,15 @@ import { trackRecord, type PickOutcome } from "@/app/lib/dailyPicks";
 // per-request fetch can be made to fit inside that. Moving the work to a
 // schedule removes the limit from the path people actually wait on.
 
+/**
+ * How many past picks the history view returns.
+ *
+ * Deliberately a named limit rather than a number buried in a query: the UI has
+ * to tell the reader this is a window, and it cannot do that honestly without
+ * knowing how wide the window is.
+ */
+const HISTORY_LIMIT = 90;
+
 export type ServedPick = {
   symbol: string;
   rank: number;
@@ -164,12 +173,29 @@ export async function GET(req: Request) {
     }
 
     if (history) {
+      // The window is bounded because this table only grows, and the total
+      // comes back alongside it so the screen can say WHICH window it is
+      // showing. Serving 90 rows and letting the caller present them as the
+      // complete record is the same defect this system keeps having to remove:
+      // a truncated answer read as the whole answer.
+      const { count: historyTotal } = await db
+        .from("daily_picks")
+        .select("symbol", { count: "exact", head: true });
+
       const { data: past } = await db
         .from("daily_picks")
         .select("run_date, symbol, rank, direction, conviction, entry_price, as_of, horizon_days, why, outcome_date, outcome_price, return_pct, correct")
+        // Both keys. run_date alone is a partial order, so the picks inside a
+        // single day come back in whatever arrangement the server chooses —
+        // and that arrangement may differ between two requests for the same
+        // data, which would shuffle the list under a reader.
         .order("run_date", { ascending: false })
-        .limit(90);
+        .order("rank", { ascending: true })
+        .limit(HISTORY_LIMIT);
+
       payload.history = (past ?? []).map(r => ({ runDate: (r as Row & { run_date: string }).run_date, ...asPick(r as Row) }));
+      payload.historyTotal = historyTotal ?? null;
+      payload.historyLimit = HISTORY_LIMIT;
     }
 
     return Response.json(payload, { headers: { "Cache-Control": "no-store" } });
