@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  allFutures, contractMultiplier, futuresSpec, notional, proxySymbols, tickValue,
+  allFutures, contractMultiplier, futuresMarkets, futuresSpec, notional, proxySymbols, tickValue,
 } from "../futuresContracts";
 import { placeOrder, profit, profitPct, type Ticket } from "../paperEngine";
 
@@ -151,5 +151,60 @@ describe("placing a futures order", () => {
     if (!r.ok) return;
     // Fractional shares are still allowed, and cost is still the cash spent.
     expect(r.order.shares).toBeCloseTo(1_000 / (100 * 1.0005), 3);
+  });
+});
+
+describe("micro contracts", () => {
+  it("offers a micro for the markets that have one", () => {
+    const markets = futuresMarkets();
+    expect(markets.length).toBe(11);                    // one row per market
+    expect(markets.filter(m => m.micro).length).toBe(8);
+  });
+
+  it("makes every micro the stated fraction of its full contract", () => {
+    // The fraction is what the card tells the reader, so it has to be the
+    // ratio of the multipliers rather than a number written beside them.
+    for (const { standard, micro } of futuresMarkets()) {
+      if (!micro) continue;
+      expect(micro.multiplier / standard.multiplier).toBeCloseTo(micro.fraction!, 6);
+      expect(micro.parentRoot).toBe(standard.root);
+      expect(micro.proxyEtf).toBe(standard.proxyEtf);   // same market, same proxy
+      expect(micro.initialMargin).toBeLessThan(standard.initialMargin);
+    }
+  });
+
+  it("puts a micro within reach of a practice account", () => {
+    // The reason micros are here at all: a full E-mini S&P needs more margin
+    // than the stock practice account starts with.
+    const es = futuresSpec("ES.COMM")!;
+    const mes = futuresSpec("MES.COMM")!;
+    expect(es.initialMargin).toBeGreaterThan(10_000);
+    expect(mes.initialMargin).toBeLessThan(2_000);
+    expect(mes.multiplier).toBe(5);
+  });
+
+  it("prices a micro's exposure and profit at a tenth", () => {
+    const esMove = profit({ signal: "BUY", entry: 5_800, shares: 1, symbol: "ES.COMM" }, 5_801);
+    const mesMove = profit({ signal: "BUY", entry: 5_800, shares: 1, symbol: "MES.COMM" }, 5_801);
+    expect(esMove).toBe(50);
+    expect(mesMove).toBe(5);
+    expect(notional(futuresSpec("MCL.COMM")!, 75)).toBe(7_500);   // vs 75,000 full size
+  });
+
+  it("fills a micro an account could not afford full size", () => {
+    const cash = 10_000;
+    const full = placeOrder({ symbol: "ES.COMM", side: "BUY", type: "market", shares: 1 },
+      { price: 5_800, time: now }, cash, now);
+    const micro = placeOrder({ symbol: "MES.COMM", side: "BUY", type: "market", shares: 1 },
+      { price: 5_800, time: now }, cash, now);
+
+    expect(full.ok).toBe(false);     // ~15,000 of margin against 10,000
+    expect(micro.ok).toBe(true);     // ~1,500
+  });
+
+  it("still refuses a fractional micro", () => {
+    const r = placeOrder({ symbol: "MES.COMM", side: "BUY", type: "market", shares: 2.5 },
+      { price: 5_800, time: now }, 50_000, now);
+    expect(r.ok).toBe(false);
   });
 });
