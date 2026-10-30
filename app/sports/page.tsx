@@ -205,6 +205,7 @@ export default function SportsPage() {
 
   // Watchlist: load local copy, prune past games, then reconcile with Supabase
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the browser's notification permission, which has no server equivalent
     if (typeof Notification !== "undefined") setNotifPerm(Notification.permission);
     const local  = loadWatchlist();
     const pruned = local.filter(w => new Date(w.commenceTime).getTime() > Date.now() - 6 * 3_600_000);

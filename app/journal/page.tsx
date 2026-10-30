@@ -54,6 +54,7 @@ export default function JournalPage() {
 
   useEffect(() => {
     const local = getJournal();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- shows the local copy immediately, then replaces it with the server's once that arrives
     setEntries(local);
 
     // Hydrate from Supabase — saveJournalEntry handles dedup + scoped key

@@ -42,6 +42,7 @@ export default function TrackRecordPage() {
       .finally(() => setLoading(false));
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the initial load; its setState runs after the await
   useEffect(() => { load(); }, []);
 
   if (status === "loading") {

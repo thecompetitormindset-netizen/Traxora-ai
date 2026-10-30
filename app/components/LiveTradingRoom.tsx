@@ -40,6 +40,7 @@ export default function LiveTradingRoom() {
   const [prices,     setPrices]     = useState<Record<string, number>>({});
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds from the local scan store on mount, then owns both values as the room updates
     setSnapshot(getLastScan());
     setLiveTrades(getDayTrades());
 
@@ -75,6 +76,7 @@ export default function LiveTradingRoom() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- polls prices on an interval for the open positions
     fetchPrices(portfolio.holdings);
     const id = setInterval(() => fetchPrices(portfolio.holdings), 5_000);
     return () => clearInterval(id);

@@ -121,6 +121,7 @@ export default function PortfolioChart() {
       setPoints(buildEquityCurve(p.trades, null));
     }
     load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the initial load and subscribes to portfolio updates
     fetchLiveEquity();
     function onUpdate() { load(); fetchLiveEquity(); }
     window.addEventListener(PORTFOLIO_UPDATED_EVENT, onUpdate);
@@ -131,6 +132,7 @@ export default function PortfolioChart() {
   useEffect(() => {
     if (liveEquity === null) return;
     const p = getPortfolio();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- recomputes the equity curve when the live total changes, which is a genuine reaction to new data
     setPoints(buildEquityCurve(p.trades, liveEquity));
   }, [liveEquity]);
 

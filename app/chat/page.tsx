@@ -126,6 +126,7 @@ export default function ChatPage() {
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restores the conversation from sessionStorage once, then owns it — a lazy initialiser would run on the server, where there is no sessionStorage
       if (raw) setMessages(JSON.parse(raw));
     } catch { /* ignore */ }
   }, []);
@@ -145,6 +146,7 @@ export default function ChatPage() {
     setInput("");
     setError("");
 
+    // eslint-disable-next-line react-hooks/purity -- timestamps the message the user just sent; this is a submit handler, not render
     const userMsg: Message = { role: "user", content: trimmed, ts: Date.now() };
     const next = [...messages, userMsg];
     setMessages(next);
@@ -162,6 +164,7 @@ export default function ChatPage() {
       const data = await res.json() as { ok: boolean; text?: string; error?: string };
       if (!data.ok || !data.text) throw new Error(data.error ?? "Failed");
 
+      // eslint-disable-next-line react-hooks/purity -- timestamps the reply as it arrives; this runs after an await, not during render
       const aiMsg: Message = { role: "assistant", content: data.text, ts: Date.now() };
       const final = [...next, aiMsg];
       setMessages(final);

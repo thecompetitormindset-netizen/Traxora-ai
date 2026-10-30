@@ -466,6 +466,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
     // Re-render cached bars — the chart is recreated when the theme changes or
     // when it moves in/out of the fullscreen portal, but the data hasn't.
+    // eslint-disable-next-line react-hooks/immutability -- redraws cached bars after the chart is recreated; the chart is an imperative library holding its own state
     applyBars();
 
     return () => {
@@ -495,6 +496,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   // ── Render cached bars into the chart series ─────────────────────────────────
   // Separate from fetching so the chart can be recreated (theme change,
   // fullscreen portal move) without hitting the network again.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- draws every series onto the chart library's objects; rewriting it to satisfy the compiler would risk a working chart for no change a reader would see
   const applyBars = useCallback(() => {
     const raw = allBarsRef.current;
     if (!raw.length || !chartRef.current) return;
@@ -572,6 +574,7 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
     finally { setLoading(false); }
   }, [symbol, interval, applyBars]);  
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the chart's data load whenever the symbol or interval changes
   useEffect(() => { loadData(); }, [loadData]);
 
   const isBull   = lastChg != null ? lastChg >= 0 : true;

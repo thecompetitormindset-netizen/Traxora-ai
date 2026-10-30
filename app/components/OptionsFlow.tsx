@@ -100,6 +100,7 @@ export default function OptionsFlow() {
   const [filter,    setFilter]    = useState<"all" | "bullish" | "bearish" | "unusual">("all");
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- marks the request in flight and starts it; the state that follows is set after the await
     setLoading(true); setError("");
     fetch("/api/market/options-flow", { cache: "no-store" })
       .then(r => r.ok ? r.json() : Promise.reject(`Error ${r.status}`))

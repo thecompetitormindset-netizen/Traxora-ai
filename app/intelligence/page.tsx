@@ -255,6 +255,7 @@ function ValuePicksPanel() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- runs the first scan and repeats it on an interval
     scan();
     const id = setInterval(scan, 5 * 60 * 1_000);
     return () => clearInterval(id);

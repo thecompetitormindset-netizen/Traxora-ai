@@ -431,6 +431,7 @@ export default function MorningBriefing() {
   }, [pathname]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- drives the staged loading animation on timers, and clears them when loading ends
     if (!loading) { setLoadStep(0); stepTimers.current.forEach(clearTimeout); stepTimers.current = []; return; }
     let elapsed = 0;
     LOAD_STEPS.forEach((s, i) => {
@@ -526,6 +527,7 @@ export default function MorningBriefing() {
 
     if (isWeekday && isMorning && !alreadySeen) {
       localStorage.setItem(scopedKey(DATE_KEY_BASE), today);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fires the morning fetch once a day, gated on the hour and a stored marker
       fetchBriefing();
     }
   }, [authStatus]);

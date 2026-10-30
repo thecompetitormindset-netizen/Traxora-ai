@@ -214,6 +214,7 @@ function MetricCard({
   const valClass = pct >= 60 ? "text-emerald-400" : pct >= 40 ? "text-amber-400" : "text-rose-400";
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the bar to zero and animates it to its width on a timer
     setBarWidth(0);
     const t = setTimeout(() => setBarWidth(pct), delay);
     return () => clearTimeout(t);

@@ -46,6 +46,7 @@ export default function NotificationsPage() {
 
     try {
       const raw = localStorage.getItem(scopedKey("traxora_alerts"));
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds alerts and the paused flag from storage, both edited on this screen afterwards
       setAlerts(raw ? JSON.parse(raw) : []);
       setPaused(localStorage.getItem(scopedKey("traxora_alerts_paused")) === "true");
     } catch { /* ignore */ }

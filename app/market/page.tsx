@@ -37,6 +37,7 @@ function MarketContent() {
 
   useEffect(() => {
     const portfolio = getPortfolio();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the practice balance once at mount; it changes here when a trade is placed
     setCash(portfolio.cash);
   }, []);
 

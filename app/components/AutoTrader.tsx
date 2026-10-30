@@ -395,6 +395,7 @@ export default function AutoTrader() {
       _autoTraderStarted = true;
 
       nextScanRef.current = Date.now() + SCAN_INTERVAL;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- announces the start and kicks off the scan loop; this runs when the trader is switched on, not during render
       push("signal", "AutoTrader started", "All 20 stocks scanned every 5 min · Signals trade instantly");
       // Seeded here, when the trader actually starts, rather than at mount.
       nextScanRef.current = Date.now() + SCAN_INTERVAL;

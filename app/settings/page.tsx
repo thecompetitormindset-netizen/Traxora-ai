@@ -96,6 +96,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads the theme and the browser's notification permission, neither of which exists on the server
     setThemeState(getTheme());
     if (!("Notification" in window)) {
       setNotifPermission("unsupported");
