@@ -50,6 +50,14 @@ export type Candidate = {
   trending: boolean;
   /** The engine's own confidence in the signal. */
   confidence: "High" | "Medium" | "Low";
+  /**
+   * The raw score behind the signal, signed.
+   *
+   * Carried so a caller can show which way a market tilts even when the tilt
+   * is too slight for the scorer to call it — on a broad fund that is most
+   * days, and reporting silence there hid a signal rather than lacking one.
+   */
+  score?: number;
 };
 
 export type ScoredCandidate = Candidate & {

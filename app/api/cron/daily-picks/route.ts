@@ -113,7 +113,19 @@ function unauthorized(why: Denial): Response {
  * reference — and fetching thousands of live quotes would reintroduce exactly
  * the per-symbol cost this removes.
  */
-export function evaluate(symbol: string, bars: DailyBar[], trending: Set<string>): Candidate | null {
+export function evaluate(
+  symbol: string,
+  bars: DailyBar[],
+  trending: Set<string>,
+  /**
+   * Keep a candidate whose signal came back HOLD, with the direction taken
+   * from the sign of its score. The picks never do this — a pick has to be a
+   * call someone could act on and be graded against. The futures outlook does,
+   * because a broad fund sits inside the HOLD band almost every day and
+   * reporting nothing there discards a real, if slight, tilt.
+   */
+  opts: { allowNeutral?: boolean } = {},
+): Candidate | null {
   // The backtest needs warmup plus the forward window; without both, any hit
   // rate it produced would be drawn from too few signals to mean anything.
   if (bars.length < MIN_HISTORY_SESSIONS) return null;
@@ -153,13 +165,20 @@ export function evaluate(symbol: string, bars: DailyBar[], trending: Set<string>
 
   // HOLD is not a pick. Only a directional call can be graded, and only a
   // directional call is worth showing as one of the day's few.
-  if (sm.signal === "HOLD") return null;
+  if (sm.signal === "HOLD" && !opts.allowNeutral) return null;
+
+  // With neutral allowed, the sign of the score carries the direction. A score
+  // of exactly zero points nowhere and is still nothing.
+  const direction: "BUY" | "SELL" | null =
+    sm.signal !== "HOLD" ? sm.signal : sm.score > 0 ? "BUY" : sm.score < 0 ? "SELL" : null;
+  if (direction === null) return null;
 
   return {
     symbol,
-    direction: sm.signal,
+    direction,
     price,
-    backtest: backtestDirection(closes, highs, lows, volumes, sm.signal),
+    score: sm.score,
+    backtest: backtestDirection(closes, highs, lows, volumes, direction),
     volumeRatio,
     trending: trending.has(symbol),
     confidence: sm.confidence,

@@ -1,0 +1,116 @@
+# Fill daily_bars by calling the sync endpoint until the history is complete.
+#
+# The sync adds a few trading dates per call, because Polygon's free tier
+# releases about five requests a minute and a serverless invocation has under
+# one. Reaching the hundred and twenty sessions the scoring needs therefore
+# takes roughly thirty calls — which is a poor thing to do by hand in a
+# browser, and the reason this exists.
+#
+# The secret never leaves GitHub: it is read from the repository's secrets into
+# an environment variable and sent as an Authorization header, so it does not
+# appear in a URL, in the job log, or in this file.
+#
+# Run it from the Actions tab: "Backfill daily bars" -> "Run workflow".
+
+name: Backfill daily bars
+
+on:
+  workflow_dispatch:
+    inputs:
+      site:
+        description: "Base URL of the deployment to fill"
+        required: true
+        default: "https://traxora.ai"
+      runs:
+        description: "Maximum calls to make (each adds a few trading dates)"
+        required: true
+        default: "40"
+
+# One backfill at a time. Two of these running together would race for the same
+# Polygon budget and spend most of their calls collecting rate limits.
+concurrency:
+  group: backfill-bars
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+
+    steps:
+      - name: Call bars-sync until the history is complete
+        env:
+          SITE: ${{ inputs.site }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -uo pipefail
+
+          if [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::CRON_SECRET is not set in this repository's secrets."
+            echo "Settings -> Secrets and variables -> Actions -> New repository secret, named CRON_SECRET."
+            exit 1
+          fi
+
+          max="${{ inputs.runs }}"
+          echo "Filling $SITE, up to $max calls."
+          echo
+
+          for i in $(seq 1 "$max"); do
+            # The secret goes in a header, never the URL: a URL ends up in logs.
+            body=$(curl -sS --max-time 90 \
+                     -H "Authorization: Bearer $CRON_SECRET" \
+                     -w '\n%{http_code}' \
+                     "$SITE/api/cron/bars-sync") || {
+              echo "::warning::Call $i could not be made. Retrying after a pause."
+              sleep 30
+              continue
+            }
+
+            code=$(printf '%s' "$body" | tail -n1)
+            json=$(printf '%s' "$body" | sed '$d')
+
+            if [ "$code" = "401" ]; then
+              echo "::error::The deployment rejected the secret (401). Check CRON_SECRET matches the one set in Vercel."
+              exit 1
+            fi
+
+            if [ "$code" != "200" ]; then
+              # 503 carries a readable reason — a missing table, no DATABASE_URL.
+              reason=$(printf '%s' "$json" | jq -r '.reason // .error // "unknown"' 2>/dev/null || echo unknown)
+              hint=$(printf '%s' "$json" | jq -r '.hint // ""' 2>/dev/null || echo "")
+              echo "::error::HTTP $code from bars-sync — $reason"
+              [ -n "$hint" ] && echo "$hint"
+              exit 1
+            fi
+
+            stored=$(printf '%s' "$json" | jq -r '.datesStored // "?"' 2>/dev/null)
+            remaining=$(printf '%s' "$json" | jq -r '.datesRemaining // "?"' 2>/dev/null)
+            rows=$(printf '%s' "$json" | jq -r '.rowsWritten // 0' 2>/dev/null)
+            written=$(printf '%s' "$json" | jq -r '(.datesWritten // []) | join(", ")' 2>/dev/null)
+            stopped=$(printf '%s' "$json" | jq -r '.stopped // ""' 2>/dev/null)
+
+            printf 'call %-3s stored=%-5s remaining=%-5s rows=%-7s %s\n' \
+              "$i" "$stored" "$remaining" "$rows" "${written:-(none)}"
+
+            # A permanent refusal — the key's plan does not include the endpoint.
+            if [ -n "$stopped" ]; then
+              echo "::error::bars-sync stopped: $stopped"
+              printf '%s' "$json" | jq -r '.hint // ""' 2>/dev/null
+              exit 1
+            fi
+
+            if [ "$remaining" = "0" ]; then
+              echo
+              echo "History is complete for the lookback window after $i call(s)."
+              echo "Daily picks and the futures outlook can score from the next scheduled run."
+              exit 0
+            fi
+
+            # Polygon allows roughly five calls a minute and the route waits for
+            # its own slots. Pausing between calls keeps the next one from
+            # spending its budget on rate limits instead of data.
+            sleep 20
+          done
+
+          echo
+          echo "::warning::Used all $max calls and the history is not complete yet. Run the workflow again to continue."
