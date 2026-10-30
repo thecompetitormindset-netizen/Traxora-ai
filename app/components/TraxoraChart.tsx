@@ -221,6 +221,34 @@ interface TraxoraChartProps {
   signalData?:     ChartSignal | null;
 }
 
+/**
+ * An indicator toggle.
+ *
+ * Defined at module scope, not inside the chart. A component declared during
+ * render is a NEW component type on every render, so React unmounted and
+ * remounted every chip each time the chart re-rendered — losing focus and
+ * restarting the transition on all of them, which is why the row flickered
+ * while the chart updated.
+ *
+ * The palette comes in as a prop because it is the only thing it needed from
+ * the enclosing scope.
+ */
+function Chip({ active, color, label, onClick, palette }: {
+  active: boolean; color: string; label: string; onClick: () => void;
+  palette: { bright: string; dim: string; border: string };
+}) {
+  return (
+    <button type="button" onClick={onClick}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all border"
+      style={active
+        ? { color: palette.bright, background: color + "18", borderColor: color + "40" }
+        : { color: palette.dim, background: "transparent", borderColor: "transparent" }}>
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: active ? color : palette.border }} />
+      {label}
+    </button>
+  );
+}
+
 export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpandToggle, signalData }: TraxoraChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -267,6 +295,10 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const [lastChg,     setLastChg]       = useState<number | null>(null);
   const [lastBar,     setLastBar]       = useState<{ o: number; h: number; l: number; c: number; v: number } | null>(null);
   const [tooltip,     setTooltip]       = useState<Tooltip>(null);
+  // The container's measured width, kept so the tooltip can be positioned
+  // during render without reaching into a ref. 600 is the fallback the ref
+  // read used, and holds until the observer reports for the first time.
+  const [containerWidth, setContainerWidth] = useState(600);
   const [fullscreen,  setFullscreen]    = useState(false);
   const [chartType,   setChartType]     = useState<"candle" | "line">("line");
   const chartTypeRef                    = useRef<"candle" | "line">("line");
@@ -425,6 +457,10 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
       if (!node) return;
       chart.applyOptions({ width: node.clientWidth, height: node.clientHeight || height });
       chart.timeScale().fitContent();
+      // Kept in state because the tooltip needs it while rendering. Reading
+      // containerRef.current during render was reaching into the DOM for a
+      // value React had not necessarily committed yet.
+      setContainerWidth(node.clientWidth);
     });
     ro.observe(el);
 
@@ -543,21 +579,8 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
   const rsiColor = rsiVal == null ? C.momentum : rsiVal > 70 ? C.bear : rsiVal < 30 ? C.bull : C.momentum;
 
   const TIP_W = 168;
-  const tipX  = tooltip ? Math.max(4, Math.min(tooltip.x + 14, (containerRef.current?.clientWidth ?? 600) - TIP_W - 4)) : 0;
+  const tipX  = tooltip ? Math.max(4, Math.min(tooltip.x + 14, containerWidth - TIP_W - 4)) : 0;
   const tipY  = tooltip ? Math.max(8, tooltip.y - 110) : 0;
-
-  function Chip({ active, color, label, onClick }: { active: boolean; color: string; label: string; onClick: () => void }) {
-    return (
-      <button type="button" onClick={onClick}
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all border"
-        style={active
-          ? { color: C.bright, background: color + "18", borderColor: color + "40" }
-          : { color: C.dim, background: "transparent", borderColor: "transparent" }}>
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: active ? color : C.border }} />
-        {label}
-      </button>
-    );
-  }
 
   function downloadSnapshot() {
     const canvas = chartRef.current?.takeScreenshot();
@@ -700,16 +723,16 @@ export default function TraxoraChart({ symbol, height = 480, isExpanded, onExpan
 
         {/* Indicator chips */}
         <div className="flex items-center gap-1 mt-2 flex-wrap">
-          <Chip active={showTrend}    color={C.trend}    label="Trend"        onClick={() => setShowTrend(v => !v)} />
-          <Chip active={showLongT}    color={C.longT}    label="Long Trend"   onClick={() => setShowLongT(v => !v)} />
-          {isIntraday && <Chip active={showFair} color={C.fair} label="Fair Price" onClick={() => setShowFair(v => !v)} />}
-          <Chip active={showMomentum} color={C.momentum} label="Momentum"     onClick={() => setShowMomentum(v => !v)} />
+          <Chip palette={C} active={showTrend}    color={C.trend}    label="Trend"        onClick={() => setShowTrend(v => !v)} />
+          <Chip palette={C} active={showLongT}    color={C.longT}    label="Long Trend"   onClick={() => setShowLongT(v => !v)} />
+          {isIntraday && <Chip palette={C} active={showFair} color={C.fair} label="Fair Price" onClick={() => setShowFair(v => !v)} />}
+          <Chip palette={C} active={showMomentum} color={C.momentum} label="Momentum"     onClick={() => setShowMomentum(v => !v)} />
           {/* BB + volume only in fullscreen — take up space otherwise */}
-          {fullscreen && <Chip active={showBB} color={C.longT} label="Volatility" onClick={() => setShowBB(v => !v)} />}
-          {fullscreen && <Chip active={showVolume} color={C.mid} label="Volume" onClick={() => setShowVolume(v => !v)} />}
+          {fullscreen && <Chip palette={C} active={showBB} color={C.longT} label="Volatility" onClick={() => setShowBB(v => !v)} />}
+          {fullscreen && <Chip palette={C} active={showVolume} color={C.mid} label="Volume" onClick={() => setShowVolume(v => !v)} />}
           {/* Signal lines toggle */}
           {signalData && (
-            <Chip active={showSignals} color={signalBull ? C.bull : C.bear} label="Signal Lines" onClick={() => setShowSignals(v => !v)} />
+            <Chip palette={C} active={showSignals} color={signalBull ? C.bull : C.bear} label="Signal Lines" onClick={() => setShowSignals(v => !v)} />
           )}
         </div>
       </div>

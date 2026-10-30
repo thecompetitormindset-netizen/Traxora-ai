@@ -1,22 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+
 import { loadRiskSettings, saveRiskSettings, type RiskSettings } from "@/app/lib/positionSizer";
+import { useClientValue, windowEvent } from "@/app/lib/useClientValue";
+
+/** Published on every write so sizers elsewhere on the page follow along. */
+export const RISK_SETTINGS_EVENT = "traxora:risk-settings";
 
 // Persists to localStorage so it's set once and applies everywhere plays are shown.
-export function useRiskSettings() {
-  const [settings, setSettings] = useState<RiskSettings>({ accountSize: 0, riskPct: 1 });
+// Stored settings are an external store, so they are read as one rather than
+// copied into state and corrected after mount. loadRiskSettings parses JSON and
+// hands back a fresh object every call, which useClientValue folds back to the
+// previous one when nothing actually changed.
+const SERVER_DEFAULT: RiskSettings = { accountSize: 0, riskPct: 1 };
+const subscribeToSettings = windowEvent("storage", RISK_SETTINGS_EVENT);
 
-  useEffect(() => {
-    setSettings(loadRiskSettings());
-  }, []);
+export function useRiskSettings() {
+  const settings = useClientValue(loadRiskSettings, SERVER_DEFAULT, subscribeToSettings);
 
   function update(next: Partial<RiskSettings>) {
-    setSettings(prev => {
-      const merged = { ...prev, ...next };
-      saveRiskSettings(merged);
-      return merged;
-    });
+    saveRiskSettings({ ...settings, ...next });
+    // The write is what everyone hears: one notification keeps every sizer on
+    // the page in step instead of each holding its own copy.
+    if (typeof window !== "undefined") window.dispatchEvent(new Event(RISK_SETTINGS_EVENT));
   }
 
   return { settings, update };
