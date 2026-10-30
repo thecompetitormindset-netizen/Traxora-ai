@@ -5,6 +5,7 @@ export const maxDuration = 25;
 import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { yahooFetch, newYahooStats, wasThrottled } from "@/app/lib/yahooFetch";
+import { coinGeckoMarkets, type CoinQuote } from "@/app/lib/coingecko";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -324,19 +325,64 @@ export async function GET() {
   // and the page rendered that as "these coins have barely moved" — an outage
   // described as market conditions.
   const stats = newYahooStats();
-  const results = await Promise.all(COINS.map(c => fetchCoin(c, stats)));
-  const coins   = results.filter((c): c is CryptoMover => c !== null);
+
+  // Two sources, doing what each is good for.
+  //
+  // CoinGecko answers every coin in one keyless request and is not the source
+  // that rate-limits this deployment, so it carries the price and the day's
+  // move — the figures the page exists to show. Yahoo carries the year of
+  // daily OHLC the indicators and the backtest need, which CoinGecko's free
+  // tier does not provide.
+  //
+  // They are fetched together, and the deeper read degrades on its own: when
+  // Yahoo will not answer, the prices are still right and the analysis fields
+  // are absent rather than the whole board going blank.
+  const [gecko, results] = await Promise.all([
+    coinGeckoMarkets(COINS.map(c => c.symbol)),
+    Promise.all(COINS.map(c => fetchCoin(c, stats))),
+  ]);
+
+  const prices: Map<string, CoinQuote> = gecko.ok ? gecko.quotes : new Map();
+
+  // A coin counts if EITHER source answered for it.
+  const coins: CryptoMover[] = COINS.map(c => {
+    const deep = results.find(r => r?.symbol === c.symbol) ?? null;
+    const live = prices.get(c.symbol) ?? null;
+    if (!deep && !live) return null;
+
+    if (!deep) {
+      // Price only: everything the indicators would have said is unknown, and
+      // unknown is reported as null rather than as a neutral reading.
+      return {
+        symbol: c.symbol, ticker: c.ticker, name: c.name,
+        price: live!.price, changePct: live!.changePct,
+        rsi14: null, bbWidthPct: null, squeeze: false,
+        bigMove: live!.changePct !== null && Math.abs(live!.changePct) >= BIG_MOVE_THRESHOLD,
+        sparkline: live!.sparkline,
+        signal: null, confidence: null, score: null, trend5dPct: null,
+        dailyBias: null, overbought: false, oversold: false, backtest: null,
+      } as CryptoMover;
+    }
+
+    // Both: keep the deeper read, but prefer the fresher price. Yahoo's last
+    // close can be hours stale for an instrument that never closes.
+    return live && live.price !== null
+      ? { ...deep, price: live.price, changePct: live.changePct ?? deep.changePct,
+          bigMove: (live.changePct ?? deep.changePct ?? 0) !== 0
+            && Math.abs(live.changePct ?? deep.changePct ?? 0) >= BIG_MOVE_THRESHOLD }
+      : deep;
+  }).filter((c): c is CryptoMover => c !== null);
 
   if (coins.length === 0) {
     // Serving the last good copy beats serving nothing, even past its minute.
     if (cache) return Response.json(cache.data);
 
-    const throttled = wasThrottled(stats);
+    const throttled = wasThrottled(stats) || (!gecko.ok && gecko.reason === "rate_limited");
     return Response.json({
       error: throttled ? "rate_limited" : "source_unavailable",
       hint: throttled
         ? "The price source is rate-limiting this server right now. It usually clears within a few minutes."
-        : "The price source did not answer. Nothing is wrong with your connection.",
+        : "Neither price source answered. Nothing is wrong with your connection.",
       coins: [],
     }, { status: 503 });
   }
@@ -348,6 +394,10 @@ export async function GET() {
     // list read as the whole market.
     requested: COINS.length,
     returned: coins.length,
+    // Which parts of the reading are present, so the page can say what is
+    // missing instead of leaving a reader to wonder why a column is empty.
+    priceSource: gecko.ok ? "coingecko" : "yahoo",
+    analysisAvailable: coins.some(c => c.signal !== null),
   };
   cache = { data: payload, ts: Date.now() };
   return Response.json(payload);

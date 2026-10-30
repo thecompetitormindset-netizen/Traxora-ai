@@ -18,9 +18,10 @@
 
 import { computeChangePct, resolvePreviousClose } from "./quoteSanity";
 import { finnhubQuote, type FinnhubQuote, type FinnhubStats } from "./finnhubFetch";
+import { coinGeckoMarkets, isCoinGeckoSymbol } from "./coingecko";
 import { yahooFetch, yahooJson, type YahooChartResponse, type YahooStats } from "./yahooFetch";
 
-export type QuoteSource = "finnhub" | "yahoo";
+export type QuoteSource = "finnhub" | "yahoo" | "coingecko";
 
 export type MarketQuote = {
   symbol: string;
@@ -117,7 +118,40 @@ export async function marketQuote(symbol: string, opts: MarketQuoteOptions = {})
 
 /** Resolve a list of symbols together, preserving input order. */
 export async function marketQuotes(symbols: string[], opts: MarketQuoteOptions = {}): Promise<MarketQuote[]> {
-  return Promise.all(symbols.map(s => marketQuote(s, opts)));
+  // Crypto first, in one request for all of it.
+  //
+  // These pairs are not on Finnhub's free tier under the symbols this app
+  // uses, so every coin fell through to Yahoo — the source that rate-limits
+  // this deployment about two requests in three — and the board filled with
+  // dashes. CoinGecko answers the whole set in a single keyless call.
+  //
+  // Only crypto takes this path. Stocks are quoted exactly as before.
+  const coinSymbols = symbols.filter(isCoinGeckoSymbol);
+  const coins = new Map<string, MarketQuote>();
+
+  if (coinSymbols.length > 0) {
+    const r = await coinGeckoMarkets(coinSymbols);
+    if (r.ok) {
+      for (const [symbol, q] of r.quotes) {
+        if (q.price === null) continue;   // an unpriced coin is not an answer
+        coins.set(symbol, {
+          symbol,
+          price: q.price,
+          change: q.changePct === null ? null : round2(q.changePct),
+          source: "coingecko",
+        });
+      }
+    }
+    // A CoinGecko failure is not fatal: anything it could not answer falls
+    // through to the existing providers below, exactly as it used to.
+  }
+
+  return Promise.all(
+    symbols.map(s => {
+      const hit = coins.get(s.toUpperCase()) ?? coins.get(s);
+      return hit ? Promise.resolve(hit) : marketQuote(s, opts);
+    }),
+  );
 }
 
 // ---------------------------------------------------------------------------
