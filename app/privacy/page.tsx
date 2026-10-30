@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SITE_HOST } from "../lib/site";
 
 export const metadata = {
   title: "Privacy Policy — Traxora AI",
@@ -42,7 +43,7 @@ export default function PrivacyPage() {
         </div>
 
         <Section title="1. Who We Are">
-          <p>Traxora AI (&ldquo;Traxora,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) is a market analysis and signal research platform. Our service is available at traxora-ai.vercel.app.</p>
+          <p>Traxora AI (&ldquo;Traxora,&rdquo; &ldquo;we,&rdquo; &ldquo;our,&rdquo; or &ldquo;us&rdquo;) is a market analysis and signal research platform. Our service is available at {SITE_HOST}.</p>
         </Section>
 
         <Section title="2. Information We Collect">

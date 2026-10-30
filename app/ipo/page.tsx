@@ -6,6 +6,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import type { IPOItem } from "../api/ipo/route";
 import type { IPOAnalysis } from "../api/ipo/analyze/route";
+import { SITE_HOST } from "../lib/site";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ function AIPanel({ ipo }: { ipo: IPOItem }) {
           lines.push(`**12-Month Targets:** $${analysis.priceTargets.bear} · $${analysis.priceTargets.base} · $${analysis.priceTargets.bull}`);
           if (analysis.catalysts.length > 0) { lines.push(""); lines.push("**Catalysts:** " + analysis.catalysts.slice(0, 3).map(c => `• ${c}`).join("  ")); }
           if (analysis.risks.length > 0) { lines.push("**Risks:** " + analysis.risks.slice(0, 2).map(r => `• ${r}`).join("  ")); }
-          lines.push(""); lines.push("**traxora.ai**");
+          lines.push(""); lines.push(`**${SITE_HOST}**`);
           const el = document.getElementById(`ipo-discord-${ipo.name}`);
           navigator.clipboard.writeText(lines.join("\n")).then(() => {
             if (el) { el.textContent = "Copied!"; setTimeout(() => { if (el) el.textContent = "Post to Discord"; }, 2000); }

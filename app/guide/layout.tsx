@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SITE_URL, siteUrl } from "../lib/site";
 
 export const metadata: Metadata = {
   title: "Guide",
@@ -11,12 +12,12 @@ export const metadata: Metadata = {
     "how to use Traxora AI",
   ],
   alternates: {
-    canonical: "https://traxora-ai.vercel.app/guide",
+    canonical: siteUrl("guide"),
   },
   openGraph: {
     title:       "Traxora AI Guide — Smart Money Trading Explained",
     description: "How Traxora works, in plain words: signals, options, practice trading and every page.",
-    url:         "https://traxora-ai.vercel.app/guide",
+    url:         siteUrl("guide"),
     type:        "article",
   },
 };
@@ -53,8 +54,8 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     "itemListElement": [
-      { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://traxora-ai.vercel.app" },
-      { "@type": "ListItem", "position": 2, "name": "Trading Guide", "item": "https://traxora-ai.vercel.app/guide" },
+      { "@type": "ListItem", "position": 1, "name": "Home", "item": SITE_URL },
+      { "@type": "ListItem", "position": 2, "name": "Trading Guide", "item": siteUrl("guide") },
     ],
   };
 
@@ -63,13 +64,13 @@ export default function GuideLayout({ children }: { children: React.ReactNode })
     "@type": "Article",
     "headline": "How to Trade with Smart Money Signals — Complete Guide",
     "description": "Learn Order Blocks, Fair Value Gaps, Liquidity Sweeps, Kill Zones, and how to use AI trading signals. Free step-by-step guide for all levels.",
-    "url": "https://traxora-ai.vercel.app/guide",
-    "image": "https://traxora-ai.vercel.app/icon-192.png",
+    "url": siteUrl("guide"),
+    "image": siteUrl("icon-192.png"),
     "author": { "@type": "Organization", "name": "Traxora AI" },
     "publisher": {
       "@type": "Organization",
       "name": "Traxora AI",
-      "logo": { "@type": "ImageObject", "url": "https://traxora-ai.vercel.app/icon-192.png" },
+      "logo": { "@type": "ImageObject", "url": siteUrl("icon-192.png") },
     },
     "datePublished": "2026-06-01",
     "dateModified": new Date().toISOString().split("T")[0],

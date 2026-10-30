@@ -1,4 +1,5 @@
 import NextAuth from "next-auth";
+import { siteUrl } from "@/app/lib/site";
 import Google from "next-auth/providers/google";
 import Credentials from "next-auth/providers/credentials";
 import { Resend } from "resend";
@@ -182,7 +183,7 @@ function loginEmailHtml(params: {
             <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">
               <tr>
                 <td style="background:#059669;border-radius:10px">
-                  <a href="https://traxora-ai.vercel.app/dashboard" target="_blank"
+                  <a href="${siteUrl("dashboard")}" target="_blank"
                     style="display:block;padding:12px 28px;font-size:13px;font-weight:700;color:#ffffff;text-decoration:none">
                     ${isNewUser ? "Start Trading →" : "Open Dashboard →"}
                   </a>

@@ -1,3 +1,5 @@
+import { SITE_HOST } from "./site";
+
 // Discord webhook utilities — shared across cron and API routes.
 
 export interface DiscordEmbed {
@@ -72,7 +74,7 @@ export function buildBriefingEmbed(
     description: `**${buys.length} BUY** · **${sells.length} SELL** signals fired by Traxora AI`,
     color:       0x10b981,
     fields,
-    footer:      { text: "Traxora AI · traxora.ai" },
+    footer:      { text: `Traxora AI · ${SITE_HOST}` },
     timestamp:   new Date().toISOString(),
   }];
 }
@@ -138,7 +140,7 @@ export function buildIPOEmbed(
         inline: true as const,
       }] : []),
     ],
-    footer:    { text: "Traxora AI · traxora.ai" },
+    footer:    { text: `Traxora AI · ${SITE_HOST}` },
     timestamp: new Date().toISOString(),
   }];
 }

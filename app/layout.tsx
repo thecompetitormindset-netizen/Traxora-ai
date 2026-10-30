@@ -10,6 +10,7 @@ import CookieBanner from "./components/CookieBanner";
 import ServiceWorkerRegistrar from "./components/ServiceWorkerRegistrar";
 import ThemeProvider from "./components/ThemeProvider";
 import AppShell from "./components/AppShell";
+import { SITE_URL, siteUrl } from "./lib/site";
 
 const geist = Geist({
   subsets: ["latin"],
@@ -24,7 +25,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://traxora-ai.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default:  "Traxora — Know when to trade, and when to wait",
     template: "%s | Traxora",
@@ -42,7 +43,7 @@ export const metadata: Metadata = {
   ],
   manifest: "/manifest.webmanifest",
   alternates: {
-    canonical: "https://traxora-ai.vercel.app",
+    canonical: SITE_URL,
   },
   verification: {
     google: "yKYR9JdmvGbAjhHrn_3pX4sZUi5NsiG2ElxEPkPI7tc",
@@ -52,7 +53,7 @@ export const metadata: Metadata = {
     description: "Know when to trade — and when to wait. Plain-language checks for stocks, options, futures and crypto, with practice trading. Free to use.",
     type:        "website",
     locale:      "en_US",
-    url:         "https://traxora-ai.vercel.app",
+    url:         SITE_URL,
     siteName:    "Traxora AI",
     images: [{
       url:    "/opengraph-image",
@@ -112,12 +113,12 @@ export default function RootLayout({
                 {
                   "@type": "WebSite",
                   "name": "Traxora AI",
-                  "url": "https://traxora-ai.vercel.app",
+                  "url": SITE_URL,
                   "potentialAction": {
                     "@type": "SearchAction",
                     "target": {
                       "@type": "EntryPoint",
-                      "urlTemplate": "https://traxora-ai.vercel.app/explore?q={search_term_string}",
+                      "urlTemplate": `${SITE_URL}/explore?q={search_term_string}`,
                     },
                     "query-input": "required name=search_term_string",
                   },
@@ -125,7 +126,7 @@ export default function RootLayout({
                 {
                   "@type": "SoftwareApplication",
                   "name": "Traxora AI",
-                  "url": "https://traxora-ai.vercel.app",
+                  "url": SITE_URL,
                   "description": "AI-powered Smart Money trading signals platform. Real-time BUY/SELL/HOLD signals with Order Block, FVG, volume profile, options analysis, and daily morning briefings.",
                   "applicationCategory": "FinanceApplication",
                   "operatingSystem": "Web",
@@ -159,10 +160,10 @@ export default function RootLayout({
                 {
                   "@type": "Organization",
                   "name": "Traxora AI",
-                  "url": "https://traxora-ai.vercel.app",
+                  "url": SITE_URL,
                   "logo": {
                     "@type": "ImageObject",
-                    "url": "https://traxora-ai.vercel.app/icon-192.png",
+                    "url": siteUrl("icon-192.png"),
                     "width": 192,
                     "height": 192,
                   },
