@@ -8,6 +8,7 @@ import { barsForMany, MIN_HISTORY_SESSIONS } from "@/app/lib/barsStore";
 import { futuresMarkets, type FuturesMarket, type FuturesSpec } from "@/app/lib/futuresContracts";
 import { evaluate } from "@/app/api/cron/daily-picks/route";
 import { scoreCandidate, MIN_BACKTEST_SAMPLE } from "@/app/lib/dailyPicks";
+import { leanFromScore, leanWords, type LeanStrength } from "@/app/lib/futuresLean";
 
 // A measured read on each futures market, taken on a fund that tracks it.
 //
@@ -49,8 +50,16 @@ export type FuturesRow = {
   proxyCaveat: string;
   /** Full size first, micro second where one exists. */
   sizes: ContractSize[];
-  /** Null when the proxy has no directional signal today, or too little history. */
+  /** Which way the evidence points. Null only when it points nowhere at all. */
   direction: "BUY" | "SELL" | null;
+  /** How hard it leans, on the scorer's own 0-10 scale. */
+  strength: number | null;
+  /** That strength in plain words, so a weak lean reads as weak. */
+  strengthLabel: LeanStrength | null;
+  /** Whether the lean clears the bar for a fund. */
+  clearsBar: boolean;
+  /** "Leaning up" / "Leaning down". */
+  leanWords: string | null;
   /** Null until the backtest has enough occurrences to mean anything. */
   hitRate: number | null;
   sample: number;
@@ -108,6 +117,10 @@ export async function GET() {
       proxyCaveat: spec.proxyCaveat,
       sizes: market.micro ? [asSize(spec), asSize(market.micro)] : [asSize(spec)],
       direction: null,
+      strength: null,
+      strengthLabel: null,
+      clearsBar: false,
+      leanWords: null,
       hitRate: null,
       sample: 0,
       edge: null,
@@ -122,10 +135,15 @@ export async function GET() {
       return { ...base, note: `Not enough stored history for ${spec.proxyEtf} yet — ${MIN_HISTORY_SESSIONS} sessions are needed before a hit rate means anything.` };
     }
 
-    const candidate = evaluate(spec.proxyEtf, series, new Set<string>());
+    // allowNeutral: a broad fund sits inside the scorer's HOLD band most days,
+    // and reporting nothing there discards a real if slight tilt rather than
+    // finding none.
+    const candidate = evaluate(spec.proxyEtf, series, new Set<string>(), { allowNeutral: true });
     if (!candidate) {
-      return { ...base, note: `No directional signal on ${spec.proxyEtf} today. Waiting is a real answer.` };
+      return { ...base, note: `${spec.proxyEtf} is flat today — the evidence points neither way.` };
     }
+
+    const lean = leanFromScore(candidate.score ?? 0, "fund");
 
     const scored = scoreCandidate(candidate);
     const edge = scored.backtest.avgReturn !== null && scored.backtest.baselineAvgReturn !== null
@@ -137,12 +155,20 @@ export async function GET() {
     return {
       ...base,
       direction: candidate.direction,
+      strength: lean.strength,
+      strengthLabel: lean.label,
+      clearsBar: lean.clearsBar,
+      leanWords: leanWords(lean),
       hitRate: scored.backtest.count >= MIN_BACKTEST_SAMPLE ? scored.backtest.hitRate : null,
       sample: scored.backtest.count,
       edge: edge === null ? null : Math.round(edge * 10) / 10,
       conviction: scored.rejected === null ? scored.conviction : null,
       why: scored.why,
-      note: scored.rejected,
+      // The direction is always shown now, so this note explains what the
+      // measurement could NOT establish rather than why there is no call.
+      note: scored.backtest.count < MIN_BACKTEST_SAMPLE
+        ? `Only ${scored.backtest.count} past signals like this (${MIN_BACKTEST_SAMPLE} needed) — not enough to say how often it works.`
+        : scored.rejected,
     };
   });
 

@@ -4,7 +4,7 @@ export const maxDuration = 25;
 
 import { viewer } from "@/app/lib/viewer";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
-import { yahooFetch } from "@/app/lib/yahooFetch";
+import { yahooFetch, newYahooStats, wasThrottled } from "@/app/lib/yahooFetch";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -232,11 +232,14 @@ function backtestSignal(closes: number[], highs: number[], lows: number[], vols:
 
 // ── Per-coin fetch ─────────────────────────────────────────────────────────────
 
-async function fetchCoin(coin: { symbol: string; ticker: string; name: string }): Promise<CryptoMover | null> {
+async function fetchCoin(
+  coin: { symbol: string; ticker: string; name: string },
+  stats?: import("@/app/lib/yahooFetch").YahooStats,
+): Promise<CryptoMover | null> {
   try {
     const res = await yahooFetch(
       `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(coin.symbol)}?interval=1d&range=1y`,
-      { timeoutMs: 15_000, budgetMs: 18_000, label: coin.symbol },
+      { timeoutMs: 15_000, budgetMs: 18_000, label: coin.symbol, stats },
     );
     if (!res) return null;
     const json = await res.json();
@@ -316,10 +319,36 @@ export async function GET() {
     return Response.json(cache.data);
   }
 
-  const results = await Promise.all(COINS.map(fetchCoin));
+  // Count what the price source actually did, so a failure can be reported as
+  // one. Every coin returning null used to arrive as an empty list with a 200,
+  // and the page rendered that as "these coins have barely moved" — an outage
+  // described as market conditions.
+  const stats = newYahooStats();
+  const results = await Promise.all(COINS.map(c => fetchCoin(c, stats)));
   const coins   = results.filter((c): c is CryptoMover => c !== null);
 
-  const payload = { coins, updatedAt: new Date().toISOString() };
-  if (coins.length > 0) cache = { data: payload, ts: Date.now() };
+  if (coins.length === 0) {
+    // Serving the last good copy beats serving nothing, even past its minute.
+    if (cache) return Response.json(cache.data);
+
+    const throttled = wasThrottled(stats);
+    return Response.json({
+      error: throttled ? "rate_limited" : "source_unavailable",
+      hint: throttled
+        ? "The price source is rate-limiting this server right now. It usually clears within a few minutes."
+        : "The price source did not answer. Nothing is wrong with your connection.",
+      coins: [],
+    }, { status: 503 });
+  }
+
+  const payload = {
+    coins,
+    updatedAt: new Date().toISOString(),
+    // Said plainly when some coins are missing, rather than letting a short
+    // list read as the whole market.
+    requested: COINS.length,
+    returned: coins.length,
+  };
+  cache = { data: payload, ts: Date.now() };
   return Response.json(payload);
 }

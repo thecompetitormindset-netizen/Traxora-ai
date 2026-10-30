@@ -199,6 +199,10 @@ export default function CryptoDashboard() {
   const [rows,    setRows]    = useState<CoinRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [movers,  setMovers]  = useState<CryptoMover[]>([]);
+  // A failed fetch and a quiet market are different facts. Collapsing both
+  // into an empty list made an outage render as "these coins have barely
+  // moved" — market commentary invented out of a dead request.
+  const [moversError, setMoversError] = useState<string | null>(null);
 
   useEffect(() => {
     const symbols = COINS.map(c => c.symbol).join(",");
@@ -211,9 +215,16 @@ export default function CryptoDashboard() {
       .finally(() => setLoading(false));
 
     fetch("/api/market/crypto-movers", { cache: "no-store" })
-      .then(r => r.ok ? r.json() : null)
-      .then((d: { coins?: CryptoMover[] } | null) => setMovers(d?.coins ?? []))
-      .catch(() => {});
+      .then(async r => {
+        const body = await r.json().catch(() => null) as { coins?: CryptoMover[]; hint?: string } | null;
+        if (!r.ok) throw new Error(body?.hint ?? `The coin data service returned an error (${r.status}).`);
+        return body;
+      })
+      .then(d => { setMovers(d?.coins ?? []); setMoversError(null); })
+      .catch((e: unknown) => {
+        setMovers([]);
+        setMoversError(e instanceof Error ? e.message : "We couldn't load the coin data.");
+      });
   }, []);
 
   const bigMovers = movers.filter(m => m.bigMove).sort((a, b) => Math.abs(b.changePct ?? 0) - Math.abs(a.changePct ?? 0));
@@ -271,6 +282,25 @@ export default function CryptoDashboard() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Why there is nothing below, when there is nothing below. Every
+          section here is gated on having coins, so a failed fetch used to
+          render as an empty page with no explanation at all. */}
+      {moversError && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
+          <p className="text-sm font-bold text-[#F1F5F9]">We couldn&rsquo;t load the coin data.</p>
+          <p className="mt-1 text-[11px] text-[#7B8DB4] leading-relaxed max-w-[70ch]">{moversError}</p>
+        </div>
+      )}
+
+      {!loading && !moversError && movers.length === 0 && (
+        <div className="bg-[#13112A] border border-[#252345] rounded-2xl p-5">
+          <p className="text-sm font-bold text-[#F1F5F9]">No coin readings right now.</p>
+          <p className="mt-1 text-[11px] text-[#7B8DB4] leading-relaxed">
+            The data came back empty rather than failing — nothing to show for these coins at the moment.
+          </p>
         </div>
       )}
 

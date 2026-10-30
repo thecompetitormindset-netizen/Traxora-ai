@@ -31,12 +31,13 @@ const usd = (n: number, dp = 0) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: dp, maximumFractionDigits: dp })}`;
 
 function Row({ r }: { r: FuturesRow }) {
-  // A direction is only shown once the backtest behind it cleared the sample
-  // floor. The scorer can produce a lean from eleven past occurrences, and
-  // printing "leaning down" above "not yet meaningful" would have the row
-  // contradicting itself — asserting a call the same card then withdraws.
+  // The direction always shows now — a reader can act on "mildly up" and
+  // cannot act on silence. What varies is how loudly it is said: a lean that
+  // clears the bar for a fund is coloured, and one that does not is stated in
+  // grey with its strength beside it, so a weak lean looks weak instead of
+  // looking like a call.
   const measured = r.hitRate !== null && r.conviction !== null;
-  const tone = !measured
+  const tone = !r.clearsBar
     ? "var(--mx-text-3)"
     : r.direction === "BUY" ? "var(--mx-up)" : "var(--mx-down)";
 
@@ -49,12 +50,18 @@ function Row({ r }: { r: FuturesRow }) {
             Measured on {r.proxyEtf}
           </p>
         </div>
-        <p className="text-[15px] tabular-nums shrink-0" style={{ color: tone }}>
-          {!measured ? "No call" : r.direction === "BUY" ? "Leaning up" : "Leaning down"}
+        <p className="text-[15px] shrink-0 text-right" style={{ color: tone }}>
+          {r.leanWords ?? "No tilt either way"}
+          {r.strength !== null && (
+            <span className="block mt-0.5 text-[12.5px] text-[var(--mx-text-3)] tabular-nums">
+              strength {r.strength.toFixed(1)} of 10 — {r.strengthLabel}
+            </span>
+          )}
         </p>
       </div>
 
-      {/* The measurement, or why there isn't one. */}
+      {/* What the backtest could establish about this lean, or what it could
+          not. The lean itself is already stated above either way. */}
       {measured ? (
         <ul className="mt-3 space-y-1.5">
           {r.why.map(w => (

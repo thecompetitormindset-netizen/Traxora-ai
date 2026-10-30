@@ -11,6 +11,7 @@ import DailyPicks from "../components/picks/DailyPicks";
 import { useOptionsList } from "../components/fieldnotes/useOptionsList";
 import { rankIdeas, stateOf } from "../components/fieldnotes/uiState";
 import type { DisplayAnalysis } from "../lib/optionsAnalysis/display";
+import { agoLabel } from "../lib/relativeTime";
 
 // Options, in plain words. One sentence says whether there's anything worth
 // looking at; ideas (if any) come next; the full list of checked stocks is
@@ -59,6 +60,16 @@ function Overview() {
   const marketOpen = data?.session.status === "OPEN";
   const reasons = data?.reasons ?? [];
   const top = reasons[0] ? [reasons[0].reason, reasons[0].count] as const : null;
+
+  // When the live scan last ran. Read from state rather than Date.now() during
+  // render, which would be impure and would never refresh anyway.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  const checkedAt = scan?.updated_at ? Date.parse(scan.updated_at) : data?.as_of ? Date.parse(data.as_of) : NaN;
+  const checkedAgo = Number.isFinite(checkedAt) ? agoLabel(checkedAt, now) : null;
 
   // Pick up new ideas while the background scan runs.
   useEffect(() => {
@@ -113,6 +124,15 @@ function Overview() {
             <p className="text-[24px] sm:text-[28px] leading-tight tracking-[-0.02em]" style={{ fontWeight: 450 }}>{headline}</p>
             {why && <p className="mt-2 text-[15px] leading-relaxed text-[var(--mx-text-2)] max-w-[64ch]">{why}</p>}
             {state.kind === "ready" && state.message && <p className="mt-2 text-[13px] text-[var(--mx-text-3)]">{state.message}</p>}
+
+            {/* This section re-checks; the picks below do not. Two panels that
+                behave differently sat side by side with nothing saying so,
+                which made a live scan look like unstable data. */}
+            <p className="mt-3 text-[12.5px] text-[var(--mx-text-3)]">
+              {checkedAgo
+                ? `Checked ${checkedAgo}. This list is live — it re-checks about once an hour while the market is open, so it changes during the day.`
+                : "This list is live — it re-checks about once an hour while the market is open, so it changes during the day."}
+            </p>
           </>
         )}
       </section>

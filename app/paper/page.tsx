@@ -7,6 +7,7 @@ import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import PaywallGuard from "@/app/components/PaywallGuard";
 import OptionsPaper from "../components/paper/OptionsPaper";
+import { futuresMarkets, futuresSpec } from "../lib/futuresContracts";
 import { scopedKey, setCurrentUser } from "../lib/userState";
 import { haptic } from "../lib/haptics";
 import { syncFetch } from "../lib/syncFetch";
@@ -240,19 +241,25 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace }: {
         <span className="text-[12.5px] text-[var(--mx-text-3)]">{usd(cash, 0)} cash available</span>
       </div>
 
-      <Field label="Stock or crypto" hint={
+      <Field label="Stock, crypto or futures" hint={
         loadingQuote ? "Getting the price…"
-        : missing ? "We couldn't find a price for that. Try a ticker like AAPL, TSLA or BTC-USD."
+        : missing ? "We couldn't find a price for that. Try a ticker like AAPL, BTC-USD, or a futures contract like MES.COMM."
         : quote ? (
           <span className="flex flex-wrap items-center gap-x-2">
             <span className="text-[var(--mx-text)] font-mono">{usd(quote.price)}</span>
             {quote.prevClose ? <span className={tone(quote.price - quote.prevClose)}>{signedPct((quote.price / quote.prevClose - 1) * 100)} today</span> : null}
             <span>· prices can be up to 15 min behind</span>
           </span>
-        ) : "Type a ticker, like AAPL"
+        ) : "Type a ticker, like AAPL — or pick a futures contract below"
       }>
         <input value={symbol} onChange={e => setSymbol(e.target.value.toUpperCase())} placeholder="AAPL" autoCapitalize="characters" autoComplete="off" spellCheck={false} className={`${input} font-mono uppercase`} aria-label="Ticker" />
       </Field>
+
+      {/* Futures were tradeable here all along and nothing said so: the field
+          read "stock or crypto" and the contracts have no ticker anyone would
+          guess. The micros come first because they are the ones an account
+          this size can actually hold. */}
+      <FuturesPicker symbol={symbol} onPick={setSymbol} />
 
       <div className="space-y-2">
         <span className="block text-[13px] text-[var(--mx-text-2)]">How much do you want to {long ? "invest" : "bet"}?</span>
@@ -340,6 +347,63 @@ function Ticket({ prefill, cash, now, quotes, onQuote, onPlace }: {
 }
 
 // ── Position row ────────────────────────────────────────────────────────────
+
+/**
+ * Pick a futures contract, and see what one is before buying it.
+ *
+ * These were already tradeable — the engine sizes them correctly — but the
+ * field said "stock or crypto" and MES.COMM is not a ticker anyone guesses, so
+ * in practice the whole asset class was invisible. Micros lead because a full
+ * E-mini S&P needs more margin than this account usually starts with.
+ */
+function FuturesPicker({ symbol, onPick }: { symbol: string; onPick: (s: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const chosen = futuresSpec(symbol);
+
+  return (
+    <div className="space-y-2">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)] underline underline-offset-2">
+        {open ? "Hide futures contracts" : "Or trade a futures contract"}
+      </button>
+
+      {open && (
+        <div className={`${card} p-4 space-y-3`}>
+          <p className="text-[12.5px] text-[var(--mx-text-3)] leading-relaxed">
+            Futures are leveraged: you put up margin, not the contract&rsquo;s value, so a small move is
+            magnified. Micro contracts are a tenth the size and are the ones this account can hold.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {futuresMarkets().map(m => {
+              const pick = m.micro ?? m.standard;
+              const active = chosen?.root === pick.root;
+              return (
+                <button key={pick.symbol} type="button" onClick={() => onPick(pick.symbol)}
+                  className={`h-9 px-3 rounded-full border text-[13px] ${active
+                    ? "bg-[var(--mx-primary-bg)] text-[var(--mx-primary-fg)] border-transparent"
+                    : "border-[var(--mx-line)] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]"}`}>
+                  {m.standard.name}
+                  <span className="ml-1.5 text-[11px] opacity-70">{pick.root}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* What the chosen contract actually is, before any money is committed. */}
+      {chosen && (
+        <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)]">
+          <span className="text-[var(--mx-text-2)]">{chosen.name}</span> — one contract is {chosen.unit},
+          worth {usd(chosen.tickSize * chosen.multiplier)} a tick. Needs about{" "}
+          <span className="text-[var(--mx-text-2)]">{usd(chosen.initialMargin, 0)}</span> of margin
+          (approximate — your broker will differ), and a $1 move in the price is{" "}
+          <span className="text-[var(--mx-text-2)]">{usd(chosen.multiplier)}</span> per contract.
+        </p>
+      )}
+    </div>
+  );
+}
 
 function Holding({ o, quote, onSell, onLevels }: {
   o: PaperOrder; quote?: QuoteInfo;
