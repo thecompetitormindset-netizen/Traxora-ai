@@ -92,13 +92,43 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
     );
   }
   if (!t.lineup) {
-    return <Absent>Not named yet. Lineups usually appear an hour or two before the start.</Absent>;
+    return (
+      <div className="space-y-3">
+        <Absent>
+          No line-up published for {t.name} yet. Soccer names an eleven about an hour before
+          kickoff and baseball names a probable pitcher earlier still; the NBA, NFL and NHL
+          publish no line-up here at all before the game, and players appear once it is under way.
+        </Absent>
+        {/* Leaders exist well ahead of a game, so there is something true to
+            say about who decides it even with no line-up out. */}
+        {t.leaders && (
+          <ul className="space-y-2 pt-1">
+            {t.leaders.map((l, i) => (
+              <li key={`${l.name}-${i}`} className="flex items-center gap-3">
+                <Face p={{ id: null, name: l.name, position: null, jersey: null, headshot: l.headshot, starter: false }} size={30} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] truncate">{l.name}</span>
+                  <span className="block text-[12px] text-[var(--mx-text-3)]">{l.category}</span>
+                </span>
+                <span className="shrink-0 text-[13.5px] tabular-nums">{l.value}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
   }
   const starters = t.lineup.filter(p => p.starter);
   const rest = t.lineup.filter(p => !p.starter);
   return (
     <div className="space-y-4">
       {t.formation && <p className="text-[13px] text-[var(--mx-text-2)]">Formation {t.formation}</p>}
+      {t.lineupKind === "appeared" && (
+        <p className="text-[12.5px] text-[var(--mx-text-3)]">
+          Who played — taken from the box score, so it is a record of appearances rather than a
+          named starting line-up.
+        </p>
+      )}
       {starters.length > 0 && (
         <ul className="space-y-2">
           {starters.map(p => (
@@ -363,7 +393,11 @@ function Detail({ d }: { d: GameDetail }) {
         {sides.map(t => <TeamHeading key={t.homeAway} t={t} />)}
       </section>
 
-      <Section title="Who starts">
+      <Section title={
+        d.home.lineupKind === "appeared" || d.away.lineupKind === "appeared" ? "Who played"
+        : d.home.lineup || d.away.lineup ? "Who starts"
+        : "Who to watch"
+      }>
         <div className="grid lg:grid-cols-2 gap-6">
           {sides.map(t => (
             <div key={t.homeAway}>

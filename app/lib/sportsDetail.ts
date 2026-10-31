@@ -58,6 +58,18 @@ export type TeamSide = {
   homeAway: "home" | "away";
   /** Null when no lineup has been published, or none could be read. */
   lineup: Person[] | null;
+  /**
+   * What that list actually is.
+   *
+   * "named" is a published line-up — soccer's eleven, a probable pitcher.
+   * "appeared" is who turned up in the box score, which only exists once a
+   * game is under way and is a record of appearances, not a starting lineup.
+   * Calling the second one a line-up would be inventing information, so the
+   * page says "Who played" for it instead.
+   */
+  lineupKind: "named" | "appeared" | null;
+  /** Who to watch — the one player list that exists before a game starts. */
+  leaders: Leader[] | null;
   /** The formation, for sports that field one. */
   formation: string | null;
   injuries: Injury[] | null;
@@ -467,10 +479,110 @@ function rosterFor(rosters: unknown[] | null, teamId: string | null): Obj | null
   return null;
 }
 
+/**
+ * A team's players out of the box score, for sports that publish no roster.
+ *
+ * Soccer puts a named eleven in `rosters` before kickoff. The US leagues do
+ * not: their players appear inside `boxscore.players`, grouped by statistic,
+ * and only once the game is under way. Reading it means a live or finished
+ * game shows who actually played instead of "not named yet", which is what it
+ * said for every NBA and NFL game.
+ *
+ * It is NOT a starting lineup, so nobody is marked as a starter unless the
+ * payload says so — claiming a starting five from a list of appearances would
+ * be inventing information.
+ */
+export function parseBoxscorePlayers(rawPlayers: unknown, teamId: string | null): Person[] | null {
+  const blocks = arr(rawPlayers);
+  if (!blocks || !teamId) return null;
+  for (const block of blocks) {
+    const b = obj(block);
+    if (!b) continue;
+    if (str(at(b, "team.id")) !== teamId) continue;
+    const out: Person[] = [];
+    const seen = new Set<string>();
+    // One entry per statistic category, each carrying the same athletes.
+    for (const group of arr(b.statistics) ?? []) {
+      for (const entry of arr(obj(group)?.athletes) ?? []) {
+        // Someone listed but unused does not belong under "who played".
+        if (boolOf(obj(entry)?.didNotPlay) === true) continue;
+        const p = parsePerson(entry);
+        if (!p) continue;
+        const key = p.id ?? p.name;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(p);
+      }
+    }
+    if (out.length) return out;
+  }
+  return null;
+}
+
+/**
+ * Every place a box score keeps its players.
+ *
+ * The documented shape nests them under `boxscore.teams[].players[]`; some
+ * responses carry a flat `boxscore.players[]` beside `teams`. Reading only the
+ * flat one is why every NBA and NFL game said nobody had played.
+ */
+function boxscorePlayerBlocks(root: Obj): unknown[] {
+  const flat = arr(at(root, "boxscore.players")) ?? [];
+  const nested: unknown[] = [];
+  for (const t of arr(at(root, "boxscore.teams")) ?? []) {
+    for (const p of arr(obj(t)?.players) ?? []) nested.push(p);
+  }
+  return [...flat, ...nested];
+}
+
+/** A statistical leader, which is the one player list that exists before a game. */
+export type Leader = {
+  /** "Points", "Passing Yards" — what they lead in. */
+  category: string;
+  name: string;
+  value: string;
+  headshot: string | null;
+};
+
+/**
+ * Who to watch, per team.
+ *
+ * This matters more than it looks. The US leagues publish no line-up before a
+ * game, so without this the page had nothing at all to say pre-game about who
+ * is involved — which is exactly how it came across. Leaders are published
+ * well ahead, so a game tomorrow can still show the players who decide it.
+ */
+export function parseLeaders(rawLeaders: unknown, teamId: string | null): Leader[] | null {
+  const groups = arr(rawLeaders);
+  if (!groups || !teamId) return null;
+  const out: Leader[] = [];
+  for (const g of groups) {
+    const group = obj(g);
+    if (!group) continue;
+    const category = str(group.displayName) ?? str(group.name);
+    if (!category) continue;
+    for (const l of arr(group.leaders) ?? []) {
+      const entry = obj(l);
+      if (!entry) continue;
+      // A leaders block can be league-wide or team-scoped; keep this team's.
+      const owner = str(at(entry, "team.id")) ?? str(at(group, "team.id"));
+      if (owner && owner !== teamId) continue;
+      const person = parsePerson(entry);
+      const value = str(entry.displayValue);
+      if (!person || !value) continue;
+      out.push({ category, name: person.name, value, headshot: person.headshot });
+      break; // one per category is plenty; the rest is a stats page
+    }
+  }
+  return out.length ? out : null;
+}
+
 function teamSide(
   competitor: unknown,
   homeAway: "home" | "away",
   rosters: unknown[] | null,
+  boxscorePlayers: unknown,
+  rawLeaders: unknown,
   injuriesByTeam: Map<string, Injury[]>,
   formByTeam: Map<string, string[]>,
   unreadable: string[],
@@ -496,13 +608,22 @@ function teamSide(
 
   const rosterBlock = rosterFor(rosters, id);
   let lineup: Person[] | null = null;
+  let lineupKind: TeamSide["lineupKind"] = null;
   if (rosterBlock) {
     lineup = parseLineup(rosterBlock.roster);
+    if (lineup) lineupKind = "named";
     // The block existed and held entries we could not read — that is a bug
     // here, not a lineup that is unpublished, so say which.
-    if (lineup === null && (arr(rosterBlock.roster)?.length ?? 0) > 0) {
+    else if ((arr(rosterBlock.roster)?.length ?? 0) > 0) {
       unreadable.push(`${homeAway} lineup`);
     }
+  }
+  // No published roster: fall back to who appears in the box score, which is
+  // the only player list the US leagues give and exists only once the game is
+  // under way. Labelled as appearances, never as a starting lineup.
+  if (!lineup) {
+    const played = parseBoxscorePlayers(boxscorePlayers, id);
+    if (played) { lineup = played; lineupKind = "appeared"; }
   }
 
   return {
@@ -513,6 +634,8 @@ function teamSide(
     record,
     homeAway,
     lineup,
+    lineupKind,
+    leaders: parseLeaders(rawLeaders, id),
     formation: str(rosterBlock?.formation),
     injuries: id ? injuriesByTeam.get(id) ?? null : null,
     form: id ? formByTeam.get(id) ?? null : null,
@@ -553,7 +676,7 @@ export function parseGameSummary(
   }
 
   const formByTeam = new Map<string, string[]>();
-  for (const block of arr(root.lastFiveGames) ?? []) {
+  for (const block of arr(root.lastFiveGames) ?? arr(at(root, "lastFiveGames.teams")) ?? []) {
     const b = obj(block);
     const teamId = str(at(b, "team.id"));
     const parsed = parseForm(b);
@@ -561,6 +684,7 @@ export function parseGameSummary(
   }
 
   const rosters = arr(root.rosters);
+  const boxscorePlayers = boxscorePlayerBlocks(root);
 
   // ── Which of the three shapes is this? ───────────────────────────────────
   //
@@ -589,7 +713,7 @@ export function parseGameSummary(
   const state = stateRaw === "pre" || stateRaw === "in" || stateRaw === "post" ? stateRaw : null;
 
   const broadcasts: string[] = [];
-  for (const b of arr(competition?.broadcasts) ?? []) {
+  for (const b of [...(arr(root.broadcasts) ?? []), ...(arr(competition?.broadcasts) ?? [])]) {
     const o = obj(b);
     const names = arr(o?.names)?.map(n => str(n)).filter((n): n is string => !!n) ?? [];
     const single = str(o?.shortName) ?? str(o?.media);
@@ -616,7 +740,11 @@ export function parseGameSummary(
     state,
     statusDetail: str(at(status, "type.detail")) ?? str(at(status, "type.shortDetail")),
     venue: parseVenue(gameInfo?.venue ?? competition?.venue),
-    odds: parseOdds(root.odds ?? competition?.odds),
+    // `pickcenter` is where the summary endpoint puts the book lines for the
+    // US leagues; `odds` is the scoreboard's name for the same thing. Both are
+    // tried because which one appears depends on the endpoint, and reading
+    // only the second is a likely reason a line never showed.
+    odds: parseOdds(root.pickcenter ?? root.odds ?? competition?.odds),
     broadcasts: broadcasts.length ? [...new Set(broadcasts)] : null,
     officials: parseOfficials(gameInfo?.officials),
     weather: parseWeather(gameInfo?.weather ?? root.weather),
@@ -645,8 +773,8 @@ export function parseGameSummary(
   const rawHome = findSide("home") ?? competitors[1];
   const rawAway = findSide("away") ?? competitors[0];
 
-  const home = teamSide(rawHome, "home", rosters, injuriesByTeam, formByTeam, unreadable);
-  const away = teamSide(rawAway, "away", rosters, injuriesByTeam, formByTeam, unreadable);
+  const home = teamSide(rawHome, "home", rosters, boxscorePlayers, root.leaders, injuriesByTeam, formByTeam, unreadable);
+  const away = teamSide(rawAway, "away", rosters, boxscorePlayers, root.leaders, injuriesByTeam, formByTeam, unreadable);
   if (!home || !away) return null;
 
   // Baseball names a probable pitcher long before any lineup exists, and it is
@@ -659,6 +787,7 @@ export function parseGameSummary(
     const target = home.id === teamId ? home : away.id === teamId ? away : null;
     if (!target) continue;
     target.lineup = [{ ...person, starter: true }, ...(target.lineup ?? []).filter(x => x.id !== person.id)];
+    target.lineupKind = "named";
   }
 
   return {
@@ -675,6 +804,26 @@ export function parseGameSummary(
 // ── Fetching ─────────────────────────────────────────────────────────────────
 
 /**
+ * Where one event's summary lives.
+ *
+ * Cricket is not served from the same place as everything else. Its summary is
+ * on the web host rather than the site host, it is addressed by a numeric
+ * series id, and it wants `lang`, `region` and `contentorigin` — without them
+ * the request does not come back with a match on it. Every other sport is the
+ * plain site endpoint.
+ */
+export function summaryUrl(sport: string, league: string, eventId: string): string {
+  const s = encodeURIComponent(sport);
+  const l = encodeURIComponent(league);
+  const e = encodeURIComponent(eventId);
+  if (sport === "cricket") {
+    return `https://site.web.api.espn.com/apis/site/v2/sports/cricket/${l}/summary` +
+      `?contentorigin=espn&event=${e}&lang=en&region=in`;
+  }
+  return `https://site.api.espn.com/apis/site/v2/sports/${s}/${l}/summary?event=${e}`;
+}
+
+/**
  * One game's detail from ESPN.
  *
  * Never throws and never returns an empty game. A failure says which kind it
@@ -688,9 +837,7 @@ export async function fetchGameDetail(
   eventId: string,
   timeoutMs = 12_000,
 ): Promise<DetailResult> {
-  const url =
-    `https://site.api.espn.com/apis/site/v2/sports/${encodeURIComponent(sport)}/` +
-    `${encodeURIComponent(league)}/summary?event=${encodeURIComponent(eventId)}`;
+  const url = summaryUrl(sport, league, eventId);
 
   let body: unknown;
   try {
