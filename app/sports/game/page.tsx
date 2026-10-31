@@ -92,13 +92,25 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
     );
   }
   if (!t.lineup) {
-    return <Absent>Not named yet. Lineups usually appear an hour or two before the start.</Absent>;
+    return (
+      <Absent>
+        No line-up published for {t.name} yet. Soccer names an eleven about an hour before
+        kickoff and baseball names a probable pitcher earlier still; the NBA, NFL and NHL
+        publish no line-up here at all before the game, and players appear once it is under way.
+      </Absent>
+    );
   }
   const starters = t.lineup.filter(p => p.starter);
   const rest = t.lineup.filter(p => !p.starter);
   return (
     <div className="space-y-4">
       {t.formation && <p className="text-[13px] text-[var(--mx-text-2)]">Formation {t.formation}</p>}
+      {t.lineupKind === "appeared" && (
+        <p className="text-[12.5px] text-[var(--mx-text-3)]">
+          Who played — taken from the box score, so it is a record of appearances rather than a
+          named starting line-up.
+        </p>
+      )}
       {starters.length > 0 && (
         <ul className="space-y-2">
           {starters.map(p => (
@@ -363,7 +375,7 @@ function Detail({ d }: { d: GameDetail }) {
         {sides.map(t => <TeamHeading key={t.homeAway} t={t} />)}
       </section>
 
-      <Section title="Who starts">
+      <Section title={d.home.lineupKind === "appeared" || d.away.lineupKind === "appeared" ? "Who played" : "Who starts"}>
         <div className="grid lg:grid-cols-2 gap-6">
           {sides.map(t => (
             <div key={t.homeAway}>

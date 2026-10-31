@@ -58,6 +58,16 @@ export type TeamSide = {
   homeAway: "home" | "away";
   /** Null when no lineup has been published, or none could be read. */
   lineup: Person[] | null;
+  /**
+   * What that list actually is.
+   *
+   * "named" is a published line-up — soccer's eleven, a probable pitcher.
+   * "appeared" is who turned up in the box score, which only exists once a
+   * game is under way and is a record of appearances, not a starting lineup.
+   * Calling the second one a line-up would be inventing information, so the
+   * page says "Who played" for it instead.
+   */
+  lineupKind: "named" | "appeared" | null;
   /** The formation, for sports that field one. */
   formation: string | null;
   injuries: Injury[] | null;
@@ -467,10 +477,49 @@ function rosterFor(rosters: unknown[] | null, teamId: string | null): Obj | null
   return null;
 }
 
+/**
+ * A team's players out of the box score, for sports that publish no roster.
+ *
+ * Soccer puts a named eleven in `rosters` before kickoff. The US leagues do
+ * not: their players appear inside `boxscore.players`, grouped by statistic,
+ * and only once the game is under way. Reading it means a live or finished
+ * game shows who actually played instead of "not named yet", which is what it
+ * said for every NBA and NFL game.
+ *
+ * It is NOT a starting lineup, so nobody is marked as a starter unless the
+ * payload says so — claiming a starting five from a list of appearances would
+ * be inventing information.
+ */
+export function parseBoxscorePlayers(rawPlayers: unknown, teamId: string | null): Person[] | null {
+  const blocks = arr(rawPlayers);
+  if (!blocks || !teamId) return null;
+  for (const block of blocks) {
+    const b = obj(block);
+    if (!b) continue;
+    if (str(at(b, "team.id")) !== teamId) continue;
+    const out: Person[] = [];
+    const seen = new Set<string>();
+    // One entry per statistic category, each carrying the same athletes.
+    for (const group of arr(b.statistics) ?? []) {
+      for (const entry of arr(obj(group)?.athletes) ?? []) {
+        const p = parsePerson(entry);
+        if (!p) continue;
+        const key = p.id ?? p.name;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(p);
+      }
+    }
+    if (out.length) return out;
+  }
+  return null;
+}
+
 function teamSide(
   competitor: unknown,
   homeAway: "home" | "away",
   rosters: unknown[] | null,
+  boxscorePlayers: unknown,
   injuriesByTeam: Map<string, Injury[]>,
   formByTeam: Map<string, string[]>,
   unreadable: string[],
@@ -496,13 +545,22 @@ function teamSide(
 
   const rosterBlock = rosterFor(rosters, id);
   let lineup: Person[] | null = null;
+  let lineupKind: TeamSide["lineupKind"] = null;
   if (rosterBlock) {
     lineup = parseLineup(rosterBlock.roster);
+    if (lineup) lineupKind = "named";
     // The block existed and held entries we could not read — that is a bug
     // here, not a lineup that is unpublished, so say which.
-    if (lineup === null && (arr(rosterBlock.roster)?.length ?? 0) > 0) {
+    else if ((arr(rosterBlock.roster)?.length ?? 0) > 0) {
       unreadable.push(`${homeAway} lineup`);
     }
+  }
+  // No published roster: fall back to who appears in the box score, which is
+  // the only player list the US leagues give and exists only once the game is
+  // under way. Labelled as appearances, never as a starting lineup.
+  if (!lineup) {
+    const played = parseBoxscorePlayers(boxscorePlayers, id);
+    if (played) { lineup = played; lineupKind = "appeared"; }
   }
 
   return {
@@ -513,6 +571,7 @@ function teamSide(
     record,
     homeAway,
     lineup,
+    lineupKind,
     formation: str(rosterBlock?.formation),
     injuries: id ? injuriesByTeam.get(id) ?? null : null,
     form: id ? formByTeam.get(id) ?? null : null,
@@ -553,7 +612,7 @@ export function parseGameSummary(
   }
 
   const formByTeam = new Map<string, string[]>();
-  for (const block of arr(root.lastFiveGames) ?? []) {
+  for (const block of arr(root.lastFiveGames) ?? arr(at(root, "lastFiveGames.teams")) ?? []) {
     const b = obj(block);
     const teamId = str(at(b, "team.id"));
     const parsed = parseForm(b);
@@ -561,6 +620,7 @@ export function parseGameSummary(
   }
 
   const rosters = arr(root.rosters);
+  const boxscorePlayers = at(root, "boxscore.players");
 
   // ── Which of the three shapes is this? ───────────────────────────────────
   //
@@ -616,7 +676,11 @@ export function parseGameSummary(
     state,
     statusDetail: str(at(status, "type.detail")) ?? str(at(status, "type.shortDetail")),
     venue: parseVenue(gameInfo?.venue ?? competition?.venue),
-    odds: parseOdds(root.odds ?? competition?.odds),
+    // `pickcenter` is where the summary endpoint puts the book lines for the
+    // US leagues; `odds` is the scoreboard's name for the same thing. Both are
+    // tried because which one appears depends on the endpoint, and reading
+    // only the second is a likely reason a line never showed.
+    odds: parseOdds(root.pickcenter ?? root.odds ?? competition?.odds),
     broadcasts: broadcasts.length ? [...new Set(broadcasts)] : null,
     officials: parseOfficials(gameInfo?.officials),
     weather: parseWeather(gameInfo?.weather ?? root.weather),
@@ -645,8 +709,8 @@ export function parseGameSummary(
   const rawHome = findSide("home") ?? competitors[1];
   const rawAway = findSide("away") ?? competitors[0];
 
-  const home = teamSide(rawHome, "home", rosters, injuriesByTeam, formByTeam, unreadable);
-  const away = teamSide(rawAway, "away", rosters, injuriesByTeam, formByTeam, unreadable);
+  const home = teamSide(rawHome, "home", rosters, boxscorePlayers, injuriesByTeam, formByTeam, unreadable);
+  const away = teamSide(rawAway, "away", rosters, boxscorePlayers, injuriesByTeam, formByTeam, unreadable);
   if (!home || !away) return null;
 
   // Baseball names a probable pitcher long before any lineup exists, and it is
@@ -659,6 +723,7 @@ export function parseGameSummary(
     const target = home.id === teamId ? home : away.id === teamId ? away : null;
     if (!target) continue;
     target.lineup = [{ ...person, starter: true }, ...(target.lineup ?? []).filter(x => x.id !== person.id)];
+    target.lineupKind = "named";
   }
 
   return {

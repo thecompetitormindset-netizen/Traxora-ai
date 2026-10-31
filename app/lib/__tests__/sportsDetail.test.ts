@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseGameSummary, parsePerson, parseLineup, parseVenue, parseOdds,
   parseWeather, parseOfficials, parseInjuries, parseForm, parseWinProbability,
-  parseField, parseBouts, type GameDetail,
+  parseField, parseBouts, parseBoxscorePlayers, type GameDetail,
 } from "../sportsDetail";
 
 // A game page is mostly absences: lineups appear an hour before kickoff, most
@@ -443,5 +443,69 @@ describe("a side that is one person, not a team", () => {
     expect(d.home.score).toBe(2);
     // With no club badge, the player's own photo stands in for it.
     expect(d.home.logo).toContain("espncdn");
+  });
+});
+
+describe("players from the box score, where no line-up is published", () => {
+  // The NBA, NFL and NHL publish no line-up before a game; their players only
+  // appear inside boxscore.players once it is under way. Reading only
+  // `rosters` meant every one of those games said "not named yet" forever.
+  const boxscore = [{
+    team: { id: "10" },
+    statistics: [
+      { name: "starters", athletes: [{ athlete: athlete({ id: "11", displayName: "Nikola Vance" }) }, { athlete: athlete({ id: "12", displayName: "Jamal Porter" }) }] },
+      { name: "bench", athletes: [{ athlete: athlete({ id: "11", displayName: "Nikola Vance" }) }, { athlete: athlete({ id: "13", displayName: "Aaron Reed" }) }] },
+    ],
+  }];
+
+  it("reads the players for the right team", () => {
+    const p = parseBoxscorePlayers(boxscore, "10")!;
+    expect(p.map(x => x.name)).toEqual(["Nikola Vance", "Jamal Porter", "Aaron Reed"]);
+  });
+
+  it("does not repeat a player who appears in several stat groups", () => {
+    expect(parseBoxscorePlayers(boxscore, "10")!.filter(p => p.name === "Nikola Vance")).toHaveLength(1);
+  });
+
+  it("is null for a team that is not in the box score", () => {
+    expect(parseBoxscorePlayers(boxscore, "99")).toBeNull();
+    expect(parseBoxscorePlayers(null, "10")).toBeNull();
+    expect(parseBoxscorePlayers(boxscore, null)).toBeNull();
+  });
+
+  it("marks nobody a starter unless the payload said so", () => {
+    // A list of appearances is not a starting five, and claiming one would be
+    // inventing information.
+    expect(parseBoxscorePlayers(boxscore, "10")!.every(p => p.starter === false)).toBe(true);
+  });
+
+  it("fills the lineup through the whole parser, labelled as appearances", () => {
+    const d = h2h(summary({ rosters: [], boxscore: { players: boxscore } }));
+    expect(d.home.lineup?.map(p => p.name)).toEqual(["Nikola Vance", "Jamal Porter", "Aaron Reed"]);
+    expect(d.home.lineupKind).toBe("appeared");
+    // The away team is not in this box score, and gets nothing rather than
+    // the home team's players.
+    expect(d.away.lineup).toBeNull();
+    expect(d.away.lineupKind).toBeNull();
+  });
+
+  it("prefers a published roster over the box score", () => {
+    const d = h2h(summary({ boxscore: { players: boxscore } }));
+    expect(d.home.lineupKind).toBe("named");
+    expect(d.home.lineup?.[0].starter).toBe(true);
+  });
+});
+
+describe("the odds, wherever the endpoint puts them", () => {
+  it("reads pickcenter, which is what the summary endpoint uses", () => {
+    // Reading only `odds` is a likely reason no line ever showed: that is the
+    // scoreboard's key, not the summary's.
+    const d = h2h(summary({ odds: undefined, pickcenter: [{ provider: { name: "ESPN BET" }, details: "DEN -4.5", overUnder: 228.5 }] }));
+    expect(d.odds?.spread).toBe("DEN -4.5");
+    expect(d.odds?.overUnder).toBe(228.5);
+  });
+
+  it("still reads `odds` where that is what arrives", () => {
+    expect(h2h(summary()).odds?.spread).toBe("DEN -4.5");
   });
 });
