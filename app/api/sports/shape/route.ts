@@ -60,8 +60,17 @@ function outline(v: unknown, depth: number): unknown {
 
 export async function GET(req: Request) {
   const session = await auth();
-  if (session?.user?.email !== OWNER_EMAIL) {
-    // Deliberately does not say who the owner is.
+  if (!session?.user?.email) {
+    // "Not found" for a signed-out owner was useless: it reads as a broken
+    // link when the only thing wrong is that nobody is signed in. Say that,
+    // without saying whose account would work.
+    return Response.json(
+      { error: "Sign in first", hint: "This is an owner-only diagnostic. Open it in a browser where you are signed in." },
+      { status: 401 },
+    );
+  }
+  if (session.user.email !== OWNER_EMAIL) {
+    // Signed in as someone else: stay silent about who the owner is.
     return new Response("Not found", { status: 404 });
   }
 
