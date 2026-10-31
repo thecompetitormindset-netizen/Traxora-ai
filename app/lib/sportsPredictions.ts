@@ -6,6 +6,20 @@
 
 export type GamePrediction = {
   id:               string;
+  /**
+   * Where the game is: not yet started, under way, or finished.
+   *
+   * The page shows all three now. It used to show only `pre`, which meant a
+   * line-up or a box score could never be reached from it — the US leagues
+   * publish no line-up before a game, so every game anyone could open was one
+   * that had nothing to show.
+   */
+  state:            "pre" | "in" | "post";
+  /** ESPN's own words — "Final", "Q3 4:12", "7:30 PM ET". */
+  statusDetail:     string | null;
+  /** Null before a game; the score once there is one. */
+  homeScore:        number | null;
+  awayScore:        number | null;
   sportKey:         string;
   league:           string;
   leagueGroup:      "US" | "Soccer";
@@ -65,7 +79,7 @@ function log5(pA: number, pB: number): number {
 
 type EspnTeam = { id: string; displayName: string; abbreviation?: string };
 type EspnCompetitor = { id: string; homeAway: "home" | "away"; team: EspnTeam; score?: string };
-type EspnStatus = { type: { state: "pre" | "in" | "post"; completed: boolean } };
+type EspnStatus = { type: { state: "pre" | "in" | "post"; completed: boolean; detail?: string; shortDetail?: string } };
 /**
  * A book's line as the scoreboard carries it.
  *
@@ -204,6 +218,12 @@ export async function fetchScoreboard(league: League, dates: string): Promise<Es
   } catch { return []; }
 }
 
+const toScore = (v: string | undefined): number | null => {
+  if (v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+};
+
 function predictFromEvent(ev: EspnEvent, league: League, standings: Map<string, TeamRecord>): GamePrediction | null {
   const comp = ev.competitions[0];
   const home = comp.competitors.find(c => c.homeAway === "home");
@@ -211,13 +231,22 @@ function predictFromEvent(ev: EspnEvent, league: League, standings: Map<string, 
   if (!home || !away) return null;
   if (isExhibition(home.team.displayName, away.team.displayName)) return null;
 
+  const state = comp.status?.type?.state ?? "pre";
+
   const homeRec = standings.get(home.team.id);
   const awayRec = standings.get(away.team.id);
   const enoughData = !!homeRec && !!awayRec && homeRec.games >= MIN_GAMES_PLAYED && awayRec.games >= MIN_GAMES_PLAYED;
 
   let predictedWinner: string | null = null;
   let winnerConfidence: number | null = null;
-  if (enoughData) {
+  // Only an unstarted game gets a prediction here.
+  //
+  // Standings are read live, and once a game has finished they already contain
+  // its result — so computing a "prediction" for it would be hindsight wearing
+  // a forecast's clothes, and it would be flattering. What we actually said
+  // beforehand is snapshotted by the cron and shown on the track record, which
+  // is the only place such a claim can be checked.
+  if (enoughData && state === "pre") {
     const pHome = log5(homeRec!.winPct, awayRec!.winPct);
     winnerConfidence = Math.round(Math.max(pHome, 1 - pHome) * 1000) / 10;
     predictedWinner  = pHome >= 0.5 ? home.team.displayName : away.team.displayName;
@@ -225,6 +254,10 @@ function predictFromEvent(ev: EspnEvent, league: League, standings: Map<string, 
 
   return {
     id:           ev.id,
+    state,
+    statusDetail: comp.status?.type?.detail ?? comp.status?.type?.shortDetail ?? null,
+    homeScore:    toScore(home.score),
+    awayScore:    toScore(away.score),
     sportKey:     `${league.sport}_${league.league}`,
     league:       league.label,
     leagueGroup:  league.group,
@@ -240,11 +273,29 @@ function predictFromEvent(ev: EspnEvent, league: League, standings: Map<string, 
 
 const UPCOMING_DAYS = 7;
 
-// Upcoming (not-yet-started) games with predictions — powers the /sports page.
-export async function fetchLeagueUpcoming(league: League): Promise<GamePrediction[]> {
+/**
+ * How far back to look for games already played.
+ *
+ * Two days is enough to catch last night's results without turning the page
+ * into an archive. The track record is where history belongs; this is so a
+ * finished game can still be opened while anyone would plausibly want to.
+ */
+const RECENT_DAYS = 2;
+
+type Window = { back: number; forward: number; states: ReadonlySet<"pre" | "in" | "post"> };
+
+/** Only unstarted games. What the cron snapshots, and it must stay that way. */
+const PRE_ONLY: Window = { back: 0, forward: UPCOMING_DAYS, states: new Set(["pre"] as const) };
+
+/** Everything worth showing: what is coming, what is on, what just finished. */
+const EVERYTHING: Window = { back: RECENT_DAYS, forward: UPCOMING_DAYS, states: new Set(["pre", "in", "post"] as const) };
+
+async function fetchLeagueWindow(league: League, w: Window): Promise<GamePrediction[]> {
   // ESPN stopped accepting date ranges ("20261009-20261019" → 400), so ask
   // for each day separately and de-duplicate.
-  const days = Array.from({ length: UPCOMING_DAYS }, (_, i) => toDateKey(new Date(Date.now() + i * 86_400_000)));
+  const days: string[] = [];
+  for (let i = -w.back; i < w.forward; i++) days.push(toDateKey(new Date(Date.now() + i * 86_400_000)));
+
   const [perDay, standings] = await Promise.all([
     Promise.all(days.map(d => fetchScoreboard(league, d))),
     fetchStandings(league.sport, league.league),
@@ -254,14 +305,47 @@ export async function fetchLeagueUpcoming(league: League): Promise<GamePredictio
 
   const games: GamePrediction[] = [];
   for (const ev of events) {
-    if (ev.competitions?.[0]?.status?.type?.state !== "pre") continue;
+    const state = ev.competitions?.[0]?.status?.type?.state;
+    if (!state || !w.states.has(state)) continue;
     const g = predictFromEvent(ev, league, standings);
     if (g) games.push(g);
   }
   return games;
 }
 
+/** Unstarted games with predictions. */
+export async function fetchLeagueUpcoming(league: League): Promise<GamePrediction[]> {
+  return fetchLeagueWindow(league, PRE_ONLY);
+}
+
+/**
+ * Unstarted games only — what the track-record cron snapshots.
+ *
+ * Kept separate from the page's fetch on purpose. If the cron ever logged a
+ * game already under way it would be recording a prediction it did not make
+ * before the fact, which is the one thing that would make the whole track
+ * record worthless.
+ */
 export async function fetchAllUpcoming(): Promise<GamePrediction[]> {
   const results = await Promise.all(LEAGUES.map(fetchLeagueUpcoming));
   return results.flat().sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
+}
+
+/**
+ * Everything the page shows: upcoming, live, and recently finished.
+ *
+ * Live first, because a game in progress is the most useful thing on the
+ * screen; then what is coming, soonest first; then what just finished, most
+ * recent first.
+ */
+export async function fetchAllGames(): Promise<GamePrediction[]> {
+  const results = await Promise.all(LEAGUES.map(l => fetchLeagueWindow(l, EVERYTHING)));
+  const rank = { in: 0, pre: 1, post: 2 } as const;
+  return results.flat().sort((a, b) => {
+    if (rank[a.state] !== rank[b.state]) return rank[a.state] - rank[b.state];
+    const at = new Date(a.commenceTime).getTime();
+    const bt = new Date(b.commenceTime).getTime();
+    // Finished games read best newest-first; everything else soonest-first.
+    return a.state === "post" ? bt - at : at - bt;
+  });
 }

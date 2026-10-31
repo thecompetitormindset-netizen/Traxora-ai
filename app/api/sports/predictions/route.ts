@@ -3,7 +3,7 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 30;
 
 import { viewer } from "@/app/lib/viewer";
-import { fetchAllUpcoming } from "@/app/lib/sportsPredictions";
+import { fetchAllGames } from "@/app/lib/sportsPredictions";
 
 // ── Cache ─────────────────────────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ export async function GET() {
     return Response.json(cache.data);
   }
 
-  const games = await fetchAllUpcoming();
+  const games = await fetchAllGames();
   const payload = { games, configured: true, updatedAt: new Date().toISOString() };
   cache = { data: payload, ts: Date.now() };
   return Response.json(payload);
