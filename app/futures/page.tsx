@@ -1,16 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import PaywallGuard from "../components/PaywallGuard";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import type { FuturesRow } from "../api/market/futures-outlook/route";
+import { ticketHref } from "../lib/futuresTicket";
 
 // What each futures market looks like, measured on a fund that tracks it.
 //
 // The page has one job beyond showing the numbers: never let a reader think a
 // USO signal is a crude signal. Every row names the fund it was measured on,
 // and the caveat for that fund is one tap away rather than buried in a footer.
+//
+// Its second job is to be actionable. The page used to read "Crude oil,
+// leaning up, MCL ~$600 margin" and then offer nothing to click: the only way
+// on was a generic link to the practice page in the footer, where the contract
+// had to be found and typed again from memory. A read that cannot be acted on
+// is a dead end, so each contract size is now a link that opens the practice
+// ticket on that exact contract. The link itself is built in
+// app/lib/futuresTicket.ts, where it can be tested without this page's tree.
 
 const card = "rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)]";
 
@@ -46,8 +56,17 @@ function Row({ r }: { r: FuturesRow }) {
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[18px]">{r.name}</p>
+          {/* The fund is the evidence this row rests on, so it links to that
+              fund's own chart and signal. Reading "measured on USO" and having
+              no way to go look at USO left the claim unverifiable from here. */}
           <p className="mt-0.5 text-[13px] text-[var(--mx-text-3)]">
-            Measured on {r.proxyEtf}
+            Measured on{" "}
+            <Link
+              href={`/market?symbol=${encodeURIComponent(r.proxyEtf)}`}
+              className="underline decoration-dotted underline-offset-2 hover:text-[var(--mx-text-2)]"
+            >
+              {r.proxyEtf}
+            </Link>
           </p>
         </div>
         <p className="text-[15px] shrink-0 text-right" style={{ color: tone }}>
@@ -83,22 +102,35 @@ function Row({ r }: { r: FuturesRow }) {
           starting balance. */}
       <ul className="mt-4 grid sm:grid-cols-2 gap-2">
         {r.sizes.map(s => (
-          <li key={s.symbol} className="rounded-[10px] border border-[var(--mx-line)] bg-[var(--mx-raised)] px-3.5 py-3">
-            <div className="flex items-baseline justify-between gap-2">
-              {/* The space is deliberate: without it the symbol and the size
-                  run together as "ESFull size" when copied or read aloud. */}
-              <span className="text-[14px]">
-                {s.symbol.replace(".COMM", "")}{" "}
-                <span className="ml-1 text-[12px] text-[var(--mx-text-3)]">{s.label}</span>
-              </span>
-              <span className="text-[13px] tabular-nums text-[var(--mx-text-2)]">
-                ~{usd(s.initialMargin)} margin
-              </span>
-            </div>
-            <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)] tabular-nums">
-              {s.unit} · {usd(s.tickValue, 2)} a tick
-              {s.fraction !== null && ` · ${Math.round(1 / s.fraction)}× smaller`}
-            </p>
+          <li key={s.symbol}>
+            <Link
+              href={ticketHref(s.symbol, r.direction, r.clearsBar)}
+              aria-label={`Practice ${r.name} on ${s.symbol.replace(".COMM", "")}, the ${s.label.toLowerCase()} contract`}
+              className="group block rounded-[10px] border border-[var(--mx-line)] bg-[var(--mx-raised)] px-3.5 py-3 transition-colors hover:border-[var(--mx-text-3)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--mx-text-3)]"
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                {/* The space is deliberate: without it the symbol and the size
+                    run together as "ESFull size" when copied or read aloud. */}
+                <span className="text-[14px]">
+                  {s.symbol.replace(".COMM", "")}{" "}
+                  <span className="ml-1 text-[12px] text-[var(--mx-text-3)]">{s.label}</span>
+                </span>
+                <span className="text-[13px] tabular-nums text-[var(--mx-text-2)]">
+                  ~{usd(s.initialMargin)} margin
+                </span>
+              </div>
+              <p className="mt-1 text-[12.5px] text-[var(--mx-text-3)] tabular-nums">
+                {s.unit} · {usd(s.tickValue, 2)} a tick
+                {s.fraction !== null && ` · ${Math.round(1 / s.fraction)}× smaller`}
+              </p>
+              {/* Says where the tap goes, and says it the same way whether or
+                  not a side is being carried over. */}
+              <p className="mt-2 text-[12.5px] text-[var(--mx-text-2)]">
+                Practice this
+                {r.clearsBar && r.direction ? ` — ${r.direction === "BUY" ? "long" : "short"}` : ""}
+                <span aria-hidden="true" className="ml-1 inline-block transition-transform group-hover:translate-x-0.5">→</span>
+              </p>
+            </Link>
           </li>
         ))}
       </ul>
