@@ -92,31 +92,26 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
     );
   }
   if (!t.lineup) {
-    return (
-      <div className="space-y-3">
-        <Absent>
-          No line-up published for {t.name} yet. Soccer names an eleven about an hour before
-          kickoff and baseball names a probable pitcher earlier still; the NBA, NFL and NHL
-          publish no line-up here at all before the game, and players appear once it is under way.
-        </Absent>
-        {/* Leaders exist well ahead of a game, so there is something true to
-            say about who decides it even with no line-up out. */}
-        {t.leaders && (
-          <ul className="space-y-2 pt-1">
-            {t.leaders.map((l, i) => (
-              <li key={`${l.name}-${i}`} className="flex items-center gap-3">
-                <Face p={{ id: null, name: l.name, position: null, jersey: null, headshot: l.headshot, starter: false }} size={30} />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[13.5px] truncate">{l.name}</span>
-                  <span className="block text-[12px] text-[var(--mx-text-3)]">{l.category}</span>
-                </span>
-                <span className="shrink-0 text-[13.5px] tabular-nums">{l.value}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    );
+    // Why there is no line-up is said ONCE for the card, by the section — not
+    // restated under each team. Printed twice it was two identical five-line
+    // paragraphs stacked above the only content anyone came for.
+    if (t.leaders) {
+      return (
+        <ul className="space-y-2">
+          {t.leaders.map((l, i) => (
+            <li key={`${l.name}-${i}`} className="flex items-center gap-3">
+              <Face p={{ id: null, name: l.name, position: null, jersey: null, headshot: l.headshot, starter: false }} size={30} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[13.5px] truncate">{l.name}</span>
+                <span className="block text-[12px] text-[var(--mx-text-3)]">{l.category}</span>
+              </span>
+              <span className="shrink-0 text-[13.5px] tabular-nums">{l.value}</span>
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    return <Absent>Nothing published for {t.name} yet.</Absent>;
   }
   const starters = t.lineup.filter(p => p.starter);
   const rest = t.lineup.filter(p => !p.starter);
@@ -398,6 +393,13 @@ function Detail({ d }: { d: GameDetail }) {
         : d.home.lineup || d.away.lineup ? "Who starts"
         : "Who to watch"
       }>
+        {/* One line for the card, under the heading, before the names — not a
+            paragraph repeated under every team. */}
+        {!d.home.lineup && !d.away.lineup && (d.home.leaders || d.away.leaders) && (
+          <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)] max-w-[70ch] -mt-1 mb-4">
+            No line-up is published before a game in this sport — these are this season’s leaders.
+          </p>
+        )}
         <div className="grid lg:grid-cols-2 gap-6">
           {sides.map(t => (
             <div key={t.homeAway}>
@@ -406,6 +408,22 @@ function Detail({ d }: { d: GameDetail }) {
             </div>
           ))}
         </div>
+        {/* The fuller explanation, for a reader who wants it, out of the way of
+            the ones who do not. */}
+        {!d.home.lineup && !d.away.lineup && (
+          <details className="group mt-4">
+            <summary className="cursor-pointer list-none text-[12.5px] text-[var(--mx-text-3)] hover:text-[var(--mx-text-2)]">
+              When does a line-up appear?
+              <span aria-hidden="true" className="ml-1.5 inline-block transition-transform group-open:rotate-45">+</span>
+            </summary>
+            <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--mx-text-3)] max-w-[70ch]">
+              It depends on the sport. Soccer names an eleven about an hour before kickoff and
+              baseball names a probable pitcher earlier still. The NBA, NFL and NHL publish no
+              line-up at all beforehand — their players appear here once the game is under way,
+              taken from the box score.
+            </p>
+          </details>
+        )}
       </Section>
 
       <div className="grid lg:grid-cols-2 gap-3">
