@@ -28,9 +28,30 @@ export function splitSportKey(sportKey: string): GameLinkParts | null {
 export function gameHref(sportKey: string, eventId: string): string | null {
   const parts = splitSportKey(sportKey);
   if (!parts) return null;
+  return detailHref(parts.sport, parts.league, eventId);
+}
+
+/**
+ * The same link for a "more sports" event, which carries its sport and league
+ * explicitly rather than folded into a key.
+ *
+ * Null for anything ESPN does not serve — chess comes from Lichess and already
+ * links there, and a cricket match whose competition the feed did not identify
+ * cannot be asked for. A card with no link beats a link that 404s.
+ */
+export function eventHref(
+  espnSport: string | null,
+  espnLeague: string | null,
+  eventId: string,
+): string | null {
+  if (!espnSport || !espnLeague) return null;
+  return detailHref(espnSport, espnLeague, eventId);
+}
+
+function detailHref(sport: string, league: string, eventId: string): string | null {
   const event = eventId.trim();
-  // The route accepts digits only, so a card with anything else is not linked.
+  // The route accepts digits only, so anything else is not linked.
   if (!/^\d{1,20}$/.test(event)) return null;
-  const q = new URLSearchParams({ sport: parts.sport, league: parts.league, event });
+  const q = new URLSearchParams({ sport, league, event });
   return `/sports/game?${q.toString()}`;
 }

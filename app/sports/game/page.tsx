@@ -7,7 +7,7 @@ import Link from "next/link";
 import PaywallGuard from "../../components/PaywallGuard";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
-import type { GameDetail, Person, TeamSide } from "../../lib/sportsDetail";
+import type { GameDetail, Person, TeamSide, FieldEntry, Bout } from "../../lib/sportsDetail";
 
 // One game, in as much detail as a free source carries.
 //
@@ -178,55 +178,75 @@ function TeamHeading({ t }: { t: TeamSide }) {
   );
 }
 
-function Detail({ d }: { d: GameDetail }) {
-  const when = d.start
-    ? new Date(d.start).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })
-    : null;
-  const sides: TeamSide[] = [d.away, d.home];
-
+/** A leaderboard, a grid or a draw — a field rather than two sides. */
+function Field({ entries }: { entries: FieldEntry[] | null }) {
+  if (!entries) {
+    return <Absent>No field published yet. Entry lists often appear closer to the start.</Absent>;
+  }
   return (
-    <div className="space-y-6">
-      <header>
-        <Link href="/sports" className="text-[13px] text-[var(--mx-text-3)] underline hover:text-[var(--mx-text-2)]">
-          ← All games
-        </Link>
-        <h1 className="mt-3 text-[26px] lg:text-[34px] leading-[1.1] tracking-[-0.02em]" style={{ fontWeight: 450 }}>
-          {d.away.name} at {d.home.name}
-        </h1>
-        <p className="mt-2 text-[14px] text-[var(--mx-text-2)]">
-          {[d.leagueLabel, d.statusDetail ?? when].filter(Boolean).join(" · ")}
-        </p>
-        {d.notes && d.notes.length > 0 && (
-          <p className="mt-1 text-[13px] text-[var(--mx-text-3)]">{d.notes.join(" · ")}</p>
-        )}
-      </header>
+    <ol className="divide-y divide-[var(--mx-line)]">
+      {entries.map((e, i) => (
+        <li key={`${e.name}-${i}`} className="flex items-center gap-3 py-2.5">
+          <span className="w-9 shrink-0 text-[13px] tabular-nums text-[var(--mx-text-3)]">
+            {e.position ?? i + 1}
+          </span>
+          <Face p={{ id: null, name: e.name, position: null, jersey: null, headshot: e.headshot, starter: false }} size={30} />
+          <span className="min-w-0 flex-1">
+            <span className="block text-[14px] truncate">{e.name}</span>
+            {e.country && <span className="block text-[12px] text-[var(--mx-text-3)]">{e.country}</span>}
+          </span>
+          {e.detail && <span className="shrink-0 text-[13.5px] tabular-nums">{e.detail}</span>}
+        </li>
+      ))}
+    </ol>
+  );
+}
 
-      {/* A misparse is a fault on our side and is said so at the top, rather
-          than leaving a reader to work out why a section looks thin. */}
-      {d.unreadable.length > 0 && (
-        <div className={`${card} p-4`}>
-          <p className="text-[13.5px] text-[var(--mx-text-2)]">
-            We couldn’t read {d.unreadable.join(", ")} for this game. The source answered; we
-            failed to understand it. Everything else on this page is unaffected.
-          </p>
-        </div>
-      )}
+/** A fight card: several bouts under one event. */
+function Card({ bouts }: { bouts: Bout[] | null }) {
+  if (!bouts) {
+    return <Absent>No bouts published yet. Cards are often confirmed close to the night.</Absent>;
+  }
+  return (
+    <ul className="space-y-3">
+      {bouts.map((b, i) => (
+        <li key={i} className={`${card} p-4`}>
+          {(b.name || b.status) && (
+            <p className="text-[12px] text-[var(--mx-text-3)]">{[b.name, b.status].filter(Boolean).join(" · ")}</p>
+          )}
+          <div className="mt-2 space-y-2">
+            {b.fighters.map((f, j) => (
+              <div key={j} className="flex items-center gap-3">
+                <Face p={{ id: null, name: f.name, position: null, jersey: null, headshot: f.headshot, starter: false }} size={34} />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[14.5px] truncate">{f.name}</span>
+                  {f.record && <span className="block text-[12px] text-[var(--mx-text-3)]">{f.record}</span>}
+                </span>
+                {f.winner && <span className="shrink-0 text-[12px]" style={{ color: "var(--mx-up)" }}>Won</span>}
+              </div>
+            ))}
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
-      <section className={`${card} p-5 space-y-4`}>
-        {sides.map(t => <TeamHeading key={t.homeAway} t={t} />)}
-      </section>
+/** Said on every shape of this page, because it is true of all of them. */
+function Footer() {
+  return (
+    <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)] max-w-[72ch]">
+      Schedules, lineups, fields, injuries and any line shown come from ESPN’s public data and
+      can be incomplete or out of date — a lineup especially, which changes up to the start. For
+      learning only, and not a recommendation to bet on anything.
+    </p>
+  );
+}
 
-      <Section title="Who starts">
-        <div className="grid lg:grid-cols-2 gap-6">
-          {sides.map(t => (
-            <div key={t.homeAway}>
-              <p className="text-[14px] mb-3 flex items-center gap-2"><Crest t={t} size={20} />{t.name}</p>
-              <Lineup t={t} unreadable={d.unreadable.includes(`${t.homeAway} lineup`)} />
-            </div>
-          ))}
-        </div>
-      </Section>
-
+/** The parts every shape of event shares. */
+function SharedSections({ d }: { d: GameDetail }) {
+  return (
+    <>
       <Section title="Where it’s played">
         {d.venue ? (
           <div className="space-y-1.5">
@@ -243,8 +263,115 @@ function Detail({ d }: { d: GameDetail }) {
             </p>
           </div>
         ) : (
-          <Absent>No venue given for this game.</Absent>
+          <Absent>No venue given for this event.</Absent>
         )}
+      </Section>
+
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Section title="Where to watch">
+          {d.broadcasts ? <p className="text-[14px]">{d.broadcasts.join(", ")}</p> : <Absent>No broadcaster listed.</Absent>}
+        </Section>
+        <Section title="Conditions">
+          {d.weather ? (
+            <p className="text-[14px] tabular-nums">
+              {[
+                d.weather.summary,
+                d.weather.temperatureF !== null ? `${d.weather.temperatureF}°F` : null,
+                d.weather.precipitationPct !== null ? `${d.weather.precipitationPct}% chance of rain` : null,
+              ].filter(Boolean).join(" · ")}
+            </p>
+          ) : (
+            <Absent>{d.venue?.indoor ? "Indoors — weather doesn’t apply." : "No forecast for this event."}</Absent>
+          )}
+        </Section>
+      </div>
+    </>
+  );
+}
+
+function Header({ d, title }: { d: GameDetail; title: string }) {
+  const when = d.start
+    ? new Date(d.start).toLocaleString("en-US", { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit" })
+    : null;
+  return (
+    <>
+      <header>
+        <Link href="/sports" className="text-[13px] text-[var(--mx-text-3)] underline hover:text-[var(--mx-text-2)]">
+          ← All games
+        </Link>
+        <h1 className="mt-3 text-[26px] lg:text-[34px] leading-[1.1] tracking-[-0.02em]" style={{ fontWeight: 450 }}>
+          {title}
+        </h1>
+        <p className="mt-2 text-[14px] text-[var(--mx-text-2)]">
+          {[d.leagueLabel, d.statusDetail ?? when].filter(Boolean).join(" · ")}
+        </p>
+        {d.notes && d.notes.length > 0 && (
+          <p className="mt-1 text-[13px] text-[var(--mx-text-3)]">{d.notes.join(" · ")}</p>
+        )}
+      </header>
+
+      {/* A misparse is a fault on our side and is said so at the top, rather
+          than leaving a reader to work out why a section looks thin. */}
+      {d.unreadable.length > 0 && (
+        <div className={`${card} p-4`}>
+          <p className="text-[13.5px] text-[var(--mx-text-2)]">
+            We couldn’t read {d.unreadable.join(", ")} for this event. The source answered; we
+            failed to understand it. Everything else on this page is unaffected.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Detail({ d }: { d: GameDetail }) {
+  // A field or a card is not a matchup, and the union means the compiler will
+  // not let the matchup sections read `home` off one.
+  if (d.kind === "field") {
+    return (
+      <div className="space-y-6">
+        <Header d={d} title={d.name ?? "Event"} />
+        <Section title="The field">
+          <Field entries={d.field} />
+        </Section>
+        <SharedSections d={d} />
+        <Footer />
+      </div>
+    );
+  }
+
+  if (d.kind === "card") {
+    return (
+      <div className="space-y-6">
+        <Header d={d} title={d.name ?? "Fight card"} />
+        <Section title="The card">
+          <Card bouts={d.bouts} />
+        </Section>
+        <SharedSections d={d} />
+        <Footer />
+      </div>
+    );
+  }
+
+  const sides: TeamSide[] = [d.away, d.home];
+
+  return (
+    <div className="space-y-6">
+      <Header d={d} title={`${d.away.name} at ${d.home.name}`} />
+
+      <section className={`${card} p-5 space-y-4`}>
+        {sides.map(t => <TeamHeading key={t.homeAway} t={t} />)}
+      </section>
+
+      <Section title="Who starts">
+        <div className="grid lg:grid-cols-2 gap-6">
+          {sides.map(t => (
+            <div key={t.homeAway}>
+              <p className="text-[14px] mb-3 flex items-center gap-2"><Crest t={t} size={20} />{t.name}</p>
+              <Lineup t={t} unreadable={d.unreadable.includes(`${t.homeAway} lineup`)} />
+            </div>
+          ))}
+        </div>
       </Section>
 
       <div className="grid lg:grid-cols-2 gap-3">
@@ -313,7 +440,7 @@ function Detail({ d }: { d: GameDetail }) {
         </div>
       </Section>
 
-      <div className="grid lg:grid-cols-3 gap-3">
+      <div className="grid lg:grid-cols-2 gap-3">
         <Section title="Recent form">
           <div className="space-y-3">
             {sides.map(t => (
@@ -325,29 +452,6 @@ function Detail({ d }: { d: GameDetail }) {
           </div>
         </Section>
 
-        <Section title="Where to watch">
-          {d.broadcasts ? (
-            <p className="text-[14px]">{d.broadcasts.join(", ")}</p>
-          ) : (
-            <Absent>No broadcaster listed.</Absent>
-          )}
-        </Section>
-
-        <Section title="Conditions">
-          {d.weather ? (
-            <p className="text-[14px] tabular-nums">
-              {[
-                d.weather.summary,
-                d.weather.temperatureF !== null ? `${d.weather.temperatureF}°F` : null,
-                d.weather.precipitationPct !== null ? `${d.weather.precipitationPct}% chance of rain` : null,
-              ].filter(Boolean).join(" · ")}
-            </p>
-          ) : (
-            <Absent>
-              {d.venue?.indoor ? "Indoors — weather doesn’t apply." : "No forecast for this game."}
-            </Absent>
-          )}
-        </Section>
       </div>
 
       {d.officials && (
@@ -363,11 +467,8 @@ function Detail({ d }: { d: GameDetail }) {
         </Section>
       )}
 
-      <p className="text-[12.5px] leading-relaxed text-[var(--mx-text-3)] max-w-[72ch]">
-        Schedules, lineups, injuries and any line shown come from ESPN’s public data and can be
-        incomplete or out of date — a lineup especially, which changes up to the start. For
-        learning only, and not a recommendation to bet on anything.
-      </p>
+      <SharedSections d={d} />
+      <Footer />
     </div>
   );
 }

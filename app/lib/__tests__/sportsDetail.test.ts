@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   parseGameSummary, parsePerson, parseLineup, parseVenue, parseOdds,
   parseWeather, parseOfficials, parseInjuries, parseForm, parseWinProbability,
+  parseField, parseBouts, type GameDetail,
 } from "../sportsDetail";
 
 // A game page is mostly absences: lineups appear an hour before kickoff, most
@@ -10,6 +11,14 @@ import {
 // a silent success.
 
 const ctx = { eventId: "401", sport: "basketball", league: "nba" };
+
+/** Parse, assert it came out as a matchup, and narrow to that shape. */
+function h2h(body: unknown): Extract<GameDetail, { kind: "head_to_head" }> {
+  const d = parseGameSummary(body, ctx);
+  expect(d, "expected a readable game").not.toBeNull();
+  expect(d!.kind).toBe("head_to_head");
+  return d as Extract<GameDetail, { kind: "head_to_head" }>;
+}
 
 const athlete = (over: Record<string, unknown> = {}) => ({
   id: "1", displayName: "Jordan Reyes", jersey: "23",
@@ -192,7 +201,7 @@ describe("ESPN's own win probability", () => {
 
 describe("a whole game", () => {
   it("reads both teams, the right way round", () => {
-    const d = parseGameSummary(summary(), ctx)!;
+    const d = h2h(summary());
     expect(d.home.name).toBe("Denver Nuggets");
     expect(d.away.name).toBe("Phoenix Suns");
     expect(d.home.record).toBe("7-2");
@@ -200,7 +209,7 @@ describe("a whole game", () => {
   });
 
   it("attaches each team's own lineup, injuries and form", () => {
-    const d = parseGameSummary(summary(), ctx)!;
+    const d = h2h(summary());
     expect(d.home.lineup?.map(p => p.name)).toEqual(["Nikola Vance", "Bench Guy"]);
     expect(d.away.lineup?.map(p => p.name)).toEqual(["Devin Cross"]);
     expect(d.home.injuries?.[0]).toMatchObject({ name: "Hurt Player", status: "Out" });
@@ -212,7 +221,7 @@ describe("a whole game", () => {
   });
 
   it("reads the venue, officials, broadcast, attendance and odds", () => {
-    const d = parseGameSummary(summary(), ctx)!;
+    const d = h2h(summary());
     expect(d.venue).toMatchObject({ name: "Ball Arena", city: "Denver", capacity: 19520, indoor: true });
     expect(d.officials?.[0].name).toBe("Kane Fitzgerald");
     expect(d.broadcasts).toEqual(["ESPN", "ABC"]);
@@ -222,28 +231,28 @@ describe("a whole game", () => {
   });
 
   it("reports nothing unreadable for a payload it understood", () => {
-    expect(parseGameSummary(summary(), ctx)!.unreadable).toEqual([]);
+    expect(h2h(summary()).unreadable).toEqual([]);
   });
 
   it("promotes a probable pitcher to the front of the lineup", () => {
-    const d = parseGameSummary(summary({
+    const d = h2h(summary({
       rosters: [], probables: [{ team: { id: "10" }, athlete: athlete({ id: "99", displayName: "Ace Pitcher", position: { abbreviation: "SP" } }) }],
-    }), ctx)!;
+    }));
     expect(d.home.lineup?.[0]).toMatchObject({ name: "Ace Pitcher", starter: true });
   });
 
   it("flags a lineup it could not read, instead of calling it unpublished", () => {
     // The block exists and holds entries, but none of them parse. That is a
     // bug in this file, and it must not read the same as "not out yet".
-    const d = parseGameSummary(summary({
+    const d = h2h(summary({
       rosters: [{ team: { id: "10" }, roster: [{ nonsense: true }, { also: "junk" }] }],
-    }), ctx)!;
+    }));
     expect(d.home.lineup).toBeNull();
     expect(d.unreadable).toContain("home lineup");
   });
 
   it("leaves unreadable empty when a lineup is simply absent", () => {
-    const d = parseGameSummary(summary({ rosters: [] }), ctx)!;
+    const d = h2h(summary({ rosters: [] }));
     expect(d.home.lineup).toBeNull();
     expect(d.unreadable).toEqual([]);
   });
@@ -267,7 +276,7 @@ describe("a whole game", () => {
     // ESPN lists away first. Guessing is a last resort, so it is tested as one.
     const noSide = summary();
     (noSide.header.competitions[0] as { competitors: Array<Record<string, unknown>> }).competitors.forEach(c => { delete c.homeAway; });
-    const d = parseGameSummary(noSide, ctx)!;
+    const d = h2h(noSide);
     expect(d.away.name).toBe("Phoenix Suns");
     expect(d.home.name).toBe("Denver Nuggets");
   });
@@ -277,11 +286,162 @@ describe("a whole game", () => {
       { homeAway: "away", team: { id: "2", displayName: "Away United" } },
       { homeAway: "home", team: { id: "1", displayName: "Home City" } },
     ] }] } };
-    const d = parseGameSummary(bare, ctx)!;
+    const d = h2h(bare);
     expect(d.home.name).toBe("Home City");
     for (const k of ["venue", "odds", "weather", "officials", "broadcasts", "espnWinProbability"] as const) {
       expect(d[k]).toBeNull();
     }
     expect(d.unreadable).toEqual([]);
+  });
+});
+
+// ── Sports that are not two sides ────────────────────────────────────────────
+//
+// A golf tournament, an F1 weekend and a UFC night went through the matchup
+// parser and came out as a game between the first two names in the list. These
+// cover the three shapes being told apart, which is decided from the payload
+// rather than from the sport's name — tennis is a field at tournament level and
+// two players at match level, served by the same endpoint.
+
+const fieldEvent = (over: Record<string, unknown> = {}) => ({
+  header: {
+    league: { name: "PGA Tour" },
+    competitions: [{
+      date: "2026-11-05T12:00Z",
+      status: { type: { state: "pre", detail: "Round 1" } },
+      competitors: [
+        { order: 1, athlete: { id: "1", displayName: "Rory Vance", flag: { alt: "Northern Ireland" }, headshot: { href: "https://a.espncdn.com/h/1.png" } }, score: "-7" },
+        { order: 2, athlete: { id: "2", displayName: "Scottie Fields", flag: { alt: "USA" } }, score: "-5" },
+        { order: 3, athlete: { id: "3", displayName: "Jon Ramos", flag: { alt: "Spain" } }, score: "-4" },
+      ],
+    }],
+  },
+  gameInfo: { venue: { fullName: "Augusta National", address: { city: "Augusta", state: "GA" } } },
+  ...over,
+});
+
+const fightCard = () => ({
+  header: {
+    league: { name: "UFC" },
+    competitions: [
+      { id: "1", type: { text: "Heavyweight" }, status: { type: { detail: "Main Event" } }, competitors: [
+        { winner: false, athlete: { id: "1", displayName: "Jon Stone" }, records: [{ summary: "20-1-0" }] },
+        { winner: false, athlete: { id: "2", displayName: "Tom Ash" }, records: [{ summary: "14-3-0" }] },
+      ] },
+      { id: "2", type: { text: "Lightweight" }, competitors: [
+        { winner: true, athlete: { id: "3", displayName: "Islam Reed" } },
+        { winner: false, athlete: { id: "4", displayName: "Dustin Pryor" } },
+      ] },
+    ],
+  },
+});
+
+describe("a field of competitors", () => {
+  it("reads a leaderboard in order, with scores and flags", () => {
+    const f = parseField(fieldEvent().header.competitions[0].competitors)!;
+    expect(f).toHaveLength(3);
+    expect(f[0]).toMatchObject({ name: "Rory Vance", detail: "-7", country: "Northern Ireland", position: "1" });
+  });
+
+  it("is null when no field is published", () => {
+    expect(parseField([])).toBeNull();
+    expect(parseField(null)).toBeNull();
+  });
+
+  it("accepts a team entry, for a sport's team events", () => {
+    expect(parseField([{ team: { displayName: "Team Europe", location: "Europe" }, score: "14" }])?.[0])
+      .toMatchObject({ name: "Team Europe", detail: "14" });
+  });
+
+  it("comes out of the whole parser as a field, not a matchup", () => {
+    const d = parseGameSummary(fieldEvent(), { eventId: "9", sport: "golf", league: "pga" })!;
+    expect(d.kind).toBe("field");
+    // The union guarantees this: a field has no home side to misread.
+    expect(d.home).toBeNull();
+    expect(d.away).toBeNull();
+    if (d.kind !== "field") throw new Error("expected a field");
+    expect(d.field?.map(e => e.name)).toEqual(["Rory Vance", "Scottie Fields", "Jon Ramos"]);
+    expect(d.venue?.name).toBe("Augusta National");
+    expect(d.unreadable).toEqual([]);
+  });
+});
+
+describe("a fight card", () => {
+  it("reads every bout, not just the first", () => {
+    const b = parseBouts(fightCard().header.competitions)!;
+    expect(b).toHaveLength(2);
+    expect(b[0]).toMatchObject({ name: "Heavyweight", status: "Main Event" });
+    expect(b[0].fighters.map(f => f.name)).toEqual(["Jon Stone", "Tom Ash"]);
+    expect(b[0].fighters[0].record).toBe("20-1-0");
+  });
+
+  it("marks the winner where one is given", () => {
+    const b = parseBouts(fightCard().header.competitions)!;
+    expect(b[1].fighters.find(f => f.winner)?.name).toBe("Islam Reed");
+  });
+
+  it("skips a bout with only one named fighter rather than showing half of it", () => {
+    expect(parseBouts([{ competitors: [{ athlete: { displayName: "Only One" } }, { nothing: true }] }])).toBeNull();
+  });
+
+  it("comes out of the whole parser as a card", () => {
+    const d = parseGameSummary(fightCard(), { eventId: "9", sport: "mma", league: "ufc" })!;
+    expect(d.kind).toBe("card");
+    expect(d.home).toBeNull();
+    if (d.kind !== "card") throw new Error("expected a card");
+    expect(d.bouts).toHaveLength(2);
+  });
+});
+
+describe("telling the three shapes apart", () => {
+  it("treats two sides with homeAway as a matchup even when there are extra competitions", () => {
+    // A doubleheader payload has more than one competition, but each side is
+    // still marked home or away, so it must not be read as a fight card.
+    expect(h2h(summary()).kind).toBe("head_to_head");
+  });
+
+  it("treats three competitors without homeAway as a field", () => {
+    const d = parseGameSummary(fieldEvent(), ctx)!;
+    expect(d.kind).toBe("field");
+  });
+
+  it("does not call a two-horse field a matchup by accident", () => {
+    // Two competitors and no homeAway falls back to list order, which is the
+    // documented last resort — it stays a matchup rather than silently
+    // becoming a field of two.
+    const d = parseGameSummary({ header: { competitions: [{ competitors: [
+      { athlete: { displayName: "First" } }, { athlete: { displayName: "Second" } },
+    ] }] } }, ctx);
+    expect(d?.kind).toBe("head_to_head");
+  });
+
+  it("flags a card it could not read instead of calling it empty", () => {
+    const d = parseGameSummary({ header: { competitions: [
+      { competitors: [{ junk: 1 }, { junk: 2 }] },
+      { competitors: [{ junk: 3 }, { junk: 4 }] },
+    ] } }, ctx);
+    expect(d?.kind).toBe("card");
+    expect(d?.unreadable).toContain("the card");
+  });
+});
+
+describe("a side that is one person, not a team", () => {
+  it("reads a tennis match between two players", () => {
+    // These used to fail the team-name check and take the whole game down —
+    // a real match came back as a payload we could not understand.
+    const d = parseGameSummary({ header: { competitions: [{
+      status: { type: { state: "pre", detail: "Round of 16" } },
+      competitors: [
+        { homeAway: "away", athlete: { id: "1", displayName: "Carlos Vega" }, score: "1" },
+        { homeAway: "home", athlete: { id: "2", displayName: "Jannik Frost", headshot: { href: "https://a.espncdn.com/h/2.png" } }, score: "2" },
+      ],
+    }] } }, { eventId: "5", sport: "tennis", league: "atp" })!;
+    expect(d.kind).toBe("head_to_head");
+    if (d.kind !== "head_to_head") throw new Error("expected a matchup");
+    expect(d.home.name).toBe("Jannik Frost");
+    expect(d.away.name).toBe("Carlos Vega");
+    expect(d.home.score).toBe(2);
+    // With no club badge, the player's own photo stands in for it.
+    expect(d.home.logo).toContain("espncdn");
   });
 });

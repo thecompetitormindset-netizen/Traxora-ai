@@ -70,3 +70,40 @@ describe("the link on a game card", () => {
     }
   });
 });
+
+describe("the link on a more-sports event card", () => {
+  it("links a rugby match from its competition path", async () => {
+    const { eventHref } = await import("../sportsGameLink");
+    expect(eventHref("rugby", "164205", "600123"))
+      .toBe("/sports/game?sport=rugby&league=164205&event=600123");
+  });
+
+  it("links a golf tournament", async () => {
+    const { eventHref } = await import("../sportsGameLink");
+    expect(eventHref("golf", "pga", "401580")).toBe("/sports/game?sport=golf&league=pga&event=401580");
+  });
+
+  it("offers no link when ESPN does not serve the event", async () => {
+    const { eventHref } = await import("../sportsGameLink");
+    // Chess comes from Lichess and already links there; a cricket match whose
+    // competition the feed did not name cannot be asked for.
+    expect(eventHref(null, null, "123")).toBeNull();
+    expect(eventHref("cricket", null, "123")).toBeNull();
+    expect(eventHref(null, "pga", "123")).toBeNull();
+  });
+
+  it("offers no link for a non-numeric event id", async () => {
+    const { eventHref } = await import("../sportsGameLink");
+    expect(eventHref("chess", "broadcast", "abc-tour")).toBeNull();
+  });
+
+  it("covers every competition on the more-sports schedule", async () => {
+    const { eventHref } = await import("../sportsGameLink");
+    const { MATCH_COMPS, EVENT_COMPS, splitCompPath } = await import("../sportsEvents");
+    for (const c of [...MATCH_COMPS, ...EVENT_COMPS]) {
+      const p = splitCompPath(c.path);
+      expect(p, `${c.path} should split`).not.toBeNull();
+      expect(eventHref(p!.sport, p!.league, "401"), `${c.sport} should be linkable`).not.toBeNull();
+    }
+  });
+});
