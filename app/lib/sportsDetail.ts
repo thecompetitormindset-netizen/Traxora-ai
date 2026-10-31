@@ -556,22 +556,48 @@ export function parseLeaders(rawLeaders: unknown, teamId: string | null): Leader
   const groups = arr(rawLeaders);
   if (!groups || !teamId) return null;
   const out: Leader[] = [];
-  for (const g of groups) {
-    const group = obj(g);
-    if (!group) continue;
+
+  /** One category — "Points" — and its top athlete for this team. */
+  const takeCategory = (raw: unknown, teamFromWrapper: string | null) => {
+    const group = obj(raw);
+    if (!group) return;
     const category = str(group.displayName) ?? str(group.name);
-    if (!category) continue;
+    if (!category) return;
     for (const l of arr(group.leaders) ?? []) {
       const entry = obj(l);
       if (!entry) continue;
-      // A leaders block can be league-wide or team-scoped; keep this team's.
-      const owner = str(at(entry, "team.id")) ?? str(at(group, "team.id"));
+      const owner = str(at(entry, "team.id")) ?? teamFromWrapper;
       if (owner && owner !== teamId) continue;
       const person = parsePerson(entry);
       const value = str(entry.displayValue);
       if (!person || !value) continue;
       out.push({ category, name: person.name, value, headshot: person.headshot });
-      break; // one per category is plenty; the rest is a stats page
+      return; // one per category is plenty; the rest is a stats page
+    }
+  };
+
+  for (const g of groups) {
+    const group = obj(g);
+    if (!group) continue;
+
+    // Two shapes, and reading only the second is why this section was empty
+    // on every game the list actually offers.
+    //
+    // Before a game ESPN wraps the categories in a per-team object:
+    //   leaders[] = { team, leaders[] = { name, displayName, leaders[] } }
+    // Elsewhere the categories are the top level, each athlete carrying its
+    // own team. The wrapped form has no displayName of its own, so the old
+    // code read null, gave up, and reported no leaders at all.
+    const wrappedTeam = str(at(group, "team.id"));
+    const inner = arr(group.leaders);
+    const isWrapper = !!inner && inner.some(i => Array.isArray(obj(i)?.leaders));
+
+    if (isWrapper) {
+      // Only this team's block is worth walking.
+      if (wrappedTeam && wrappedTeam !== teamId) continue;
+      for (const category of inner) takeCategory(category, wrappedTeam);
+    } else {
+      takeCategory(group, wrappedTeam);
     }
   }
   return out.length ? out : null;
@@ -602,9 +628,15 @@ function teamSide(
 
   const logo =
     str(t.logo) ?? str(at(arr(t.logos)?.[0], "href")) ?? individual?.headshot ?? null;
-  const records = arr(c.records);
+  // The scoreboard sends `records` as an array; a summary's competitor sends
+  // `record`, which is itself sometimes an array and sometimes one object.
+  // All three spellings appear, so all three are read — a season record that
+  // silently fails to show is a small thing that makes the card look broken.
   const record =
-    str(at(records?.[0], "summary")) ?? str(at(c, "record.summary")) ?? str(c.record);
+    str(at(arr(c.records)?.[0], "summary")) ??
+    str(at(arr(c.record)?.[0], "summary")) ??
+    str(at(c, "record.summary")) ??
+    str(c.record);
 
   const rosterBlock = rosterFor(rosters, id);
   let lineup: Person[] | null = null;

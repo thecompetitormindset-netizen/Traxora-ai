@@ -3,6 +3,10 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 15;
 
 import { viewer } from "@/app/lib/viewer";
+import {
+  devig, favouredSide, winner, marketRecord, ourRecord, versusMarket, calibration,
+  type GradedGame,
+} from "@/app/lib/marketGrading";
 import { supabaseAdmin } from "@/app/lib/supabase";
 
 type LoggedRow = {
@@ -15,6 +19,16 @@ type LoggedRow = {
   commence_time:    string;
   actual_winner:    string | null;
   resolved_at:      string | null;
+  // Final scores: a winner alone cannot grade a spread or a total.
+  home_score:          number | null;
+  away_score:          number | null;
+  // What a book was offering, last read before the game started.
+  closing_spread:      string | null;
+  closing_total:       number | null;
+  closing_home_ml:     number | null;
+  closing_away_ml:     number | null;
+  closing_book:        string | null;
+  closing_captured_at: string | null;
 };
 
 const TIERS = [
@@ -40,7 +54,7 @@ export async function GET() {
     const db = supabaseAdmin();
     const { data, error } = await db
       .from("sports_predictions_log")
-      .select("id, league, home_team, away_team, predicted_winner, confidence, commence_time, actual_winner, resolved_at")
+      .select("id, league, home_team, away_team, predicted_winner, confidence, commence_time, actual_winner, resolved_at, home_score, away_score, closing_spread, closing_total, closing_home_ml, closing_away_ml, closing_book, closing_captured_at")
       .not("resolved_at", "is", null)
       .not("predicted_winner", "is", null)
       .order("commence_time", { ascending: false })
@@ -87,7 +101,55 @@ export async function GET() {
       commenceTime:    r.commence_time,
     }));
 
-    const payload = { overall, byTier, byLeague, recent, updatedAt: new Date().toISOString() };
+    // ── The market, graded the same way ──────────────────────────────────
+    //
+    // Our own hit rate says very little by itself: being right 58% of the time
+    // where the closing line implied 57% is no edge at all. So the same games
+    // are graded against what a book was offering, and the two are shown side
+    // by side.
+    const marketGames: GradedGame[] = [];
+    for (const r of graded) {
+      // Needs both sides of a moneyline to say what the market implied, and
+      // the final scores to know what happened.
+      if (r.home_score === null || r.away_score === null) continue;
+      const fair = devig(r.closing_home_ml, r.closing_away_ml);
+      const favoured = favouredSide(r.closing_home_ml, r.closing_away_ml);
+      const result = winner(r.home_score, r.away_score);
+      // Our pick is stored as a team NAME; the grading works in sides.
+      const ourPick: "home" | "away" | null =
+        r.predicted_winner === r.home_team ? "home"
+        : r.predicted_winner === r.away_team ? "away"
+        : null;
+      marketGames.push({
+        marketPick: favoured,
+        marketProbability: fair === null || favoured === null ? null : (favoured === "home" ? fair.home : fair.away),
+        ourPick,
+        ourProbability: r.confidence === null ? null : r.confidence / 100,
+        result,
+      });
+    }
+
+    const market = {
+      /** How often the book's favourite won. */
+      record: marketRecord(marketGames),
+      /** Ours over the same games, counted identically so they compare. */
+      ours: ourRecord(marketGames),
+      /** The only test of an edge: the games where we took the other side. */
+      versus: versusMarket(marketGames),
+      /** Did the chances it implied come up at that rate? */
+      calibration: calibration(marketGames),
+      /** How many settled games carry a usable line at all. */
+      gamesWithALine: marketGames.filter(g => g.marketPick !== null).length,
+      /**
+       * Said plainly, because an empty market panel otherwise reads as a
+       * fault rather than as "no book quotes these leagues".
+       */
+      note: marketGames.some(g => g.marketPick !== null)
+        ? null
+        : "No closing line has been recorded yet for any settled game. ESPN carries one for some leagues and not others, and lines are only captured from the day this went live onward.",
+    };
+
+    const payload = { overall, byTier, byLeague, recent, market, updatedAt: new Date().toISOString() };
     cache = { data: payload, ts: Date.now() };
     return Response.json(payload);
   } catch (err) {

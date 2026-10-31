@@ -2,7 +2,7 @@ export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
 export const maxDuration = 60;
 
-import { LEAGUES, fetchAllUpcoming, fetchScoreboard } from "@/app/lib/sportsPredictions";
+import { LEAGUES, fetchAllUpcoming, fetchScoreboard, captureLine, type CapturedLine } from "@/app/lib/sportsPredictions";
 
 // Snapshots today's predictions (before games start, so nothing is graded with
 // hindsight) and backfills results for previously-logged games that have since
@@ -14,6 +14,31 @@ function toDateKey(d: Date): string {
 }
 
 type ScoreInfo = { completed: boolean; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number };
+
+/** Lines for games that have not started, newest read winning. */
+type LineInfo = Map<string, CapturedLine>;
+
+/**
+ * Re-read the line for every game still to come.
+ *
+ * Run on every pass so what is stored converges on the CLOSING line. A line
+ * captured when a pick was first logged can be a week old, and calling that a
+ * closing line would misdescribe what was measured — so this keeps overwriting
+ * it, and only the line columns, until the game starts.
+ */
+async function collectUpcomingLines(): Promise<LineInfo> {
+  const lines: LineInfo = new Map();
+  const days = Array.from({ length: 8 }, (_, i) => toDateKey(new Date(Date.now() + i * 86_400_000)));
+  await Promise.all(LEAGUES.map(async league => {
+    const events = (await Promise.all(days.map(d => fetchScoreboard(league, d)))).flat();
+    for (const ev of events) {
+      if (ev.competitions?.[0]?.status?.type?.state !== "pre") continue;
+      const line = captureLine(ev);
+      if (line) lines.set(ev.id, line);
+    }
+  }));
+  return lines;
+}
 
 async function collectRecentResults(): Promise<Map<string, ScoreInfo>> {
   const results = new Map<string, ScoreInfo>();
@@ -28,12 +53,17 @@ async function collectRecentResults(): Promise<Map<string, ScoreInfo>> {
       const home = comp.competitors.find(c => c.homeAway === "home");
       const away = comp.competitors.find(c => c.homeAway === "away");
       if (!home || !away) continue;
+      const homeScore = Number(home.score ?? NaN);
+      const awayScore = Number(away.score ?? NaN);
+      // A finished game with no readable score cannot be graded on a spread or
+      // a total, and recording it as 0-0 would grade every one of them wrongly.
+      if (!Number.isFinite(homeScore) || !Number.isFinite(awayScore)) continue;
       results.set(ev.id, {
         completed: true,
         homeTeam: home.team.displayName,
         awayTeam: away.team.displayName,
-        homeScore: Number(home.score ?? 0),
-        awayScore: Number(away.score ?? 0),
+        homeScore,
+        awayScore,
       });
     }
   }));
@@ -74,6 +104,34 @@ export async function GET(req: Request) {
       else logged = rows.length;
     }
 
+    // ── Lines: keep the stored line current until each game starts ──
+    //
+    // Only the line columns are touched. The prediction and its confidence are
+    // written once and never revised, because a prediction updated after the
+    // fact is not a prediction.
+    let linesCaptured = 0;
+    let linesMissing = 0;
+    const lines = await collectUpcomingLines();
+    for (const [id, line] of lines) {
+      const { error } = await db.from("sports_predictions_log")
+        .update({
+          closing_spread:      line.spread,
+          closing_total:       line.total,
+          closing_home_ml:     line.homeMl,
+          closing_away_ml:     line.awayMl,
+          closing_book:        line.book,
+          closing_captured_at: new Date().toISOString(),
+        })
+        .eq("id", id)
+        .is("resolved_at", null);
+      if (error) console.error("sports-track-record line update error:", error.message);
+      else linesCaptured++;
+    }
+    // Said out loud so one run answers whether this league's scoreboard
+    // carries a line at all, rather than leaving an empty column to be
+    // interpreted later.
+    linesMissing = Math.max(0, logged - lines.size);
+
     // ── Resolve: backfill outcomes for previously-logged, now-finished games ──
     const { data: unresolved, error: fetchErr } = await db
       .from("sports_predictions_log")
@@ -96,13 +154,24 @@ export async function GET(req: Request) {
           ? null // tie/draw — no winner to grade against
           : info.homeScore > info.awayScore ? info.homeTeam : info.awayTeam;
         await db.from("sports_predictions_log")
-          .update({ actual_winner: actualWinner, resolved_at: new Date().toISOString() })
+          .update({
+            actual_winner: actualWinner,
+            home_score:    info.homeScore,
+            away_score:    info.awayScore,
+            resolved_at:   new Date().toISOString(),
+          })
           .eq("id", row.id);
         resolved++;
       }
     }
 
-    return Response.json({ logged, resolved });
+    return Response.json({
+      logged, resolved, linesCaptured,
+      // A large number here with linesCaptured at zero means the scoreboard
+      // for these leagues carries no odds, which is a fact worth knowing from
+      // one run rather than guessing at from an empty column.
+      predictionsWithoutALine: linesMissing,
+    });
   } catch (err) {
     console.error("sports-track-record error:", err instanceof Error ? err.message : err);
     return Response.json({ error: "Database not available" }, { status: 503 });
