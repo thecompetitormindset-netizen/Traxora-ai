@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { SITE_HOST, siteUrl } from "@/app/lib/site";
 import { smartMoneyScore } from "@/app/lib/smartMoney";
 import { postToDiscord, buildBriefingEmbed } from "@/app/lib/discord";
 import { fullQuote } from "@/app/lib/marketQuote";
@@ -366,7 +367,7 @@ function buildOptionsSection(plays: Awaited<ReturnType<typeof fetchOptionsPlays>
             </td></tr>
           </table>
         </td></tr>
-        <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, targets, and a position sizer that caps contracts to your risk % are on each card at traxora-ai.vercel.app/dashboard</p></td></tr>
+        <tr><td style="padding:0 20px 14px"><p style="margin:0;font-size:9px;color:#333368">Entry zones, stops, targets, and a position sizer that caps contracts to your risk % are on each card at ${SITE_HOST}/dashboard</p></td></tr>
       </table>
     </td>
   </tr>`;
@@ -746,7 +747,7 @@ function buildEmail(stocks: ReturnType<typeof analyze>[], date: string, perfSect
       <table cellpadding="0" cellspacing="0" border="0" style="margin:0 auto">
         <tr>
           <td style="background:#4f46e5;border-radius:12px">
-            <a href="https://traxora-ai.vercel.app/dashboard" style="display:block;padding:14px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px">Open Traxora Dashboard &#8594;</a>
+            <a href="${siteUrl("dashboard")}" style="display:block;padding:14px 32px;font-size:14px;font-weight:700;color:#ffffff;text-decoration:none;letter-spacing:-0.2px">Open Traxora Dashboard &#8594;</a>
           </td>
         </tr>
       </table>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_DOLLAR_VOLUME, MIN_PRICE, dateOfGrouped, parseGrouped } from "../polygonGrouped";
+import { MIN_DOLLAR_VOLUME, MIN_PRICE, dateOfGrouped, parseGrouped, redactKey } from "../polygonGrouped";
 
 // One call returns the whole US market for a date, which is what makes a
 // universe of thousands possible on a budget of five calls a minute. What has
@@ -86,5 +86,25 @@ describe("dateOfGrouped", () => {
   it("falls back to the requested date when no row says otherwise", () => {
     expect(dateOfGrouped(body([]), "2026-10-26")).toBe("2026-10-26");
     expect(dateOfGrouped(null, "2026-10-26")).toBe("2026-10-26");
+  });
+});
+
+describe("redactKey", () => {
+  it("removes the key from a provider message", () => {
+    expect(redactKey("Unknown apiKey=abc123secret supplied", "abc123secret"))
+      .toBe("Unknown apiKey=[redacted] supplied");
+  });
+
+  it("removes every occurrence, not just the first", () => {
+    expect(redactKey("k1 and k1 again", "k1")).toBe("[redacted] and [redacted] again");
+  });
+
+  it("leaves a message that does not contain the key alone", () => {
+    const msg = "You are not entitled to this data. Please upgrade your plan.";
+    expect(redactKey(msg, "abc123")).toBe(msg);
+  });
+
+  it("does nothing when there is no key to hide", () => {
+    expect(redactKey("some message", "")).toBe("some message");
   });
 });

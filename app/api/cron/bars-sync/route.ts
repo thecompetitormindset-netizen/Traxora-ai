@@ -8,6 +8,7 @@ import { nyseCalendar } from "@/app/lib/marketTime";
 import { polygonGroupedDaily, type GroupedBar } from "@/app/lib/polygonGrouped";
 import { storedBarDates } from "@/app/lib/barsStore";
 import { PgUnavailable } from "@/app/lib/pgClient";
+import { refusalMeans, datesRemaining } from "@/app/lib/backfillProgress";
 
 // Fills daily_bars from Polygon's grouped endpoint, one trading date per call.
 //
@@ -124,6 +125,9 @@ export async function GET(req: Request) {
 
   const done: string[] = [];
   const skipped: Array<{ date: string; outcome: string; detail?: string }> = [];
+  // Dates the provider refuses to serve this key. Held apart from `skipped`
+  // because they are not "try again in a minute" — they are "not from here".
+  const unavailable: Array<{ date: string; detail?: string }> = [];
   let written = 0;
 
   for (const date of missing.slice(0, MAX_DATES_PER_RUN)) {
@@ -142,12 +146,33 @@ export async function GET(req: Request) {
       break;
     }
 
-    if (result.outcome === "not_entitled") {
-      // A permanent no, not a transient one. Stop rather than spend the rest
-      // of the run discovering the same thing date by date.
+    if (result.outcome === "forbidden") {
+      // Polygon answers both "your plan excludes this endpoint" and "your plan
+      // does not include this date yet" with a 403, so the response alone
+      // cannot tell them apart. What tells them apart is whether this key has
+      // ever been served: dates already in the table came from this endpoint.
+      //
+      // Getting this wrong once already cost a working backfill. The run had
+      // written 49 dates when the clock passed midnight UTC, which put the
+      // previous session at the head of the queue before the free tier
+      // released it. The 403 for that one date was reported as the endpoint
+      // being unavailable, and the job stopped with 80 dates left to fetch.
+      const meaning = refusalMeans({ storedDates: have.size, writtenThisRun: done.length });
+
+      if (meaning === "this_date") {
+        // About this date, then. Skip it and carry on to the older ones, which
+        // is the whole point of a backfill.
+        unavailable.push({ date, detail: result.detail });
+        continue;
+      }
+
+      // Nothing has ever come back from this endpoint, so the plan is a real
+      // possibility — stated as one, because it is still not proven.
       return Response.json({
-        stopped: "not_entitled",
-        hint: "Polygon's grouped-daily endpoint is not on this key's plan. The per-symbol path still works; the universe stays small without this.",
+        stopped: "forbidden",
+        hint: "Polygon refused every grouped-daily request and this key has never been served by it, so the endpoint may not be on the plan. The per-symbol path still works; the universe stays small without this.",
+        detail: result.detail,
+        date,
         datesWritten: done, rowsWritten: written,
       }, { status: 200 });
     }
@@ -201,7 +226,14 @@ export async function GET(req: Request) {
     console.error("bars-sync prune threw:", err instanceof Error ? err.message : err);
   }
 
-  const remaining = Math.max(0, missing.length - done.length);
+  // Dates the provider will not serve are not work left to do, so they do not
+  // count toward "run again" — a backfill that is as complete as this key can
+  // make it should be able to say so. They are reported separately rather than
+  // quietly dropped, because a missing date the operator cannot see is how
+  // this job misled everyone for twenty-nine runs.
+  const remaining = datesRemaining({
+    missing: missing.length, written: done.length, unavailable: unavailable.length,
+  });
   return Response.json({
     pruned,
     // Reported so progress is checkable from one run's output. When this was
@@ -212,9 +244,12 @@ export async function GET(req: Request) {
     rowsWritten: written,
     skipped,
     datesRemaining: remaining,
+    datesUnavailable: unavailable,
     // Said plainly so the state of the backfill is never a guess.
     note: remaining > 0
       ? `${remaining} trading date(s) still missing — run again to continue the backfill`
-      : "history is complete for the lookback window",
+      : unavailable.length > 0
+        ? `history is as complete as this key allows; ${unavailable.length} recent date(s) not released to it yet — the daily run will add them`
+        : "history is complete for the lookback window",
   });
 }
