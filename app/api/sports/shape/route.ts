@@ -3,7 +3,7 @@ export const dynamic     = "force-dynamic";
 export const maxDuration = 20;
 
 import { auth } from "@/auth";
-import { parseGameSummary } from "@/app/lib/sportsDetail";
+import { parseGameSummary, summaryUrl } from "@/app/lib/sportsDetail";
 
 // What ESPN's summary endpoint actually sends back, and which of our parsers
 // found anything in it.
@@ -79,9 +79,8 @@ export async function GET(req: Request) {
     }, { status: 400 });
   }
 
-  const target =
-    `https://site.api.espn.com/apis/site/v2/sports/${encodeURIComponent(sport)}/` +
-    `${encodeURIComponent(league)}/summary?event=${encodeURIComponent(event)}`;
+  // The same URL the page uses, so the diagnostic cannot disagree with it.
+  const target = summaryUrl(sport, league, event);
 
   let body: unknown;
   try {
@@ -127,6 +126,12 @@ export async function GET(req: Request) {
     lineupCandidates: {
       rosters: outline(root.rosters, 4),
       "boxscore.players": outline((root.boxscore as Record<string, unknown> | undefined)?.players, 4),
+      "boxscore.teams[].players": outline(
+        ((root.boxscore as { teams?: Array<{ players?: unknown }> } | undefined)?.teams ?? [])
+          .map(t => t?.players),
+        4,
+      ),
+      leadersFull: outline(root.leaders, 3),
       probables: outline(root.probables, 3),
       leaders: outline(root.leaders, 2),
     },

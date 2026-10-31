@@ -509,3 +509,106 @@ describe("the odds, wherever the endpoint puts them", () => {
     expect(h2h(summary()).odds?.spread).toBe("DEN -4.5");
   });
 });
+
+// ── Checked against ESPN's documented schema, not against my assumptions ─────
+//
+// The game page shipped showing almost nothing, because the parsers were
+// written from memory of ESPN's shape while this environment blocks the host.
+// pseudo-r/Public-ESPN-API documents the summary response and its per-sport
+// quirks; these cover the four places where what it documents and what the
+// code looked for were different things.
+
+describe("the box score, where the documented schema puts it", () => {
+  // The documented NBA shape nests players under boxscore.teams[].players[],
+  // not a flat boxscore.players[]. Reading only the flat form is why every
+  // NBA and NFL game reported that nobody had played.
+  const nested = {
+    teams: [{
+      team: { id: "10" },
+      players: [{
+        team: { id: "10" },
+        position: { displayName: "Guard" },
+        statistics: [{
+          names: ["MIN", "PTS"],
+          athletes: [
+            { athlete: { id: "11", displayName: "Stephen Vance" }, didNotPlay: false, stats: ["36", "32"] },
+            { athlete: { id: "12", displayName: "Sat Out" }, didNotPlay: true, stats: [] },
+          ],
+        }],
+      }],
+    }],
+  };
+
+  it("reads players nested under boxscore.teams[]", () => {
+    const d = h2h(summary({ rosters: [], boxscore: nested }));
+    expect(d.home.lineup?.map(p => p.name)).toEqual(["Stephen Vance"]);
+    expect(d.home.lineupKind).toBe("appeared");
+  });
+
+  it("leaves out anyone who did not play", () => {
+    const d = h2h(summary({ rosters: [], boxscore: nested }));
+    expect(d.home.lineup?.some(p => p.name === "Sat Out")).toBe(false);
+  });
+});
+
+describe("leaders, the only player list that exists before a game", () => {
+  const leaders = [
+    { name: "points", displayName: "Points", leaders: [{ displayValue: "28.4", team: { id: "10" }, athlete: { id: "11", displayName: "Nikola Vance", headshot: { href: "https://a.espncdn.com/h/11.png" } } }] },
+    { name: "assists", displayName: "Assists", leaders: [{ displayValue: "9.1", team: { id: "20" }, athlete: { id: "21", displayName: "Devin Cross" } }] },
+  ];
+
+  it("gives each team only its own leaders", () => {
+    const d = h2h(summary({ leaders }));
+    expect(d.home.leaders?.map(l => l.name)).toEqual(["Nikola Vance"]);
+    expect(d.away.leaders?.map(l => l.name)).toEqual(["Devin Cross"]);
+  });
+
+  it("carries the category and the number", () => {
+    const d = h2h(summary({ leaders }));
+    expect(d.home.leaders?.[0]).toMatchObject({ category: "Points", value: "28.4" });
+    expect(d.home.leaders?.[0].headshot).toContain("espncdn");
+  });
+
+  it("is null when none are published", () => {
+    expect(h2h(summary({ leaders: [] })).home.leaders).toBeNull();
+    expect(h2h(summary()).home.leaders).toBeNull();
+  });
+});
+
+describe("broadcasts, which the summary endpoint puts at the top level", () => {
+  it("reads a top-level broadcasts array", () => {
+    // The code looked only under the competition, which is the scoreboard's
+    // placement — so no broadcaster ever showed on a game page.
+    const s = summary();
+    delete (s.header.competitions[0] as Record<string, unknown>).broadcasts;
+    const d = h2h({ ...s, broadcasts: [{ market: "national", names: ["ESPN"] }] });
+    expect(d.broadcasts).toEqual(["ESPN"]);
+  });
+});
+
+describe("the summary URL per sport", () => {
+  it("uses the plain site endpoint for ordinary sports", async () => {
+    const { summaryUrl } = await import("../sportsDetail");
+    expect(summaryUrl("basketball", "nba", "401"))
+      .toBe("https://site.api.espn.com/apis/site/v2/sports/basketball/nba/summary?event=401");
+  });
+
+  it("uses cricket's own host and parameters", async () => {
+    // Cricket is served from the web host, by numeric series id, and needs
+    // lang/region/contentorigin — without them the match does not come back.
+    const { summaryUrl } = await import("../sportsDetail");
+    const u = summaryUrl("cricket", "23694", "1490237");
+    expect(u).toContain("site.web.api.espn.com");
+    expect(u).toContain("/sports/cricket/23694/summary");
+    expect(u).toContain("event=1490237");
+    expect(u).toContain("lang=en");
+    expect(u).toContain("region=in");
+    expect(u).toContain("contentorigin=espn");
+  });
+
+  it("escapes anything unexpected in the identifiers", async () => {
+    const { summaryUrl } = await import("../sportsDetail");
+    expect(summaryUrl("a/b", "c?d", "1")).not.toContain("a/b");
+    expect(summaryUrl("a/b", "c?d", "1")).toContain("a%2Fb");
+  });
+});
