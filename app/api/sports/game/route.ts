@@ -5,6 +5,7 @@ export const maxDuration = 20;
 import { viewer } from "@/app/lib/viewer";
 import { fetchGameDetail } from "@/app/lib/sportsDetail";
 import { LEAGUES } from "@/app/lib/sportsPredictions";
+import { MATCH_COMPS, EVENT_COMPS, splitCompPath } from "@/app/lib/sportsEvents";
 
 // One game in full: lineups, venue, odds, injuries, officials, broadcast.
 //
@@ -12,6 +13,31 @@ import { LEAGUES } from "@/app/lib/sportsPredictions";
 // these values are interpolated into an upstream URL, so they are checked
 // against the leagues the app actually covers. Without that this route would
 // forward an arbitrary path to ESPN on a caller's behalf.
+
+/**
+ * Every competition the app can open a page for.
+ *
+ * Built from the same lists the fetching uses — the nineteen leagues that get
+ * a prediction, plus every competition on the "more sports" schedule — so a
+ * sport cannot appear on the games list without the route accepting it, or the
+ * other way round. Cricket is addressed by a competition id that arrives in
+ * its feed rather than from a list here, so it is matched on the sport alone.
+ */
+const COVERED = new Set<string>([
+  ...LEAGUES.map(l => `${l.sport}/${l.league}`),
+  ...[...MATCH_COMPS, ...EVENT_COMPS]
+    .map(c => splitCompPath(c.path))
+    .filter((p): p is { sport: string; league: string } => p !== null)
+    .map(p => `${p.sport}/${p.league}`),
+]);
+
+function covered(sport: string, league: string): boolean {
+  if (COVERED.has(`${sport}/${league}`)) return true;
+  // Cricket's competitions are many and are named by the upstream feed, not by
+  // us. The league half is still checked for shape below, and an id ESPN does
+  // not know simply comes back as not_found.
+  return sport === "cricket" && /^[\w.-]{1,40}$/.test(league);
+}
 
 /** A short cache, because a lineup changes on the hour and a venue never does. */
 const CACHE_TTL = 2 * 60 * 1000;
@@ -61,10 +87,9 @@ export async function GET(req: Request) {
     );
   }
 
-  const known = LEAGUES.some(l => l.sport === sport && l.league === league);
-  if (!known) {
+  if (!covered(sport, league)) {
     return Response.json(
-      { ok: false, reason: "unsupported_league", hint: "This league is not one the app covers." },
+      { ok: false, reason: "unsupported_league", hint: "This competition is not one the app covers." },
       { status: 400 },
     );
   }

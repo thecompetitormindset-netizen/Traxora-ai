@@ -12,7 +12,7 @@ import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
-import { gameHref } from "../lib/sportsGameLink";
+import { gameHref, eventHref } from "../lib/sportsGameLink";
 import { syncFetch } from "../lib/syncFetch";
 import type { SportEvent } from "../lib/sportsEvents";
 
@@ -168,6 +168,9 @@ function EventCard({ e, todayKey, tomorrowKey }: { e: SportEvent; todayKey: stri
   const day = d === todayKey ? "Today" : d === tomorrowKey ? "Tomorrow" : new Date(e.start).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
   const time = new Date(e.start).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
   const range = e.end && localDateKey(e.end) !== d ? ` – ${new Date(e.end).toLocaleDateString("en-US", { month: "short", day: "numeric" })}` : "";
+  // The id is "<competition path>:<event id>"; the detail route wants the
+  // event id on its own, and the sport and league are carried separately.
+  const detailHref = eventHref(e.espnSport, e.espnLeague, e.id.split(":").pop() ?? "");
   return (
     <li className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
@@ -176,6 +179,23 @@ function EventCard({ e, todayKey, tomorrowKey }: { e: SportEvent; todayKey: stri
       </div>
       <p className="text-[15px] text-[var(--mx-text)] leading-snug">{e.name}</p>
       <p className="text-[13px] text-[var(--mx-text-2)]">{e.live && range ? `On now${range}` : `${day}${range || `, ${time}`}`}</p>
+      {/* These were the dead end: every sport outside the big team leagues —
+          cricket, rugby, tennis, golf, racing, UFC — listed and went nowhere.
+          A match gets lineups and a venue; a tournament gets its field; a
+          fight night gets its card. Null when ESPN does not serve it, which
+          is chess (Lichess, linked below instead) and any cricket match whose
+          competition the feed did not name. */}
+      {detailHref && (
+        <Link href={detailHref}
+          className="group inline-flex items-center gap-1 text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
+          {/* "The field" would over-promise: a UFC night is listed here as a
+              field and turns out to be a card of separate bouts, which only
+              the detail payload can settle. This wording is true of a golf
+              field, a race grid and a fight card alike. */}
+          {e.shape === "field" ? "Who's taking part, venue and more" : "Line-ups, venue and more"}
+          <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
+        </Link>
+      )}
       {e.url && <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-[13px] underline text-[var(--mx-text-2)]">Watch the games →</a>}
     </li>
   );

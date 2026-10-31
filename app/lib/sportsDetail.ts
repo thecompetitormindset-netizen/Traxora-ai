@@ -95,7 +95,33 @@ export type Weather = {
 
 export type WinProbability = { homePct: number | null; awayPct: number | null };
 
-export type GameDetail = {
+/**
+ * One competitor in a field.
+ *
+ * A golf tournament, an F1 weekend and a tennis draw are not two sides with a
+ * home and an away — they are a hundred and fifty players, a grid, or a
+ * bracket. Forcing them through the matchup shape produced a page about a game
+ * between the first two names on the list.
+ */
+export type FieldEntry = {
+  /** "1", "T4", "DNF" — as the sport words it. */
+  position: string | null;
+  name: string;
+  headshot: string | null;
+  /** Score, time or laps — whatever the sport measures. */
+  detail: string | null;
+  country: string | null;
+};
+
+/** One bout on a fight card. */
+export type Bout = {
+  /** The weight class or billing, when given. */
+  name: string | null;
+  fighters: Array<{ name: string; headshot: string | null; record: string | null; winner: boolean }>;
+  status: string | null;
+};
+
+type BaseDetail = {
   eventId: string;
   sport: string;
   league: string;
@@ -105,8 +131,6 @@ export type GameDetail = {
   state: "pre" | "in" | "post" | null;
   /** "Final", "Top 3rd", "7:30 PM ET" — ESPN's own words for where it is. */
   statusDetail: string | null;
-  home: TeamSide;
-  away: TeamSide;
   venue: Venue | null;
   odds: Odds | null;
   broadcasts: string[] | null;
@@ -125,6 +149,18 @@ export type GameDetail = {
    */
   unreadable: string[];
 };
+
+/**
+ * One event, in whichever of the three shapes its sport actually takes.
+ *
+ * A union rather than a wide object with everything nullable, so the page
+ * cannot read `home` off a golf tournament — the compiler stops it, instead of
+ * a reader seeing a matchup between whoever happened to be listed first.
+ */
+export type GameDetail =
+  | (BaseDetail & { kind: "head_to_head"; home: TeamSide; away: TeamSide; field: null; bouts: null })
+  | (BaseDetail & { kind: "field";        home: null; away: null; field: FieldEntry[] | null; bouts: null })
+  | (BaseDetail & { kind: "card";         home: null; away: null; field: null; bouts: Bout[] | null });
 
 export type DetailResult =
   | { ok: true; detail: GameDetail }
@@ -346,6 +382,78 @@ export function parseWinProbability(raw: unknown): WinProbability | null {
   return { homePct, awayPct };
 }
 
+/**
+ * A field of competitors — a leaderboard, a grid, a draw.
+ *
+ * Null when nothing readable is there, which before a tournament starts is the
+ * normal case: an entry list is often published later than the event itself.
+ */
+export function parseField(rawCompetitors: unknown): FieldEntry[] | null {
+  const list = arr(rawCompetitors);
+  if (!list) return null;
+  const out: FieldEntry[] = [];
+  for (const c of list) {
+    const e = obj(c);
+    if (!e) continue;
+    const person = parsePerson(e);
+    // A field entry can also be a team (golf's team events, racing's
+    // constructors), so fall back to the team's name before giving up.
+    const name = person?.name ?? str(at(e, "team.displayName"));
+    if (!name) continue;
+    out.push({
+      position:
+        str(at(e, "status.position.id")) ?? str(at(e, "status.position.displayName")) ??
+        str(e.order) ?? str(e.curtainPosition),
+      name,
+      headshot: person?.headshot ?? null,
+      detail:
+        str(e.score) ?? str(at(e, "linescores.0.displayValue")) ??
+        str(at(e, "statistics.0.displayValue")) ?? str(e.time),
+      country: str(at(e, "athlete.flag.alt")) ?? str(at(e, "team.location")),
+    });
+  }
+  return out.length ? out : null;
+}
+
+/**
+ * A fight card: several separate bouts under one event.
+ *
+ * ESPN models this as many competitions rather than one, which is why taking
+ * `competitions[0]` and calling it the event showed a UFC night as a single
+ * fight between two names.
+ */
+export function parseBouts(rawCompetitions: unknown): Bout[] | null {
+  const list = arr(rawCompetitions);
+  if (!list) return null;
+  const out: Bout[] = [];
+  for (const c of list) {
+    const comp = obj(c);
+    const competitors = arr(comp?.competitors);
+    if (!competitors || competitors.length < 2) continue;
+    const fighters: Bout["fighters"] = [];
+    for (const f of competitors) {
+      const e = obj(f);
+      if (!e) continue;
+      const person = parsePerson(e);
+      const name = person?.name ?? str(at(e, "team.displayName"));
+      if (!name) continue;
+      fighters.push({
+        name,
+        headshot: person?.headshot ?? null,
+        record: str(at(arr(e.records)?.[0], "summary")) ?? str(at(e, "record.summary")),
+        winner: boolOf(e.winner) ?? false,
+      });
+    }
+    if (fighters.length < 2) continue;
+    out.push({
+      name: str(at(comp, "type.text")) ?? str(comp?.note) ?? str(at(comp, "format.regulation.periods")),
+      fighters,
+      status: str(at(comp, "status.type.detail")) ?? str(at(comp, "status.type.shortDetail")),
+    });
+  }
+  return out.length ? out : null;
+}
+
 // ── Assembling one game ──────────────────────────────────────────────────────
 
 /** Pick the roster block belonging to a team id, however it is keyed. */
@@ -371,10 +479,17 @@ function teamSide(
   if (!c) return null;
   const t = obj(c.team) ?? {};
   const id = str(t.id) ?? str(c.id);
-  const name = str(t.displayName) ?? str(t.name) ?? str(t.shortDisplayName);
+
+  // A side is usually a team, but in tennis and boxing it is one person. Those
+  // used to fail the team-name check and take the whole game down with them —
+  // a match between two players read as a payload we could not understand.
+  const individual = parsePerson(c);
+  const name =
+    str(t.displayName) ?? str(t.name) ?? str(t.shortDisplayName) ?? individual?.name ?? null;
   if (!name) return null;
 
-  const logo = str(t.logo) ?? str(at(arr(t.logos)?.[0], "href"));
+  const logo =
+    str(t.logo) ?? str(at(arr(t.logos)?.[0], "href")) ?? individual?.headshot ?? null;
   const records = arr(c.records);
   const record =
     str(at(records?.[0], "summary")) ?? str(at(c, "record.summary")) ?? str(c.record);
@@ -420,9 +535,9 @@ export function parseGameSummary(
   if (!root) return null;
 
   const header = obj(root.header);
-  const competition =
-    obj(arr(at(header, "competitions"))?.[0]) ??
-    obj(arr(at(root, "competitions"))?.[0]);
+  const allCompetitions =
+    arr(at(header, "competitions")) ?? arr(at(root, "competitions"));
+  const competition = obj(allCompetitions?.[0]);
   const competitors = arr(competition?.competitors);
   if (!competitors || competitors.length < 2) return null;
 
@@ -447,29 +562,26 @@ export function parseGameSummary(
 
   const rosters = arr(root.rosters);
 
+  // ── Which of the three shapes is this? ───────────────────────────────────
+  //
+  // Decided from the payload rather than from the sport's name, because the
+  // sport does not settle it: tennis is a field at tournament level and two
+  // players at match level, and the same endpoint serves both.
+  //
+  //   many competitions, two competitors each → a fight card
+  //   one competition, more than two          → a field
+  //   otherwise                                → two sides
+  const looksLikeCard =
+    (allCompetitions?.length ?? 0) > 1 &&
+    allCompetitions!.every(c => (arr(obj(c)?.competitors)?.length ?? 0) === 2);
+  const hasHomeAway = competitors.some(c => {
+    const side = str(obj(c)?.homeAway);
+    return side === "home" || side === "away";
+  });
+  const looksLikeField = !looksLikeCard && !hasHomeAway && competitors.length > 2;
+
   const findSide = (side: "home" | "away") =>
     competitors.find(c => str(obj(c)?.homeAway) === side) ?? null;
-
-  // Fall back to array order only when homeAway is absent entirely: ESPN lists
-  // away first. Guessing is worse than failing, so it is the last resort.
-  const rawHome = findSide("home") ?? competitors[1];
-  const rawAway = findSide("away") ?? competitors[0];
-
-  const home = teamSide(rawHome, "home", rosters, injuriesByTeam, formByTeam, unreadable);
-  const away = teamSide(rawAway, "away", rosters, injuriesByTeam, formByTeam, unreadable);
-  if (!home || !away) return null;
-
-  // Baseball names a probable pitcher long before any lineup exists, and it is
-  // the single most useful thing on the page for that sport.
-  for (const p of arr(root.probables) ?? []) {
-    const block = obj(p);
-    const teamId = str(at(block, "team.id"));
-    const person = parsePerson(block?.athlete ?? block, true);
-    if (!teamId || !person) continue;
-    const target = home.id === teamId ? home : away.id === teamId ? away : null;
-    if (!target) continue;
-    target.lineup = [{ ...person, starter: true }, ...(target.lineup ?? []).filter(x => x.id !== person.id)];
-  }
 
   const gameInfo = obj(root.gameInfo);
   const status = obj(competition?.status) ?? obj(at(root, "header.status"));
@@ -494,19 +606,15 @@ export function parseGameSummary(
     : null;
   if (seasonNote) notes.push(seasonNote);
 
-  return {
+  const base: BaseDetail = {
     eventId: ctx.eventId,
     sport: ctx.sport,
     league: ctx.league,
     leagueLabel: str(at(header, "league.name")) ?? str(at(root, "leagues.0.name")),
-    name: str(at(header, "competitions.0.competitors.0.team.displayName"))
-      ? `${away.name} at ${home.name}`
-      : str(competition?.name) ?? `${away.name} at ${home.name}`,
+    name: str(competition?.name) ?? str(at(header, "label")),
     start: str(competition?.date) ?? str(at(header, "competitions.0.date")),
     state,
     statusDetail: str(at(status, "type.detail")) ?? str(at(status, "type.shortDetail")),
-    home,
-    away,
     venue: parseVenue(gameInfo?.venue ?? competition?.venue),
     odds: parseOdds(root.odds ?? competition?.odds),
     broadcasts: broadcasts.length ? [...new Set(broadcasts)] : null,
@@ -516,6 +624,51 @@ export function parseGameSummary(
     espnWinProbability: parseWinProbability(root.predictor),
     notes: notes.length ? [...new Set(notes)] : null,
     unreadable,
+  };
+
+  if (looksLikeCard) {
+    const bouts = parseBouts(allCompetitions);
+    // The competitions were there and none of them read — that is a fault
+    // here, not a card with no fights on it.
+    if (!bouts) unreadable.push("the card");
+    return { ...base, kind: "card", home: null, away: null, field: null, bouts };
+  }
+
+  if (looksLikeField) {
+    const field = parseField(competitors);
+    if (!field) unreadable.push("the field");
+    return { ...base, kind: "field", home: null, away: null, field, bouts: null };
+  }
+
+  // Fall back to array order only when homeAway is absent entirely: ESPN lists
+  // away first. Guessing is worse than failing, so it is the last resort.
+  const rawHome = findSide("home") ?? competitors[1];
+  const rawAway = findSide("away") ?? competitors[0];
+
+  const home = teamSide(rawHome, "home", rosters, injuriesByTeam, formByTeam, unreadable);
+  const away = teamSide(rawAway, "away", rosters, injuriesByTeam, formByTeam, unreadable);
+  if (!home || !away) return null;
+
+  // Baseball names a probable pitcher long before any lineup exists, and it is
+  // the single most useful thing on the page for that sport.
+  for (const p of arr(root.probables) ?? []) {
+    const block = obj(p);
+    const teamId = str(at(block, "team.id"));
+    const person = parsePerson(block?.athlete ?? block, true);
+    if (!teamId || !person) continue;
+    const target = home.id === teamId ? home : away.id === teamId ? away : null;
+    if (!target) continue;
+    target.lineup = [{ ...person, starter: true }, ...(target.lineup ?? []).filter(x => x.id !== person.id)];
+  }
+
+  return {
+    ...base,
+    name: base.name ?? `${away.name} at ${home.name}`,
+    kind: "head_to_head",
+    home,
+    away,
+    field: null,
+    bouts: null,
   };
 }
 
