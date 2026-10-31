@@ -122,11 +122,19 @@ jobs:
             rows=$(printf '%s' "$json" | jq -r '.rowsWritten // 0' 2>/dev/null)
             written=$(printf '%s' "$json" | jq -r '(.datesWritten // []) | join(", ")' 2>/dev/null)
             stopped=$(printf '%s' "$json" | jq -r '.stopped // ""' 2>/dev/null)
+            unavail=$(printf '%s' "$json" | jq -r '(.datesUnavailable // []) | map(.date) | join(", ")' 2>/dev/null)
 
             printf 'call %-3s stored=%-5s remaining=%-5s rows=%-7s %s\n' \
               "$i" "$stored" "$remaining" "$rows" "${written:-(none)}"
 
-            # A permanent refusal — the key's plan does not include the endpoint.
+            # Dates the provider will not serve this key. Not an error and not
+            # progress — worth saying once so an operator is not left wondering
+            # why the newest session is absent.
+            if [ -n "$unavail" ]; then
+              echo "         (not released to this key yet: $unavail)"
+            fi
+
+            # A refusal with no evidence the endpoint ever worked.
             if [ -n "$stopped" ]; then
               echo "::error::bars-sync stopped: $stopped"
               printf '%s' "$json" | jq -r '.hint // ""' 2>/dev/null
@@ -135,7 +143,12 @@ jobs:
 
             if [ "$remaining" = "0" ]; then
               echo
-              echo "History is complete for the lookback window after $i call(s)."
+              if [ -n "$unavail" ]; then
+                echo "History is as complete as this key allows, after $i call(s)."
+                echo "Not released to this key yet: $unavail — the daily run will add them once Polygon does."
+              else
+                echo "History is complete for the lookback window after $i call(s)."
+              fi
               echo "Daily picks and the futures outlook can score from the next scheduled run."
               exit 0
             fi

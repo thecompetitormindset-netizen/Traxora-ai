@@ -105,7 +105,18 @@ export function dateOfGrouped(body: unknown, fallback: string): string {
   return typeof t === "number" ? etTradingDate(new Date(t)) : fallback;
 }
 
-export type GroupedOutcome = "ok" | "no_key" | "empty" | "failed" | "not_entitled" | "rate_limited" | "budget";
+/**
+ * Keep the API key out of anything that will be logged or returned.
+ *
+ * Provider error messages echo the request often enough that this is worth
+ * doing unconditionally rather than reasoning about which ones do.
+ */
+export function redactKey(text: string, key: string): string {
+  if (!key) return text;
+  return text.split(key).join("[redacted]");
+}
+
+export type GroupedOutcome = "ok" | "no_key" | "empty" | "failed" | "forbidden" | "rate_limited" | "budget";
 
 export type GroupedResult = {
   date: string;
@@ -118,11 +129,20 @@ export type GroupedResult = {
 /**
  * Fetch one date's market-wide bars.
  *
- * Whether this endpoint is included in the free tier is the one thing that
- * could not be checked before writing this: the sandbox cannot reach Polygon.
- * A 403 is therefore reported as `not_entitled` rather than a generic failure,
- * so the first run says plainly whether the approach is available instead of
- * leaving it to be guessed from an empty table.
+ * A 403 is reported as `forbidden` — "this key may not have this date" — and
+ * nothing more. It used to be reported as `not_entitled`, meaning "this
+ * endpoint is not on this key's plan", which is a much larger claim than one
+ * response can support, and it was wrong: a backfill run served 49 consecutive
+ * grouped dates and then hit a 403 on the 50th, at which point the caller
+ * announced the endpoint was unavailable and stopped with 80 dates still to
+ * fetch. The 403 was about the date — the clock had just rolled past midnight
+ * UTC, putting the previous session at the front of the queue before the free
+ * tier releases it.
+ *
+ * Whether a 403 means the plan or the date cannot be told apart from the
+ * response, because Polygon answers both with NOT_AUTHORIZED. So this function
+ * stops at what it observed and the caller, which knows whether this key has
+ * ever been served, draws the conclusion.
  *
  * An empty result is not an error: markets are closed on weekends and
  * holidays, and Polygon answers those with no rows.
@@ -158,8 +178,23 @@ export async function polygonGroupedDaily(
     }
     if (res.status === 403) {
       // Never log the URL — it carries the key.
-      console.warn(`[polygon] grouped daily not entitled for ${date}`);
-      return { date, bars: [], received: 0, outcome: "not_entitled", detail: "HTTP 403" };
+      console.warn(`[polygon] grouped daily forbidden for ${date}`);
+      // Polygon explains itself in the body. Pass that through so the caller's
+      // log says which refusal this was instead of only "HTTP 403" — but keep
+      // it short, and never let the key travel in a detail string.
+      let why = "";
+      try {
+        const text = (await res.text()).slice(0, 400);
+        const parsed = JSON.parse(text) as { message?: unknown };
+        if (typeof parsed.message === "string") why = parsed.message.slice(0, 160);
+      } catch {
+        // A non-JSON or unreadable body is not worth failing over; the status
+        // is the part that matters.
+      }
+      return {
+        date, bars: [], received: 0, outcome: "forbidden",
+        detail: why ? `HTTP 403 — ${redactKey(why, key)}` : "HTTP 403",
+      };
     }
     if (!res.ok) {
       return { date, bars: [], received: 0, outcome: "failed", detail: `HTTP ${res.status}` };
