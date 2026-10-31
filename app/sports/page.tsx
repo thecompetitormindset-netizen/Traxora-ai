@@ -30,6 +30,13 @@ type GamePrediction = {
   awayRecord:       string | null;
   predictedWinner:  string | null;
   winnerConfidence: number | null;
+  // Optional so a cached payload from before this shipped still parses: an
+  // older response has no state, and defaulting it to "pre" keeps the page
+  // behaving exactly as it did rather than throwing on a missing key.
+  state?:           "pre" | "in" | "post";
+  statusDetail?:    string | null;
+  homeScore?:       number | null;
+  awayScore?:       number | null;
 };
 
 type WatchItem = { id: string; league: string; homeTeam: string; awayTeam: string; commenceTime: string };
@@ -115,28 +122,62 @@ function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
   const day = gameDay === todayKey ? "Today" : gameDay === tomorrowKey ? "Tomorrow" : null;
   const pick = g.predictedWinner !== null && g.winnerConfidence !== null;
   const href = gameHref(g.sportKey, g.id);
-  const team = (name: string, rec: string | null) => (
-    <div className="flex items-center justify-between gap-2">
-      <span className={`text-[15px] truncate ${g.predictedWinner === name ? "text-[var(--mx-text)]" : "text-[var(--mx-text-2)]"}`}>{name}</span>
-      {rec && <span className="text-[12px] text-[var(--mx-text-3)] shrink-0" title="Wins-losses this season">{rec}</span>}
-    </div>
-  );
+  const state = g.state ?? "pre";
+  const started = state !== "pre";
+  const hasScore = typeof g.homeScore === "number" && typeof g.awayScore === "number";
+  const winningSide = hasScore
+    ? (g.homeScore! > g.awayScore! ? "home" : g.awayScore! > g.homeScore! ? "away" : null)
+    : null;
+
+  const team = (name: string, rec: string | null, side: "home" | "away") => {
+    // Before a game the pick is emphasised; once it has started the score is
+    // the thing worth reading, so the leader is emphasised instead.
+    const emphasise = started ? winningSide === side : g.predictedWinner === name;
+    const score = side === "home" ? g.homeScore : g.awayScore;
+    return (
+      <div className="flex items-center justify-between gap-2">
+        <span className={`text-[15px] truncate ${emphasise ? "text-[var(--mx-text)]" : "text-[var(--mx-text-2)]"}`}>{name}</span>
+        <span className="flex items-center gap-2 shrink-0">
+          {!started && rec && <span className="text-[12px] text-[var(--mx-text-3)]" title="Wins-losses this season">{rec}</span>}
+          {started && typeof score === "number" && (
+            <span className={`text-[16px] tabular-nums ${emphasise ? "text-[var(--mx-text)]" : "text-[var(--mx-text-2)]"}`}>{score}</span>
+          )}
+        </span>
+      </div>
+    );
+  };
   return (
     <li className="rounded-[14px] border border-[var(--mx-line)] bg-[var(--mx-surface)] p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[12px] text-[var(--mx-text-3)]">{g.league} · {day ? `${day}, ` : ""}{when}</span>
+        <span className="text-[12px] text-[var(--mx-text-3)] truncate">
+          {g.league}
+          {state === "in" ? " · " : state === "post" ? " · " : ` · ${day ? `${day}, ` : ""}${when}`}
+          {started && (g.statusDetail ?? (state === "in" ? "Live" : "Final"))}
+        </span>
         <button type="button" onClick={onToggleWatch} aria-pressed={watched}
           className={`h-7 px-2.5 rounded-full border text-[12px] transition-colors ${watched ? "border-[var(--mx-text)] text-[var(--mx-text)]" : "border-[var(--mx-line)] text-[var(--mx-text-3)] hover:text-[var(--mx-text)]"}`}>
           {watched ? "Following" : "Follow"}
         </button>
       </div>
       <div className="space-y-1">
-        {team(g.awayTeam, g.awayRecord)}
+        {team(g.awayTeam, g.awayRecord, "away")}
         <p className="text-[12px] text-[var(--mx-text-3)]">at</p>
-        {team(g.homeTeam, g.homeRecord)}
+        {team(g.homeTeam, g.homeRecord, "home")}
       </div>
       <div className="pt-3 border-t border-[var(--mx-line)]">
-        {pick ? (
+        {started ? (
+          /* No pick is shown for a game under way or finished. Standings are
+             read live, so computing one now would include this game's own
+             result — hindsight wearing a forecast's clothes. What we actually
+             said beforehand is on the track record, which is the only place
+             the claim can be checked. */
+          <p className="text-[13px] text-[var(--mx-text-3)]">
+            {state === "in" ? "Under way." : "Finished."}{" "}
+            <Link href="/sports/track-record" className="underline hover:text-[var(--mx-text-2)]">
+              What we said beforehand
+            </Link>
+          </p>
+        ) : pick ? (
           <p className="text-[14px]">
             {g.predictedWinner} <span className="text-[var(--mx-text-3)]">— {chanceWords(g.winnerConfidence!).toLowerCase()} ({Math.round(g.winnerConfidence!)}%)</span>
           </p>
@@ -153,7 +194,7 @@ function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
         {href && (
           <Link href={href}
             className="group mt-2 inline-flex items-center gap-1 text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
-            Lineups, venue and more
+            {started ? "Who played, venue and more" : "Line-ups, venue and more"}
             <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
           </Link>
         )}
@@ -331,7 +372,15 @@ export default function SportsPage() {
     let filtered = games.filter(activeTab.match);
     if (dateFilter === "today")    filtered = filtered.filter(g => localDateKey(g.commenceTime) === todayKey);
     if (dateFilter === "tomorrow") filtered = filtered.filter(g => localDateKey(g.commenceTime) === tomorrowKey);
-    filtered = [...filtered].sort((a, b) => new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime());
+    // Live first, then what is coming, then what just finished. Sorting by
+    // time alone would put last night's results above tonight's games.
+    const rank = { in: 0, pre: 1, post: 2 } as const;
+    filtered = [...filtered].sort((a, b) => {
+      const ra = rank[a.state ?? "pre"], rb = rank[b.state ?? "pre"];
+      if (ra !== rb) return ra - rb;
+      const at = new Date(a.commenceTime).getTime(), bt = new Date(b.commenceTime).getTime();
+      return a.state === "post" ? bt - at : at - bt;
+    });
     const byLeague = new Map<string, GamePrediction[]>();
     for (const g of filtered) {
       if (!byLeague.has(g.league)) byLeague.set(g.league, []);
