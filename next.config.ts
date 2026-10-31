@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**.finnhub.io" },
       { protocol: "https", hostname: "**.eodhd.com" },
       { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      // Team badges, player headshots and venue photos on the game pages.
+      // Listing the host rather than allowing any origin means a URL from
+      // somewhere unexpected in an upstream payload fails to render instead of
+      // loading whatever it points at.
+      { protocol: "https", hostname: "**.espncdn.com" },
     ],
   },
   // Removed pages: keep old links and bookmarks working.

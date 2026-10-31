@@ -12,6 +12,7 @@ import Link from "next/link";
 import Sidebar from "../components/Sidebar";
 import Topbar from "../components/Topbar";
 import { scopedKey } from "../lib/userState";
+import { gameHref } from "../lib/sportsGameLink";
 import { syncFetch } from "../lib/syncFetch";
 import type { SportEvent } from "../lib/sportsEvents";
 
@@ -113,6 +114,7 @@ function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
     ? { hour: "numeric", minute: "2-digit" } : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   const day = gameDay === todayKey ? "Today" : gameDay === tomorrowKey ? "Tomorrow" : null;
   const pick = g.predictedWinner !== null && g.winnerConfidence !== null;
+  const href = gameHref(g.sportKey, g.id);
   const team = (name: string, rec: string | null) => (
     <div className="flex items-center justify-between gap-2">
       <span className={`text-[15px] truncate ${g.predictedWinner === name ? "text-[var(--mx-text)]" : "text-[var(--mx-text-2)]"}`}>{name}</span>
@@ -140,6 +142,20 @@ function GameCard({ g, todayKey, tomorrowKey, watched, onToggleWatch }: {
           </p>
         ) : (
           <p className="text-[13px] text-[var(--mx-text-3)]">Too early in the season to say.</p>
+        )}
+
+        {/* The way into the game itself: lineups, venue, injuries, any line.
+            A separate link rather than wrapping the whole card, because the
+            card already holds a Follow button and nesting a button inside a
+            link makes the tap target ambiguous on a phone and invalid HTML.
+            Null href means the id could not be read, so no link is offered
+            rather than one that lands on an error. */}
+        {href && (
+          <Link href={href}
+            className="group mt-2 inline-flex items-center gap-1 text-[13px] text-[var(--mx-text-2)] hover:text-[var(--mx-text)]">
+            Lineups, venue and more
+            <span aria-hidden="true" className="inline-block transition-transform group-hover:translate-x-0.5">→</span>
+          </Link>
         )}
       </div>
     </li>
