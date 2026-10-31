@@ -1,0 +1,137 @@
+# Ask ESPN what its summary responses actually contain, and print it.
+#
+# The game page was built in a sandbox that cannot reach ESPN: the network
+# policy denies the host, for the server-side fetch as well as curl. So its
+# parsers were written from ESPN's documented shape and, in three rounds of
+# fixing, still did not show a line-up. Guessing a fourth time is not worth
+# anyone's time.
+#
+# A GitHub runner has open internet. This asks ESPN directly for a real game in
+# each sport the app covers and prints the structure of what comes back — the
+# top-level keys, and the count at each path the page reads. No secret is used
+# and nothing is sent anywhere: it is a read of a public, unauthenticated API
+# whose output goes to this log.
+#
+# Run it from the Actions tab: "Check ESPN response shape" -> "Run workflow".
+
+name: Check ESPN response shape
+
+on:
+  workflow_dispatch:
+    inputs:
+      state:
+        description: "Prefer games in this state (post has line-ups and box scores; pre usually has neither)"
+        required: true
+        default: "post"
+        type: choice
+        options: [post, in, pre]
+
+concurrency:
+  group: espn-shape
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Ask ESPN for one real game per sport and describe it
+        env:
+          WANT: ${{ inputs.state }}
+        run: |
+          set -uo pipefail
+
+          # sport|league|label. The leagues the app actually covers, plus the
+          # ones whose shape is least verified: cricket is on a different host
+          # entirely, and golf and UFC are not two-sided games.
+          COMPS="
+          basketball|nba|NBA
+          football|nfl|NFL
+          hockey|nhl|NHL
+          baseball|mlb|MLB
+          soccer|eng.1|Premier League
+          golf|pga|Golf
+          mma|ufc|UFC
+          rugby|164205|Rugby
+          "
+
+          # Where the page looks. A count of 0 or null beside a key that IS in
+          # the payload is the bug, and the whole point of printing both.
+          paths='{
+            topLevelKeys: (. | keys),
+            rosters: (.rosters | if . == null then "absent" else length end),
+            rosters_first_roster: (.rosters[0].roster | if . == null then "absent" else length end),
+            rosters_first_formation: (.rosters[0].formation // "absent"),
+            boxscore_keys: (.boxscore | if . == null then "absent" else keys end),
+            boxscore_players: (.boxscore.players | if . == null then "absent" else length end),
+            boxscore_teams: (.boxscore.teams | if . == null then "absent" else length end),
+            boxscore_teams0_players: (.boxscore.teams[0].players | if . == null then "absent" else length end),
+            boxscore_teams0_players0_keys: (.boxscore.teams[0].players[0] | if . == null then "absent" else keys end),
+            leaders: (.leaders | if . == null then "absent" else length end),
+            leaders_first: (.leaders[0] | if . == null then "absent" else {name, displayName, leaderCount: (.leaders | length), firstLeaderKeys: (.leaders[0] | if . == null then "absent" else keys end)} end),
+            probables: (.probables | if . == null then "absent" else length end),
+            pickcenter: (.pickcenter | if . == null then "absent" else length end),
+            odds: (.odds | if . == null then "absent" else length end),
+            broadcasts_top: (.broadcasts | if . == null then "absent" else length end),
+            broadcasts_in_competition: (.header.competitions[0].broadcasts | if . == null then "absent" else length end),
+            injuries: (.injuries | if . == null then "absent" else length end),
+            lastFiveGames: (.lastFiveGames | if . == null then "absent" else (if type == "array" then length else keys end) end),
+            gameInfo_keys: (.gameInfo | if . == null then "absent" else keys end),
+            predictor_keys: (.predictor | if . == null then "absent" else keys end),
+            competitions_count: (.header.competitions | if . == null then "absent" else length end),
+            competitors_count: (.header.competitions[0].competitors | if . == null then "absent" else length end),
+            competitor0_keys: (.header.competitions[0].competitors[0] | if . == null then "absent" else keys end),
+            competitor0_has_homeAway: (.header.competitions[0].competitors[0].homeAway // "absent"),
+            status_state: (.header.competitions[0].status.type.state // "absent")
+          }'
+
+          echo "$COMPS" | while IFS='|' read -r sport league label; do
+            [ -z "${sport:-}" ] && continue
+
+            echo ""
+            echo "═══════════════════════════════════════════════════════════"
+            echo "  $label  ($sport/$league)"
+            echo "═══════════════════════════════════════════════════════════"
+
+            board=$(curl -sS --max-time 25 \
+              "https://site.api.espn.com/apis/site/v2/sports/$sport/$league/scoreboard" 2>/dev/null) || {
+              echo "  scoreboard: request failed"
+              continue
+            }
+
+            count=$(printf '%s' "$board" | jq -r '(.events // []) | length' 2>/dev/null || echo 0)
+            echo "  events on the scoreboard: $count"
+            if [ "$count" = "0" ]; then
+              echo "  (nothing scheduled — out of season, or none today)"
+              continue
+            fi
+
+            # Prefer a game in the asked-for state: a finished game has both a
+            # box score and, where the sport publishes one, a line-up.
+            ev=$(printf '%s' "$board" | jq -r --arg want "$WANT" '
+              (.events // [])
+              | (map(select(.competitions[0].status.type.state == $want)) + .)
+              | .[0].id // empty' 2>/dev/null)
+            [ -z "${ev:-}" ] && { echo "  could not read an event id"; continue; }
+
+            name=$(printf '%s' "$board" | jq -r --arg id "$ev" '(.events // []) | map(select(.id == $id)) | .[0].name // ""' 2>/dev/null)
+            echo "  probing event $ev — $name"
+
+            # Cricket is served from the web host, by numeric series id, and
+            # needs these parameters; everything else is the plain endpoint.
+            if [ "$sport" = "cricket" ]; then
+              url="https://site.web.api.espn.com/apis/site/v2/sports/cricket/$league/summary?contentorigin=espn&event=$ev&lang=en&region=in"
+            else
+              url="https://site.api.espn.com/apis/site/v2/sports/$sport/$league/summary?event=$ev"
+            fi
+
+            body=$(curl -sS --max-time 30 "$url" 2>/dev/null) || { echo "  summary: request failed"; continue; }
+            bytes=$(printf '%s' "$body" | wc -c | tr -d ' ')
+            echo "  summary: $bytes bytes"
+
+            printf '%s' "$body" | jq "$paths" 2>&1 | sed 's/^/  /' || echo "  could not parse the summary as JSON"
+          done
+
+          echo ""
+          echo "Done. Every 'absent' beside a path the page reads is a parser on the wrong key."
