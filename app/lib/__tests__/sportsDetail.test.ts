@@ -612,3 +612,98 @@ describe("the summary URL per sport", () => {
     expect(summaryUrl("a/b", "c?d", "1")).toContain("a%2Fb");
   });
 });
+
+// ── Against the real payloads, finally ───────────────────────────────────────
+//
+// A workflow asked ESPN directly from a GitHub runner, which can reach it, and
+// printed the structure of real games. These are built from what it found, not
+// from what I expected to find. The shapes below are the ones that were
+// actually wrong.
+
+describe("leaders, as ESPN really sends them before a game", () => {
+  // The probe on Atlanta Hawks at New Orleans Pelicans:
+  //   leaders[0] keys = ["leaders", "team"], displayName = null
+  //   leaders[0].leaders[0] keys = ["displayName", "leaders", "name"]
+  // Categories are wrapped in a per-team object, so reading displayName at the
+  // top gave null and the section reported no leaders on every upcoming game —
+  // which is the only kind the list offers.
+  const wrapped = [
+    {
+      team: { id: "10" },
+      leaders: [
+        { name: "points", displayName: "Points", leaders: [{ displayValue: "28.4", athlete: { id: "11", displayName: "Nikola Vance", headshot: { href: "https://a.espncdn.com/h/11.png" } } }] },
+        { name: "rebounds", displayName: "Rebounds", leaders: [{ displayValue: "12.1", athlete: { id: "12", displayName: "Aaron Reed" } }] },
+      ],
+    },
+    {
+      team: { id: "20" },
+      leaders: [
+        { name: "points", displayName: "Points", leaders: [{ displayValue: "24.8", athlete: { id: "21", displayName: "Devin Cross" } }] },
+      ],
+    },
+  ];
+
+  it("reads the per-team wrapped shape", () => {
+    const d = h2h(summary({ leaders: wrapped }));
+    expect(d.home.leaders?.map(l => `${l.category}: ${l.name} ${l.value}`))
+      .toEqual(["Points: Nikola Vance 28.4", "Rebounds: Aaron Reed 12.1"]);
+  });
+
+  it("gives each team only its own block", () => {
+    const d = h2h(summary({ leaders: wrapped }));
+    expect(d.away.leaders?.map(l => l.name)).toEqual(["Devin Cross"]);
+  });
+
+  it("still reads the flat shape, where the category is the top level", () => {
+    const d = h2h(summary({ leaders: [
+      { name: "points", displayName: "Points", leaders: [{ displayValue: "31", team: { id: "10" }, athlete: { displayName: "Flat Form" } }] },
+    ] }));
+    expect(d.home.leaders?.[0]).toMatchObject({ category: "Points", name: "Flat Form", value: "31" });
+    expect(d.away.leaders).toBeNull();
+  });
+
+  it("keeps the headshot where there is one", () => {
+    expect(h2h(summary({ leaders: wrapped })).home.leaders?.[0].headshot).toContain("espncdn");
+  });
+});
+
+describe("the quoted line, as ESPN really sends it", () => {
+  // The probe's pickcenter[0]: provider "Draft Kings", details "ATL -4.5",
+  // overUnder 239.5, homeTeamOdds.moneyLine 164, awayTeamOdds.moneyLine -198.
+  it("reads a real pickcenter entry", () => {
+    const d = h2h(summary({
+      odds: undefined,
+      pickcenter: [{
+        provider: { name: "Draft Kings" }, details: "ATL -4.5", overUnder: 239.5,
+        homeTeamOdds: { moneyLine: 164 }, awayTeamOdds: { moneyLine: -198 },
+      }],
+    }));
+    expect(d.odds).toEqual({
+      provider: "Draft Kings", spread: "ATL -4.5", overUnder: 239.5,
+      homeMoneyline: 164, awayMoneyline: -198,
+    });
+  });
+});
+
+describe("a team's season record, in each spelling ESPN uses", () => {
+  const withRecord = (record: unknown) => {
+    const s = summary();
+    const comps = s.header.competitions[0] as { competitors: Array<Record<string, unknown>> };
+    const home = comps.competitors.find(c => c.homeAway === "home")!;
+    delete home.records;
+    home.record = record;
+    return h2h(s);
+  };
+
+  it("reads `record` as an array, which a summary's competitor sends", () => {
+    expect(withRecord([{ summary: "7-2" }]).home.record).toBe("7-2");
+  });
+
+  it("reads `record` as a single object", () => {
+    expect(withRecord({ summary: "7-2" }).home.record).toBe("7-2");
+  });
+
+  it("reads `records` as an array, which the scoreboard sends", () => {
+    expect(h2h(summary()).home.record).toBe("7-2");
+  });
+});

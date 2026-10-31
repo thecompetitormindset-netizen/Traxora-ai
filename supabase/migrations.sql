@@ -78,6 +78,36 @@ create index if not exists sports_predictions_log_unresolved
   on sports_predictions_log (commence_time)
   where resolved_at is null;
 
+-- ── The market's own record ──────────────────────────────────────────────────
+-- What a bookmaker was offering before each game, kept so it can be graded the
+-- same way our own predictions are. This is not a betting feature: nothing
+-- places or recommends a wager. It exists because "we were right 58% of the
+-- time" means nothing on its own — 58% against a market that implied 57% is no
+-- edge at all — and the closing line is the only benchmark that tests one.
+--
+-- These columns keep being updated on every run until a game starts, so what
+-- is stored converges on the CLOSING line. A line captured when the pick was
+-- first logged, up to a week out, is an opening line, and calling that a
+-- closing line would be a quiet lie about what was measured.
+-- closing_captured_at says when the last update happened, so how close to
+-- kickoff it really is can always be checked rather than assumed.
+alter table sports_predictions_log add column if not exists closing_spread      text;
+alter table sports_predictions_log add column if not exists closing_total       numeric;
+alter table sports_predictions_log add column if not exists closing_home_ml     numeric;
+alter table sports_predictions_log add column if not exists closing_away_ml     numeric;
+alter table sports_predictions_log add column if not exists closing_book        text;
+alter table sports_predictions_log add column if not exists closing_captured_at timestamptz;
+
+-- Final scores, which a winner alone cannot stand in for: grading a spread or
+-- a total needs the margin and the combined score, not just who won.
+alter table sports_predictions_log add column if not exists home_score int;
+alter table sports_predictions_log add column if not exists away_score int;
+
+-- Rows that still need their line refreshed before kickoff.
+create index if not exists sports_predictions_log_pre_game
+  on sports_predictions_log (commence_time)
+  where resolved_at is null;
+
 -- ── Options probability engine runs ──────────────────────────────────────────
 -- A shared (not per-user) cache of the options-probability-engine's daily
 -- output. Keyed by ET trading date so "one run per day" and "regenerate via

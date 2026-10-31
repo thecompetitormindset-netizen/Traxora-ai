@@ -14,12 +14,112 @@ type RecentPick = {
   predictedWinner: string | null; confidence: number | null;
   actualWinner: string | null; hit: boolean; commenceTime: string;
 };
+type Rate = { hitRate: number | null; correct: number; graded: number; note: string | null };
+type Band = { label: string; games: number; actual: number | null; implied: number | null };
+type Market = {
+  record: Rate;
+  ours: Rate;
+  versus: { disagreements: number; weWere: number; ourShare: number | null; note: string | null };
+  calibration: Band[];
+  gamesWithALine: number;
+  note: string | null;
+};
 type TrackRecord = {
   overall: { total: number; correct: number };
   byTier:   TierStat[];
   byLeague: LeagueStat[];
   recent:   RecentPick[];
+  market?:  Market;
 };
+
+const asPct = (v: number | null): string => v === null ? "—" : `${Math.round(v * 1000) / 10}%`;
+
+/**
+ * The market panel.
+ *
+ * Its whole job is to resist the obvious framing. A single line is never right
+ * or wrong — a -150 favourite losing is the 40% happening, not a bookmaker
+ * error — so nothing here grades one game. What it shows is whether the
+ * chances the market implied actually came up at that rate, and whether our
+ * own picks beat it on the games where the two disagreed. That second number
+ * is the only one that would be evidence of an edge.
+ */
+function MarketPanel({ m }: { m: Market }) {
+  return (
+    <div className="mt-8 rounded-2xl border border-[#252345] bg-[#13112A] p-5">
+      <h2 className="text-lg font-bold text-[var(--text-primary,#F1F5F9)]">Against the closing line</h2>
+      <p className="mt-1 text-xs leading-relaxed text-[#7B8DB4] max-w-[70ch]">
+        What a bookmaker was offering before each game, graded the same way our own picks are. A
+        hit rate on its own says little: being right 58% of the time where the market implied 57%
+        is no edge. Nothing here is a betting recommendation.
+      </p>
+
+      {m.note ? (
+        <p className="mt-4 text-sm text-[#7B8DB4]">{m.note}</p>
+      ) : (
+        <>
+          <div className="mt-5 grid sm:grid-cols-3 gap-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-[#4B5675]">The market</p>
+              <p className="mt-1 text-2xl font-black font-mono text-[var(--text-primary,#F1F5F9)]">{asPct(m.record.hitRate)}</p>
+              <p className="mt-0.5 text-[11px] text-[#7B8DB4]">
+                {m.record.note ?? `its favourite won ${m.record.correct} of ${m.record.graded}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-[#4B5675]">Us, same games</p>
+              <p className="mt-1 text-2xl font-black font-mono text-[var(--text-primary,#F1F5F9)]">{asPct(m.ours.hitRate)}</p>
+              <p className="mt-0.5 text-[11px] text-[#7B8DB4]">
+                {m.ours.note ?? `right ${m.ours.correct} of ${m.ours.graded}`}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] uppercase tracking-wider text-[#4B5675]">When we disagreed</p>
+              <p className="mt-1 text-2xl font-black font-mono text-[var(--text-primary,#F1F5F9)]">{asPct(m.versus.ourShare)}</p>
+              <p className="mt-0.5 text-[11px] text-[#7B8DB4]">
+                {m.versus.note ?? `we were right in ${m.versus.weWere} of ${m.versus.disagreements}`}
+              </p>
+            </div>
+          </div>
+
+          {/* Agreeing with the market proves nothing, so this is said out loud
+              rather than left for a reader to work out from three numbers. */}
+          <p className="mt-4 text-[11px] leading-relaxed text-[#4B5675] max-w-[70ch]">
+            Only the third number tests anything. Agreeing with the line and being right just means
+            the favourite won; it is the games where we took the other side that say whether there
+            is an edge, and 50% there means there is none.
+          </p>
+
+          <div className="mt-6">
+            <p className="text-[11px] uppercase tracking-wider text-[#4B5675]">
+              Did the chances it implied come up?
+            </p>
+            <div className="mt-2 space-y-1.5">
+              {m.calibration.filter(b => b.games > 0).map(b => (
+                <div key={b.label} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-[#7B8DB4] w-20 shrink-0 font-mono text-xs">{b.label}</span>
+                  <span className="flex-1 text-xs text-[#4B5675]">
+                    implied {asPct(b.implied)} · {b.games} {b.games === 1 ? "game" : "games"}
+                  </span>
+                  <span className="font-mono text-sm text-[var(--text-primary,#F1F5F9)] shrink-0">
+                    {b.actual === null ? "too few" : asPct(b.actual)}
+                  </span>
+                </div>
+              ))}
+              {m.calibration.every(b => b.games === 0) && (
+                <p className="text-sm text-[#7B8DB4]">No settled games with a line yet.</p>
+              )}
+            </div>
+            <p className="mt-2 text-[11px] text-[#4B5675] max-w-[70ch]">
+              A band sitting close to its implied figure is a market doing its job. A band well off
+              it, over enough games, is the only thing here that would be evidence of a mispricing.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 function pct(correct: number, total: number): string {
   return total > 0 ? `${Math.round((correct / total) * 1000) / 10}%` : "—";
@@ -133,6 +233,11 @@ export default function TrackRecordPage() {
                   ))}
                 </div>
               </div>
+
+              {/* The market's record, beside ours. Rendered only when the
+                  route sent one, so an older cached payload cannot crash the
+                  page on a key that did not exist yet. */}
+              {data.market && <MarketPanel m={data.market} />}
             </>
           )}
 

@@ -63,13 +63,28 @@ function log5(pA: number, pB: number): number {
 
 // ── ESPN response shapes (only the fields we use) ─────────────────────────────
 
-type EspnTeam = { id: string; displayName: string };
+type EspnTeam = { id: string; displayName: string; abbreviation?: string };
 type EspnCompetitor = { id: string; homeAway: "home" | "away"; team: EspnTeam; score?: string };
 type EspnStatus = { type: { state: "pre" | "in" | "post"; completed: boolean } };
+/**
+ * A book's line as the scoreboard carries it.
+ *
+ * Taken from the scoreboard rather than asked for separately: the schedule is
+ * already being fetched for every league and day, so reading the line from the
+ * same response costs nothing. Every field is optional because a league may
+ * carry no line at all, and most of the ones here do not.
+ */
+export type EspnOdds = {
+  provider?: { name?: string };
+  details?: string;
+  overUnder?: number | string;
+  homeTeamOdds?: { moneyLine?: number | string };
+  awayTeamOdds?: { moneyLine?: number | string };
+};
 export type EspnEvent = {
   id: string;
   date: string;
-  competitions: Array<{ competitors: EspnCompetitor[]; status: EspnStatus }>;
+  competitions: Array<{ competitors: EspnCompetitor[]; status: EspnStatus; odds?: EspnOdds[] }>;
 };
 type EspnScoreboard = { events?: EspnEvent[] };
 
@@ -115,6 +130,45 @@ export async function fetchStandings(sport: string, league: string): Promise<Map
     }
   } catch { /* leave map empty — games still show, just without a prediction */ }
   return map;
+}
+
+/** A line in the shape the log stores, or null when a league carries none. */
+export type CapturedLine = {
+  spread: string | null;
+  total: number | null;
+  homeMl: number | null;
+  awayMl: number | null;
+  book: string | null;
+};
+
+const asNumber = (v: unknown): number | null => {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string") {
+    const n = Number(v.replace(/^\+/, "").trim());
+    return Number.isFinite(n) && v.trim() !== "" ? n : null;
+  }
+  return null;
+};
+
+/**
+ * The line an event's scoreboard entry carries, if any.
+ *
+ * Returns null — not an empty line — when nothing usable is there, so a league
+ * with no market is recorded as having no market rather than as a pick-em at
+ * zero. Those are different claims and only one of them is true.
+ */
+export function captureLine(ev: EspnEvent): CapturedLine | null {
+  const o = ev.competitions?.[0]?.odds?.[0];
+  if (!o) return null;
+  const line: CapturedLine = {
+    spread: typeof o.details === "string" && o.details.trim() ? o.details.trim() : null,
+    total: asNumber(o.overUnder),
+    homeMl: asNumber(o.homeTeamOdds?.moneyLine),
+    awayMl: asNumber(o.awayTeamOdds?.moneyLine),
+    book: typeof o.provider?.name === "string" && o.provider.name.trim() ? o.provider.name.trim() : null,
+  };
+  const hasAnything = line.spread !== null || line.total !== null || line.homeMl !== null || line.awayMl !== null;
+  return hasAnything ? line : null;
 }
 
 export function recordLabel(r: TeamRecord | undefined): string | null {

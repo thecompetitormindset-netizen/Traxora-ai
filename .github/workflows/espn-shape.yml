@@ -61,6 +61,7 @@ jobs:
           paths='{
             topLevelKeys: (. | keys),
             rosters: (.rosters | if . == null then "absent" else length end),
+            rosters_first_keys: (.rosters[0] | if . == null then "absent" else keys end),
             rosters_first_roster: (.rosters[0].roster | if . == null then "absent" else length end),
             rosters_first_formation: (.rosters[0].formation // "absent"),
             boxscore_keys: (.boxscore | if . == null then "absent" else keys end),
@@ -69,7 +70,9 @@ jobs:
             boxscore_teams0_players: (.boxscore.teams[0].players | if . == null then "absent" else length end),
             boxscore_teams0_players0_keys: (.boxscore.teams[0].players[0] | if . == null then "absent" else keys end),
             leaders: (.leaders | if . == null then "absent" else length end),
-            leaders_first: (.leaders[0] | if . == null then "absent" else {name, displayName, leaderCount: (.leaders | length), firstLeaderKeys: (.leaders[0] | if . == null then "absent" else keys end)} end),
+            leaders_first: (.leaders[0] | if . == null then "absent" else {keys: keys, name, displayName} end),
+            leaders_first_leaders: (.leaders[0].leaders[0] | if . == null then "absent" else keys end),
+            pickcenter_first: (.pickcenter[0] | if . == null then "absent" else {keys: keys, provider: (.provider.name // "none"), details, overUnder, homeML: (.homeTeamOdds.moneyLine // "absent"), awayML: (.awayTeamOdds.moneyLine // "absent")} end),
             probables: (.probables | if . == null then "absent" else length end),
             pickcenter: (.pickcenter | if . == null then "absent" else length end),
             odds: (.odds | if . == null then "absent" else length end),
