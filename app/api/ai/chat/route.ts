@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { auth } from "@/auth";
+import {
+  firstReply, NoProviderConfigured, AllProvidersFailed, type Provider,
+} from "@/app/lib/chatProviders";
 
 export const runtime     = "nodejs";
 export const dynamic     = "force-dynamic";
@@ -85,68 +88,54 @@ async function callOpenAICompat(url: string, key: string, model: string, message
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-// Priority: Gemini (free) → Anthropic → Groq → DeepSeek
-async function getAIReply(messages: Msg[]): Promise<string> {
+type ChatProvider = Provider<Msg[]>;
+
+function providers(): ChatProvider[] {
+  const out: ChatProvider[] = [];
   const geminiKey    = process.env.GEMINI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const groqKey      = process.env.GROQ_API_KEY;
   const deepseekKey  = process.env.DEEPSEEK_API_KEY;
 
-  // ── Gemini (free — 1M TPM) ─────────────────────────────────────────────────
-  if (geminiKey) {
-    try {
-      return await callOpenAICompat(
-        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-        geminiKey,
-        "gemini-2.0-flash",
-        messages,
-      );
-    } catch (err) {
-      console.error("Gemini chat error:", err instanceof Error ? err.message : err);
-    }
-  }
+  if (geminiKey) out.push({
+    name: "gemini",
+    run: m => callOpenAICompat(
+      "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      geminiKey, "gemini-2.0-flash", m),
+  });
 
-  // ── Anthropic ──────────────────────────────────────────────────────────────
-  if (anthropicKey) {
-    try {
+  if (anthropicKey) out.push({
+    name: "anthropic",
+    run: async m => {
       const client = new Anthropic({ apiKey: anthropicKey });
       const res = await client.messages.create({
-        model:      "claude-haiku-4-5-20251001",
-        max_tokens: 1024,
-        system:     SYSTEM_PROMPT,
-        messages,
+        model: "claude-haiku-4-5-20251001", max_tokens: 1024, system: SYSTEM_PROMPT, messages: m,
       });
       return res.content
         .filter(b => b.type === "text")
         .map(b => (b as { type: "text"; text: string }).text)
         .join("");
-    } catch (err) {
-      console.error("Anthropic chat error:", err instanceof Error ? err.message : err);
-      // fall through to next provider
-    }
-  }
+    },
+  });
 
-  // ── Groq (free tier) ───────────────────────────────────────────────────────
-  if (groqKey) {
-    return callOpenAICompat(
-      "https://api.groq.com/openai/v1/chat/completions",
-      groqKey,
-      "llama-3.3-70b-versatile",
-      messages,
-    );
-  }
+  if (groqKey) out.push({
+    name: "groq",
+    run: m => callOpenAICompat(
+      "https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", m),
+  });
 
-  // ── DeepSeek fallback ──────────────────────────────────────────────────────
-  if (deepseekKey) {
-    return callOpenAICompat(
-      "https://api.deepseek.com/v1/chat/completions",
-      deepseekKey,
-      "deepseek-chat",
-      messages,
-    );
-  }
+  if (deepseekKey) out.push({
+    name: "deepseek",
+    run: m => callOpenAICompat(
+      "https://api.deepseek.com/v1/chat/completions", deepseekKey, "deepseek-chat", m),
+  });
 
-  throw new Error("No AI provider configured. Add GROQ_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
+  return out;
+}
+
+/** A reply from whichever provider answers first. */
+async function getAIReply(messages: Msg[]): Promise<string> {
+  return firstReply(providers(), messages);
 }
 
 export async function POST(req: Request) {
@@ -173,7 +162,36 @@ export async function POST(req: Request) {
     const text = await getAIReply(messages);
     return Response.json({ ok: true, text });
   } catch (err) {
+    // Three different facts, said three different ways. "Please try again"
+    // for a deployment with no API key sends someone round in a circle
+    // forever, which is what this used to do for every failure alike.
+    if (err instanceof NoProviderConfigured) {
+      console.error("Chat API: no provider configured");
+      return Response.json({
+        ok: false,
+        reason: "not_configured",
+        retryable: false,
+        error: "Ask AI isn’t switched on for this site yet — it needs an AI provider key. Nothing you did caused this, and trying again won’t help.",
+      }, { status: 503 });
+    }
+
+    if (err instanceof AllProvidersFailed) {
+      // The attempts name which provider failed and why, for the log only:
+      // they can carry upstream detail that does not belong on a user's
+      // screen.
+      console.error("Chat API: every provider failed —", err.attempts.join(" | "));
+      return Response.json({
+        ok: false,
+        reason: "providers_unavailable",
+        retryable: true,
+        error: "The AI service didn’t answer just now. It usually clears in a moment — try again.",
+      }, { status: 502 });
+    }
+
     console.error("Chat API error:", err instanceof Error ? err.message : err);
-    return Response.json({ ok: false, error: "Something went wrong. Please try again." }, { status: 500 });
+    return Response.json({
+      ok: false, reason: "unknown", retryable: true,
+      error: "Something went wrong. Please try again.",
+    }, { status: 500 });
   }
 }
