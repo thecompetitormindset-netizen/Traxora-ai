@@ -52,16 +52,42 @@ export async function GET() {
 
   try {
     const db = supabaseAdmin();
-    const { data, error } = await db
+
+    // The columns the track record has always needed, and the ones the market
+    // panel adds. Kept apart because the second set arrived later: asking for
+    // them in one select meant that until the migration ran, the whole page
+    // answered 503 — a feature nobody had yet taking down one that worked.
+    const CORE = "id, league, home_team, away_team, predicted_winner, confidence, commence_time, actual_winner, resolved_at";
+    const MARKET = "home_score, away_score, closing_spread, closing_total, closing_home_ml, closing_away_ml, closing_book, closing_captured_at";
+
+    const query = (columns: string) => db
       .from("sports_predictions_log")
-      .select("id, league, home_team, away_team, predicted_winner, confidence, commence_time, actual_winner, resolved_at, home_score, away_score, closing_spread, closing_total, closing_home_ml, closing_away_ml, closing_book, closing_captured_at")
+      .select(columns)
       .not("resolved_at", "is", null)
       .not("predicted_winner", "is", null)
       .order("commence_time", { ascending: false })
       .limit(2000);
 
+    let { data, error } = await query(`${CORE}, ${MARKET}`);
+    let marketColumnsPresent = true;
+
+    if (error) {
+      // Fall back rather than fail. If the market columns are not there yet,
+      // the record of our own picks is still perfectly good and is what this
+      // page is for; the market panel simply says it has nothing yet.
+      marketColumnsPresent = false;
+      ({ data, error } = await query(CORE));
+    }
+
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as LoggedRow[];
+    // The two selects return different column sets, so the client's inferred
+    // row type cannot cover both. The narrowing below treats every market
+    // column as possibly absent, which is exactly what the fallback means.
+    const rows = ((data ?? []) as unknown[]).map(r => r as Partial<LoggedRow> & {
+      id: string; league: string; home_team: string; away_team: string;
+      predicted_winner: string | null; confidence: number | null;
+      commence_time: string; actual_winner: string | null;
+    });
     // Ties/draws have no winner to grade against — exclude, don't count as misses.
     const graded = rows.filter(r => r.actual_winner !== null);
 
@@ -111,10 +137,12 @@ export async function GET() {
     for (const r of graded) {
       // Needs both sides of a moneyline to say what the market implied, and
       // the final scores to know what happened.
-      if (r.home_score === null || r.away_score === null) continue;
-      const fair = devig(r.closing_home_ml, r.closing_away_ml);
-      const favoured = favouredSide(r.closing_home_ml, r.closing_away_ml);
-      const result = winner(r.home_score, r.away_score);
+      const homeScore = r.home_score ?? null;
+      const awayScore = r.away_score ?? null;
+      if (homeScore === null || awayScore === null) continue;
+      const fair = devig(r.closing_home_ml ?? null, r.closing_away_ml ?? null);
+      const favoured = favouredSide(r.closing_home_ml ?? null, r.closing_away_ml ?? null);
+      const result = winner(homeScore, awayScore);
       // Our pick is stored as a team NAME; the grading works in sides.
       const ourPick: "home" | "away" | null =
         r.predicted_winner === r.home_team ? "home"
@@ -129,7 +157,16 @@ export async function GET() {
       });
     }
 
-    const market = {
+    const market = !marketColumnsPresent ? {
+      record: { hitRate: null, correct: 0, graded: 0, note: null },
+      ours:   { hitRate: null, correct: 0, graded: 0, note: null },
+      versus: { disagreements: 0, weWere: 0, ourShare: null, note: null },
+      calibration: calibration([]),
+      gamesWithALine: 0,
+      // Said as the fact it is. The columns arrive with the next run of
+      // /api/cron/migrate, which applies them itself.
+      note: "The closing line isn't being recorded yet — the database is still waiting for its new columns, which /api/cron/migrate adds.",
+    } : {
       /** How often the book's favourite won. */
       record: marketRecord(marketGames),
       /** Ours over the same games, counted identically so they compare. */

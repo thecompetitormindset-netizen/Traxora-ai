@@ -844,7 +844,7 @@ export function parseGameSummary(
     start: str(competition?.date) ?? str(at(header, "competitions.0.date")),
     state,
     statusDetail: str(at(status, "type.detail")) ?? str(at(status, "type.shortDetail")),
-    venue: parseVenue(gameInfo?.venue ?? competition?.venue),
+    venue: parseVenue(gameInfo?.venue ?? competition?.venue ?? arr(root.venues)?.[0]),
     // `pickcenter` is where the summary endpoint puts the book lines for the
     // US leagues; `odds` is the scoreboard's name for the same thing. Both are
     // tried because which one appears depends on the endpoint, and reading
@@ -917,6 +917,40 @@ export function parseGameSummary(
  * the request does not come back with a match on it. Every other sport is the
  * plain site endpoint.
  */
+/**
+ * Sports whose summary endpoint does not exist.
+ *
+ * Found by the watchdog on its first run, in production: golf answers
+ * "Summary not supported for sport 'golf'" and MMA returns an internal error.
+ * Both carry everything inline on the SCOREBOARD instead — a golf event holds
+ * its field, and a UFC event holds all twelve bouts with their competitors —
+ * so those go straight there rather than spending a request learning the same
+ * thing again.
+ */
+const SCOREBOARD_ONLY = new Set(["golf", "mma", "racing"]);
+
+/** The scoreboard entry for one event, which some sports serve in place of a summary. */
+export function scoreboardUrl(sport: string, league: string, eventId: string): string {
+  return `https://site.api.espn.com/apis/site/v2/sports/${encodeURIComponent(sport)}/` +
+    `${encodeURIComponent(league)}/scoreboard?event=${encodeURIComponent(eventId)}`;
+}
+
+/**
+ * Pull one event out of a scoreboard payload.
+ *
+ * The filtered scoreboard still returns the whole board, so the event has to
+ * be found by id rather than assumed to be the first — picking [0] would show
+ * a different tournament to the one that was asked for.
+ */
+export function eventFromScoreboard(body: unknown, eventId: string): unknown | null {
+  const events = arr(at(body, "events"));
+  if (!events) return null;
+  for (const e of events) {
+    if (str(obj(e)?.id) === eventId) return e;
+  }
+  return null;
+}
+
 export function summaryUrl(sport: string, league: string, eventId: string): string {
   const s = encodeURIComponent(sport);
   const l = encodeURIComponent(league);
@@ -942,22 +976,50 @@ export async function fetchGameDetail(
   eventId: string,
   timeoutMs = 12_000,
 ): Promise<DetailResult> {
-  const url = summaryUrl(sport, league, eventId);
+  const ctx = { eventId, sport, league };
 
-  let body: unknown;
-  try {
-    const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
-    if (res.status === 404) return { ok: false, reason: "not_found" };
-    if (!res.ok) return { ok: false, reason: "unavailable", detail: `HTTP ${res.status}` };
-    body = await res.json();
-  } catch (e) {
-    return {
-      ok: false, reason: "unavailable",
-      detail: (e instanceof Error ? e.message : String(e)).slice(0, 120),
-    };
-  }
+  /** Fetch and parse JSON, saying only whether it worked. */
+  const get = async (url: string): Promise<{ ok: true; body: unknown } | { ok: false; result: DetailResult }> => {
+    try {
+      const res = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+      if (res.status === 404) return { ok: false, result: { ok: false, reason: "not_found" } };
+      if (!res.ok) return { ok: false, result: { ok: false, reason: "unavailable", detail: `HTTP ${res.status}` } };
+      return { ok: true, body: await res.json() };
+    } catch (e) {
+      return {
+        ok: false,
+        result: {
+          ok: false, reason: "unavailable",
+          detail: (e instanceof Error ? e.message : String(e)).slice(0, 120),
+        },
+      };
+    }
+  };
 
-  const detail = parseGameSummary(body, { eventId, sport, league });
-  if (!detail) return { ok: false, reason: "unexpected_shape" };
-  return { ok: true, detail };
+  /** The scoreboard route: some sports serve an event there and nowhere else. */
+  const fromScoreboard = async (): Promise<DetailResult> => {
+    const got = await get(scoreboardUrl(sport, league, eventId));
+    if (!got.ok) return got.result;
+    const event = eventFromScoreboard(got.body, eventId);
+    if (!event) return { ok: false, reason: "not_found" };
+    const detail = parseGameSummary(event, ctx);
+    return detail ? { ok: true, detail } : { ok: false, reason: "unexpected_shape" };
+  };
+
+  // Golf and MMA have no summary endpoint at all, so asking for one wastes a
+  // request to be told so.
+  if (SCOREBOARD_ONLY.has(sport)) return fromScoreboard();
+
+  const got = await get(summaryUrl(sport, league, eventId));
+  if (!got.ok) return got.result;
+
+  const detail = parseGameSummary(got.body, ctx);
+  if (detail) return { ok: true, detail };
+
+  // A summary that answered but held no recognisable game. Before calling that
+  // our bug, try the scoreboard: this is exactly how golf and MMA behave, and
+  // another sport may join them without warning.
+  const fallback = await fromScoreboard();
+  if (fallback.ok) return fallback;
+  return { ok: false, reason: "unexpected_shape" };
 }
