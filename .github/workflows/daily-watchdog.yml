@@ -100,6 +100,28 @@ jobs:
             [ -z "${ev:-}" ] && { echo "    ! could not read an event id"; warns=$((warns + 1)); return; }
 
             local url
+            # Golf and MMA have no summary endpoint; the app reads their
+            # scoreboard event instead, so the check has to follow it there or
+            # it reports a break that is not one.
+            if [ "$sport" = "golf" ] || [ "$sport" = "mma" ] || [ "$sport" = "racing" ]; then
+              body=$(curl -sS --max-time 30 \
+                "https://site.api.espn.com/apis/site/v2/sports/$sport/$league/scoreboard?event=$ev" 2>/dev/null) || {
+                echo "    ! scoreboard did not answer"; warns=$((warns + 1)); return
+              }
+              local found
+              found=$(printf '%s' "$body" | jq -r --arg id "$ev" '
+                if ((.events // []) | map(select(.id == $id)) | length) > 0
+                then "present" else "absent" end' 2>/dev/null || echo absent)
+              check "the event is on its scoreboard" "$found" required
+              if [ "$found" = "present" ]; then
+                check "competitors inline on the event" \
+                  "$(printf '%s' "$body" | jq -r --arg id "$ev" '
+                      if (((.events // []) | map(select(.id == $id))[0].competitions // [])
+                          | map(.competitors // []) | flatten | length) > 0
+                      then "present" else "absent" end' 2>/dev/null || echo absent)" required
+              fi
+              return
+            fi
             if [ "$sport" = "cricket" ]; then
               url="https://site.web.api.espn.com/apis/site/v2/sports/cricket/$league/summary?contentorigin=espn&event=$ev&lang=en&region=in"
             else

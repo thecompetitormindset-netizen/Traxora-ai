@@ -796,3 +796,83 @@ describe("a team's totals", () => {
     expect(h2h(summary()).home.stats).toBeNull();
   });
 });
+
+// ── Sports with no summary endpoint ──────────────────────────────────────────
+//
+// The watchdog's first run found both of these broken in production. Golf
+// answers "Summary not supported for sport 'golf'" and MMA returns an internal
+// error — but both carry everything inline on the scoreboard, where a golf
+// event holds its field and a UFC event holds all twelve bouts. The real key
+// lists below are from that probe.
+
+describe("an event taken from the scoreboard instead of a summary", () => {
+  const ufcEvent = {
+    id: "600061420",
+    name: "UFC Fight Night: Moicano vs. Nolan",
+    date: "2026-11-01T22:00Z",
+    status: { type: { state: "pre", detail: "10:00 PM ET" } },
+    venues: [{ fullName: "UFC Apex", address: { city: "Las Vegas", state: "NV" } }],
+    competitions: [
+      { id: "1", type: { text: "Lightweight" }, status: { type: { detail: "Main Event" } }, competitors: [
+        { athlete: { id: "1", displayName: "Renato Moicano" }, records: [{ summary: "20-6-1" }] },
+        { athlete: { id: "2", displayName: "Jared Nolan" }, records: [{ summary: "11-2-0" }] },
+      ] },
+      { id: "2", type: { text: "Welterweight" }, competitors: [
+        { winner: true, athlete: { id: "3", displayName: "First Fighter" } },
+        { athlete: { id: "4", displayName: "Second Fighter" } },
+      ] },
+    ],
+  };
+
+  it("reads a whole fight card off the scoreboard event", async () => {
+    const { eventFromScoreboard, parseGameSummary: parse } = await import("../sportsDetail");
+    const event = eventFromScoreboard({ events: [ufcEvent] }, "600061420")!;
+    const d = parse(event, { eventId: "600061420", sport: "mma", league: "ufc" })!;
+    expect(d.kind).toBe("card");
+    if (d.kind !== "card") throw new Error("expected a card");
+    expect(d.bouts).toHaveLength(2);
+    expect(d.bouts?.[0].fighters.map(f => f.name)).toEqual(["Renato Moicano", "Jared Nolan"]);
+    expect(d.bouts?.[1].fighters.find(f => f.winner)?.name).toBe("First Fighter");
+  });
+
+  it("reads the venue from `venues`, which is where a scoreboard event puts it", async () => {
+    const { eventFromScoreboard, parseGameSummary: parse } = await import("../sportsDetail");
+    const event = eventFromScoreboard({ events: [ufcEvent] }, "600061420")!;
+    const d = parse(event, { eventId: "600061420", sport: "mma", league: "ufc" })!;
+    expect(d.venue).toMatchObject({ name: "UFC Apex", city: "Las Vegas" });
+  });
+
+  it("reads a golf field off the scoreboard event", async () => {
+    const { eventFromScoreboard, parseGameSummary: parse } = await import("../sportsDetail");
+    const golf = {
+      id: "401850978", name: "The Masters", date: "2026-11-05T12:00Z",
+      status: { type: { state: "in", detail: "Round 2" } },
+      competitions: [{ competitors: [
+        { order: 1, athlete: { displayName: "Rory Vance", flag: { alt: "Northern Ireland" } }, score: "-7" },
+        { order: 2, athlete: { displayName: "Scottie Fields", flag: { alt: "USA" } }, score: "-5" },
+        { order: 3, athlete: { displayName: "Jon Ramos", flag: { alt: "Spain" } }, score: "-4" },
+      ] }],
+    };
+    const event = eventFromScoreboard({ events: [golf] }, "401850978")!;
+    const d = parse(event, { eventId: "401850978", sport: "golf", league: "pga" })!;
+    expect(d.kind).toBe("field");
+    if (d.kind !== "field") throw new Error("expected a field");
+    expect(d.field?.map(e => e.name)).toEqual(["Rory Vance", "Scottie Fields", "Jon Ramos"]);
+  });
+
+  it("finds the event by id, not by position", async () => {
+    // A filtered scoreboard still returns the whole board, so taking the first
+    // event would show a different tournament to the one asked for.
+    const { eventFromScoreboard } = await import("../sportsDetail");
+    const board = { events: [{ id: "111", name: "Another" }, { id: "222", name: "Wanted" }] };
+    expect((eventFromScoreboard(board, "222") as { name: string }).name).toBe("Wanted");
+    expect(eventFromScoreboard(board, "999")).toBeNull();
+    expect(eventFromScoreboard({}, "222")).toBeNull();
+  });
+
+  it("builds the scoreboard URL for the event asked for", async () => {
+    const { scoreboardUrl } = await import("../sportsDetail");
+    expect(scoreboardUrl("golf", "pga", "401850978"))
+      .toBe("https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=401850978");
+  });
+});
