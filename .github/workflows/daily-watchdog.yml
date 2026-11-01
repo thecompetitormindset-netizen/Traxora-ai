@@ -1,0 +1,198 @@
+# Does the app's data still look the way the app thinks it does?
+#
+# Nearly every failure in this project has had the same shape: an upstream
+# source changed, or was never what the code assumed, and a section went
+# quietly empty instead of complaining. A blank panel reads as "nothing on
+# today" and nobody investigates it for weeks.
+#
+# ESPN's API is unofficial and changes without notice, so this asks it every
+# morning whether the handful of paths the app genuinely depends on are still
+# there, and FAILS when one of them is not. A red cross on the Actions tab and
+# an email beats finding out from a blank page.
+#
+# It changes nothing and needs no secret: a read of a public API, plus the
+# repository's own tests. Nothing here can touch the live site.
+
+name: Daily watchdog
+
+on:
+  schedule:
+    # 09:14 UTC daily. Early enough that a break is known before the day
+    # starts, and off the hour because that is when every other scheduled job
+    # in the world runs.
+    - cron: "14 9 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-watchdog
+  cancel-in-progress: false
+
+jobs:
+  espn-contract:
+    name: ESPN still sends what the app reads
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check the paths the game page depends on
+        run: |
+          set -uo pipefail
+          fails=0
+          warns=0
+
+          # Two kinds of check, deliberately separated.
+          #
+          # REQUIRED is what the page cannot work without — if a game has no
+          # recognisable pair of teams, every sport breaks at once. Those fail
+          # the job.
+          #
+          # EXPECTED is what makes a page worth opening: the box score behind
+          # "Who played", the leaders behind "Who to watch", the line. Those
+          # are warnings, because they are legitimately absent out of season
+          # or in a league no book quotes, and a watchdog that cries wolf on a
+          # quiet Tuesday gets ignored on the day it matters.
+          check() { # name, value, required
+            local name="$1" value="$2" required="$3"
+            if [ "$value" = "present" ]; then
+              echo "    ✓ $name"
+            elif [ "$required" = "required" ]; then
+              echo "    ✗ $name — MISSING, and the page cannot work without it"
+              fails=$((fails + 1))
+            else
+              echo "    ! $name — absent"
+              warns=$((warns + 1))
+            fi
+          }
+
+          probe() { # sport, league, label
+            local sport="$1" league="$2" label="$3"
+            echo ""
+            echo "── $label"
+
+            local board
+            board=$(curl -sS --max-time 25 \
+              "https://site.api.espn.com/apis/site/v2/sports/$sport/$league/scoreboard" 2>/dev/null) || {
+              echo "    ! scoreboard did not answer"
+              warns=$((warns + 1)); return
+            }
+
+            local count
+            count=$(printf '%s' "$board" | jq -r '(.events // []) | length' 2>/dev/null || echo 0)
+            if [ "$count" = "0" ]; then
+              echo "    – nothing scheduled (out of season, or none today)"
+              return
+            fi
+
+            # The scoreboard carries the line the market track record stores,
+            # so its presence is worth knowing about on its own.
+            local hasOdds
+            hasOdds=$(printf '%s' "$board" | jq -r '
+              if ((.events // []) | map(.competitions[0].odds // []) | flatten | length) > 0
+              then "present" else "absent" end' 2>/dev/null || echo absent)
+            check "scoreboard carries a betting line" "$hasOdds" optional
+
+            # A finished game is the one that proves the most: it has a box
+            # score, and for the sports that publish one, a line-up.
+            local ev
+            ev=$(printf '%s' "$board" | jq -r '
+              (.events // [])
+              | (map(select(.competitions[0].status.type.state == "post")) + .)
+              | .[0].id // empty' 2>/dev/null)
+            [ -z "${ev:-}" ] && { echo "    ! could not read an event id"; warns=$((warns + 1)); return; }
+
+            local url
+            if [ "$sport" = "cricket" ]; then
+              url="https://site.web.api.espn.com/apis/site/v2/sports/cricket/$league/summary?contentorigin=espn&event=$ev&lang=en&region=in"
+            else
+              url="https://site.api.espn.com/apis/site/v2/sports/$sport/$league/summary?event=$ev"
+            fi
+
+            local body
+            body=$(curl -sS --max-time 30 "$url" 2>/dev/null) || {
+              echo "    ! summary did not answer"; warns=$((warns + 1)); return
+            }
+
+            # An error payload is a couple of hundred bytes; a real one is
+            # hundreds of kilobytes. Catching this early stops every check
+            # below reporting its own confusing failure.
+            if ! printf '%s' "$body" | jq -e 'type == "object" and has("header")' >/dev/null 2>&1; then
+              echo "    ✗ summary returned no game — $(printf '%s' "$body" | jq -r '.message // "unreadable"' 2>/dev/null | head -c 80)"
+              fails=$((fails + 1)); return
+            fi
+
+            local state
+            state=$(printf '%s' "$body" | jq -r '.header.competitions[0].status.type.state // "unknown"')
+            echo "    (probing event $ev, state=$state)"
+
+            has() { printf '%s' "$body" | jq -r "$1" 2>/dev/null || echo absent; }
+
+            check "two competitors with teams" \
+              "$(has 'if ((.header.competitions[0].competitors // []) | length) >= 2
+                      and (.header.competitions[0].competitors[0].team.displayName // "") != ""
+                  then "present" else "absent" end')" required
+
+            check "a status we recognise" \
+              "$(has 'if (.header.competitions[0].status.type.state // "") |
+                        (. == "pre" or . == "in" or . == "post")
+                  then "present" else "absent" end')" required
+
+            check "venue" "$(has 'if .gameInfo.venue then "present" else "absent" end')" optional
+
+            if [ "$state" = "post" ] || [ "$state" = "in" ]; then
+              check "box score players (\"Who played\")" \
+                "$(has 'if ((.boxscore.players // []) | length) > 0
+                        or (((.boxscore.teams // []) | map(.players // []) | flatten | length) > 0)
+                    then "present" else "absent" end')" optional
+              check "team totals (\"How it is going\")" \
+                "$(has 'if (((.boxscore.teams // []) | map(.statistics // []) | flatten | length) > 0)
+                    then "present" else "absent" end')" optional
+            fi
+
+            if [ "$state" = "pre" ]; then
+              check "leaders (\"Who to watch\")" \
+                "$(has 'if ((.leaders // []) | length) > 0 then "present" else "absent" end')" optional
+              check "a quoted line" \
+                "$(has 'if (((.pickcenter // []) + (.odds // [])) | length) > 0 then "present" else "absent" end')" optional
+            fi
+          }
+
+          echo "Asking ESPN whether it still sends what the app reads."
+
+          probe basketball nba         "NBA"
+          probe football   nfl         "NFL"
+          probe hockey     nhl         "NHL"
+          probe baseball   mlb         "MLB"
+          probe soccer     eng.1       "Premier League"
+          probe golf       pga         "Golf"
+          probe mma        ufc         "UFC"
+
+          echo ""
+          echo "═══════════════════════════════════════════════"
+          echo "  $fails required path(s) missing, $warns absent-but-allowed"
+          echo "═══════════════════════════════════════════════"
+
+          if [ "$fails" -gt 0 ]; then
+            echo "::error::ESPN no longer sends something the game page cannot work without. app/lib/sportsDetail.ts reads these paths; /api/sports/shape dumps a real payload beside what the parsers made of it."
+            exit 1
+          fi
+          echo "Every required path is still there."
+
+  still-builds:
+    name: main still builds and passes its tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Not vanity: dependencies move under a project that is not touched for
+      # a week, and finding that out from a failed deploy is worse than
+      # finding it out from this.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx vitest run
+      - run: npx next build
+        env:
+          NEXTAUTH_SECRET: build-only-not-a-real-secret
+          AUTH_SECRET: build-only-not-a-real-secret

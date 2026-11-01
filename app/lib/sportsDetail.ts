@@ -36,6 +36,18 @@ export type Person = {
   /** A photo, when ESPN has one. Plenty of athletes have none. */
   headshot: string | null;
   starter: boolean;
+  /**
+   * What they did, straight from the box score.
+   *
+   * ESPN sends a parallel pair — `names: ["MIN","REB","AST","PTS"]` beside
+   * `stats: ["36","5","7","32"]` — and the parser used to read the athlete and
+   * drop the numbers on the floor. That left the page listing who was playing
+   * while a search engine showed the same game's points, rebounds and assists,
+   * which is a fair thing to be annoyed about.
+   *
+   * Null before a game, when there is nothing to report.
+   */
+  stats: Array<{ label: string; value: string }> | null;
 };
 
 export type Injury = {
@@ -70,6 +82,8 @@ export type TeamSide = {
   lineupKind: "named" | "appeared" | null;
   /** Who to watch — the one player list that exists before a game starts. */
   leaders: Leader[] | null;
+  /** The team's own totals, once a game is under way. */
+  stats: TeamStat[] | null;
   /** The formation, for sports that field one. */
   formation: string | null;
   injuries: Injury[] | null;
@@ -246,6 +260,7 @@ export function parsePerson(raw: unknown, starterDefault = false): Person | null
     jersey: str(a.jersey) ?? str(e.jersey),
     headshot: str(at(a, "headshot.href")) ?? str(a.headshot),
     starter: boolOf(e.starter) ?? boolOf(a.starter) ?? starterDefault,
+    stats: null,
   };
 }
 
@@ -500,18 +515,44 @@ export function parseBoxscorePlayers(rawPlayers: unknown, teamId: string | null)
     if (!b) continue;
     if (str(at(b, "team.id")) !== teamId) continue;
     const out: Person[] = [];
-    const seen = new Set<string>();
-    // One entry per statistic category, each carrying the same athletes.
+    const seen = new Map<string, Person>();
+    // One entry per statistic category, each carrying the same athletes and a
+    // `names` array that labels the numbers beside them.
     for (const group of arr(b.statistics) ?? []) {
+      const labels = (arr(obj(group)?.names) ?? []).map(n => str(n));
       for (const entry of arr(obj(group)?.athletes) ?? []) {
         // Someone listed but unused does not belong under "who played".
         if (boolOf(obj(entry)?.didNotPlay) === true) continue;
         const p = parsePerson(entry);
         if (!p) continue;
+
+        // Pair each number with the label at the same index. A row shorter or
+        // longer than its header is skipped rather than shifted, because a
+        // misaligned box score reads as confidently wrong numbers.
+        const values = arr(obj(entry)?.stats) ?? [];
+        const stats: Array<{ label: string; value: string }> = [];
+        if (labels.length > 0 && values.length === labels.length) {
+          for (let i = 0; i < labels.length; i++) {
+            const label = labels[i];
+            const value = str(values[i]);
+            if (label && value) stats.push({ label, value });
+          }
+        }
+
         const key = p.id ?? p.name;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(p);
+        const already = seen.get(key);
+        if (already) {
+          // A player appears under several categories (passing, rushing).
+          // Keep every number rather than the first category's alone.
+          if (stats.length) {
+            const have = new Set((already.stats ?? []).map(x => x.label));
+            already.stats = [...(already.stats ?? []), ...stats.filter(x => !have.has(x.label))];
+          }
+          continue;
+        }
+        const withStats = { ...p, stats: stats.length ? stats : null };
+        seen.set(key, withStats);
+        out.push(withStats);
       }
     }
     if (out.length) return out;
@@ -533,6 +574,35 @@ function boxscorePlayerBlocks(root: Obj): unknown[] {
     for (const p of arr(obj(t)?.players) ?? []) nested.push(p);
   }
   return [...flat, ...nested];
+}
+
+/** One line of a team's box score — "Rebounds 41". */
+export type TeamStat = { label: string; value: string };
+
+/**
+ * A team's totals, which is the side-by-side table a reader expects.
+ *
+ * `boxscore.teams[].statistics` carries them already labelled; the page had
+ * simply never read them, so a game showed who was on court and nothing about
+ * how it was going.
+ */
+export function parseTeamStats(rawTeams: unknown, teamId: string | null): TeamStat[] | null {
+  const teams = arr(rawTeams);
+  if (!teams || !teamId) return null;
+  for (const t of teams) {
+    const block = obj(t);
+    if (!block || str(at(block, "team.id")) !== teamId) continue;
+    const out: TeamStat[] = [];
+    for (const st of arr(block.statistics) ?? []) {
+      const entry = obj(st);
+      if (!entry) continue;
+      const label = str(entry.label) ?? str(entry.displayName) ?? str(entry.name);
+      const value = str(entry.displayValue) ?? str(entry.value);
+      if (label && value) out.push({ label, value });
+    }
+    if (out.length) return out;
+  }
+  return null;
 }
 
 /** A statistical leader, which is the one player list that exists before a game. */
@@ -609,6 +679,7 @@ function teamSide(
   rosters: unknown[] | null,
   boxscorePlayers: unknown,
   rawLeaders: unknown,
+  boxscoreTeams: unknown,
   injuriesByTeam: Map<string, Injury[]>,
   formByTeam: Map<string, string[]>,
   unreadable: string[],
@@ -668,6 +739,7 @@ function teamSide(
     lineup,
     lineupKind,
     leaders: parseLeaders(rawLeaders, id),
+    stats: parseTeamStats(boxscoreTeams, id),
     formation: str(rosterBlock?.formation),
     injuries: id ? injuriesByTeam.get(id) ?? null : null,
     form: id ? formByTeam.get(id) ?? null : null,
@@ -717,6 +789,7 @@ export function parseGameSummary(
 
   const rosters = arr(root.rosters);
   const boxscorePlayers = boxscorePlayerBlocks(root);
+  const boxscoreTeams = at(root, "boxscore.teams");
 
   // ── Which of the three shapes is this? ───────────────────────────────────
   //
@@ -805,8 +878,8 @@ export function parseGameSummary(
   const rawHome = findSide("home") ?? competitors[1];
   const rawAway = findSide("away") ?? competitors[0];
 
-  const home = teamSide(rawHome, "home", rosters, boxscorePlayers, root.leaders, injuriesByTeam, formByTeam, unreadable);
-  const away = teamSide(rawAway, "away", rosters, boxscorePlayers, root.leaders, injuriesByTeam, formByTeam, unreadable);
+  const home = teamSide(rawHome, "home", rosters, boxscorePlayers, root.leaders, boxscoreTeams, injuriesByTeam, formByTeam, unreadable);
+  const away = teamSide(rawAway, "away", rosters, boxscorePlayers, root.leaders, boxscoreTeams, injuriesByTeam, formByTeam, unreadable);
   if (!home || !away) return null;
 
   // Baseball names a probable pitcher long before any lineup exists, and it is
