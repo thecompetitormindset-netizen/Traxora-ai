@@ -247,3 +247,39 @@ describe("calibration", () => {
     expect(calibration([]).every(b => b.games === 0 && b.actual === null)).toBe(true);
   });
 });
+
+describe("the schema the market panel needs", () => {
+  // The columns were written into supabase/migrations.sql, which is not what
+  // runs — a .sql file is not bundled into a serverless function, as
+  // schema.ts's own comment says. So they never reached the database, the
+  // track record asked for columns that did not exist, and a page that had
+  // worked for weeks answered 503. This checks they are where migrate looks.
+  it("is in schema.ts, which is what /api/cron/migrate applies", async () => {
+    const { MIGRATIONS } = await import("../schema");
+    const m = MIGRATIONS.find(x => x.name === "sports_predictions_log_market");
+    expect(m, "the market columns must be a migration the app can apply").toBeDefined();
+    for (const col of [
+      "closing_spread", "closing_total", "closing_home_ml", "closing_away_ml",
+      "closing_book", "closing_captured_at", "home_score", "away_score",
+    ]) {
+      expect(m!.sql, `${col} should be added`).toContain(col);
+    }
+  });
+
+  it("is additive and idempotent, so it can run on a schedule", async () => {
+    const { MIGRATIONS, isDestructive } = await import("../schema");
+    const m = MIGRATIONS.find(x => x.name === "sports_predictions_log_market")!;
+    expect(isDestructive(m.sql)).toBe(false);
+    // Every column guarded, so applying it twice changes nothing.
+    const adds = m.sql.match(/add column/g) ?? [];
+    const guards = m.sql.match(/add column if not exists/g) ?? [];
+    expect(guards.length).toBe(adds.length);
+  });
+
+  it("every migration stays non-destructive", async () => {
+    const { MIGRATIONS, isDestructive } = await import("../schema");
+    for (const m of MIGRATIONS) {
+      expect(isDestructive(m.sql), `${m.name} must not be destructive`).toBe(false);
+    }
+  });
+});

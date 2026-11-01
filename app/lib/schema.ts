@@ -20,6 +20,28 @@ export type Migration = { name: string; sql: string };
 
 export const MIGRATIONS: Migration[] = [
   {
+    // The market's closing line, beside the prediction it is there to test.
+    //
+    // These were written into supabase/migrations.sql, which this file's own
+    // comment explains is NOT what runs: a .sql file is not bundled into a
+    // serverless function. So they never reached the database, the track
+    // record's select asked for columns that did not exist, and a page that
+    // had worked for weeks started answering 503. Schema belongs here.
+    name: "sports_predictions_log_market",
+    sql: `
+      alter table if exists sports_predictions_log
+        add column if not exists closing_spread      text,
+        add column if not exists closing_total       numeric,
+        add column if not exists closing_home_ml     numeric,
+        add column if not exists closing_away_ml     numeric,
+        add column if not exists closing_book        text,
+        add column if not exists closing_captured_at timestamptz,
+        add column if not exists home_score          int,
+        add column if not exists away_score          int;
+    `,
+  },
+
+  {
     name: "daily_picks",
     sql: `
       create table if not exists daily_picks (
