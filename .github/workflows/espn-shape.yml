@@ -138,3 +138,48 @@ jobs:
 
           echo ""
           echo "Done. Every 'absent' beside a path the page reads is a parser on the wrong key."
+
+      - name: Which endpoint do golf and UFC actually answer on
+        run: |
+          set -uo pipefail
+
+          # The watchdog found both broken in production — golf answers
+          # "Summary not supported for sport 'golf'" and UFC returns an
+          # internal error. Guessing at a replacement is what produced the
+          # original bug, so this asks which candidate returns a real event.
+          try() {
+            local label="$1" url="$2" body bytes
+            body=$(curl -sS --max-time 25 "$url" 2>/dev/null) || { echo "    x $label - request failed"; return; }
+            bytes=$(printf '%s' "$body" | wc -c | tr -d ' ')
+            if printf '%s' "$body" | jq -e 'type == "object" and (has("header") or has("events") or has("competitions") or has("leaderboard") or has("sports"))' >/dev/null 2>&1; then
+              echo "    OK $label - $bytes bytes, keys: $(printf '%s' "$body" | jq -rc 'keys' 2>/dev/null | head -c 200)"
+            else
+              echo "    x  $label - $bytes bytes, $(printf '%s' "$body" | jq -rc '.message // .error // keys' 2>/dev/null | head -c 120)"
+            fi
+          }
+
+          echo "======== GOLF ========"
+          gid=$(curl -sS --max-time 25 "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard" | jq -r '(.events // [])[0].id // empty')
+          echo "  tournament id: ${gid:-none}"
+          if [ -n "${gid:-}" ]; then
+            try "leaderboard?event="        "https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?event=$gid"
+            try "leaderboard?tournamentId=" "https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard?tournamentId=$gid"
+            try "leaderboard/{id}"          "https://site.api.espn.com/apis/site/v2/sports/golf/pga/leaderboard/$gid"
+            try "scoreboard?event="         "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard?event=$gid"
+          fi
+
+          echo ""
+          echo "======== UFC ========"
+          uid=$(curl -sS --max-time 25 "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard" | jq -r '(.events // [])[0].id // empty')
+          echo "  event id: ${uid:-none}"
+          if [ -n "${uid:-}" ]; then
+            try "summary?event="     "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/summary?event=$uid"
+            try "web summary?event=" "https://site.web.api.espn.com/apis/site/v2/sports/mma/ufc/summary?event=$uid"
+            try "fightcenter?event=" "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/fightcenter?event=$uid"
+            try "core event"         "https://sports.core.api.espn.com/v2/sports/mma/leagues/ufc/events/$uid"
+          fi
+          echo ""
+          echo "  what the UFC scoreboard event carries by itself:"
+          curl -sS --max-time 25 "https://site.api.espn.com/apis/site/v2/sports/mma/ufc/scoreboard" \
+            | jq -rc '(.events // [])[0] | {id, name, keys: keys, comps: ((.competitions // []) | length), firstComp: ((.competitions // [])[0] | if . then keys else "none" end)}' 2>/dev/null | head -c 600
+          echo ""
