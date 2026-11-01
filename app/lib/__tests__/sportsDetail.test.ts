@@ -707,3 +707,92 @@ describe("a team's season record, in each spelling ESPN uses", () => {
     expect(h2h(summary()).home.record).toBe("7-2");
   });
 });
+
+// ── Box score numbers ────────────────────────────────────────────────────────
+//
+// A live game showed who was on court and nothing about how it was going,
+// while a search engine showed the same game's score, shooting percentages and
+// every player's points. The numbers were in the payload the whole time; the
+// parser read the athletes and dropped the stats beside them.
+
+describe("the numbers beside each player", () => {
+  const players = [{
+    team: { id: "10" },
+    statistics: [{
+      names: ["MIN", "FG", "REB", "AST", "PTS"],
+      athletes: [
+        { athlete: { id: "11", displayName: "Zion Williamson" }, didNotPlay: false, stats: ["28", "4-9", "3", "1", "10"] },
+        { athlete: { id: "12", displayName: "Saddiq Bey" }, didNotPlay: false, stats: ["24", "5-8", "5", "0", "13"] },
+      ],
+    }],
+  }];
+
+  it("pairs each number with its label", () => {
+    const d = h2h(summary({ rosters: [], boxscore: { players } }));
+    const zion = d.home.lineup?.find(p => p.name === "Zion Williamson");
+    expect(zion?.stats).toEqual([
+      { label: "MIN", value: "28" }, { label: "FG", value: "4-9" },
+      { label: "REB", value: "3" }, { label: "AST", value: "1" }, { label: "PTS", value: "10" },
+    ]);
+  });
+
+  it("refuses to pair a row that does not match its header", () => {
+    // A shifted box score reads as confidently wrong numbers — the wrong
+    // player credited with the wrong total — so a mismatch yields none.
+    const d = h2h(summary({ rosters: [], boxscore: { players: [{
+      team: { id: "10" },
+      statistics: [{ names: ["MIN", "PTS"], athletes: [{ athlete: { displayName: "Short Row" }, stats: ["28"] }] }],
+    }] } }));
+    expect(d.home.lineup?.[0].stats).toBeNull();
+  });
+
+  it("merges the categories a player appears in, rather than keeping the first", () => {
+    // Football lists the same player under passing and rushing.
+    const d = h2h(summary({ rosters: [], boxscore: { players: [{
+      team: { id: "10" },
+      statistics: [
+        { names: ["YDS", "TD"], athletes: [{ athlete: { id: "9", displayName: "Two Ways" }, stats: ["244", "2"] }] },
+        { names: ["CAR", "LONG"], athletes: [{ athlete: { id: "9", displayName: "Two Ways" }, stats: ["7", "18"] }] },
+      ],
+    }] } }));
+    expect(d.home.lineup?.[0].stats?.map(x => x.label)).toEqual(["YDS", "TD", "CAR", "LONG"]);
+  });
+
+  it("leaves stats null before a game", () => {
+    expect(h2h(summary()).home.lineup?.[0].stats).toBeNull();
+  });
+});
+
+describe("a team's totals", () => {
+  const teams = [
+    { team: { id: "10" }, statistics: [
+      { name: "fieldGoalPct", label: "FG%", displayValue: "53.8" },
+      { name: "rebounds", label: "Total Rebounds", displayValue: "25" },
+    ] },
+    { team: { id: "20" }, statistics: [
+      { name: "fieldGoalPct", label: "FG%", displayValue: "40.9" },
+      { name: "rebounds", label: "Total Rebounds", displayValue: "17" },
+    ] },
+  ];
+
+  it("reads each side's own totals", async () => {
+    const { parseTeamStats } = await import("../sportsDetail");
+    expect(parseTeamStats(teams, "10")).toEqual([
+      { label: "FG%", value: "53.8" }, { label: "Total Rebounds", value: "25" },
+    ]);
+    expect(parseTeamStats(teams, "20")?.[0].value).toBe("40.9");
+  });
+
+  it("comes through the whole parser onto both sides", () => {
+    const d = h2h(summary({ boxscore: { teams } }));
+    expect(d.home.stats?.find(s => s.label === "FG%")?.value).toBe("53.8");
+    expect(d.away.stats?.find(s => s.label === "FG%")?.value).toBe("40.9");
+  });
+
+  it("is null for a team not in the box score, and before a game", async () => {
+    const { parseTeamStats } = await import("../sportsDetail");
+    expect(parseTeamStats(teams, "99")).toBeNull();
+    expect(parseTeamStats(null, "10")).toBeNull();
+    expect(h2h(summary()).home.stats).toBeNull();
+  });
+});

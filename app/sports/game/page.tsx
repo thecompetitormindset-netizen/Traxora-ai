@@ -7,7 +7,7 @@ import Link from "next/link";
 import PaywallGuard from "../../components/PaywallGuard";
 import Sidebar from "../../components/Sidebar";
 import Topbar from "../../components/Topbar";
-import type { GameDetail, Person, TeamSide, FieldEntry, Bout } from "../../lib/sportsDetail";
+import type { GameDetail, Person, TeamSide, FieldEntry, Bout, TeamStat } from "../../lib/sportsDetail";
 
 // One game, in as much detail as a free source carries.
 //
@@ -48,6 +48,70 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/**
+ * The few numbers worth showing beside a name.
+ *
+ * Box scores run to fourteen columns in basketball and more in football, which
+ * is a table, not a card. These are the ones a reader scans for; the rest stay
+ * available behind a disclosure rather than being dropped.
+ */
+// Ordered, not just listed: the first entry is the number a reader looks for
+// first in that sport, and the box score's own column order does not put it
+// there — basketball ends with points, so taking the array as it comes led
+// with minutes played.
+const HEADLINE = [
+  "PTS",                            // basketball
+  "YDS", "TD",                      // football
+  "G", "A", "P",                    // hockey
+  "H", "R", "RBI", "HR", "K",       // baseball
+  "REB", "AST", "SOG", "REC", "CAR",
+  "MIN",
+];
+const RANK = new Map(HEADLINE.map((l, i) => [l, i]));
+
+function headlineStats(stats: Person["stats"]): TeamStat[] {
+  if (!stats) return [];
+  const picked = stats
+    .filter(s => RANK.has(s.label.toUpperCase()))
+    .sort((a, b) => RANK.get(a.label.toUpperCase())! - RANK.get(b.label.toUpperCase())!);
+  // A sport whose labels we do not recognise still deserves something, so fall
+  // back to the first few rather than showing a name with no numbers at all.
+  return (picked.length ? picked : stats).slice(0, 3);
+}
+
+/** The two teams' totals, side by side — the table a reader expects. */
+function TeamStatsTable({ home, away }: { home: TeamSide; away: TeamSide }) {
+  if (!home.stats && !away.stats) return null;
+  // Rows are driven by the home team's labels, with the away value matched by
+  // label rather than by position: two teams' arrays are not guaranteed to be
+  // in the same order, and lining them up by index would silently compare
+  // rebounds against assists.
+  const awayByLabel = new Map((away.stats ?? []).map(s => [s.label, s.value]));
+  const rows = (home.stats ?? []).map(s => ({
+    label: s.label, home: s.value, away: awayByLabel.get(s.label) ?? null,
+  }));
+  if (rows.length === 0) return null;
+
+  return (
+    <Section title="How it is going">
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 text-[12px] text-[var(--mx-text-3)] mb-2">
+        <span className="truncate text-right">{away.abbreviation ?? away.name}</span>
+        <span />
+        <span className="truncate">{home.abbreviation ?? home.name}</span>
+      </div>
+      <ul className="divide-y divide-[var(--mx-line)]">
+        {rows.map(r => (
+          <li key={r.label} className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-3 py-1.5">
+            <span className="text-[14px] tabular-nums text-right">{r.away ?? "—"}</span>
+            <span className="text-[12px] text-[var(--mx-text-3)] text-center min-w-[9ch]">{r.label}</span>
+            <span className="text-[14px] tabular-nums">{r.home}</span>
+          </li>
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
 /** A player's photo, or their initials when ESPN has no headshot for them. */
 function Face({ p, size = 44 }: { p: Person; size?: number }) {
   const initials = p.name.split(/\s+/).slice(0, 2).map(w => w[0]).join("").toUpperCase();
@@ -82,6 +146,22 @@ function Crest({ t, size = 28 }: { t: TeamSide; size?: number }) {
   return <Image src={t.logo} alt="" width={size} height={size} className="shrink-0 object-contain" unoptimized />;
 }
 
+/** A player's headline numbers, or nothing at all before a game. */
+function PlayerStats({ p }: { p: Person }) {
+  const shown = headlineStats(p.stats);
+  if (shown.length === 0) return null;
+  return (
+    <span className="shrink-0 flex items-baseline gap-2.5 tabular-nums">
+      {shown.map(s => (
+        <span key={s.label} className="text-right">
+          <span className="block text-[14px]">{s.value}</span>
+          <span className="block text-[10px] text-[var(--mx-text-3)]">{s.label}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
   if (unreadable) {
     return (
@@ -100,7 +180,7 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
         <ul className="space-y-2">
           {t.leaders.map((l, i) => (
             <li key={`${l.name}-${i}`} className="flex items-center gap-3">
-              <Face p={{ id: null, name: l.name, position: null, jersey: null, headshot: l.headshot, starter: false }} size={30} />
+              <Face p={{ id: null, name: l.name, position: null, jersey: null, headshot: l.headshot, starter: false, stats: null }} size={30} />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13.5px] truncate">{l.name}</span>
                 <span className="block text-[12px] text-[var(--mx-text-3)]">{l.category}</span>
@@ -113,8 +193,13 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
     }
     return <Absent>Nothing published for {t.name} yet.</Absent>;
   }
-  const starters = t.lineup.filter(p => p.starter);
-  const rest = t.lineup.filter(p => !p.starter);
+  // A box score flags nobody as a starter — everyone in it played. Splitting
+  // it into "starters" and "the rest" therefore hid every player behind a
+  // disclosure and then explained that nobody was starting, which is true of
+  // the data and useless to a reader watching a game.
+  const appeared = t.lineupKind === "appeared";
+  const starters = appeared ? t.lineup : t.lineup.filter(p => p.starter);
+  const rest = appeared ? [] : t.lineup.filter(p => !p.starter);
   return (
     <div className="space-y-4">
       {t.formation && <p className="text-[13px] text-[var(--mx-text-2)]">Formation {t.formation}</p>}
@@ -129,12 +214,14 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
           {starters.map(p => (
             <li key={`${p.id ?? p.name}`} className="flex items-center gap-3">
               <Face p={p} />
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block text-[14.5px] truncate">{p.name}</span>
                 <span className="block text-[12.5px] text-[var(--mx-text-3)]">
-                  {[p.position, p.jersey ? `#${p.jersey}` : null].filter(Boolean).join(" · ") || "Starting"}
+                  {[p.position, p.jersey ? `#${p.jersey}` : null].filter(Boolean).join(" · ")
+                    || (appeared ? "" : "Starting")}
                 </span>
               </span>
+              <PlayerStats p={p} />
             </li>
           ))}
         </ul>
@@ -149,16 +236,17 @@ function Lineup({ t, unreadable }: { t: TeamSide; unreadable: boolean }) {
             {rest.map(p => (
               <li key={`${p.id ?? p.name}`} className="flex items-center gap-2.5">
                 <Face p={p} size={30} />
-                <span className="min-w-0">
+                <span className="min-w-0 flex-1">
                   <span className="block text-[13.5px] truncate">{p.name}</span>
                   {p.position && <span className="block text-[12px] text-[var(--mx-text-3)]">{p.position}</span>}
                 </span>
+                <PlayerStats p={p} />
               </li>
             ))}
           </ul>
         </details>
       )}
-      {starters.length === 0 && rest.length > 0 && (
+      {!appeared && starters.length === 0 && rest.length > 0 && (
         <Absent>
           Nobody is flagged as starting yet — this is the squad, not the eleven.
         </Absent>
@@ -215,7 +303,7 @@ function Field({ entries }: { entries: FieldEntry[] | null }) {
           <span className="w-9 shrink-0 text-[13px] tabular-nums text-[var(--mx-text-3)]">
             {e.position ?? i + 1}
           </span>
-          <Face p={{ id: null, name: e.name, position: null, jersey: null, headshot: e.headshot, starter: false }} size={30} />
+          <Face p={{ id: null, name: e.name, position: null, jersey: null, headshot: e.headshot, starter: false, stats: null }} size={30} />
           <span className="min-w-0 flex-1">
             <span className="block text-[14px] truncate">{e.name}</span>
             {e.country && <span className="block text-[12px] text-[var(--mx-text-3)]">{e.country}</span>}
@@ -242,7 +330,7 @@ function Card({ bouts }: { bouts: Bout[] | null }) {
           <div className="mt-2 space-y-2">
             {b.fighters.map((f, j) => (
               <div key={j} className="flex items-center gap-3">
-                <Face p={{ id: null, name: f.name, position: null, jersey: null, headshot: f.headshot, starter: false }} size={34} />
+                <Face p={{ id: null, name: f.name, position: null, jersey: null, headshot: f.headshot, starter: false, stats: null }} size={34} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-[14.5px] truncate">{f.name}</span>
                   {f.record && <span className="block text-[12px] text-[var(--mx-text-3)]">{f.record}</span>}
@@ -388,6 +476,8 @@ function Detail({ d }: { d: GameDetail }) {
         {sides.map(t => <TeamHeading key={t.homeAway} t={t} />)}
       </section>
 
+      <TeamStatsTable home={d.home} away={d.away} />
+
       <Section title={
         d.home.lineupKind === "appeared" || d.away.lineupKind === "appeared" ? "Who played"
         : d.home.lineup || d.away.lineup ? "Who starts"
@@ -474,7 +564,7 @@ function Detail({ d }: { d: GameDetail }) {
                 <ul className="space-y-2">
                   {t.injuries.map((inj, i) => (
                     <li key={`${inj.name}-${i}`} className="flex items-center gap-3">
-                      <Face p={{ id: null, name: inj.name, position: inj.position, jersey: null, headshot: inj.headshot, starter: false }} size={30} />
+                      <Face p={{ id: null, name: inj.name, position: inj.position, jersey: null, headshot: inj.headshot, starter: false, stats: null }} size={30} />
                       <span className="min-w-0">
                         <span className="block text-[13.5px] truncate">{inj.name}</span>
                         <span className="block text-[12.5px] text-[var(--mx-text-3)]">
