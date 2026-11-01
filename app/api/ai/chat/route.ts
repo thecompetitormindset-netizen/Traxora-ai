@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { auth } from "@/auth";
 import { redactSecrets } from "./redact";
+import { modelsFor, looksLikeBadModel, type ProviderName } from "@/app/lib/chatModels";
 import {
   firstReply, NoProviderConfigured, AllProvidersFailed, type Provider,
 } from "@/app/lib/chatProviders";
@@ -93,6 +94,32 @@ async function callOpenAICompat(url: string, key: string, model: string, message
 
 type ChatProvider = Provider<Msg[]>;
 
+/**
+ * Try each candidate model until one is not rejected for being the wrong name.
+ *
+ * Only a "no such model" error moves on. A rate limit or an outage means the
+ * name was fine, and retrying three more names against a 429 would turn one
+ * refusal into four — the fastest way to exhaust a free tier.
+ */
+async function withModelFallback(
+  provider: ProviderName,
+  call: (model: string) => Promise<string>,
+): Promise<string> {
+  const models = modelsFor(provider);
+  let lastError: unknown;
+  for (const model of models) {
+    try {
+      return await call(model);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (!looksLikeBadModel(message)) throw err;
+      console.warn(`[chat] ${provider}: ${model} rejected — ${message.slice(0, 120)}`);
+      lastError = err;
+    }
+  }
+  throw lastError ?? new Error(`${provider}: no model accepted`);
+}
+
 function providers(): ChatProvider[] {
   const out: ChatProvider[] = [];
   const geminiKey    = process.env.GEMINI_API_KEY;
@@ -102,35 +129,35 @@ function providers(): ChatProvider[] {
 
   if (geminiKey) out.push({
     name: "gemini",
-    run: m => callOpenAICompat(
+    run: m => withModelFallback("gemini", model => callOpenAICompat(
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
-      geminiKey, "gemini-2.0-flash", m),
+      geminiKey, model, m)),
   });
 
   if (anthropicKey) out.push({
     name: "anthropic",
-    run: async m => {
+    run: m => withModelFallback("anthropic", async model => {
       const client = new Anthropic({ apiKey: anthropicKey });
       const res = await client.messages.create({
-        model: "claude-haiku-4-5-20251001", max_tokens: 1024, system: SYSTEM_PROMPT, messages: m,
+        model, max_tokens: 1024, system: SYSTEM_PROMPT, messages: m,
       });
       return res.content
         .filter(b => b.type === "text")
         .map(b => (b as { type: "text"; text: string }).text)
         .join("");
-    },
+    }),
   });
 
   if (groqKey) out.push({
     name: "groq",
-    run: m => callOpenAICompat(
-      "https://api.groq.com/openai/v1/chat/completions", groqKey, "llama-3.3-70b-versatile", m),
+    run: m => withModelFallback("groq", model => callOpenAICompat(
+      "https://api.groq.com/openai/v1/chat/completions", groqKey, model, m)),
   });
 
   if (deepseekKey) out.push({
     name: "deepseek",
-    run: m => callOpenAICompat(
-      "https://api.deepseek.com/v1/chat/completions", deepseekKey, "deepseek-chat", m),
+    run: m => withModelFallback("deepseek", model => callOpenAICompat(
+      "https://api.deepseek.com/v1/chat/completions", deepseekKey, model, m)),
   });
 
   return out;
