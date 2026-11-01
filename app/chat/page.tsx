@@ -119,6 +119,9 @@ export default function ChatPage() {
   const [input,    setInput]        = useState("");
   const [loading,  setLoading]      = useState(false);
   const [error,    setError]        = useState("");
+  // What each provider actually said. The route sends this only to the owner,
+  // so for everyone else it stays null and the panel reads as it always did.
+  const [detail,   setDetail]       = useState<string[] | null>(null);
   const bottomRef  = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
 
@@ -161,8 +164,15 @@ export default function ChatPage() {
           messages: next.map(m => ({ role: m.role, content: m.content })),
         }),
       });
-      const data = await res.json() as { ok: boolean; text?: string; error?: string };
-      if (!data.ok || !data.text) throw new Error(data.error ?? "Failed");
+      const data = await res.json() as { ok: boolean; text?: string; error?: string; attempts?: string[] };
+      if (!data.ok || !data.text) {
+        // The route sends `attempts` only to the owner: what each provider
+        // actually said. Kept beside the friendly message rather than
+        // replacing it, so the page reads the same for everyone else.
+        setDetail(data.attempts ?? null);
+        throw new Error(data.error ?? "Failed");
+      }
+      setDetail(null);
 
       // eslint-disable-next-line react-hooks/purity -- timestamps the reply as it arrives; this runs after an await, not during render
       const aiMsg: Message = { role: "assistant", content: data.text, ts: Date.now() };
@@ -242,8 +252,17 @@ export default function ChatPage() {
               {error && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-rose-500/8 border border-rose-500/20 rounded-2xl">
                   <span className="text-rose-400 text-sm shrink-0"><Glyph e="⚠" /></span>
-                  <p className="text-xs text-rose-300">{error}</p>
-                  <button type="button" onClick={() => setError("")}
+                  <div className="min-w-0">
+                    <p className="text-xs text-rose-300">{error}</p>
+                    {detail && detail.length > 0 && (
+                      <ul className="mt-1.5 space-y-0.5">
+                        {detail.map((d, i) => (
+                          <li key={i} className="text-[11px] font-mono text-rose-300/70 break-all">{d}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => { setError(""); setDetail(null); }}
                     className="ml-auto text-rose-400 hover:text-rose-300 transition text-sm shrink-0">✕</button>
                 </div>
               )}

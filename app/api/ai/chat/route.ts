@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { checkRateLimit } from "@/app/lib/rateLimit";
 import { auth } from "@/auth";
+import { redactSecrets } from "./redact";
 import {
   firstReply, NoProviderConfigured, AllProvidersFailed, type Provider,
 } from "@/app/lib/chatProviders";
@@ -45,6 +46,8 @@ Rules:
 
 `;
 
+
+const OWNER_EMAIL = process.env.OWNER_EMAIL ?? "thecompetitormindset@gmail.com";
 
 const MAX_MESSAGES   = 20;
 const MAX_MSG_LENGTH = 2000;
@@ -172,6 +175,9 @@ export async function POST(req: Request) {
         reason: "not_configured",
         retryable: false,
         error: "Ask AI isn’t switched on for this site yet — it needs an AI provider key. Nothing you did caused this, and trying again won’t help.",
+        ...(session.user.email === OWNER_EMAIL
+          ? { attempts: ["Set one of GEMINI_API_KEY, ANTHROPIC_API_KEY, GROQ_API_KEY or DEEPSEEK_API_KEY in the deployment, then redeploy."] }
+          : {}),
       }, { status: 503 });
     }
 
@@ -180,11 +186,17 @@ export async function POST(req: Request) {
       // they can carry upstream detail that does not belong on a user's
       // screen.
       console.error("Chat API: every provider failed —", err.attempts.join(" | "));
+      // The owner gets the real reason. "It usually clears in a moment" is the
+      // right thing to tell a reader and useless to whoever has to fix it —
+      // an expired key and a rate limit read identically from the outside,
+      // and the difference was buried in a log nobody was going to open.
+      const isOwner = session.user.email === OWNER_EMAIL;
       return Response.json({
         ok: false,
         reason: "providers_unavailable",
         retryable: true,
         error: "The AI service didn’t answer just now. It usually clears in a moment — try again.",
+        ...(isOwner ? { attempts: err.attempts.map(a => redactSecrets(a).slice(0, 200)) } : {}),
       }, { status: 502 });
     }
 

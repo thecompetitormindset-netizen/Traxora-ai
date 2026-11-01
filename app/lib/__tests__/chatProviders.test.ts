@@ -97,3 +97,29 @@ describe("falling back between providers", () => {
     expect(await firstReply([ok("a", "  spaced  ")], null)).toBe("spaced");
   });
 });
+
+describe("the diagnostic the owner sees", () => {
+  // "It usually clears in a moment" is the right thing to tell a reader and
+  // useless to whoever has to fix it: an expired key and a rate limit read
+  // identically from outside. The owner gets what each provider said — but a
+  // diagnostic that leaks the thing it is diagnosing is worse than none.
+  it("removes a key quoted back by a provider's error", async () => {
+    const { redactSecrets } = await import("@/app/api/ai/chat/redact");
+    expect(redactSecrets("401 invalid api_key: AIzaSyD9fakefakefakefake123"))
+      .not.toContain("AIzaSyD9fakefakefakefake123");
+    expect(redactSecrets("Authorization: Bearer sk-abcdefghijklmnop1234567890"))
+      .not.toContain("sk-abcdefghijklmnop1234567890");
+    expect(redactSecrets("key=gsk_abcdefghijklmnopqrstuvwx")).not.toContain("gsk_abcdefghijklmnopqrstuvwx");
+  });
+
+  it("leaves an ordinary error message readable", async () => {
+    const { redactSecrets } = await import("@/app/api/ai/chat/redact");
+    const msg = "gemini (429: You exceeded your current quota)";
+    expect(redactSecrets(msg)).toBe(msg);
+  });
+
+  it("keeps the status code, which is the useful part", async () => {
+    const { redactSecrets } = await import("@/app/api/ai/chat/redact");
+    expect(redactSecrets("anthropic (404: model not found)")).toContain("404");
+  });
+});
